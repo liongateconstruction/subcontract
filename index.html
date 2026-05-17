@@ -140,6 +140,11 @@
     .fcanc{width:100%;background:transparent;color:var(--mut);border:1px solid var(--brd);font-family:var(--fm);font-size:12px;padding:10px;border-radius:10px;cursor:pointer;margin-top:6px}
     .fedit{background:transparent;border:1px solid var(--brd);color:var(--mut);border-radius:6px;padding:4px 10px;font-size:10px;cursor:pointer;font-family:var(--fm)}
     @media(min-width:600px){.kg{grid-template-columns:repeat(3,1fr)}}
+    @media print{
+      #app,nav,.fab,#report-modal>div:first-child{display:none!important}
+      #report-modal{position:static!important;padding:0!important}
+      #report-content{display:block!important}
+    }
   </style>
 </head>
 <body>
@@ -160,7 +165,7 @@
     <div class="hrgt">
       <span id="sync-status" style="font-size:9px;color:var(--green);margin-right:4px"></span>
       <span class="rpill" id="rpill"></span>
-      <button class="hout" onclick="exportExcel()" style="background:transparent;border:1px solid var(--green);color:var(--green);font-size:10px;padding:5px 8px;border-radius:6px;cursor:pointer;font-family:var(--fm)">↓ Excel</button>
+      <button class="hout" onclick="showReport()" style="background:transparent;border:1px solid var(--green);color:var(--green);font-size:10px;padding:5px 8px;border-radius:6px;cursor:pointer;font-family:var(--fm)">📋 Отчёт</button>
       <button class="hout" onclick="doLogout()">Выйти</button>
     </div>
   </header>
@@ -175,6 +180,18 @@
     <button class="nb"        onclick="setTab('journal')"  id="tab-journal"> <span class="ic">≡</span><span>Журнал</span></button>
   </nav>
 </div>
+<!-- REPORT MODAL -->
+<div id="report-modal" style="display:none;position:fixed;inset:0;background:#fff;z-index:500;overflow-y:auto;padding:16px">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;position:sticky;top:0;background:#fff;padding:8px 0;border-bottom:2px solid #f0a500">
+    <div style="font-size:20px;font-weight:700;color:#f0a500">LIONGATE — Отчёт</div>
+    <div style="display:flex;gap:8px">
+      <button onclick="window.print()" style="background:#f0a500;color:#fff;border:none;padding:8px 14px;border-radius:6px;font-size:12px;cursor:pointer">🖨 PDF</button>
+      <button onclick="document.getElementById('report-modal').style.display='none'" style="background:#eee;color:#333;border:none;padding:8px 14px;border-radius:6px;font-size:12px;cursor:pointer">✕ Закрыть</button>
+    </div>
+  </div>
+  <div id="report-content"></div>
+</div>
+
 <div class="mbg" id="modal" style="display:none" onclick="if(event.target===this)closeModal()">
   <div class="mbox"><div class="mhandle"></div><div class="mtit" id="mtit">НОВАЯ ЗАПИСЬ</div><div id="mbody"></div></div>
 </div>
@@ -939,7 +956,10 @@ function delEntry(id){
   save();render();
 }
 
-// ═══ ЭКСПОРТ / ОТЧЁТ ═══
+// ═══ ОТЧЁТ ═══
+function showReport(){
+  exportExcel();
+}
 function exportExcel(){
   var C=calcCompany();
   var pod=calcPodotchet();
@@ -1043,17 +1063,17 @@ function exportExcel(){
     '</div>'+
     '</body></html>';
 
-  // Open in new window/tab
-  var w=window.open('','_blank');
-  if(w){
-    w.document.write(report);
-    w.document.close();
-  } else {
-    // Fallback: blob URL
-    var blob=new Blob([report],{type:'text/html'});
-    var url=URL.createObjectURL(blob);
-    window.location.href=url;
-  }
+  // Show in modal overlay - works on all devices including iOS Safari
+  var modal=document.getElementById('report-modal');
+  var content=document.getElementById('report-content');
+  // Extract just the body content from report
+  var bodyMatch=report.match(/<body[^>]*>([\s\S]*)<\/body>/);
+  var bodyContent=bodyMatch?bodyMatch[1]:report;
+  // Remove the print button from body since we have it in header
+  bodyContent=bodyContent.replace(/<div style="text-align:center[^<]*<button[^<]*print[^<]*>[^<]*<\/button>\s*<\/div>/,'');
+  content.innerHTML=bodyContent;
+  modal.style.display='block';
+  modal.scrollTop=0;
 }
 
 function fmtR(n){return new Intl.NumberFormat('ru').format(Math.abs(Math.round(n||0)));}
