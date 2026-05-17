@@ -1053,9 +1053,17 @@ function exportExcel(){
   ws5['!cols']=[{wch:12},{wch:18},{wch:36},{wch:14},{wch:14},{wch:14}];
   XLSX.utils.book_append_sheet(wb,ws5,'Движение денег');
 
-  // Сохранить файл
+  // Сохранить файл — iOS совместимо
   var date=new Date().toISOString().slice(0,10);
-  XLSX.writeFile(wb,'LIONGATE_'+date+'.xlsx');
+  var wbout=XLSX.write(wb,{bookType:'xlsx',type:'array'});
+  var blob=new Blob([wbout],{type:'application/octet-stream'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');
+  a.href=url;
+  a.download='LIONGATE_'+date+'.xlsx';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(url);},1000);
 }
 
 // INIT
