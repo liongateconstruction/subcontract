@@ -157,7 +157,11 @@
 <div id="app" style="display:none">
   <header>
     <div><div class="hlog">LIONGATE</div><div class="hsub">ЖК «Алгабас» · Sensata Group</div></div>
-    <div class="hrgt"><span class="rpill" id="rpill"></span><button class="hout" onclick="doLogout()">Выйти</button></div>
+    <div class="hrgt">
+      <span id="sync-status" style="font-size:9px;color:var(--green);margin-right:4px"></span>
+      <span class="rpill" id="rpill"></span>
+      <button class="hout" onclick="doLogout()">Выйти</button>
+    </div>
   </header>
   <div class="content" id="content"></div>
   <button class="fab" id="fab" onclick="openModal()">+</button>
@@ -185,7 +189,8 @@ function showApp(){
   var rp=document.getElementById('rpill'),fab=document.getElementById('fab');
   if(role==='editor'){rp.textContent='Редактор';rp.className='rpill re';fab.style.display='flex';}
   else{rp.textContent='Просмотр';rp.className='rpill rv';fab.style.display='none';}
-  render();
+  // Load from cloud then render
+  loadFromCloud(function(){render();});
 }
 
 const PARTNERS=['Дмитрий','Бекжан','Евгений','Нурсултан','Сергей'];
@@ -231,8 +236,65 @@ function defaultState(){
   };
 }
 
-function loadState(){try{var s=localStorage.getItem('lg_v1');return s?JSON.parse(s):defaultState();}catch(e){return defaultState();}}
-function save(){try{localStorage.setItem('lg_v1',JSON.stringify(state));}catch(e){}}
+// ── CLOUD SYNC via JSONbin ──
+var API_KEY='$2a$10$GBjOzIGzwTDlm4AZ4NkFS.nQXesYbuM/MNy2EYw4JV/QrDHiZG31m';
+var BIN_ID='6a0a38b9c0954111d83ac9f8';
+var BIN_URL='https://api.jsonbin.io/v3/b/'+BIN_ID;
+var syncTimer=null;
+
+function loadState(){
+  try{var s=localStorage.getItem('lg_v1');return s?JSON.parse(s):defaultState();}
+  catch(e){return defaultState();}
+}
+
+function save(){
+  try{localStorage.setItem('lg_v1',JSON.stringify(state));}catch(e){}
+  if(syncTimer)clearTimeout(syncTimer);
+  syncTimer=setTimeout(function(){saveToCloud();},1500);
+}
+
+function saveToCloud(){
+  var data={entries:state.entries,brigades:state.brigades};
+  fetch(BIN_URL,{
+    method:'PUT',
+    headers:{'Content-Type':'application/json','X-Master-Key':API_KEY,'X-Bin-Versioning':'false'},
+    body:JSON.stringify(data)
+  }).then(function(){
+    showSyncStatus('✅ Сохранено',false);
+  }).catch(function(){
+    showSyncStatus('⚠️ Офлайн',true);
+  });
+}
+
+function loadFromCloud(callback){
+  showSyncStatus('🔄...',false);
+  fetch(BIN_URL,{headers:{'X-Master-Key':API_KEY}})
+  .then(function(r){return r.json();})
+  .then(function(data){
+    if(data&&data.record&&data.record.entries&&data.record.entries.length>0){
+      state.entries=data.record.entries;
+      if(data.record.brigades&&data.record.brigades.length>0)state.brigades=data.record.brigades;
+      try{localStorage.setItem('lg_v1',JSON.stringify(state));}catch(e){}
+      showSyncStatus('✅ Синхронизировано',false);
+    } else {
+      if(state.entries.length>0)saveToCloud();
+      showSyncStatus('✅ OK',false);
+    }
+    if(callback)callback();
+  }).catch(function(){
+    showSyncStatus('⚠️ Офлайн',true);
+    if(callback)callback();
+  });
+}
+
+function showSyncStatus(msg,isError){
+  var el=document.getElementById('sync-status');
+  if(!el)return;
+  el.textContent=msg;
+  el.style.color=isError?'var(--red)':'var(--green)';
+  setTimeout(function(){if(el)el.textContent='';},3000);
+}
+
 var state=loadState();
 var currentTab='main';
 
@@ -879,6 +941,13 @@ function delEntry(id){
 // INIT
 var sr=sessionStorage.getItem('role');if(sr){role=sr;showApp();}
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(function(){});
+
+// Auto-refresh from cloud every 30 seconds
+setInterval(function(){
+  if(role){
+    loadFromCloud(function(){render();});
+  }
+},30000);
 </script>
 </body>
 </html>
