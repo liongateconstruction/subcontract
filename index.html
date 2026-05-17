@@ -37,7 +37,6 @@
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet"/>
   <title>LIONGATE</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <style>
     :root{
       --bg:#0d1117;--sur:#161b22;--s2:#1c2333;--brd:#30363d;
@@ -940,131 +939,124 @@ function delEntry(id){
   save();render();
 }
 
-// ═══ ЭКСПОРТ В EXCEL ═══
+// ═══ ЭКСПОРТ / ОТЧЁТ ═══
 function exportExcel(){
-  if(typeof XLSX==='undefined'){alert('Загрузка библиотеки... попробуйте ещё раз');return;}
-  var wb=XLSX.utils.book_new();
   var C=calcCompany();
   var pod=calcPodotchet();
+  var date=new Date().toLocaleDateString('ru-RU');
 
-  // ── Лист 1: Все операции ──
-  var ops=[['Дата','Тип','Объект','Категория','Кто','Сумма (₸)','Примечание']];
-  var sorted=[].concat(state.entries).sort(function(a,b){return a.date.localeCompare(b.date);});
-  sorted.forEach(function(e){
-    ops.push([
-      e.date,
-      LBL_M[e.type]||e.type,
-      e.obj&&e.obj!=='-'?e.obj:'—',
-      e.cat||e.cat||'—',
-      e.who||(e.to?e.who+'→'+e.to:'')||'—',
-      e.amount,
-      e.note||''
-    ]);
-  });
-  var ws1=XLSX.utils.aoa_to_sheet(ops);
-  ws1['!cols']=[{wch:12},{wch:18},{wch:28},{wch:24},{wch:20},{wch:14},{wch:32}];
-  XLSX.utils.book_append_sheet(wb,ws1,'Все операции');
-
-  // ── Лист 2: P&L ──
-  var pl=[
-    ['P&L — LIONGATE Construction'],
-    [''],
-    ['ПОКАЗАТЕЛЬ','СУММА (₸)'],
-    ['Доходы от заказчика', C.income],
-    ['Расходы компании', C.expense],
-    ['Прибыль / убыток', C.profit],
-    [''],
-    ['Вложено Дмитрием', C.invested],
-    ['Возвращено Дмитрию', C.returned],
-    ['Осталось вернуть', C.owedToDmitry],
-    [''],
-    ['Делится между партнёрами', C.toShare],
-    ['Доля каждого (1/5)', C.shareEach],
-  ];
   // Расходы по категориям
-  pl.push([''],['РАСХОДЫ ПО КАТЕГОРИЯМ','']);
   var catMap={};
   state.entries.filter(function(e){return e.type==='expense';}).forEach(function(e){catMap[e.cat]=(catMap[e.cat]||0)+e.amount;});
-  Object.entries(catMap).sort(function(a,b){return b[1]-a[1];}).forEach(function(cv){
-    pl.push([cv[0],cv[1]]);
-  });
-  var ws2=XLSX.utils.aoa_to_sheet(pl);
-  ws2['!cols']=[{wch:32},{wch:18}];
-  XLSX.utils.book_append_sheet(wb,ws2,'P&L');
+  var catsHTML=Object.entries(catMap).sort(function(a,b){return b[1]-a[1];}).map(function(cv){
+    return '<tr><td>'+cv[0]+'</td><td style="text-align:right">'+fmtR(cv[1])+'</td></tr>';
+  }).join('');
 
-  // ── Лист 3: Партнёры ──
-  var partners=[
-    ['ПАРТНЁРЫ — РАСЧЁТ'],
-    [''],
-    ['Партнёр','Вложил (₸)','Взял лично (₸)','На руках (₸)','Долг в кассу (₸)','Доля прибыли (₸)','К получению (₸)'],
-  ];
-  PARTNERS.forEach(function(p,i){
+  // Партнёры
+  var partnersHTML=PARTNERS.map(function(p,i){
     var P=calcPartner(p);
-    var podP=pod.find(function(x){return x.name===p;})||{given:0,spent:0,personal:0,repaid:0,onHand:0};
+    var podP=pod.find(function(x){return x.name===p;})||{onHand:0};
     var mustReturn=P.personal+Math.max(podP.onHand,0);
     var totalGet=C.shareEach+(P.invested-P.returned)-mustReturn;
-    partners.push([
-      p,
-      P.invested,
-      P.personal,
-      Math.max(podP.onHand,0),
-      mustReturn,
-      C.shareEach,
-      totalGet
-    ]);
-  });
-  var ws3=XLSX.utils.aoa_to_sheet(partners);
-  ws3['!cols']=[{wch:14},{wch:14},{wch:16},{wch:14},{wch:16},{wch:16},{wch:16}];
-  XLSX.utils.book_append_sheet(wb,ws3,'Партнёры');
+    return '<tr>'+
+      '<td><b style="color:'+PC[i]+'">'+p+'</b></td>'+
+      '<td style="text-align:right">'+fmtR(P.invested)+'</td>'+
+      '<td style="text-align:right">'+fmtR(P.personal)+'</td>'+
+      '<td style="text-align:right">'+fmtR(Math.max(podP.onHand,0))+'</td>'+
+      '<td style="text-align:right;color:'+(totalGet>=0?'green':'red')+'"><b>'+fmtR(Math.abs(totalGet))+(totalGet>=0?' ↑':' ↓')+'</b></td>'+
+    '</tr>';
+  }).join('');
 
-  // ── Лист 4: Бригады ──
-  var brig=[['БРИГАДЫ'],[''],['Бригада','Специализация','Объём (м³)','Начислено (₸)','Выплачено (₸)','Остаток (₸)']];
-  state.brigades.forEach(function(b){
+  // Бригады
+  var brigHTML=state.brigades.map(function(b){
     var B=calcBrigade(b);
-    brig.push([b.name,b.spec,B.totalVol,B.totalEarned,B.paid,B.balance]);
-  });
-  brig.push([''],['ДЕТАЛИ ОБЪЁМОВ','','','','','']);
-  brig.push(['Дата','Бригада','Пятно/зона','Объём (м³)','Расценка (₸/м³)','Начислено (₸)']);
-  state.entries.filter(function(e){return e.type==='vol';}).sort(function(a,b){return a.date.localeCompare(b.date);}).forEach(function(e){
-    brig.push([e.date,brigName(e.brigade),e.zone||'—',e.volume||0,e.rate||0,e.amount]);
-  });
-  var ws4=XLSX.utils.aoa_to_sheet(brig);
-  ws4['!cols']=[{wch:18},{wch:16},{wch:16},{wch:14},{wch:16},{wch:14}];
-  XLSX.utils.book_append_sheet(wb,ws4,'Бригады');
+    return '<tr>'+
+      '<td><b>'+b.name+'</b><br><small>'+b.spec+'</small></td>'+
+      '<td style="text-align:right">'+fmtR(B.totalVol)+' м³</td>'+
+      '<td style="text-align:right">'+fmtR(B.totalEarned)+'</td>'+
+      '<td style="text-align:right">'+fmtR(B.paid)+'</td>'+
+      '<td style="text-align:right;color:'+(B.balance>0?'red':'green')+'"><b>'+fmtR(B.balance)+'</b></td>'+
+    '</tr>';
+  }).join('');
 
-  // ── Лист 5: Движение денег ──
-  var cf=[['ДВИЖЕНИЕ ДЕНЕГ'],[''],['Дата','Тип','Описание','Приход (₸)','Расход (₸)','Остаток (₸)']];
-  var run=0;
-  [].concat(state.entries).filter(function(e){return e.type!=='vol';})
-    .sort(function(a,b){return a.date.localeCompare(b.date);})
-    .forEach(function(e){
-      var sign=(e.type==='income'||e.type==='invest'||e.type==='repay')?1:-1;
-      run+=sign*e.amount;
-      cf.push([
-        e.date,
-        LBL_M[e.type]||e.type,
-        descOf(e),
-        sign>0?e.amount:'',
-        sign<0?e.amount:'',
-        run
-      ]);
-    });
-  var ws5=XLSX.utils.aoa_to_sheet(cf);
-  ws5['!cols']=[{wch:12},{wch:18},{wch:36},{wch:14},{wch:14},{wch:14}];
-  XLSX.utils.book_append_sheet(wb,ws5,'Движение денег');
+  // Последние 20 операций
+  var opsHTML=[].concat(state.entries).sort(function(a,b){return b.date.localeCompare(a.date);}).slice(0,30).map(function(e){
+    var sign=(e.type==='income'||e.type==='invest'||e.type==='repay')?1:-1;
+    return '<tr>'+
+      '<td>'+e.date+'</td>'+
+      '<td>'+( LBL_M[e.type]||e.type)+'</td>'+
+      '<td>'+descOf(e)+'</td>'+
+      '<td style="text-align:right;color:'+(sign>0?'green':'red')+'"><b>'+(sign>0?'+':'-')+fmtR(e.amount)+'</b></td>'+
+    '</tr>';
+  }).join('');
 
-  // Сохранить файл — iOS совместимо
-  var date=new Date().toISOString().slice(0,10);
-  var wbout=XLSX.write(wb,{bookType:'xlsx',type:'array'});
-  var blob=new Blob([wbout],{type:'application/octet-stream'});
-  var url=URL.createObjectURL(blob);
-  var a=document.createElement('a');
-  a.href=url;
-  a.download='LIONGATE_'+date+'.xlsx';
-  document.body.appendChild(a);
-  a.click();
-  setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(url);},1000);
+  var report='<!DOCTYPE html><html><head><meta charset="UTF-8"/>'+
+    '<meta name="viewport" content="width=device-width,initial-scale=1"/>'+
+    '<title>LIONGATE — Отчёт '+date+'</title>'+
+    '<style>'+
+      'body{font-family:Arial,sans-serif;padding:16px;font-size:13px;color:#222;max-width:800px;margin:0 auto}'+
+      'h1{color:#f0a500;font-size:22px;margin-bottom:4px}'+
+      'h2{font-size:15px;color:#333;margin:20px 0 8px;border-bottom:2px solid #f0a500;padding-bottom:4px}'+
+      'table{width:100%;border-collapse:collapse;margin-bottom:12px}'+
+      'th{background:#1a1f2e;color:#f0a500;padding:7px 10px;text-align:left;font-size:11px}'+
+      'td{padding:7px 10px;border-bottom:1px solid #eee;font-size:12px}'+
+      'tr:nth-child(even)td{background:#f9f9f9}'+
+      '.kpi{display:inline-block;background:#f5f5f5;border-left:3px solid #f0a500;padding:8px 14px;margin:4px;border-radius:4px;min-width:140px}'+
+      '.kpi-label{font-size:10px;color:#888;text-transform:uppercase}'+
+      '.kpi-value{font-size:18px;font-weight:bold}'+
+      '.green{color:green}.red{color:red}.gold{color:#f0a500}'+
+      '@media print{button{display:none}}'+
+    '</style></head><body>'+
+    '<h1>LIONGATE</h1>'+
+    '<p style="color:#888;font-size:11px">LionGate Construction · ЖК «Алгабас» · Отчёт от '+date+'</p>'+
+
+    '<div style="margin:12px 0">'+
+      '<div class="kpi"><div class="kpi-label">Доходы</div><div class="kpi-value green">'+fmtR(C.income)+' ₸</div></div>'+
+      '<div class="kpi"><div class="kpi-label">Расходы</div><div class="kpi-value red">'+fmtR(C.expense)+' ₸</div></div>'+
+      '<div class="kpi"><div class="kpi-label">Прибыль</div><div class="kpi-value '+(C.profit>=0?'green':'red')+'">'+fmtR(C.profit)+' ₸</div></div>'+
+      '<div class="kpi"><div class="kpi-label">Вложил Дмитрий</div><div class="kpi-value" style="color:#388bfd">'+fmtR(C.invested)+' ₸</div></div>'+
+      '<div class="kpi"><div class="kpi-label">Вернуть Дмитрию</div><div class="kpi-value" style="color:#388bfd">'+fmtR(C.owedToDmitry)+' ₸</div></div>'+
+      '<div class="kpi"><div class="kpi-label">Доля каждого</div><div class="kpi-value gold">'+fmtR(C.shareEach)+' ₸</div></div>'+
+    '</div>'+
+
+    '<h2>Расходы по статьям</h2>'+
+    '<table><tr><th>Статья</th><th style="text-align:right">Сумма (₸)</th></tr>'+catsHTML+'</table>'+
+
+    '<h2>Партнёры</h2>'+
+    '<table><tr><th>Партнёр</th><th style="text-align:right">Вложил</th><th style="text-align:right">Взял лично</th><th style="text-align:right">На руках</th><th style="text-align:right">Итог</th></tr>'+
+    partnersHTML+'</table>'+
+
+    '<h2>Бригады</h2>'+
+    '<table><tr><th>Бригада</th><th style="text-align:right">Объём</th><th style="text-align:right">Начислено</th><th style="text-align:right">Выплачено</th><th style="text-align:right">Остаток</th></tr>'+
+    brigHTML+'</table>'+
+
+    '<h2>Последние операции (30)</h2>'+
+    '<table><tr><th>Дата</th><th>Тип</th><th>Описание</th><th style="text-align:right">Сумма</th></tr>'+
+    opsHTML+'</table>'+
+
+    '<div style="margin-top:20px;padding:12px;background:#f5f5f5;border-radius:6px;font-size:11px;color:#888;text-align:center">'+
+      'LIONGATE · LionGate Construction · '+date+
+    '</div>'+
+
+    '<div style="text-align:center;margin:16px 0">'+
+      '<button onclick="window.print()" style="background:#f0a500;color:#fff;border:none;padding:12px 28px;border-radius:8px;font-size:15px;cursor:pointer">🖨 Распечатать / Сохранить PDF</button>'+
+    '</div>'+
+    '</body></html>';
+
+  // Open in new window/tab
+  var w=window.open('','_blank');
+  if(w){
+    w.document.write(report);
+    w.document.close();
+  } else {
+    // Fallback: blob URL
+    var blob=new Blob([report],{type:'text/html'});
+    var url=URL.createObjectURL(blob);
+    window.location.href=url;
+  }
 }
+
+function fmtR(n){return new Intl.NumberFormat('ru').format(Math.abs(Math.round(n||0)));}
 
 // INIT
 var sr=sessionStorage.getItem('role');if(sr){role=sr;showApp();}
