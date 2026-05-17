@@ -143,10 +143,11 @@
 <!-- REPORT OVERLAY -->
 <div id="rpt">
   <div id="rpt-bar">
-    <h1>📊 LIONGATE — Отчёт</h1>
-    <div style="display:flex;gap:8px">
-      <button onclick="window.print()" style="background:#f0a500;color:#fff;border:none;padding:8px 14px;border-radius:6px;font-size:13px;cursor:pointer;font-family:sans-serif">🖨 PDF</button>
-      <button onclick="document.getElementById('rpt').style.display='none'" style="background:#eee;color:#333;border:none;padding:8px 14px;border-radius:6px;font-size:13px;cursor:pointer;font-family:sans-serif">✕ Закрыть</button>
+    <h1 style="font-size:16px;color:#f0a500;font-family:sans-serif;margin:0">📊 LIONGATE — Отчёт</h1>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      <button onclick="shareReport()" style="background:#2ea043;color:#fff;border:none;padding:8px 12px;border-radius:6px;font-size:12px;cursor:pointer;font-family:sans-serif">📤 Поделиться</button>
+      <button onclick="printReport()" style="background:#f0a500;color:#fff;border:none;padding:8px 12px;border-radius:6px;font-size:12px;cursor:pointer;font-family:sans-serif">🖨 Печать/PDF</button>
+      <button onclick="document.getElementById('rpt').style.display='none'" style="background:#eee;color:#333;border:none;padding:8px 12px;border-radius:6px;font-size:12px;cursor:pointer;font-family:sans-serif">✕</button>
     </div>
   </div>
   <div id="rpt-body"></div>
@@ -837,6 +838,50 @@ function showReport(){
   document.getElementById('rpt-body').innerHTML=h;
   document.getElementById('rpt').style.display='block';
   document.getElementById('rpt').scrollTop=0;
+}
+
+// Share report as file
+function shareReport(){
+  var content=document.getElementById('rpt-body').innerHTML;
+  var date=new Date().toLocaleDateString('ru-RU');
+  var full='<!DOCTYPE html><html><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>'+
+    '<title>LIONGATE Отчёт '+date+'</title>'+
+    '<style>body{font-family:Arial,sans-serif;font-size:11px;color:#222;padding:16px;max-width:900px;margin:0 auto}'+
+    'table{width:100%;border-collapse:collapse;margin-bottom:12px}'+
+    'th{background:#1a1f2e;color:#f0a500;padding:6px 8px;text-align:left;font-size:10px}'+
+    'td{padding:5px 8px;border-bottom:1px solid #eee;font-size:10px}'+
+    'tr:nth-child(even) td{background:#f9f9f9}'+
+    'h2{font-size:13px;color:#1a1f2e;margin:16px 0 6px;padding-bottom:4px;border-bottom:3px solid #f0a500}'+
+    '@page{margin:10mm}@media print{*{-webkit-print-color-adjust:exact;print-color-adjust:exact}}'+
+    '</style></head><body>'+content+'</body></html>';
+  var blob=new Blob([full],{type:'text/html;charset=utf-8'});
+  // Try Web Share API first (works on mobile)
+  if(navigator.share&&navigator.canShare){
+    var file=new File([blob],'LIONGATE_'+date.replace(/\./g,'-')+'.html',{type:'text/html'});
+    if(navigator.canShare({files:[file]})){
+      navigator.share({files:[file],title:'LIONGATE Отчёт '+date}).catch(function(){printReport();});
+      return;
+    }
+  }
+  // Fallback to print
+  printReport();
+}
+
+function printReport(){
+  var content=document.getElementById('rpt-body').innerHTML;
+  var date=new Date().toLocaleDateString('ru-RU');
+  var pw=window.open('','_blank','width=900,height=700');
+  if(!pw){alert('Разрешите всплывающие окна в браузере');return;}
+  pw.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"/>'+
+    '<title>LIONGATE Отчёт '+date+'</title>'+
+    '<style>body{font-family:Arial,sans-serif;font-size:11px;color:#222;padding:16px}'+
+    'table{width:100%;border-collapse:collapse;margin-bottom:12px}'+
+    'th{background:#1a1f2e;color:#f0a500;padding:6px 8px;text-align:left;font-size:10px}'+
+    'td{padding:5px 8px;border-bottom:1px solid #eee;font-size:10px}'+
+    'h2{font-size:13px;color:#1a1f2e;margin:16px 0 6px;padding-bottom:4px;border-bottom:3px solid #f0a500}'+
+    '@page{margin:10mm}@media print{*{-webkit-print-color-adjust:exact;print-color-adjust:exact}}'+
+    '</style></head><body>'+content+'<script>window.onload=function(){window.print();}<\/script></body></html>');
+  pw.document.close();
 }
 
 // ══════════════════════════════════════════════
