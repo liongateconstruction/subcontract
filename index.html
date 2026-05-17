@@ -636,49 +636,204 @@ function renderJournal(){
 }
 
 // ══════════════════════════════════════════════
-// REPORT
+// REPORT — ПОЛНЫЙ ДЕТАЛЬНЫЙ ОТЧЁТ
 // ══════════════════════════════════════════════
 function showReport(){
   var C=calcCompany();
   var pod=calcPodotchet();
   var date=new Date().toLocaleDateString('ru-RU');
+
+  function row(cells,bold){
+    return '<tr>'+cells.map(function(c,i){
+      return '<td style="padding:6px 8px;border-bottom:1px solid #eee;font-size:11px'+(bold?';font-weight:700':'')+'">'+(c===null||c===undefined?'—':c)+'</td>';
+    }).join('')+'</tr>';
+  }
+  function hrow(cells){
+    return '<tr>'+cells.map(function(c){return '<th style="background:#1a1f2e;color:#f0a500;padding:7px 8px;text-align:left;font-size:11px">'+c+'</th>';}).join('')+'</tr>';
+  }
+  function section(title){
+    return '<h2 style="font-size:15px;color:#1a1f2e;margin:20px 0 8px;padding-bottom:6px;border-bottom:3px solid #f0a500;font-family:Arial,sans-serif">'+title+'</h2>';
+  }
+  function kpi(label,value,color){
+    return '<div style="display:inline-block;background:#f8f9fa;border-left:4px solid '+(color||'#f0a500')+';padding:10px 14px;margin:4px;border-radius:4px;min-width:150px;vertical-align:top">'+
+      '<div style="font-size:9px;color:#888;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">'+label+'</div>'+
+      '<div style="font-size:17px;font-weight:700;color:'+(color||'#f0a500')+'">'+value+'</div>'+
+    '</div>';
+  }
+
   var catMap={};
   state.entries.filter(function(e){return e.type==='expense';}).forEach(function(e){catMap[e.cat]=(catMap[e.cat]||0)+e.amount;});
-  var h='';
-  h+='<div class="rpt-kpis">';
-  h+='<div class="rpt-kpi"><div class="rpt-kpi-l">Доходы</div><div class="rpt-kpi-v" style="color:green">'+fmt(C.income)+' ₸</div></div>';
-  h+='<div class="rpt-kpi"><div class="rpt-kpi-l">Расходы</div><div class="rpt-kpi-v" style="color:red">'+fmt(C.expense)+' ₸</div></div>';
-  h+='<div class="rpt-kpi"><div class="rpt-kpi-l">Прибыль</div><div class="rpt-kpi-v" style="color:'+(C.profit>=0?'green':'red')+'">'+fmt(C.profit)+' ₸</div></div>';
-  h+='<div class="rpt-kpi"><div class="rpt-kpi-l">Вложил Дмитрий</div><div class="rpt-kpi-v" style="color:#388bfd">'+fmt(C.invested)+' ₸</div></div>';
-  h+='<div class="rpt-kpi"><div class="rpt-kpi-l">Вернуть Дмитрию</div><div class="rpt-kpi-v" style="color:#388bfd">'+fmt(C.owedToDmitry)+' ₸</div></div>';
-  h+='<div class="rpt-kpi"><div class="rpt-kpi-l">Доля каждого</div><div class="rpt-kpi-v" style="color:#f0a500">'+fmt(C.shareEach)+' ₸</div></div>';
+
+  var h='<style>body{font-family:Arial,sans-serif;font-size:12px;color:#222;padding:0;margin:0}table{width:100%;border-collapse:collapse}@media print{#rpt-bar{display:none}}</style>';
+
+  // ── 1. ШАПКА ──
+  h+='<div style="background:#1a1f2e;color:#f0a500;padding:16px 20px;margin-bottom:16px">';
+  h+='<div style="font-size:24px;font-weight:700;letter-spacing:2px">LIONGATE</div>';
+  h+='<div style="font-size:11px;color:#aaa;margin-top:2px">LionGate Construction · ЖК «Алгабас», Мкр. Нуркент · Sensata Group</div>';
+  h+='<div style="font-size:11px;color:#aaa;margin-top:2px">Отчёт сформирован: '+date+'</div>';
   h+='</div>';
-  h+='<h2>Расходы по статьям</h2>';
-  h+='<table><tr><th>Статья</th><th style="text-align:right">Сумма (₸)</th></tr>';
-  Object.entries(catMap).sort(function(a,b){return b[1]-a[1];}).forEach(function(cv){h+='<tr><td>'+cv[0]+'</td><td style="text-align:right">'+fmt(cv[1])+'</td></tr>';});
+
+  // ── 2. КЛЮЧЕВЫЕ ПОКАЗАТЕЛИ ──
+  h+=section('1. КЛЮЧЕВЫЕ ПОКАЗАТЕЛИ');
+  h+='<div style="margin-bottom:12px">';
+  h+=kpi('Доходы от заказчика',fmt(C.income)+' ₸','#2ea043');
+  h+=kpi('Расходы компании',fmt(C.expense)+' ₸','#da3633');
+  h+=kpi('Прибыль / убыток',fmt(C.profit)+' ₸',C.profit>=0?'#2ea043':'#da3633');
+  h+=kpi('Вложил Дмитрий',fmt(C.invested)+' ₸','#388bfd');
+  h+=kpi('Вернуть Дмитрию',fmt(C.owedToDmitry)+' ₸','#388bfd');
+  h+=kpi('Доля каждого партнёра',fmt(C.shareEach)+' ₸','#f0a500');
+  h+='</div>';
+
+  // ── 3. P&L ──
+  h+=section('2. P&L — ДОХОДЫ И РАСХОДЫ');
+  h+='<table>'+hrow(['Статья','Тип','Сумма (₸)','% от расходов']);
+  h+=row(['ДОХОДЫ','','',''],true);
+  h+=row(['Доходы от заказчика','Приход',fmt(C.income)+' ₸','100%']);
+  h+=row(['РАСХОДЫ','','',''],true);
+  Object.entries(catMap).sort(function(a,b){return b[1]-a[1];}).forEach(function(cv){
+    h+=row([cv[0],'Расход',fmt(cv[1])+' ₸',C.expense?Math.round(cv[1]/C.expense*100)+'%':'—']);
+  });
+  h+=row(['ИТОГО РАСХОДЫ','',fmt(C.expense)+' ₸','100%'],true);
+  h+=row(['ПРИБЫЛЬ / УБЫТОК','',fmt(C.profit)+' ₸',''],true);
   h+='</table>';
-  h+='<h2>Партнёры</h2>';
-  h+='<table><tr><th>Партнёр</th><th style="text-align:right">Вложил</th><th style="text-align:right">Взял лично</th><th style="text-align:right">На руках</th><th style="text-align:right">Итог</th></tr>';
+
+  // ── 4. ПАРТНЁРЫ ДЕТАЛЬНО ──
+  h+=section('3. ПАРТНЁРЫ — ДЕТАЛЬНЫЙ РАСЧЁТ');
+  h+='<table>'+hrow(['Партнёр','Вложил (₸)','Возвращено (₸)','Ещё вернуть (₸)','Взял лично (₸)','На руках (₸)','Всего долг (₸)','Доля прибыли (₸)','К получению (₸)','Статус']);
   PARTNERS.forEach(function(p,i){
     var P=calcPartner(p);
     var podP=pod.find(function(x){return x.name===p;})||{onHand:0};
     var totalGet=C.shareEach+(P.invested-P.returned)-P.mustReturn;
-    h+='<tr><td><b style="color:'+PC[i]+'">'+p+'</b></td><td style="text-align:right">'+fmt(P.invested)+'</td><td style="text-align:right">'+fmt(P.personal)+'</td><td style="text-align:right">'+fmt(Math.max(podP.onHand,0))+'</td>';
-    h+='<td style="text-align:right;color:'+(totalGet>=0?'green':'red')+'"><b>'+fmt(Math.abs(totalGet))+(totalGet>=0?' ↑':' ↓')+'</b></td></tr>';
+    var status=totalGet>0?'✅ Получит '+fmt(totalGet)+' ₸':totalGet<0?'⚠️ Вернёт '+fmt(Math.abs(totalGet))+' ₸':'✓ Закрыт';
+    h+='<tr>';
+    h+='<td style="padding:6px 8px;border-bottom:1px solid #eee;font-weight:700;color:'+PC[i]+'">'+p+'</td>';
+    h+='<td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;color:#388bfd">'+fmt(P.invested)+'</td>';
+    h+='<td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;color:#2ea043">'+fmt(P.returned)+'</td>';
+    h+='<td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;color:#388bfd">'+fmt(P.invested-P.returned)+'</td>';
+    h+='<td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;color:#8957e5">'+fmt(P.personal)+'</td>';
+    h+='<td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;color:'+(podP.onHand>0?'#da3633':'#2ea043')+'">'+fmt(Math.max(podP.onHand,0))+'</td>';
+    h+='<td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;color:#da3633">'+fmt(P.mustReturn)+'</td>';
+    h+='<td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;color:#f0a500">'+fmt(C.shareEach)+'</td>';
+    h+='<td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;font-weight:700;color:'+(totalGet>=0?'#2ea043':'#da3633')+'">'+fmt(Math.abs(totalGet))+(totalGet>=0?' ↑':' ↓')+'</td>';
+    h+='<td style="padding:6px 8px;border-bottom:1px solid #eee;font-size:10px">'+status+'</td>';
+    h+='</tr>';
   });
   h+='</table>';
-  h+='<h2>Бригады</h2>';
-  h+='<table><tr><th>Бригада</th><th style="text-align:right">Объём</th><th style="text-align:right">Начислено</th><th style="text-align:right">Выплачено</th><th style="text-align:right">Остаток</th></tr>';
-  state.brigades.forEach(function(b){var B=calcBrigade(b);h+='<tr><td><b>'+b.name+'</b><br><small>'+b.spec+'</small></td><td style="text-align:right">'+fmtD(B.totalVol)+' м³</td><td style="text-align:right">'+fmt(B.totalEarned)+'</td><td style="text-align:right">'+fmt(B.paid)+'</td><td style="text-align:right;color:'+(B.balance>0?'red':'green')+'"><b>'+fmt(B.balance)+'</b></td></tr>';});
-  h+='</table>';
-  h+='<h2>Последние 30 операций</h2>';
-  h+='<table><tr><th>Дата</th><th>Тип</th><th>Описание</th><th style="text-align:right">Сумма</th></tr>';
-  [].concat(state.entries).sort(function(a,b){return b.date.localeCompare(a.date);}).slice(0,30).forEach(function(e){
-    var sign=(e.type==='income'||e.type==='invest'||e.type==='repay')?1:-1;
-    h+='<tr><td>'+e.date+'</td><td>'+(LBL[e.type]||e.type)+'</td><td>'+descOf(e)+'</td><td style="text-align:right;color:'+(sign>0?'green':'red')+'"><b>'+(sign>0?'+':'-')+fmt(e.amount)+'</b></td></tr>';
+
+  // ── 5. ПОДОТЧЁТ ──
+  h+=section('4. ПОДОТЧЁТ — КТО СКОЛЬКО ДЕРЖИТ НА РУКАХ');
+  h+='<table>'+hrow(['Сотрудник','Получил наличными (₸)','Потратил на компанию (₸)','Взял лично (₸)','Вернул в кассу (₸)','Остаток на руках (₸)','Статус']);
+  pod.forEach(function(p){
+    var status=p.onHand>0?'⚠️ Должен вернуть '+fmt(p.onHand)+' ₸':p.onHand<0?'↩ Переплата '+fmt(Math.abs(p.onHand))+' ₸':'✅ Чисто';
+    h+='<tr>';
+    h+='<td style="padding:6px 8px;border-bottom:1px solid #eee;font-weight:700;color:'+p.color+'">'+p.name+'</td>';
+    h+='<td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right">'+fmt(p.given)+'</td>';
+    h+='<td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;color:#da3633">'+fmt(p.spent)+'</td>';
+    h+='<td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;color:#8957e5">'+fmt(p.personal)+'</td>';
+    h+='<td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;color:#2ea043">'+fmt(p.repaid)+'</td>';
+    h+='<td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;font-weight:700;color:'+(p.onHand>0?'#da3633':'#2ea043')+'">'+fmt(p.onHand)+'</td>';
+    h+='<td style="padding:6px 8px;border-bottom:1px solid #eee;font-size:10px">'+status+'</td>';
+    h+='</tr>';
   });
   h+='</table>';
-  h+='<p style="text-align:center;color:#aaa;font-size:11px;margin-top:16px">LIONGATE · LionGate Construction · '+date+'</p>';
+
+  // ── 6. БРИГАДЫ ──
+  h+=section('5. БРИГАДЫ — ДЕТАЛЬНЫЙ УЧЁТ');
+  state.brigades.forEach(function(b){
+    var B=calcBrigade(b);
+    h+='<div style="background:#f0faf8;border:1px solid #2dd4bf;border-radius:6px;padding:10px 14px;margin-bottom:8px">';
+    h+='<div style="font-weight:700;font-size:14px;color:#1a1f2e">'+b.name+' <span style="font-size:11px;color:#888;font-weight:400">· '+b.spec+'</span></div>';
+    h+='<div style="display:flex;gap:16px;margin-top:8px;flex-wrap:wrap">';
+    h+='<span style="font-size:11px">Объём: <b>'+fmtD(B.totalVol)+' м³</b></span>';
+    h+='<span style="font-size:11px">Начислено: <b style="color:#f0a500">'+fmt(B.totalEarned)+' ₸</b></span>';
+    h+='<span style="font-size:11px">Выплачено: <b style="color:#2ea043">'+fmt(B.paid)+' ₸</b></span>';
+    h+='<span style="font-size:11px">Остаток: <b style="color:'+(B.balance>0?'#da3633':'#2ea043')+'">'+fmt(B.balance)+' ₸</b></span>';
+    h+='</div></div>';
+    if(B.volEntries.length){
+      h+='<table style="margin-bottom:12px">'+hrow(['Дата','Пятно/зона','Объём (м³)','Расценка (₸/м³)','Начислено (₸)','Примечание']);
+      B.volEntries.sort(function(a,b){return a.date.localeCompare(b.date);}).forEach(function(e){
+        h+=row([e.date,e.zone||'Основной',fmtD(e.volume||0),fmt(e.rate||0),fmt(e.amount),e.note||'—']);
+      });
+      h+='</table>';
+    }
+    var pays=state.entries.filter(function(e){return (e.type==='pay'||e.type==='expense')&&e.brigade===b.id;});
+    if(pays.length){
+      h+='<div style="font-size:11px;color:#888;margin-bottom:4px">Выплаты и авансы:</div>';
+      h+='<table style="margin-bottom:16px">'+hrow(['Дата','Тип','Сумма (₸)','Примечание']);
+      pays.sort(function(a,b){return a.date.localeCompare(b.date);}).forEach(function(e){
+        h+=row([e.date,e.type==='pay'?'💸 Выплата':'💸 Аванс',fmt(e.amount),e.note||'—']);
+      });
+      h+='</table>';
+    }
+  });
+
+  // ── 7. РАСХОДЫ ДЕТАЛЬНО ──
+  h+=section('6. ВСЕ РАСХОДЫ КОМПАНИИ');
+  h+='<table>'+hrow(['Дата','Статья','Кто потратил','Сумма (₸)','Примечание','Бригада']);
+  [].concat(state.entries).filter(function(e){return e.type==='expense';})
+    .sort(function(a,b){return a.date.localeCompare(b.date);})
+    .forEach(function(e){
+      h+=row([e.date,e.cat,e.who,fmt(e.amount),e.note||'—',e.brigade?brigName(e.brigade):'—']);
+    });
+  h+=row(['','','ИТОГО','<b>'+fmt(C.expense)+' ₸</b>','',''],true);
+  h+='</table>';
+
+  // ── 8. ВЛОЖЕНИЯ ПАРТНЁРОВ ──
+  h+=section('7. ВЛОЖЕНИЯ ПАРТНЁРОВ');
+  h+='<table>'+hrow(['Дата','Партнёр','Кому выдал','Сумма (₸)','Примечание']);
+  [].concat(state.entries).filter(function(e){return e.type==='invest';})
+    .sort(function(a,b){return a.date.localeCompare(b.date);})
+    .forEach(function(e){
+      h+=row([e.date,e.who,e.to||'— напрямую',fmt(e.amount),e.note||'—']);
+    });
+  h+=row(['','','ИТОГО','<b>'+fmt(C.invested)+' ₸</b>',''],true);
+  h+='</table>';
+
+  // ── 9. ЛИЧНЫЕ ИЗЪЯТИЯ ──
+  h+=section('8. ЛИЧНЫЕ ИЗЪЯТИЯ ПАРТНЁРОВ');
+  h+='<table>'+hrow(['Дата','Партнёр','Сумма (₸)','Примечание','Статус']);
+  [].concat(state.entries).filter(function(e){return e.type==='personal';})
+    .sort(function(a,b){return a.date.localeCompare(b.date);})
+    .forEach(function(e){
+      h+=row([e.date,e.who,fmt(e.amount),e.note||'—','Долг из доли']);
+    });
+  h+=row(['','ИТОГО','<b>'+fmt(C.personal)+' ₸</b>','',''],true);
+  h+='</table>';
+
+  // ── 10. ДВИЖЕНИЕ ДЕНЕГ ──
+  h+=section('9. ДВИЖЕНИЕ ДЕНЕГ — ПОЛНАЯ ХРОНОЛОГИЯ');
+  h+='<table>'+hrow(['Дата','Тип','Описание','Приход (₸)','Расход (₸)','Остаток (₸)']);
+  var run=0;
+  [].concat(state.entries).filter(function(e){return e.type!=='vol';})
+    .sort(function(a,b){return a.date.localeCompare(b.date);})
+    .forEach(function(e){
+      var sign=(e.type==='income'||e.type==='invest'||e.type==='repay')?1:-1;
+      run+=sign*e.amount;
+      h+='<tr>';
+      h+='<td style="padding:6px 8px;border-bottom:1px solid #eee;font-size:11px">'+e.date+'</td>';
+      h+='<td style="padding:6px 8px;border-bottom:1px solid #eee;font-size:10px">'+(LBL[e.type]||e.type)+'</td>';
+      h+='<td style="padding:6px 8px;border-bottom:1px solid #eee;font-size:11px">'+descOf(e)+'</td>';
+      h+='<td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;color:#2ea043;font-size:11px">'+(sign>0?fmt(e.amount):'')+'</td>';
+      h+='<td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;color:#da3633;font-size:11px">'+(sign<0?fmt(e.amount):'')+'</td>';
+      h+='<td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;font-weight:700;color:'+(run>=0?'#2ea043':'#da3633')+';font-size:11px">'+fmt(run)+'</td>';
+      h+='</tr>';
+    });
+  h+='</table>';
+
+  // ── 11. БАЛАНС ──
+  h+=section('10. БАЛАНС КОМПАНИИ');
+  h+='<table>'+hrow(['Показатель','Сумма (₸)']);
+  h+=row(['Вложения партнёров',fmt(C.invested)+' ₸']);
+  h+=row(['Доходы от заказчика',fmt(C.income)+' ₸']);
+  h+=row(['Расходы компании','−'+fmt(C.expense)+' ₸']);
+  h+=row(['Личные изъятия','−'+fmt(C.personal)+' ₸']);
+  h+=row(['Возвращено партнёрам','−'+fmt(C.returned)+' ₸']);
+  h+=row(['Возвращено в кассу','+'+fmt(C.repaid)+' ₸']);
+  h+=row(['ОСТАТОК В ОБОРОТЕ',fmt(C.invested-C.returned+C.repaid-C.expense+C.income-C.personal)+' ₸'],true);
+  h+='</table>';
+
+  h+='<div style="text-align:center;color:#aaa;font-size:10px;margin-top:24px;padding:12px;background:#f8f9fa;border-radius:4px">LIONGATE · LionGate Construction · Отчёт от '+date+' · Конфиденциально</div>';
+
   document.getElementById('rpt-body').innerHTML=h;
   document.getElementById('rpt').style.display='block';
   document.getElementById('rpt').scrollTop=0;
