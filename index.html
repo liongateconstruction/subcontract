@@ -6,838 +6,854 @@
   <meta name="theme-color" content="#0d1117"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
-  <meta name="apple-mobile-web-app-title" content="Субподряд"/>
-  <meta name="description" content="Управленческий учёт субподрядной компании"/>
-
+  <meta name="apple-mobile-web-app-title" content="LIONGATE"/>
   <link rel="manifest" href="manifest.json"/>
   <link rel="apple-touch-icon" href="icon-192.png"/>
-  <link rel="icon" href="icon-192.png"/>
-
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
-  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@300;400;600;700&display=swap" rel="stylesheet"/>
-
-  <title>СУБПОДРЯД — Учёт</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+  <title>LIONGATE</title>
   <style>
-    :root {
-      --bg:      #0d1117;
-      --surface: #161b22;
-      --surface2:#1c2333;
-      --border:  #30363d;
-      --gold:    #f0a500;
-      --gold-lt: rgba(240,165,0,.12);
-      --green:   #2ea043;
-      --green-lt:rgba(46,160,67,.12);
-      --red:     #da3633;
-      --red-lt:  rgba(218,54,51,.12);
-      --blue:    #388bfd;
-      --blue-lt: rgba(56,139,253,.12);
-      --purple:  #8957e5;
-      --purple-lt:rgba(137,87,229,.12);
-      --text:    #e6edf3;
-      --muted:   #8b949e;
-      --font-display: 'Bebas Neue', sans-serif;
-      --font-mono:    'IBM Plex Mono', monospace;
+    :root{
+      --bg:#0d1117;--sur:#161b22;--s2:#1c2333;--brd:#30363d;
+      --gold:#f0a500;--glt:rgba(240,165,0,.12);
+      --green:#2ea043;--grlt:rgba(46,160,67,.12);
+      --red:#da3633;--rlt:rgba(218,54,51,.12);
+      --blue:#388bfd;--bllt:rgba(56,139,253,.12);
+      --purple:#8957e5;--plt:rgba(137,87,229,.12);
+      --teal:#2dd4bf;--tlt:rgba(45,212,191,.12);
+      --orange:#e8892b;--olt:rgba(232,137,43,.12);
+      --text:#e6edf3;--mut:#8b949e;
+      --fd:'Bebas Neue',sans-serif;--fm:'IBM Plex Mono',monospace;
     }
-    * { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
-    html,body { height:100%; background:var(--bg); color:var(--text); font-family:var(--font-mono); overflow:hidden; }
-
-    /* ── LAYOUT ── */
-    #app { display:flex; flex-direction:column; height:100vh; height:100dvh; }
-
-    /* ── HEADER ── */
-    header {
-      background:var(--surface);
-      border-bottom:1px solid var(--border);
-      padding:12px 16px 10px;
-      display:flex; align-items:center; gap:10px;
-      flex-shrink:0;
-    }
-    .logo { font-family:var(--font-display); font-size:22px; color:var(--gold); letter-spacing:2px; line-height:1; }
-    .logo-sub { font-size:9px; color:var(--muted); letter-spacing:3px; text-transform:uppercase; margin-top:1px; }
-    .header-right { margin-left:auto; display:flex; align-items:center; gap:8px; }
-    .obj-filter {
-      background:var(--surface2); border:1px solid var(--border);
-      color:var(--text); font-family:var(--font-mono); font-size:10px;
-      padding:5px 8px; border-radius:6px; outline:none; max-width:140px;
-    }
-    .btn-add-main {
-      background:var(--gold); color:#0d1117; border:none;
-      font-family:var(--font-display); font-size:16px; letter-spacing:1px;
-      padding:6px 14px; border-radius:6px; cursor:pointer;
-    }
-
-    /* ── CONTENT ── */
-    .content { flex:1; overflow-y:auto; padding:12px 14px 80px; }
-
-    /* ── BOTTOM NAV ── */
-    nav {
-      position:fixed; bottom:0; left:0; right:0;
-      background:var(--surface);
-      border-top:1px solid var(--border);
-      display:flex; z-index:90;
-      padding-bottom:env(safe-area-inset-bottom);
-    }
-    .nav-btn {
-      flex:1; display:flex; flex-direction:column; align-items:center;
-      padding:8px 4px 6px; cursor:pointer; border:none; background:transparent;
-      color:var(--muted); font-family:var(--font-mono); font-size:8px;
-      letter-spacing:1px; text-transform:uppercase; gap:3px; transition:color .15s;
-    }
-    .nav-btn.active { color:var(--gold); }
-    .nav-btn .icon { font-size:18px; line-height:1; }
-    .nav-btn.active .icon { filter:drop-shadow(0 0 4px var(--gold)); }
-
-    /* ── CARDS ── */
-    .card {
-      background:var(--surface); border:1px solid var(--border);
-      border-radius:10px; padding:14px; margin-bottom:10px;
-    }
-    .card-title {
-      font-size:9px; color:var(--muted); letter-spacing:3px;
-      text-transform:uppercase; margin-bottom:10px;
-    }
-
-    /* ── KPI GRID ── */
-    .kpi-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px; }
-    .kpi {
-      background:var(--surface); border-radius:10px; padding:12px;
-      border-left:3px solid var(--gold); position:relative; overflow:hidden;
-    }
-    .kpi-label { font-size:8px; color:var(--muted); letter-spacing:2px; text-transform:uppercase; margin-bottom:4px; }
-    .kpi-value { font-family:var(--font-display); font-size:22px; letter-spacing:1px; line-height:1.1; }
-    .kpi-sub { font-size:9px; color:var(--muted); margin-top:3px; }
-
-    /* ── TABLE ── */
-    .tbl { width:100%; border-collapse:collapse; font-size:11px; }
-    .tbl th {
-      text-align:left; padding:7px 8px; font-size:8px; color:var(--muted);
-      letter-spacing:2px; text-transform:uppercase;
-      border-bottom:1px solid var(--border); font-weight:400;
-    }
-    .tbl td { padding:9px 8px; border-bottom:1px solid #1c2333; vertical-align:middle; }
-    .tbl tr:last-child td { border-bottom:none; }
-
-    /* ── BADGE ── */
-    .badge {
-      display:inline-block; padding:2px 7px; border-radius:4px;
-      font-size:9px; font-weight:700; letter-spacing:1px;
-    }
-
-    /* ── BAR ── */
-    .bar-track { background:var(--surface2); border-radius:2px; height:4px; margin-top:5px; }
-    .bar-fill { border-radius:2px; height:100%; transition:width .4s ease; }
-
-    /* ── PARTNER CARDS ── */
-    .partner-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
-    .partner-card {
-      background:var(--surface); border-radius:10px; padding:12px;
-      border-top:2px solid;
-    }
-    .partner-name { font-family:var(--font-display); font-size:18px; letter-spacing:1px; margin-bottom:8px; }
-    .partner-row { display:flex; justify-content:space-between; font-size:10px; margin-bottom:4px; }
-    .partner-lbl { color:var(--muted); }
-    .partner-divider { border-top:1px solid var(--border); margin:8px 0; }
-
-    /* ── CASHFLOW ── */
-    .cf-row { display:flex; align-items:center; gap:8px; padding:8px 0; border-bottom:1px solid #1c2333; }
-    .cf-icon { font-size:14px; flex-shrink:0; }
-    .cf-body { flex:1; min-width:0; }
-    .cf-desc { font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .cf-meta { font-size:9px; color:var(--muted); margin-top:1px; }
-    .cf-amount { font-size:12px; font-weight:700; flex-shrink:0; }
-    .cf-running { font-size:10px; color:var(--muted); flex-shrink:0; text-align:right; }
-
-    /* ── OBJECT CARD ── */
-    .obj-card { margin-bottom:12px; }
-    .obj-header {
-      background:var(--surface2); border-radius:10px 10px 0 0;
-      padding:12px 14px; border:1px solid var(--border); border-bottom:none;
-    }
-    .obj-name { font-family:var(--font-display); font-size:18px; color:var(--gold); letter-spacing:1px; }
-    .obj-meta { font-size:9px; color:var(--muted); margin-top:2px; }
-    .obj-kpis { display:grid; grid-template-columns:repeat(3,1fr); }
-    .obj-kpi {
-      background:var(--surface); border:1px solid var(--border);
-      border-top:none; padding:10px; text-align:center;
-    }
-    .obj-kpi:first-child { border-radius:0 0 0 10px; }
-    .obj-kpi:last-child  { border-radius:0 0 10px 0; border-right:1px solid var(--border); }
-    .obj-kpi-lbl { font-size:8px; color:var(--muted); letter-spacing:1px; text-transform:uppercase; margin-bottom:3px; }
-    .obj-kpi-val { font-family:var(--font-display); font-size:16px; }
-    .obj-cats { background:var(--surface); border:1px solid var(--border); border-top:none;
-               border-radius:0 0 10px 10px; padding:10px 14px; }
-    .obj-cat-row { display:flex; justify-content:space-between; font-size:10px; margin-bottom:3px; color:var(--muted); }
-    .obj-cat-row span:last-child { color:var(--red); }
-
-    /* ── MODAL ── */
-    .modal-bg {
-      position:fixed; inset:0; background:rgba(0,0,0,.7);
-      display:flex; align-items:flex-end; justify-content:center;
-      z-index:200; backdrop-filter:blur(4px);
-    }
-    .modal-box {
-      background:var(--surface); border-radius:20px 20px 0 0;
-      padding:20px 16px calc(20px + env(safe-area-inset-bottom));
-      width:100%; max-width:500px; max-height:90vh; overflow-y:auto;
-    }
-    .modal-handle { width:40px; height:4px; background:var(--border); border-radius:2px; margin:0 auto 16px; }
-    .modal-title { font-family:var(--font-display); font-size:22px; color:var(--gold); letter-spacing:2px; margin-bottom:16px; }
-    .form-group { margin-bottom:12px; }
-    .form-label { font-size:9px; color:var(--muted); letter-spacing:2px; text-transform:uppercase; margin-bottom:5px; display:block; }
-    .form-input {
-      width:100%; background:var(--surface2); border:1px solid var(--border);
-      border-radius:8px; padding:11px 12px; color:var(--text);
-      font-family:var(--font-mono); font-size:14px; outline:none;
-      transition:border-color .15s;
-    }
-    .form-input:focus { border-color:var(--gold); }
-    .form-row { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
-    .btn-save {
-      width:100%; background:var(--gold); color:#0d1117; border:none;
-      font-family:var(--font-display); font-size:20px; letter-spacing:2px;
-      padding:14px; border-radius:10px; cursor:pointer; margin-top:8px;
-    }
-    .btn-cancel {
-      width:100%; background:transparent; color:var(--muted);
-      border:1px solid var(--border); font-family:var(--font-mono); font-size:12px;
-      padding:10px; border-radius:10px; cursor:pointer; margin-top:6px;
-    }
-
-    /* TYPE SELECTOR */
-    .type-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-bottom:14px; }
-    .type-btn {
-      padding:10px 4px; border-radius:8px; border:1px solid var(--border);
-      background:var(--surface2); color:var(--muted); font-family:var(--font-mono);
-      font-size:10px; cursor:pointer; text-align:center; transition:all .15s;
-    }
-    .type-btn.selected-income  { background:var(--green-lt);  border-color:var(--green);  color:var(--green); }
-    .type-btn.selected-expense { background:var(--red-lt);    border-color:var(--red);    color:var(--red); }
-    .type-btn.selected-contrib { background:var(--blue-lt);   border-color:var(--blue);   color:var(--blue); }
-    .type-btn.selected-withdraw{ background:var(--purple-lt); border-color:var(--purple); color:var(--purple); }
-
-    /* EMPTY STATE */
-    .empty { text-align:center; padding:40px 20px; color:var(--muted); font-size:12px; }
-    .empty-icon { font-size:36px; margin-bottom:8px; opacity:.4; }
-
-    /* SECTION HEADER */
-    .section-hdr {
-      display:flex; justify-content:space-between; align-items:center;
-      margin-bottom:10px;
-    }
-    .section-hdr h2 { font-family:var(--font-display); font-size:20px; letter-spacing:1px; color:var(--text); }
-    .section-total { font-size:12px; color:var(--muted); }
-
-    /* DEL btn */
-    .del-btn {
-      background:none; border:1px solid var(--border); color:var(--muted);
-      border-radius:4px; padding:2px 7px; font-size:10px; cursor:pointer;
-    }
-
-    /* INSTALL BANNER */
-    #install-banner {
-      display:none; position:fixed; top:0; left:0; right:0; z-index:300;
-      background:var(--gold); color:#0d1117; padding:10px 16px;
-      font-size:12px; align-items:center; gap:10px;
-    }
-    #install-banner.show { display:flex; }
-    #install-banner button {
-      margin-left:auto; background:#0d1117; color:var(--gold);
-      border:none; border-radius:6px; padding:5px 12px;
-      font-family:var(--font-mono); font-size:11px; font-weight:700; cursor:pointer;
-    }
-
-    /* SCROLLBAR */
-    .content::-webkit-scrollbar { width:3px; }
-    .content::-webkit-scrollbar-track { background:transparent; }
-    .content::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
-
-    @media (min-width:600px) {
-      .kpi-grid { grid-template-columns:repeat(3,1fr); }
-      .partner-grid { grid-template-columns:repeat(3,1fr); }
-    }
+    *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+    html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--fm);overflow:hidden}
+    #app{display:flex;flex-direction:column;height:100vh;height:100dvh}
+    /* LOGIN */
+    #ls{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:999;flex-direction:column;gap:16px;padding:24px}
+    .ll{font-family:var(--fd);font-size:44px;color:var(--gold);letter-spacing:4px}
+    .lsub{font-size:9px;color:var(--mut);letter-spacing:3px;text-transform:uppercase;margin-top:-8px}
+    .lbox{background:var(--sur);border:1px solid var(--brd);border-radius:16px;padding:24px;width:100%;max-width:320px}
+    .ltit{font-family:var(--fd);font-size:20px;color:var(--gold);letter-spacing:2px;margin-bottom:4px}
+    .lhnt{font-size:10px;color:var(--mut);margin-bottom:16px;line-height:1.5}
+    .linp{width:100%;background:var(--s2);border:1px solid var(--brd);border-radius:8px;padding:12px;color:var(--text);font-family:var(--fm);font-size:18px;outline:none;text-align:center;letter-spacing:6px;transition:border-color .15s}
+    .linp:focus{border-color:var(--gold)}
+    .lbtn{width:100%;background:var(--gold);color:#0d1117;border:none;font-family:var(--fd);font-size:20px;letter-spacing:2px;padding:13px;border-radius:10px;cursor:pointer;margin-top:10px}
+    .lvbtn{width:100%;background:transparent;color:var(--mut);border:1px solid var(--brd);font-family:var(--fm);font-size:11px;padding:9px;border-radius:8px;cursor:pointer;margin-top:6px}
+    .lerr{color:var(--red);font-size:11px;text-align:center;margin-top:6px;min-height:14px}
+    /* HEADER */
+    header{background:var(--sur);border-bottom:1px solid var(--brd);padding:10px 14px 8px;display:flex;align-items:center;flex-shrink:0}
+    .hlog{font-family:var(--fd);font-size:20px;color:var(--gold);letter-spacing:2px;line-height:1}
+    .hsub{font-size:8px;color:var(--mut);letter-spacing:2px;text-transform:uppercase;margin-top:1px}
+    .hrgt{margin-left:auto;display:flex;align-items:center;gap:6px}
+    .rpill{font-size:9px;padding:2px 8px;border-radius:4px;font-weight:700}
+    .re{background:var(--glt);color:var(--gold)}.rv{background:var(--bllt);color:var(--blue)}
+    .hout{background:transparent;border:1px solid var(--brd);color:var(--mut);font-size:10px;padding:5px 8px;border-radius:6px;cursor:pointer;font-family:var(--fm)}
+    .content{flex:1;overflow-y:auto;padding:12px 14px 90px}
+    .content::-webkit-scrollbar{width:3px}.content::-webkit-scrollbar-thumb{background:var(--brd);border-radius:2px}
+    nav{position:fixed;bottom:0;left:0;right:0;background:var(--sur);border-top:1px solid var(--brd);display:flex;z-index:90;padding-bottom:env(safe-area-inset-bottom)}
+    .nb{flex:1;display:flex;flex-direction:column;align-items:center;padding:7px 2px 5px;cursor:pointer;border:none;background:transparent;color:var(--mut);font-family:var(--fm);font-size:7px;letter-spacing:.3px;text-transform:uppercase;gap:2px;transition:color .15s}
+    .nb.active{color:var(--gold)}.nb .ic{font-size:16px;line-height:1}
+    .fab{position:fixed;bottom:calc(62px + env(safe-area-inset-bottom));right:14px;width:52px;height:52px;background:var(--gold);border:none;border-radius:50%;font-size:26px;color:#0d1117;cursor:pointer;z-index:89;box-shadow:0 4px 18px rgba(240,165,0,.45);display:flex;align-items:center;justify-content:center}
+    /* CARDS */
+    .card{background:var(--sur);border:1px solid var(--brd);border-radius:10px;padding:14px;margin-bottom:10px}
+    .ctit{font-size:9px;color:var(--mut);letter-spacing:3px;text-transform:uppercase;margin-bottom:10px}
+    .shdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+    .shdr h2{font-family:var(--fd);font-size:20px;letter-spacing:1px}
+    .kg{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+    .kg3{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:8px}
+    .kpi{background:var(--sur);border-radius:10px;padding:10px 11px;border-left:3px solid}
+    .klbl{font-size:7px;color:var(--mut);letter-spacing:1px;text-transform:uppercase;margin-bottom:3px}
+    .kval{font-family:var(--fd);font-size:18px;letter-spacing:1px;line-height:1.1}
+    .ksub{font-size:8px;color:var(--mut);margin-top:2px}
+    .r2{display:flex;justify-content:space-between;align-items:center;padding:5px 0;font-size:11px}
+    .r2 .lb{color:var(--mut)}.r2 .vl{font-weight:700}
+    .divider{border-top:1px solid var(--brd);margin:8px 0}
+    .oprow{display:flex;align-items:flex-start;gap:8px;padding:9px 0;border-bottom:1px solid #1c2333}
+    .oprow:last-child{border-bottom:none}
+    .opbody{flex:1;min-width:0}
+    .opdesc{font-size:11px;line-height:1.4}
+    .opmeta{font-size:9px;color:var(--mut);margin-top:2px}
+    .delbtn{background:none;border:1px solid var(--brd);color:var(--mut);border-radius:4px;padding:2px 6px;font-size:10px;cursor:pointer;flex-shrink:0}
+    .badge{display:inline-block;padding:2px 6px;border-radius:4px;font-size:9px;font-weight:700}
+    .bar{background:var(--s2);border-radius:2px;height:5px;margin-top:5px}
+    .barfill{border-radius:2px;height:100%;transition:width .4s}
+    .infobox{border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:10px;line-height:1.6;border:1px solid}
+    .empty{text-align:center;padding:30px;color:var(--mut);font-size:11px}
+    .pcard{background:var(--sur);border-radius:10px;border:1px solid var(--brd);margin-bottom:10px;overflow:hidden}
+    .phdr{padding:11px 14px;border-bottom:1px solid var(--brd);display:flex;justify-content:space-between;align-items:center}
+    .pname{font-family:var(--fd);font-size:18px;letter-spacing:1px}
+    .pbody{padding:10px 14px 12px}
+    .sok{background:var(--grlt);border:1px solid var(--green);border-radius:8px;padding:8px 12px;margin-top:8px;font-size:10px;color:var(--green)}
+    .sbad{background:var(--rlt);border:1px solid var(--red);border-radius:8px;padding:8px 12px;margin-top:8px;font-size:10px;color:var(--red)}
+    .szero{background:var(--s2);border:1px solid var(--brd);border-radius:8px;padding:8px 12px;margin-top:8px;font-size:10px;color:var(--mut)}
+    .bcard{background:var(--sur);border-radius:10px;border:1px solid var(--teal);margin-bottom:12px;overflow:hidden}
+    .bhdr{background:var(--tlt);padding:12px 14px;display:flex;justify-content:space-between;align-items:center}
+    .bname{font-family:var(--fd);font-size:18px;letter-spacing:1px;color:var(--teal)}
+    .bbody{padding:12px 14px}
+    .sdiv{background:var(--s2);border-radius:6px;padding:5px 10px;margin:8px 0;font-size:9px;color:var(--mut);letter-spacing:2px;text-transform:uppercase}
+    /* MODAL */
+    .mbg{position:fixed;inset:0;background:rgba(0,0,0,.78);display:flex;align-items:flex-end;justify-content:center;z-index:200;backdrop-filter:blur(4px)}
+    .mbox{background:var(--sur);border-radius:20px 20px 0 0;padding:16px 16px calc(20px + env(safe-area-inset-bottom));width:100%;max-width:500px;max-height:94vh;overflow-y:auto}
+    .mhandle{width:40px;height:4px;background:var(--brd);border-radius:2px;margin:0 auto 14px}
+    .mtit{font-family:var(--fd);font-size:22px;color:var(--gold);letter-spacing:2px;margin-bottom:14px}
+    .tgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
+    .tcard{border-radius:12px;padding:11px;border:2px solid;cursor:pointer;transition:opacity .15s}
+    .tcard .tic{font-size:20px;margin-bottom:4px}.tcard .ttit{font-family:var(--fd);font-size:14px;letter-spacing:1px;margin-bottom:2px}.tcard .tdsc{font-size:9px;color:var(--mut);line-height:1.3}
+    .tcard.sel{opacity:1}.tcard:not(.sel){opacity:.4}
+    .tc-exp{border-color:var(--red);background:var(--rlt)}
+    .tc-inv{border-color:var(--blue);background:var(--bllt)}
+    .tc-inc{border-color:var(--green);background:var(--grlt)}
+    .tc-per{border-color:var(--purple);background:var(--plt)}
+    .tc-ret{border-color:var(--gold);background:var(--glt)}
+    .tc-rep{border-color:var(--orange);background:var(--olt)}
+    .fg{margin-bottom:12px}
+    .fl{font-size:9px;color:var(--mut);letter-spacing:2px;text-transform:uppercase;margin-bottom:5px;display:block}
+    .fi{width:100%;background:var(--s2);border:1px solid var(--brd);border-radius:8px;padding:11px 12px;color:var(--text);font-family:var(--fm);font-size:14px;outline:none;transition:border-color .15s}
+    .fi:focus{border-color:var(--gold)}
+    .frow{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    .fsave{width:100%;background:var(--gold);color:#0d1117;border:none;font-family:var(--fd);font-size:20px;letter-spacing:2px;padding:14px;border-radius:10px;cursor:pointer;margin-top:10px}
+    .fcanc{width:100%;background:transparent;color:var(--mut);border:1px solid var(--brd);font-family:var(--fm);font-size:12px;padding:10px;border-radius:10px;cursor:pointer;margin-top:6px}
+    .fedit{background:transparent;border:1px solid var(--brd);color:var(--mut);border-radius:6px;padding:4px 10px;font-size:10px;cursor:pointer;font-family:var(--fm)}
+    @media(min-width:600px){.kg{grid-template-columns:repeat(3,1fr)}}
   </style>
 </head>
 <body>
-<div id="install-banner">
-  <span>📲 Установите приложение на рабочий стол</span>
-  <button id="install-btn">Установить</button>
-  <button onclick="document.getElementById('install-banner').classList.remove('show')" style="background:transparent;color:#0d1117;border:none;font-size:18px;cursor:pointer;">✕</button>
-</div>
-
-<div id="app">
-  <header>
-    <div>
-      <div class="logo">СУБПОДРЯД</div>
-      <div class="logo-sub">ИНТЕКС · 5 партнёров</div>
-    </div>
-    <div class="header-right">
-      <select class="obj-filter" id="obj-filter" onchange="render()">
-        <option value="all">Все объекты</option>
-      </select>
-      <button class="btn-add-main" onclick="openModal()">+</button>
-    </div>
-  </header>
-
-  <div class="content" id="content"></div>
-
-  <nav>
-    <button class="nav-btn active" onclick="setTab('dashboard')" id="tab-dashboard">
-      <span class="icon">◈</span><span>Сводка</span>
-    </button>
-    <button class="nav-btn" onclick="setTab('cashflow')" id="tab-cashflow">
-      <span class="icon">⇅</span><span>Движение</span>
-    </button>
-    <button class="nav-btn" onclick="setTab('objects')" id="tab-objects">
-      <span class="icon">◧</span><span>Объекты</span>
-    </button>
-    <button class="nav-btn" onclick="setTab('partners')" id="tab-partners">
-      <span class="icon">◉</span><span>Партнёры</span>
-    </button>
-    <button class="nav-btn" onclick="setTab('journal')" id="tab-journal">
-      <span class="icon">≡</span><span>Журнал</span>
-    </button>
-  </nav>
-</div>
-
-<!-- MODAL -->
-<div class="modal-bg" id="modal" style="display:none" onclick="if(event.target===this)closeModal()">
-  <div class="modal-box">
-    <div class="modal-handle"></div>
-    <div class="modal-title" id="modal-title">НОВАЯ ЗАПИСЬ</div>
-    <div id="modal-body"></div>
+<div id="ls">
+  <div style="text-align:center"><div class="ll">LIONGATE</div><div class="lsub">LionGate Construction</div></div>
+  <div class="lbox">
+    <div class="ltit">ВХОД</div>
+    <div class="lhnt">Введите пароль чтобы вносить данные.<br>Партнёры — просмотр без пароля.</div>
+    <input class="linp" type="password" id="lpass" placeholder="••••••" onkeydown="if(event.key==='Enter')tryLogin()"/>
+    <div class="lerr" id="lerr"></div>
+    <button class="lbtn" onclick="tryLogin()">ВОЙТИ</button>
+    <button class="lvbtn" onclick="viewOnly()">Только просмотр →</button>
   </div>
 </div>
-
+<div id="app" style="display:none">
+  <header>
+    <div><div class="hlog">LIONGATE</div><div class="hsub">ЖК «Алгабас» · Sensata Group</div></div>
+    <div class="hrgt"><span class="rpill" id="rpill"></span><button class="hout" onclick="doLogout()">Выйти</button></div>
+  </header>
+  <div class="content" id="content"></div>
+  <button class="fab" id="fab" onclick="openModal()">+</button>
+  <nav>
+    <button class="nb active" onclick="setTab('main')"     id="tab-main">    <span class="ic">◈</span><span>Сводка</span></button>
+    <button class="nb"        onclick="setTab('pl')"       id="tab-pl">      <span class="ic">📊</span><span>P&amp;L</span></button>
+    <button class="nb"        onclick="setTab('partners')" id="tab-partners"><span class="ic">👥</span><span>Партнёры</span></button>
+    <button class="nb"        onclick="setTab('brigades')" id="tab-brigades"><span class="ic">👷</span><span>Бригады</span></button>
+    <button class="nb"        onclick="setTab('cash')"     id="tab-cash">    <span class="ic">⇅</span><span>Движение</span></button>
+    <button class="nb"        onclick="setTab('journal')"  id="tab-journal"> <span class="ic">≡</span><span>Журнал</span></button>
+  </nav>
+</div>
+<div class="mbg" id="modal" style="display:none" onclick="if(event.target===this)closeModal()">
+  <div class="mbox"><div class="mhandle"></div><div class="mtit" id="mtit">НОВАЯ ЗАПИСЬ</div><div id="mbody"></div></div>
+</div>
 <script>
-// ══════════════════════════════════════════════════════
-// DATA & STATE
-// ══════════════════════════════════════════════════════
-const PARTNERS = ["Дмитрий","Бекжан","Евгений","Нурсултан","Сергей"];
-const P_COLORS = ["#f0a500","#2ea043","#388bfd","#8957e5","#da3633"];
+const PWD={'Intek2026':'editor','Finance2026':'editor'};
+let role=null;
+function tryLogin(){var p=document.getElementById('lpass').value.trim();if(PWD[p]){role=PWD[p];sessionStorage.setItem('role',role);showApp();}else{document.getElementById('lerr').textContent='Неверный пароль';document.getElementById('lpass').value='';}}
+function viewOnly(){role='viewer';sessionStorage.setItem('role','viewer');showApp();}
+function doLogout(){sessionStorage.removeItem('role');role=null;document.getElementById('app').style.display='none';document.getElementById('ls').style.display='flex';document.getElementById('lpass').value='';document.getElementById('lerr').textContent='';}
+function showApp(){
+  document.getElementById('ls').style.display='none';
+  document.getElementById('app').style.display='flex';
+  var rp=document.getElementById('rpill'),fab=document.getElementById('fab');
+  if(role==='editor'){rp.textContent='Редактор';rp.className='rpill re';fab.style.display='flex';}
+  else{rp.textContent='Просмотр';rp.className='rpill rv';fab.style.display='none';}
+  render();
+}
 
-const EXP_CATS = ["Материалы","Зарплата рабочих","ФОТ ИТР","Аренда техники",
-  "Транспорт","Инструменты","Налоги и сборы","Субподряд","Административные","Прочее"];
-const INC_CATS = ["Акт КС-2 / АВР","Аванс от заказчика","Возврат депозита","Прочие поступления"];
+const PARTNERS=['Дмитрий','Бекжан','Евгений','Нурсултан','Сергей'];
+const PC=['#f0a500','#2ea043','#388bfd','#8957e5','#da3633'];
+const OBJECTS=['ЖК «Алгабас», Мкр. Нуркент'];
+const EXP_CATS=['Аванс / зарплата рабочим','Материалы','Аренда техники','Транспорт','Инструменты и инвентарь','Мобильная связь','Проценты по займу','Административные','Прочее'];
 
-let state = loadState();
-let currentTab = 'dashboard';
-let filterObj = 'all';
+/*
+  ТИПЫ:
+  invest   — Дмитрий вложил свои деньги (компания вернёт)
+             поле 'to' — если выдал наличными кому-то на руки
+  expense  — Расход компании
+  income   — Приход от заказчика
+  personal — Взял лично (долг из доли)
+  return   — Возврат вложений Дмитрию
+  repay    — Сотрудник вернул подотчётные деньги в кассу
+*/
 
-function defaultState() {
+function defaultState(){
   return {
-    objects: [
-      { id:'obj1', name:'Объект А — ЖК Алатау',    gc:'ТОО «BI Group»',       contract:'БИ-2025-011' },
-      { id:'obj2', name:'Объект Б — БЦ Нурлы жол', gc:'ТОО «RAMS Qazaqstan»', contract:'РМС-25-07'   },
+    brigades:[
+      {id:'b1',name:'Бригада Шынгыс',spec:'Арматурщики', obj:'ЖК «Алгабас», Мкр. Нуркент',rate:0,unit:'м³'},
+      {id:'b2',name:'Бригада Нурсултан',spec:'Опалубщики',  obj:'ЖК «Алгабас», Мкр. Нуркент',rate:0,unit:'м³'},
     ],
-    entries: [
-      { id:1,  date:'2025-01-10', type:'Взнос',    obj:'-', cat:'Взнос партнёра',    who:'Дмитрий',  amount:600000, note:'Стартовый взнос', doc:'' },
-      { id:2,  date:'2025-01-10', type:'Взнос',    obj:'-', cat:'Взнос партнёра',    who:'Бекжан',   amount:600000, note:'Стартовый взнос', doc:'' },
-      { id:3,  date:'2025-01-10', type:'Взнос',    obj:'-', cat:'Взнос партнёра',    who:'Евгений',  amount:600000, note:'Стартовый взнос', doc:'' },
-      { id:4,  date:'2025-01-10', type:'Взнос',    obj:'-', cat:'Взнос партнёра',    who:'Нурсултан',amount:600000, note:'Стартовый взнос', doc:'' },
-      { id:5,  date:'2025-01-10', type:'Взнос',    obj:'-', cat:'Взнос партнёра',    who:'Сергей',   amount:600000, note:'Стартовый взнос', doc:'' },
-      { id:6,  date:'2025-01-20', type:'Расход',   obj:'obj1', cat:'Материалы',      who:'Поставщик ТМЦ',    amount:480000, note:'Арматура А500С Ø12, 8 тн', doc:'Сч-0112' },
-      { id:7,  date:'2025-01-25', type:'Расход',   obj:'obj1', cat:'Зарплата рабочих',who:'Бригада монолит', amount:320000, note:'Зарплата январь', doc:'' },
-      { id:8,  date:'2025-02-03', type:'Расход',   obj:'obj2', cat:'Аренда техники', who:'ТОО Техника KZ',   amount:210000, note:'Автокран 25т, 3 дня', doc:'Акт-0201' },
-      { id:9,  date:'2025-02-05', type:'Доход',    obj:'obj1', cat:'Акт КС-2 / АВР', who:'ТОО «BI Group»',  amount:1200000,note:'КС-2 №1 монолит колонны', doc:'КС2-001' },
-      { id:10, date:'2025-02-10', type:'Расход',   obj:'obj1', cat:'Транспорт',       who:'ИП Иванов',        amount:45000,  note:'Доставка опалубки', doc:'' },
-      { id:11, date:'2025-02-20', type:'Расход',   obj:'obj2', cat:'Материалы',       who:'Бетонный завод №2',amount:390000, note:'Бетон В25 П3, 50 м³', doc:'Сч-0219' },
-      { id:12, date:'2025-02-28', type:'Доход',    obj:'obj2', cat:'Аванс от заказчика',who:'ТОО «RAMS Qazaqstan»',amount:900000,note:'Аванс 30%', doc:'АВ-001' },
-      { id:13, date:'2025-03-01', type:'Расход',   obj:'obj1', cat:'ФОТ ИТР',         who:'Прораб Петров А.', amount:150000, note:'Зарплата прораба февраль', doc:'' },
-      { id:14, date:'2025-03-01', type:'Изъятие',  obj:'-', cat:'Изъятие партнёра',  who:'Дмитрий',           amount:100000, note:'Аванс на личные нужды', doc:'' },
-      { id:15, date:'2025-03-05', type:'Изъятие',  obj:'-', cat:'Изъятие партнёра',  who:'Бекжан',            amount:100000, note:'Аванс на личные нужды', doc:'' },
-      { id:16, date:'2025-03-10', type:'Доход',    obj:'obj1', cat:'Акт КС-2 / АВР', who:'ТОО «BI Group»',   amount:850000, note:'КС-2 №2 монолит перекрытия', doc:'КС2-002' },
+    entries:[
+      // ВЛОЖЕНИЯ ДМИТРИЯ — итого 628,100 ₸
+      {id:1, date:'2026-05-14',type:'invest',  who:'Дмитрий',to:'Бекжан', obj:'ЖК «Алгабас», Мкр. Нуркент',amount:400000,note:'Выдал Бекжану наличными на расходы'},
+      {id:2, date:'2026-05-15',type:'invest',  who:'Дмитрий',to:'',       obj:'ЖК «Алгабас», Мкр. Нуркент',amount:5000,  note:'Пополнил мобильный Бекжана напрямую'},
+      {id:3, date:'2026-05-16',type:'invest',  who:'Дмитрий',to:'',       obj:'ЖК «Алгабас», Мкр. Нуркент',amount:53100, note:'Смартфон и номер для финансовых операций'},
+      {id:4, date:'2026-05-16',type:'invest',  who:'Дмитрий',to:'Евгений',obj:'ЖК «Алгабас», Мкр. Нуркент',amount:20000, note:'Дал Евгению (личный расход)'},
+      {id:5, date:'2026-05-17',type:'invest',  who:'Дмитрий',to:'Бекжан', obj:'ЖК «Алгабас», Мкр. Нуркент',amount:150000,note:'Выдал Бекжану наличными на расходы'},
+      // РАСХОДЫ КОМПАНИИ — итого 398,100 ₸
+      {id:6, date:'2026-05-15',type:'expense', who:'Дмитрий',obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Мобильная связь',         amount:5000,  note:'Мобильный Бекжана — оплатил Дмитрий напрямую'},
+      {id:7, date:'2026-05-16',type:'expense', who:'Дмитрий',obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Административные',         amount:53100, note:'Смартфон и номер для финансовых операций'},
+      {id:8, date:'2026-05-16',type:'expense', who:'Бекжан', obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Аванс / зарплата рабочим', amount:150000,note:'Аванс Бригада 1 арматурщики — перевод',  brigade:'b1'},
+      {id:9, date:'2026-05-16',type:'expense', who:'Бекжан', obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Аванс / зарплата рабочим', amount:100000,note:'Аванс Бригада 1 арматурщики — наличные', brigade:'b1'},
+      {id:10,date:'2026-05-16',type:'expense', who:'Бекжан', obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Транспорт',                amount:20000, note:'Такси Бригада 2 опалубщики до объекта'},
+      {id:11,date:'2026-05-17',type:'expense', who:'Бекжан', obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Инструменты и инвентарь',  amount:70000, note:'Каски, жилеты, перчатки, диски, молоток, бур'},
+      // ЛИЧНЫЕ ИЗЪЯТИЯ — Бекжан 110к, Евгений 20к
+      {id:12,date:'2026-05-17',type:'personal',who:'Бекжан', obj:'-',amount:110000,note:'Проценты за Альфард — личный расход'},
+      {id:13,date:'2026-05-16',type:'personal',who:'Евгений',obj:'-',amount:20000, note:'Личные расходы'},
     ]
   };
 }
 
-function loadState() {
-  try { const s = localStorage.getItem('subcontract_v2'); return s ? JSON.parse(s) : defaultState(); }
-  catch { return defaultState(); }
-}
-function saveState() {
-  try { localStorage.setItem('subcontract_v2', JSON.stringify(state)); } catch {}
+function loadState(){try{var s=localStorage.getItem('lg_v1');return s?JSON.parse(s):defaultState();}catch(e){return defaultState();}}
+function save(){try{localStorage.setItem('lg_v1',JSON.stringify(state));}catch(e){}}
+var state=loadState();
+var currentTab='main';
+
+function fmt(n){return new Intl.NumberFormat('ru').format(Math.abs(Math.round(n||0)));}
+function fmtD(n){return new Intl.NumberFormat('ru',{maximumFractionDigits:2}).format(n||0);}
+function pColor(name){var i=PARTNERS.indexOf(name);return i>=0?PC[i]:'#8b949e';}
+function sumBy(type,field,val){return state.entries.filter(function(e){return e.type===type&&(!field||e[field]===val);}).reduce(function(s,e){return s+e.amount;},0);}
+function brigName(id){var b=state.brigades.find(function(x){return x.id===id;});return b?b.name:'';}
+
+// ── ГЛАВНЫЕ ВЫЧИСЛЕНИЯ ──
+function calcCompany(){
+  var income   = sumBy('income');
+  var expense  = sumBy('expense');
+  var invested = sumBy('invest');
+  var returned = sumBy('return');
+  var repaid   = sumBy('repay');
+  var personal = state.entries.filter(function(e){return e.type==='personal';}).reduce(function(s,e){return s+e.amount;},0);
+  var profit   = income - expense;
+  var owedToDmitry = invested - returned;
+  var toShare  = Math.max(profit - owedToDmitry, 0);
+  var shareEach= toShare / 5;
+  return {income:income,expense:expense,invested:invested,returned:returned,repaid:repaid,personal:personal,profit:profit,owedToDmitry:owedToDmitry,toShare:toShare,shareEach:shareEach};
 }
 
-// ══════════════════════════════════════════════════════
-// COMPUTED
-// ══════════════════════════════════════════════════════
-function filtered() {
-  if (filterObj === 'all') return state.entries;
-  return state.entries.filter(e =>
-    (e.type === 'Доход' || e.type === 'Расход') ? e.obj === filterObj : true
-  );
-}
-function sum(arr, type)   { return arr.filter(e=>e.type===type).reduce((s,e)=>s+e.amount,0); }
-function fmt(n)           { return new Intl.NumberFormat('ru').format(Math.abs(Math.round(n||0))); }
-function fmtS(n)          { return (n<0?'−':'')+fmt(n)+' ₸'; }
-function objName(id)      { const o=state.objects.find(x=>x.id===id); return o?o.name.split('—')[0].trim():'—'; }
-function partnerColor(name){ return P_COLORS[PARTNERS.indexOf(name)] || '#8b949e'; }
-
-function computeTotals(entries) {
-  return {
-    income:   sum(entries,'Доход'),
-    expense:  sum(entries,'Расход'),
-    contrib:  sum(entries,'Взнос'),
-    withdraw: sum(entries,'Изъятие'),
-    get profit(){ return this.income - this.expense; },
-    get balance(){ return this.income - this.expense + this.contrib - this.withdraw; },
-  };
+// ── ПОДОТЧЁТ — кто сколько держит на руках ──
+function calcPodotchet(){
+  return PARTNERS.map(function(name,i){
+    // Получил наличными на руки (invest с полем to === name)
+    var given = state.entries.filter(function(e){return e.type==='invest'&&e.to===name;}).reduce(function(s,e){return s+e.amount;},0);
+    // Потратил на компанию
+    var spent = state.entries.filter(function(e){return e.type==='expense'&&e.who===name;}).reduce(function(s,e){return s+e.amount;},0);
+    // Взял лично
+    var personal = state.entries.filter(function(e){return e.type==='personal'&&e.who===name;}).reduce(function(s,e){return s+e.amount;},0);
+    // Вернул в кассу
+    var repaid = state.entries.filter(function(e){return e.type==='repay'&&e.who===name;}).reduce(function(s,e){return s+e.amount;},0);
+    // Остаток на руках
+    var onHand = given - spent - personal - repaid;
+    return {name:name,color:PC[i],given:given,spent:spent,personal:personal,repaid:repaid,onHand:onHand};
+  }).filter(function(p){return p.given>0;});
 }
 
-// ══════════════════════════════════════════════════════
-// TABS
-// ══════════════════════════════════════════════════════
-function setTab(tab) {
-  currentTab = tab;
-  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
-  document.getElementById('tab-'+tab)?.classList.add('active');
+// ── ПАРТНЁР ──
+function calcPartner(name){
+  var invested = sumBy('invest','who',name);
+  var returned = sumBy('return','who',name);
+  var personal = state.entries.filter(function(e){return e.type==='personal'&&e.who===name;}).reduce(function(s,e){return s+e.amount;},0);
+  var C=calcCompany();
+  // Подотчёт: деньги на руках тоже надо вернуть в кассу
+  var pod=calcPodotchet();
+  var myPod=pod.find(function(x){return x.name===name;})||{onHand:0};
+  var onHand=Math.max(myPod.onHand,0); // только положительный остаток (деньги на руках)
+  // Итого должен вернуть = личные расходы + деньги на руках
+  var totalOwed=personal+onHand;
+  // К получению = доля - уже взял лично - деньги на руках
+  var netPosition=C.shareEach-totalOwed;
+  return {name:name,invested:invested,returned:returned,personal:personal,onHand:onHand,totalOwed:totalOwed,shareEach:C.shareEach,netPosition:netPosition};
+}
+
+// ── БРИГАДА ──
+function calcBrigade(brig){
+  var volEntries = state.entries.filter(function(e){return e.type==='vol'&&e.brigade===brig.id;});
+  var totalVol   = volEntries.reduce(function(s,e){return s+(e.volume||0);},0);
+  var totalEarned= volEntries.reduce(function(s,e){return s+e.amount;},0);
+  var paid = state.entries.filter(function(e){return (e.type==='pay'||e.type==='expense')&&e.brigade===brig.id;}).reduce(function(s,e){return s+e.amount;},0);
+  var balance = totalEarned - paid;
+  var history = volEntries.concat(state.entries.filter(function(e){return (e.type==='pay'||e.type==='expense')&&e.brigade===brig.id;})).sort(function(a,b){return b.date.localeCompare(a.date);});
+  return {totalVol:totalVol,totalEarned:totalEarned,paid:paid,balance:balance,history:history,volEntries:volEntries};
+}
+
+// ── NAV ──
+function setTab(t){
+  currentTab=t;
+  document.querySelectorAll('.nb').forEach(function(b){b.classList.remove('active');});
+  var el=document.getElementById('tab-'+t);
+  if(el)el.classList.add('active');
   render();
 }
+function render(){
+  var el=document.getElementById('content');
+  if(!el)return;
+  if(currentTab==='main')     el.innerHTML=renderMain();
+  if(currentTab==='pl')       el.innerHTML=renderPL();
+  if(currentTab==='partners') el.innerHTML=renderPartners();
+  if(currentTab==='brigades') el.innerHTML=renderBrigades();
+  if(currentTab==='cash')     el.innerHTML=renderCash();
+  if(currentTab==='journal')  el.innerHTML=renderJournal();
+}
 
-// ══════════════════════════════════════════════════════
-// RENDER
-// ══════════════════════════════════════════════════════
-function render() {
-  filterObj = document.getElementById('obj-filter')?.value || 'all';
-  const entries = filtered();
-  const T = computeTotals(entries);
-  const allT = computeTotals(state.entries);
-  const el = document.getElementById('content');
+// ── BADGE ──
+var TC={'invest':'var(--blue)','expense':'var(--red)','income':'var(--green)','personal':'var(--purple)','return':'var(--gold)','repay':'var(--orange)','vol':'var(--teal)','pay':'var(--teal)'};
+var TB={'invest':'var(--bllt)','expense':'var(--rlt)','income':'var(--grlt)','personal':'var(--plt)','return':'var(--glt)','repay':'var(--olt)','vol':'var(--tlt)','pay':'var(--tlt)'};
+var ICO={'invest':'💼','expense':'🧾','income':'💰','personal':'👤','return':'🔄','repay':'💵','vol':'📐','pay':'💸'};
+var LBL={'invest':'Вложение','expense':'Расход','income':'Приход','personal':'Личное изъятие','return':'Возврат вложений','repay':'Возврат в кассу','vol':'Объём бригады','pay':'Выплата бригаде'};
 
-  // Update obj filter options
-  const sel = document.getElementById('obj-filter');
-  if (sel && sel.options.length === 1) {
-    state.objects.forEach(o => {
-      const opt = document.createElement('option');
-      opt.value = o.id; opt.textContent = o.name.split('—')[0].trim();
-      sel.appendChild(opt);
+function badge(type){return '<span class="badge" style="color:'+TC[type]+';background:'+TB[type]+'">'+ICO[type]+' '+LBL[type]+'</span>';}
+
+function descOf(e){
+  if(e.type==='invest')   return e.who+(e.to?' → '+e.to:'')+': '+e.note;
+  if(e.type==='expense')  return e.note+' ['+e.cat+']'+(e.brigade?' · '+brigName(e.brigade):'');
+  if(e.type==='income')   return e.note||'Приход от заказчика';
+  if(e.type==='personal') return e.who+' взял лично: '+e.note;
+  if(e.type==='return')   return 'Возврат вложений → '+e.who;
+  if(e.type==='repay')    return e.who+' вернул в кассу: '+e.note;
+  if(e.type==='vol')      return brigName(e.brigade)+': '+fmtD(e.volume)+' м³ × '+fmt(e.rate)+' ₸'+(e.zone?' · '+e.zone:'');
+  if(e.type==='pay')      return 'Выплата → '+brigName(e.brigade)+': '+e.note;
+  return e.note||'';
+}
+
+function opRow(e,showDel){
+  return '<div class="oprow">'+
+    '<div class="opbody">'+
+      '<div style="margin-bottom:3px">'+badge(e.type)+'</div>'+
+      '<div class="opdesc">'+descOf(e)+'</div>'+
+      '<div class="opmeta">'+e.date+(e.obj&&e.obj!=='-'?' · '+e.obj.split('—')[0].trim():'')+'</div>'+
+    '</div>'+
+    '<div style="text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:4px">'+
+      '<div style="font-size:13px;font-weight:700;color:'+(TC[e.type]||'var(--mut)')+'">'+fmt(e.amount)+' ₸</div>'+
+      (showDel&&role==='editor'?'<button class="delbtn" onclick="delEntry('+e.id+')">✕</button>':'')+
+    '</div>'+
+  '</div>';
+}
+
+// ═══ СВОДКА ═══
+function renderMain(){
+  var C=calcCompany();
+  var pc=C.profit>=0?'var(--green)':'var(--red)';
+  var catMap={};
+  state.entries.filter(function(e){return e.type==='expense';}).forEach(function(e){catMap[e.cat]=(catMap[e.cat]||0)+e.amount;});
+  var cats=Object.entries(catMap).sort(function(a,b){return b[1]-a[1];});
+  var maxC=cats.length>0?cats[0][1]:1;
+  var recent=[].concat(state.entries).sort(function(a,b){return b.date.localeCompare(a.date);}).slice(0,5);
+
+  var podHTML=''; // Подотчёт перенесён во вкладку Партнёры
+
+  var catsHTML='';
+  if(cats.length>0){
+    catsHTML='<div class="card"><div class="ctit">Расходы по статьям</div>';
+    cats.forEach(function(cv){
+      var cat=cv[0],val=cv[1];
+      catsHTML+='<div style="margin-bottom:9px">'+
+        '<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px">'+
+          '<span style="color:var(--mut)">'+cat+'</span>'+
+          '<span style="color:var(--red);font-weight:700">'+fmt(val)+' ₸</span>'+
+        '</div>'+
+        '<div class="bar"><div class="barfill" style="width:'+Math.round(val/maxC*100)+'%;background:var(--red)"></div></div>'+
+      '</div>';
     });
+    catsHTML+='</div>';
   }
 
-  if (currentTab === 'dashboard')  el.innerHTML = renderDashboard(entries, T, allT);
-  if (currentTab === 'cashflow')   el.innerHTML = renderCashflow(entries);
-  if (currentTab === 'objects')    el.innerHTML = renderObjects();
-  if (currentTab === 'partners')   el.innerHTML = renderPartners(allT);
-  if (currentTab === 'journal')    el.innerHTML = renderJournal(entries);
+  return '<div class="kg">'+
+    '<div class="kpi" style="border-color:var(--green)"><div class="klbl">Доходы</div><div class="kval" style="color:var(--green)">'+fmt(C.income)+'</div><div class="ksub">₸ от заказчика</div></div>'+
+    '<div class="kpi" style="border-color:var(--red)"><div class="klbl">Расходы</div><div class="kval" style="color:var(--red)">'+fmt(C.expense)+'</div><div class="ksub">₸ компания</div></div>'+
+    '<div class="kpi" style="border-color:'+pc+'"><div class="klbl">Прибыль</div><div class="kval" style="color:'+pc+'">'+fmt(C.profit)+'</div><div class="ksub">'+(C.profit>=0?'▲':'▼')+' итого</div></div>'+
+    '<div class="kpi" style="border-color:var(--blue)"><div class="klbl">Вложил Дмитрий</div><div class="kval" style="color:var(--blue)">'+fmt(C.invested)+'</div><div class="ksub">₸ своих денег</div></div>'+
+  '</div>'+
+
+  '<div class="card" style="border-color:var(--gold)">'+
+    '<div class="ctit">Расчёт выплат при получении денег</div>'+
+    '<div class="r2"><span class="lb">Доходы от заказчика</span><span class="vl" style="color:var(--green)">+'+fmt(C.income)+' ₸</span></div>'+
+    '<div class="r2"><span class="lb">Расходы компании</span><span class="vl" style="color:var(--red)">−'+fmt(C.expense)+' ₸</span></div>'+
+    '<div class="divider"></div>'+
+    '<div class="r2"><span class="lb">Прибыль компании</span><span class="vl" style="color:'+pc+'">'+fmt(C.profit)+' ₸</span></div>'+
+    '<div class="divider"></div>'+
+    '<div style="background:var(--bllt);border-radius:8px;padding:10px;margin:6px 0">'+
+      '<div style="font-size:9px;color:var(--blue);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">1️⃣ Сначала — возврат вложений Дмитрию</div>'+
+      '<div class="r2"><span class="lb">Вложено</span><span class="vl" style="color:var(--blue)">'+fmt(C.invested)+' ₸</span></div>'+
+      '<div class="r2"><span class="lb">Уже возвращено</span><span class="vl" style="color:var(--green)">−'+fmt(C.returned)+' ₸</span></div>'+
+      '<div class="divider"></div>'+
+      '<div class="r2"><span class="lb" style="color:var(--text);font-weight:700">Вернуть Дмитрию</span><span class="vl" style="color:var(--blue);font-size:14px">'+fmt(C.owedToDmitry)+' ₸</span></div>'+
+    '</div>'+
+    '<div style="background:var(--grlt);border-radius:8px;padding:10px;margin:6px 0">'+
+      '<div style="font-size:9px;color:var(--green);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">2️⃣ Затем — делим прибыль поровну</div>'+
+      '<div class="r2"><span class="lb">После возврата Дмитрию</span><span class="vl" style="color:'+(C.toShare>0?'var(--green)':'var(--mut)')+'">'+fmt(C.toShare)+' ₸</span></div>'+
+      '<div class="r2"><span class="lb" style="color:var(--text);font-weight:700">Каждому из 5 партнёров</span><span class="vl" style="color:var(--gold);font-size:14px">'+fmt(C.shareEach)+' ₸</span></div>'+
+    '</div>'+
+    (C.income===0?'<div style="font-size:10px;color:var(--mut);margin-top:4px">⏳ Денег от заказчика ещё не было.</div>':'')+
+  '</div>'+
+
+  catsHTML+
+
+  '<div class="card"><div class="ctit">Последние записи</div>'+
+    recent.map(function(e){return opRow(e,false);}).join('')+
+  '</div>';
 }
 
-function badge(type) {
-  const map = {
-    'Доход':    ['var(--green)', 'var(--green-lt)'],
-    'Расход':   ['var(--red)',   'var(--red-lt)'],
-    'Взнос':    ['var(--blue)',  'var(--blue-lt)'],
-    'Изъятие':  ['var(--purple)','var(--purple-lt)'],
-  };
-  const [c,bg] = map[type]||['var(--muted)','var(--surface2)'];
-  return `<span class="badge" style="color:${c};background:${bg}">${type}</span>`;
-}
+// ═══ P&L ═══
+function renderPL(){
+  var C=calcCompany();
+  var catMap={};
+  state.entries.filter(function(e){return e.type==='expense';}).forEach(function(e){catMap[e.cat]=(catMap[e.cat]||0)+e.amount;});
 
-// ── DASHBOARD ──
-function renderDashboard(entries, T, allT) {
-  const profit = T.income - T.expense;
-  const profitColor = profit >= 0 ? 'var(--green)' : 'var(--red)';
-
-  // Expense by category
-  const catMap = {};
-  entries.filter(e=>e.type==='Расход').forEach(e=>{ catMap[e.cat]=(catMap[e.cat]||0)+e.amount; });
-  const cats = Object.entries(catMap).sort((a,b)=>b[1]-a[1]).slice(0,5);
-  const maxCat = cats[0]?.[1]||1;
-
-  // Recent
-  const recent = [...entries].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,8);
-
-  return `
-  <div class="kpi-grid">
-    <div class="kpi" style="border-left-color:var(--green)">
-      <div class="kpi-label">Доходы</div>
-      <div class="kpi-value" style="color:var(--green)">${fmt(T.income)}</div>
-      <div class="kpi-sub">₸</div>
-    </div>
-    <div class="kpi" style="border-left-color:var(--red)">
-      <div class="kpi-label">Расходы</div>
-      <div class="kpi-value" style="color:var(--red)">${fmt(T.expense)}</div>
-      <div class="kpi-sub">₸</div>
-    </div>
-    <div class="kpi" style="border-left-color:${profitColor}">
-      <div class="kpi-label">Прибыль</div>
-      <div class="kpi-value" style="color:${profitColor}">${fmt(profit)}</div>
-      <div class="kpi-sub">${profit>=0?'▲ положительная':'▼ убыток'}</div>
-    </div>
-    <div class="kpi" style="border-left-color:var(--gold)">
-      <div class="kpi-label">Доля / партнёр</div>
-      <div class="kpi-value" style="color:var(--gold)">${fmt(profit/5)}</div>
-      <div class="kpi-sub">₸ каждому</div>
-    </div>
-    <div class="kpi" style="border-left-color:var(--blue)">
-      <div class="kpi-label">Капитал</div>
-      <div class="kpi-value" style="color:var(--blue)">${fmt(allT.contrib)}</div>
-      <div class="kpi-sub">взносы партнёров</div>
-    </div>
-    <div class="kpi" style="border-left-color:var(--purple)">
-      <div class="kpi-label">Изъятия</div>
-      <div class="kpi-value" style="color:var(--purple)">${fmt(allT.withdraw)}</div>
-      <div class="kpi-sub">₸ выведено</div>
-    </div>
-  </div>
-
-  ${cats.length ? `
-  <div class="card">
-    <div class="card-title">Расходы по категориям</div>
-    ${cats.map(([cat,val])=>`
-      <div style="margin-bottom:10px">
-        <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px">
-          <span style="color:var(--muted)">${cat}</span>
-          <span style="color:var(--red);font-weight:700">${fmt(val)} ₸</span>
-        </div>
-        <div class="bar-track"><div class="bar-fill" style="width:${(val/maxCat*100).toFixed(1)}%;background:var(--red)"></div></div>
-      </div>
-    `).join('')}
-  </div>` : ''}
-
-  <div class="card">
-    <div class="card-title">Последние операции</div>
-    ${recent.length ? recent.map(e=>`
-      <div class="cf-row">
-        <div class="cf-icon">${e.type==='Доход'?'▲':e.type==='Расход'?'▼':e.type==='Взнос'?'↗':'↙'}</div>
-        <div class="cf-body">
-          <div class="cf-desc">${e.note||e.cat}</div>
-          <div class="cf-meta">${e.date} · ${e.who}</div>
-        </div>
-        <div class="cf-amount" style="color:${e.type==='Доход'||e.type==='Взнос'?'var(--green)':'var(--red)'}">
-          ${e.type==='Доход'||e.type==='Взнос'?'+':'-'}${fmt(e.amount)} ₸
-        </div>
-      </div>
-    `).join('') : '<div class="empty"><div class="empty-icon">📋</div>Нет операций</div>'}
-  </div>`;
-}
-
-// ── CASH FLOW ──
-function renderCashflow(entries) {
-  const sorted = [...state.entries].sort((a,b)=>a.date.localeCompare(b.date));
-  let running = 0;
-  const rows = sorted.map(e => {
-    const sign = (e.type==='Доход'||e.type==='Взнос') ? 1 : -1;
-    running += sign * e.amount;
-    return { ...e, sign, running };
-  }).reverse();
-
-  return `
-  <div class="section-hdr">
-    <h2>ДВИЖЕНИЕ</h2>
-    <span class="section-total" style="color:${running>=0?'var(--green)':'var(--red)'}">
-      остаток: ${fmt(running)} ₸
-    </span>
-  </div>
-  <div class="card">
-    ${rows.map(e=>`
-      <div class="cf-row">
-        <div class="cf-icon" style="color:${e.sign>0?'var(--green)':'var(--red)'}">
-          ${e.sign>0?'▲':'▼'}
-        </div>
-        <div class="cf-body">
-          <div class="cf-desc">${e.note||e.cat} ${e.doc?`<span style="color:var(--muted);font-size:9px">${e.doc}</span>`:''}</div>
-          <div class="cf-meta">${e.date} · ${badge(e.type)} · ${e.who}</div>
-        </div>
-        <div style="text-align:right;flex-shrink:0">
-          <div class="cf-amount" style="color:${e.sign>0?'var(--green)':'var(--red)'}">
-            ${e.sign>0?'+':'-'}${fmt(e.amount)} ₸
-          </div>
-          <div style="font-size:9px;color:${e.running>=0?'var(--muted)':'var(--red)'}">
-            ост: ${fmt(e.running)} ₸
-          </div>
-        </div>
-      </div>
-    `).join('')}
-  </div>`;
-}
-
-// ── OBJECTS ──
-function renderObjects() {
-  return `
-  <div class="section-hdr">
-    <h2>ОБЪЕКТЫ</h2>
-    <button class="del-btn" onclick="openObjectModal()" style="color:var(--gold);border-color:var(--gold)">+ Объект</button>
-  </div>
-  ${state.objects.map(obj => {
-    const inc  = state.entries.filter(e=>e.type==='Доход'&&e.obj===obj.id).reduce((s,e)=>s+e.amount,0);
-    const exp  = state.entries.filter(e=>e.type==='Расход'&&e.obj===obj.id).reduce((s,e)=>s+e.amount,0);
-    const pr   = inc - exp;
-    const catMap = {};
-    state.entries.filter(e=>e.type==='Расход'&&e.obj===obj.id).forEach(e=>{ catMap[e.cat]=(catMap[e.cat]||0)+e.amount; });
-    const cats = Object.entries(catMap).sort((a,b)=>b[1]-a[1]);
-    return `
-    <div class="obj-card">
-      <div class="obj-header">
-        <div class="obj-name">${obj.name}</div>
-        <div class="obj-meta">${obj.gc} · ${obj.contract}</div>
-      </div>
-      <div class="obj-kpis">
-        <div class="obj-kpi"><div class="obj-kpi-lbl">Доходы</div><div class="obj-kpi-val" style="color:var(--green)">${fmt(inc)}</div></div>
-        <div class="obj-kpi"><div class="obj-kpi-lbl">Расходы</div><div class="obj-kpi-val" style="color:var(--red)">${fmt(exp)}</div></div>
-        <div class="obj-kpi"><div class="obj-kpi-lbl">Прибыль</div><div class="obj-kpi-val" style="color:${pr>=0?'var(--gold)':'var(--red)'}">${fmt(pr)}</div></div>
-      </div>
-      ${cats.length?`
-      <div class="obj-cats">
-        ${cats.slice(0,6).map(([c,v])=>`
-          <div class="obj-cat-row"><span>${c}</span><span>${fmt(v)} ₸</span></div>
-        `).join('')}
-      </div>`:''}
-    </div>`;
-  }).join('')}`;
-}
-
-// ── PARTNERS ──
-function renderPartners(allT) {
-  const profit = allT.income - allT.expense;
-  const shareEach = profit / 5;
-
-  return `
-  <div class="section-hdr">
-    <h2>ПАРТНЁРЫ</h2>
-    <div class="section-total" style="color:var(--gold)">доля: ${fmt(shareEach)} ₸</div>
-  </div>
-  <div class="partner-grid">
-    ${PARTNERS.map((p,i) => {
-      const contrib  = state.entries.filter(e=>e.type==='Взнос'&&e.who===p).reduce((s,e)=>s+e.amount,0);
-      const withdraw = state.entries.filter(e=>e.type==='Изъятие'&&e.who===p).reduce((s,e)=>s+e.amount,0);
-      const netto = contrib - withdraw;
-      return `
-      <div class="partner-card" style="border-top-color:${P_COLORS[i]}">
-        <div class="partner-name" style="color:${P_COLORS[i]}">${p}</div>
-        <div class="partner-row"><span class="partner-lbl">Взносы</span><span style="color:var(--blue)">${fmt(contrib)} ₸</span></div>
-        <div class="partner-row"><span class="partner-lbl">Изъятия</span><span style="color:var(--red)">${fmt(withdraw)} ₸</span></div>
-        <div class="partner-divider"></div>
-        <div class="partner-row"><span class="partner-lbl">Нетто</span><span style="color:${netto>=0?'var(--green)':'var(--red)'}">${fmt(netto)} ₸</span></div>
-        <div class="partner-row"><span class="partner-lbl">Прибыль</span><span style="color:var(--gold)">${fmt(shareEach)} ₸</span></div>
-      </div>`;
-    }).join('')}
-  </div>
-
-  <div style="margin-top:12px">
-    <div class="section-hdr"><h2>ИСТОРИЯ</h2></div>
-    <div class="card">
-      ${state.entries.filter(e=>e.type==='Взнос'||e.type==='Изъятие')
-        .sort((a,b)=>b.date.localeCompare(a.date))
-        .map(e=>`
-        <div class="cf-row">
-          ${badge(e.type)}
-          <div class="cf-body">
-            <div class="cf-desc" style="color:${partnerColor(e.who)}">${e.who}</div>
-            <div class="cf-meta">${e.date} · ${e.note}</div>
-          </div>
-          <div class="cf-amount" style="color:${e.type==='Взнос'?'var(--blue)':'var(--purple)'}">
-            ${e.type==='Взнос'?'+':'-'}${fmt(e.amount)} ₸
-          </div>
-          <button class="del-btn" onclick="delEntry(${e.id})">✕</button>
-        </div>
-      `).join('')}
-    </div>
-  </div>`;
-}
-
-// ── JOURNAL ──
-function renderJournal(entries) {
-  const sorted = [...entries].sort((a,b)=>b.date.localeCompare(a.date));
-  return `
-  <div class="section-hdr">
-    <h2>ЖУРНАЛ</h2>
-    <span class="section-total">${sorted.length} записей</span>
-  </div>
-  <div class="card" style="padding:0;overflow:hidden">
-    ${sorted.length ? sorted.map(e=>`
-      <div style="padding:10px 12px;border-bottom:1px solid var(--surface2);display:flex;gap:8px;align-items:flex-start">
-        <div style="flex:1;min-width:0">
-          <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;flex-wrap:wrap">
-            ${badge(e.type)}
-            <span style="font-size:9px;color:var(--muted)">${e.date}</span>
-            ${e.obj&&e.obj!=='-'?`<span style="font-size:9px;color:var(--muted)">${objName(e.obj)}</span>`:''}
-          </div>
-          <div style="font-size:12px;margin-bottom:2px">${e.note||e.cat}</div>
-          <div style="font-size:10px;color:var(--muted)">${e.who} ${e.doc?'· '+e.doc:''}</div>
-        </div>
-        <div style="text-align:right;flex-shrink:0">
-          <div style="font-size:13px;font-weight:700;color:${e.type==='Доход'||e.type==='Взнос'?'var(--green)':'var(--red)'}">
-            ${e.type==='Доход'||e.type==='Взнос'?'+':'-'}${fmt(e.amount)} ₸
-          </div>
-          <button class="del-btn" style="margin-top:4px" onclick="delEntry(${e.id})">✕</button>
-        </div>
-      </div>
-    `).join('') : '<div class="empty"><div class="empty-icon">📋</div>Нет записей</div>'}
-  </div>`;
-}
-
-// ══════════════════════════════════════════════════════
-// MODAL — ADD ENTRY
-// ══════════════════════════════════════════════════════
-let currentType = 'Расход';
-
-function openModal(prefillType) {
-  currentType = prefillType || 'Расход';
-  document.getElementById('modal-title').textContent = 'НОВАЯ ЗАПИСЬ';
-  renderModalBody();
-  document.getElementById('modal').style.display = 'flex';
-}
-
-function renderModalBody() {
-  const today = new Date().toISOString().slice(0,10);
-  const typeBtns = ['Доход','Расход','Взнос','Изъятие'].map(t => {
-    const cls = t===currentType ? `selected-${t==='Доход'?'income':t==='Расход'?'expense':t==='Взнос'?'contrib':'withdraw'}` : '';
-    return `<button class="type-btn ${cls}" onclick="selectType('${t}')">${t}</button>`;
+  var objHTML=OBJECTS.map(function(obj){
+    var inc=state.entries.filter(function(e){return e.type==='income'&&e.obj===obj;}).reduce(function(s,e){return s+e.amount;},0);
+    var exp=state.entries.filter(function(e){return e.type==='expense'&&e.obj===obj;}).reduce(function(s,e){return s+e.amount;},0);
+    var cm={};
+    state.entries.filter(function(e){return e.type==='expense'&&e.obj===obj;}).forEach(function(e){cm[e.cat]=(cm[e.cat]||0)+e.amount;});
+    var pr=inc-exp;
+    return '<div style="margin-bottom:14px">'+
+      '<div style="font-family:var(--fd);font-size:15px;color:var(--gold);letter-spacing:1px;margin-bottom:6px">'+obj+'</div>'+
+      '<div class="r2"><span class="lb">Доходы</span><span class="vl" style="color:var(--green)">+'+fmt(inc)+' ₸</span></div>'+
+      '<div class="r2"><span class="lb">Расходы</span><span class="vl" style="color:var(--red)">−'+fmt(exp)+' ₸</span></div>'+
+      '<div class="divider"></div>'+
+      '<div class="r2"><span class="lb" style="font-weight:700;color:var(--text)">Прибыль объекта</span><span class="vl" style="color:'+(pr>=0?'var(--green)':'var(--red)')+';font-size:13px">'+fmt(pr)+' ₸</span></div>'+
+      Object.entries(cm).sort(function(a,b){return b[1]-a[1];}).map(function(cv){return '<div class="r2" style="font-size:10px"><span class="lb" style="padding-left:10px">· '+cv[0]+'</span><span style="color:var(--red)">−'+fmt(cv[1])+' ₸</span></div>';}).join('')+
+    '</div>';
   }).join('');
 
-  const isTransfer = currentType==='Взнос'||currentType==='Изъятие';
-  const objOpts = state.objects.map(o=>`<option value="${o.id}">${o.name.split('—')[0].trim()}</option>`).join('');
-  const expOpts = EXP_CATS.map(c=>`<option>${c}</option>`).join('');
-  const incOpts = INC_CATS.map(c=>`<option>${c}</option>`).join('');
-  const parOpts = PARTNERS.map(p=>`<option>${p}</option>`).join('');
-
-  document.getElementById('modal-body').innerHTML = `
-    <div class="type-grid">${typeBtns}</div>
-
-    <div class="form-row">
-      <div class="form-group">
-        <label class="form-label">Дата</label>
-        <input class="form-input" type="date" id="f-date" value="${today}"/>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Сумма (₸)</label>
-        <input class="form-input" type="number" id="f-amount" placeholder="0" inputmode="numeric"/>
-      </div>
-    </div>
-
-    ${!isTransfer ? `
-    <div class="form-group">
-      <label class="form-label">Объект</label>
-      <select class="form-input" id="f-obj">${objOpts}</select>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Категория</label>
-      <select class="form-input" id="f-cat">${currentType==='Доход'?incOpts:expOpts}</select>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Контрагент</label>
-      <input class="form-input" type="text" id="f-who" placeholder="ТОО «...» или ИП..."/>
-    </div>` : `
-    <div class="form-group">
-      <label class="form-label">Партнёр</label>
-      <select class="form-input" id="f-who">${parOpts}</select>
-    </div>`}
-
-    <div class="form-group">
-      <label class="form-label">Примечание</label>
-      <input class="form-input" type="text" id="f-note" placeholder="Описание операции..."/>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Счёт / Акт / Документ</label>
-      <input class="form-input" type="text" id="f-doc" placeholder="КС2-001, Сч-0001..."/>
-    </div>
-
-    <button class="btn-save" onclick="saveEntry()">СОХРАНИТЬ</button>
-    <button class="btn-cancel" onclick="closeModal()">Отмена</button>
-  `;
+  return '<div class="shdr"><h2>P&L</h2><span style="font-size:10px;color:var(--mut)">Прибыль и убытки</span></div>'+
+  '<div class="card">'+objHTML+'</div>'+
+  '<div class="card">'+
+    '<div class="ctit">Итого по компании</div>'+
+    '<div class="r2"><span class="lb">▲ Все доходы</span><span class="vl" style="color:var(--green)">'+fmt(C.income)+' ₸</span></div>'+
+    Object.entries(catMap).sort(function(a,b){return b[1]-a[1];}).map(function(cv){return '<div class="r2" style="font-size:10px"><span class="lb" style="padding-left:10px">· '+cv[0]+'</span><span style="color:var(--red)">−'+fmt(cv[1])+' ₸</span></div>';}).join('')+
+    '<div class="r2"><span class="lb">▼ Все расходы</span><span class="vl" style="color:var(--red)">−'+fmt(C.expense)+' ₸</span></div>'+
+    '<div class="divider"></div>'+
+    '<div class="r2"><span class="lb" style="font-weight:700;color:var(--text)">ПРИБЫЛЬ</span><span class="vl" style="color:'+(C.profit>=0?'var(--green)':'var(--red)')+';font-size:16px">'+fmt(C.profit)+' ₸</span></div>'+
+    '<div class="divider"></div>'+
+    '<div class="ctit" style="margin-top:8px">БАЛАНС</div>'+
+    '<div class="r2"><span class="lb">Вложения Дмитрия</span><span class="vl" style="color:var(--blue)">'+fmt(C.invested)+' ₸</span></div>'+
+    '<div class="r2"><span class="lb">Личные изъятия партнёров</span><span class="vl" style="color:var(--purple)">−'+fmt(C.personal)+' ₸</span></div>'+
+    '<div class="r2"><span class="lb">Возвращено Дмитрию</span><span class="vl" style="color:var(--mut)">−'+fmt(C.returned)+' ₸</span></div>'+
+    '<div class="r2"><span class="lb">Возвращено в кассу</span><span class="vl" style="color:var(--mut)">+'+fmt(C.repaid)+' ₸</span></div>'+
+    '<div class="divider"></div>'+
+    '<div class="r2"><span class="lb" style="font-weight:700;color:var(--text)">Остаток в обороте</span><span class="vl" style="color:var(--gold);font-size:14px">'+fmt(C.invested-C.returned+C.repaid-C.expense+C.income-C.personal)+' ₸</span></div>'+
+  '</div>';
 }
 
-function selectType(t) {
-  currentType = t;
-  renderModalBody();
+// ═══ ПАРТНЁРЫ ═══
+function renderPartners(){
+  var C=calcCompany();
+  var pod=calcPodotchet();
+
+  // Итоги компании наверху
+  var summaryHTML=
+    '<div class="card" style="border-color:var(--gold);margin-bottom:12px">'+
+      '<div class="ctit">Состояние компании</div>'+
+      '<div class="r2"><span class="lb">💰 Доходы от заказчика</span><span class="vl" style="color:var(--green)">'+fmt(C.income)+' ₸</span></div>'+
+      '<div class="r2"><span class="lb">🧾 Расходы компании</span><span class="vl" style="color:var(--red)">'+fmt(C.expense)+' ₸</span></div>'+
+      '<div class="divider"></div>'+
+      '<div class="r2"><span class="lb">📊 Прибыль</span><span class="vl" style="color:'+(C.profit>=0?'var(--green)':'var(--red)')+'">'+fmt(C.profit)+' ₸</span></div>'+
+      '<div class="r2"><span class="lb">🔄 Вернуть Дмитрию (вложения)</span><span class="vl" style="color:var(--blue)">'+fmt(C.owedToDmitry)+' ₸</span></div>'+
+      '<div class="divider"></div>'+
+      '<div class="r2"><span class="lb" style="font-weight:700;color:var(--text)">Делится поровну на 5</span><span class="vl" style="color:var(--gold);font-size:15px">'+fmt(C.toShare)+' ₸</span></div>'+
+      '<div class="r2"><span class="lb" style="font-weight:700;color:var(--text)">Доля каждого партнёра</span><span class="vl" style="color:var(--gold);font-family:var(--fd);font-size:20px">'+fmt(C.shareEach)+' ₸</span></div>'+
+    '</div>';
+
+  var cardsHTML=PARTNERS.map(function(p,i){
+    var P=calcPartner(p);
+    var podP=pod.find(function(x){return x.name===p;})||{given:0,spent:0,personal:0,repaid:0,onHand:0};
+
+    // Сколько должен вернуть в кассу = личные + деньги на руках
+    var mustReturn=P.personal+P.onHand;
+    // К получению = доля - долг
+    var toGet=C.shareEach - mustReturn;
+    // Если инвестор (Дмитрий) — ещё добавляем возврат вложений
+    var totalGet=toGet+(P.invested-P.returned);
+
+    var finalColor=totalGet>0?'var(--green)':totalGet<0?'var(--red)':'var(--mut)';
+    var finalLabel=totalGet>0?'К ПОЛУЧЕНИЮ':'К ВОЗВРАТУ В КАССУ';
+
+    return '<div class="pcard" style="border-top:3px solid '+PC[i]+'">'+
+
+      // Шапка
+      '<div class="phdr">'+
+        '<div>'+
+          '<div class="pname" style="color:'+PC[i]+'">'+p+'</div>'+
+          (P.invested>0?'<div style="font-size:9px;color:var(--blue);margin-top:1px">💼 Инвестор · вложил '+fmt(P.invested)+' ₸</div>':
+           '<div style="font-size:9px;color:var(--mut);margin-top:1px">Партнёр · доля 1/5</div>')+
+        '</div>'+
+        '<div style="text-align:right">'+
+          '<div style="font-size:8px;color:var(--mut);text-transform:uppercase;letter-spacing:1px">Доля прибыли</div>'+
+          '<div style="font-family:var(--fd);font-size:20px;color:var(--gold)">'+fmt(C.shareEach)+' ₸</div>'+
+        '</div>'+
+      '</div>'+
+
+      '<div class="pbody">'+
+
+        // Блок вложений (только если вкладывал)
+        (P.invested>0?
+        '<div style="background:var(--bllt);border-radius:8px;padding:10px;margin-bottom:8px">'+
+          '<div style="font-size:9px;color:var(--blue);letter-spacing:2px;text-transform:uppercase;margin-bottom:8px">💼 Вложения в компанию</div>'+
+          '<div class="r2"><span class="lb">Вложил своих денег</span><span class="vl" style="color:var(--blue)">'+fmt(P.invested)+' ₸</span></div>'+
+          '<div class="r2"><span class="lb">Уже возвращено</span><span class="vl" style="color:var(--green)">'+fmt(P.returned)+' ₸</span></div>'+
+          '<div style="border-top:1px solid var(--brd);margin-top:6px;padding-top:6px" class="r2">'+
+            '<span class="lb" style="color:var(--text);font-weight:700">Ещё вернуть</span>'+
+            '<span class="vl" style="color:var(--blue);font-size:14px">'+fmt(P.invested-P.returned)+' ₸</span>'+
+          '</div>'+
+        '</div>':'') +
+
+        // Блок подотчёта (только если получал деньги на руки)
+        (podP.given>0?
+        '<div style="background:var(--olt);border-radius:8px;padding:10px;margin-bottom:8px">'+
+          '<div style="font-size:9px;color:var(--orange);letter-spacing:2px;text-transform:uppercase;margin-bottom:8px">📤 Подотчёт (деньги на руках)</div>'+
+          '<div class="r2"><span class="lb">Получил наличными</span><span class="vl" style="color:var(--orange)">'+fmt(podP.given)+' ₸</span></div>'+
+          '<div class="r2"><span class="lb">Потратил на компанию</span><span class="vl" style="color:var(--red)">−'+fmt(podP.spent)+' ₸</span></div>'+
+          (podP.personal>0?'<div class="r2"><span class="lb">Взял лично (из подотчёта)</span><span class="vl" style="color:var(--purple)">−'+fmt(podP.personal)+' ₸</span></div>':'')+
+          (podP.repaid>0?'<div class="r2"><span class="lb">Вернул в кассу</span><span class="vl" style="color:var(--green)">−'+fmt(podP.repaid)+' ₸</span></div>':'')+
+          '<div style="border-top:1px solid var(--brd);margin-top:6px;padding-top:6px" class="r2">'+
+            '<span class="lb" style="color:var(--text);font-weight:700">Остаток на руках</span>'+
+            '<span class="vl" style="color:'+(podP.onHand>0?'var(--red)':'var(--green)')+';font-size:14px">'+fmt(podP.onHand)+' ₸</span>'+
+          '</div>'+
+        '</div>':'') +
+
+        // Блок доли и личных расходов
+        '<div style="background:var(--s2);border-radius:8px;padding:10px;margin-bottom:8px">'+
+          '<div style="font-size:9px;color:var(--mut);letter-spacing:2px;text-transform:uppercase;margin-bottom:8px">📊 Доля и личные расходы</div>'+
+          '<div class="r2"><span class="lb">Доля прибыли (1/5)</span><span class="vl" style="color:var(--gold)">'+fmt(C.shareEach)+' ₸</span></div>'+
+          (P.personal>0?
+            '<div class="r2"><span class="lb">👤 Взял на личные расходы</span><span class="vl" style="color:var(--purple)">'+fmt(P.personal)+' ₸</span></div>':'')+
+          (P.onHand>0?
+            '<div class="r2"><span class="lb">📤 На руках (вернуть в кассу)</span><span class="vl" style="color:var(--red)">'+fmt(P.onHand)+' ₸</span></div>':'')+
+          (mustReturn>0?
+            '<div style="border-top:1px solid var(--brd);margin-top:6px;padding-top:6px" class="r2">'+
+              '<span class="lb" style="color:var(--text);font-weight:700">Всего должен в кассу</span>'+
+              '<span class="vl" style="color:var(--red);font-size:14px">'+fmt(mustReturn)+' ₸</span>'+
+            '</div>':'')+
+        '</div>'+
+
+        // Итоговый блок — самый важный
+        '<div style="border-radius:10px;padding:12px;border:2px solid '+(totalGet>=0?'var(--green)':'var(--red)')+';background:'+(totalGet>=0?'var(--grlt)':'var(--rlt)')+'">'+
+          '<div style="font-size:9px;color:'+(totalGet>=0?'var(--green)':'var(--red)')+';letter-spacing:2px;text-transform:uppercase;margin-bottom:10px">🏁 Итоговый расчёт</div>'+
+          (P.invested>0?
+            '<div class="r2"><span class="lb">Возврат вложений</span><span class="vl" style="color:var(--blue)">+'+fmt(P.invested-P.returned)+' ₸</span></div>':'')+
+          '<div class="r2"><span class="lb">Доля прибыли</span><span class="vl" style="color:var(--gold)">+'+fmt(C.shareEach)+' ₸</span></div>'+
+          (P.personal>0?
+            '<div class="r2"><span class="lb">Взял лично</span><span class="vl" style="color:var(--purple)">−'+fmt(P.personal)+' ₸</span></div>':'')+
+          (P.onHand>0?
+            '<div class="r2"><span class="lb">На руках</span><span class="vl" style="color:var(--red)">−'+fmt(P.onHand)+' ₸</span></div>':'')+
+          '<div style="border-top:2px solid '+(totalGet>=0?'var(--green)':'var(--red)')+';margin-top:8px;padding-top:10px;display:flex;justify-content:space-between;align-items:center">'+
+            '<span style="font-size:12px;font-weight:700;color:'+(totalGet>=0?'var(--green)':'var(--red)')+'">'+finalLabel+'</span>'+
+            '<span style="font-family:var(--fd);font-size:26px;color:'+(totalGet>=0?'var(--green)':'var(--red)')+'">'+fmt(Math.abs(totalGet))+' ₸</span>'+
+          '</div>'+
+        '</div>'+
+
+      '</div>'+
+    '</div>';
+  }).join('');
+
+  return '<div class="shdr"><h2>ПАРТНЁРЫ</h2><span style="font-size:10px;color:var(--mut)">5 партнёров · LionGate Construction</span></div>'+
+    summaryHTML+cardsHTML;
 }
 
-function saveEntry() {
-  const amount = parseFloat(document.getElementById('f-amount')?.value);
-  if (!amount || isNaN(amount)) { alert('Введите сумму'); return; }
-  const isTransfer = currentType==='Взнос'||currentType==='Изъятие';
-  const who = document.getElementById('f-who')?.value || '';
-  const entry = {
-    id: Date.now(),
-    date:   document.getElementById('f-date')?.value || new Date().toISOString().slice(0,10),
-    type:   currentType,
-    obj:    isTransfer ? '-' : (document.getElementById('f-obj')?.value || '-'),
-    cat:    isTransfer ? currentType+' партнёра' : (document.getElementById('f-cat')?.value || ''),
-    who,
-    amount,
-    note:   document.getElementById('f-note')?.value || '',
-    doc:    document.getElementById('f-doc')?.value  || '',
-  };
-  state.entries.push(entry);
-  saveState();
-  closeModal();
-  render();
+// ═══ БРИГАДЫ ═══
+function renderBrigades(){
+  var html='<div class="shdr"><h2>БРИГАДЫ</h2>'+(role==='editor'?'<button class="fedit" onclick="openAddBrigadeModal()" style="color:var(--teal);border-color:var(--teal)">+ Бригада</button>':'')+'</div>'+
+  '<div class="infobox" style="border-color:var(--teal);background:var(--tlt);color:var(--mut)">👷 Начислено = объём (м³) × расценка. Остаток = начислено − выплачено.</div>';
+
+  state.brigades.forEach(function(b){
+    var B=calcBrigade(b);
+    var bc=B.balance>0?'var(--red)':B.balance<0?'var(--green)':'var(--mut)';
+    var btxt=B.balance>0?'Долг: '+fmt(B.balance)+' ₸':B.balance<0?'Переплата: '+fmt(Math.abs(B.balance))+' ₸':'Расчёт закрыт';
+    var pct=B.totalEarned?Math.min(Math.round(B.paid/B.totalEarned*100),100):0;
+
+    var rateMap={};
+    B.volEntries.forEach(function(e){
+      var key=(e.rate||0)+'_'+(e.zone||'');
+      if(!rateMap[key])rateMap[key]={rate:e.rate||0,zone:e.zone||'',vol:0,earned:0};
+      rateMap[key].vol+=(e.volume||0);
+      rateMap[key].earned+=e.amount;
+    });
+
+    html+='<div class="bcard">'+
+      '<div class="bhdr">'+
+        '<div><div class="bname">'+b.name+'</div><div style="font-size:10px;color:var(--mut)">'+b.spec+' · '+b.obj.split('—')[0].trim()+'</div></div>'+
+        (role==='editor'?'<button class="fedit" onclick="openEditBrigadeModal(\''+b.id+'\')">✏️ Ред.</button>':'')+
+      '</div>'+
+      '<div class="bbody">'+
+        '<div class="kg3" style="margin-bottom:10px">'+
+          '<div class="kpi" style="border-color:var(--teal);padding:8px 10px"><div class="klbl">Объём</div><div class="kval" style="font-size:16px;color:var(--teal)">'+fmtD(B.totalVol)+'</div><div class="ksub">м³</div></div>'+
+          '<div class="kpi" style="border-color:var(--gold);padding:8px 10px"><div class="klbl">Начислено</div><div class="kval" style="font-size:16px;color:var(--gold)">'+fmt(B.totalEarned)+'</div><div class="ksub">₸</div></div>'+
+          '<div class="kpi" style="border-color:var(--green);padding:8px 10px"><div class="klbl">Выплачено</div><div class="kval" style="font-size:16px;color:var(--green)">'+fmt(B.paid)+'</div><div class="ksub">₸</div></div>'+
+        '</div>'+
+        '<div class="bar" style="height:7px;margin-bottom:4px"><div class="barfill" style="width:'+pct+'%;background:var(--teal)"></div></div>'+
+        '<div style="display:flex;justify-content:space-between;font-size:9px;color:var(--mut);margin-bottom:10px">'+
+          '<span>выплачено '+pct+'%</span>'+
+          '<span style="color:'+bc+';font-weight:700">'+btxt+'</span>'+
+        '</div>'+
+        (Object.keys(rateMap).length>0?
+          '<div class="sdiv">Расценки и пятна</div>'+
+          Object.values(rateMap).map(function(r){
+            return '<div class="r2" style="font-size:10px"><span class="lb">'+(r.zone||'Основной объём')+' · '+fmt(r.rate)+' ₸/м³</span><span style="color:var(--teal)">'+fmtD(r.vol)+' м³ = '+fmt(r.earned)+' ₸</span></div>';
+          }).join(''):'')  +
+        (B.history.length>0?
+          '<div class="sdiv">История</div>'+
+          B.history.map(function(e){
+            return '<div class="r2" style="font-size:10px">'+
+              '<span class="lb">'+e.date+' · '+(e.type==='vol'?'📐 '+fmtD(e.volume)+' м³ × '+fmt(e.rate)+' ₸':e.type==='pay'?'💸 Выплата':'💸 Аванс')+(e.zone?' · '+e.zone:'')+(e.note?' · '+e.note:'')+'</span>'+
+              '<span style="color:'+(e.type==='vol'?'var(--gold)':'var(--green)')+'">'+fmt(e.amount)+' ₸</span>'+
+            '</div>';
+          }).join(''):'') +
+        (role==='editor'?
+          '<div style="display:flex;gap:8px;margin-top:12px">'+
+            '<button onclick="openVolModal(\''+b.id+'\')" style="flex:1;background:var(--tlt);border:1px solid var(--teal);color:var(--teal);border-radius:8px;padding:9px;font-family:var(--fm);font-size:11px;cursor:pointer">📐 Внести объём</button>'+
+            '<button onclick="openPayModal(\''+b.id+'\')" style="flex:1;background:var(--grlt);border:1px solid var(--green);color:var(--green);border-radius:8px;padding:9px;font-family:var(--fm);font-size:11px;cursor:pointer">💸 Выплатить</button>'+
+          '</div>':'')+
+      '</div>'+
+    '</div>';
+  });
+  return html;
 }
 
-function closeModal() { document.getElementById('modal').style.display = 'none'; }
+// ═══ ДВИЖЕНИЕ ═══
+function renderCash(){
+  var sorted=[].concat(state.entries).filter(function(e){return e.type!=='vol';}).sort(function(a,b){return a.date.localeCompare(b.date);});
+  var run=0;
+  var rows=sorted.map(function(e){
+    var sign=(e.type==='income'||e.type==='invest'||e.type==='repay')?1:-1;
+    run+=sign*e.amount;
+    return Object.assign({},e,{sign:sign,running:run});
+  }).reverse();
 
-function openObjectModal() {
-  document.getElementById('modal-title').textContent = 'НОВЫЙ ОБЪЕКТ';
-  document.getElementById('modal-body').innerHTML = `
-    <div class="form-group">
-      <label class="form-label">Название объекта</label>
-      <input class="form-input" type="text" id="f-obj-name" placeholder="ЖК Алатау, корпус 3..."/>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Заказчик (ГП)</label>
-      <input class="form-input" type="text" id="f-obj-gc" placeholder="ТОО «BI Group»"/>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Номер договора</label>
-      <input class="form-input" type="text" id="f-obj-contract" placeholder="БИ-2025-001"/>
-    </div>
-    <button class="btn-save" onclick="saveObject()">СОХРАНИТЬ</button>
-    <button class="btn-cancel" onclick="closeModal()">Отмена</button>
-  `;
-  document.getElementById('modal').style.display = 'flex';
+  return '<div class="shdr"><h2>ДВИЖЕНИЕ</h2><span style="font-size:11px;font-weight:700;color:'+(run>=0?'var(--green)':'var(--red)')+'">касса: '+fmt(run)+' ₸</span></div>'+
+  '<div class="card" style="padding:0 14px">'+
+    rows.map(function(e){
+      return '<div class="oprow">'+
+        '<div class="opbody">'+
+          '<div style="margin-bottom:3px">'+badge(e.type)+'</div>'+
+          '<div class="opdesc">'+descOf(e)+'</div>'+
+          '<div class="opmeta">'+e.date+(e.obj&&e.obj!=='-'?' · '+e.obj.split('—')[0].trim():'')+'</div>'+
+        '</div>'+
+        '<div style="text-align:right">'+
+          '<div style="font-size:12px;font-weight:700;color:'+(TC[e.type]||'var(--mut)')+'">'+(e.sign>0?'+':'-')+fmt(e.amount)+' ₸</div>'+
+          '<div style="font-size:9px;color:'+(e.running>=0?'var(--mut)':'var(--red)')+'">касса: '+fmt(e.running)+' ₸</div>'+
+        '</div>'+
+      '</div>';
+    }).join('')+
+  '</div>';
 }
 
-function saveObject() {
-  const name = document.getElementById('f-obj-name')?.value.trim();
-  if (!name) { alert('Введите название'); return; }
-  const obj = {
-    id: 'obj' + Date.now(),
-    name,
-    gc:       document.getElementById('f-obj-gc')?.value || '',
-    contract: document.getElementById('f-obj-contract')?.value || '',
-  };
-  state.objects.push(obj);
-  // Add to filter
-  const sel = document.getElementById('obj-filter');
-  const opt = document.createElement('option');
-  opt.value = obj.id; opt.textContent = name.split('—')[0].trim();
-  sel.appendChild(opt);
-  saveState();
-  closeModal();
-  render();
+// ═══ ЖУРНАЛ ═══
+function renderJournal(){
+  var sorted=[].concat(state.entries).sort(function(a,b){return b.date.localeCompare(a.date);});
+  return '<div class="shdr"><h2>ЖУРНАЛ</h2><span style="font-size:11px;color:var(--mut)">'+sorted.length+' записей</span></div>'+
+  '<div class="card" style="padding:0 14px">'+
+    (sorted.length?sorted.map(function(e){return opRow(e,true);}).join(''):'<div class="empty">Нет записей</div>')+
+  '</div>';
 }
 
-function delEntry(id) {
-  if (!confirm('Удалить запись?')) return;
-  state.entries = state.entries.filter(e=>e.id!==id);
-  saveState(); render();
+// ═══ МОДАЛ ═══
+var selType='expense';
+function openModal(){if(role!=='editor')return;selType='expense';buildModal();document.getElementById('modal').style.display='flex';}
+function closeModal(){document.getElementById('modal').style.display='none';}
+
+function buildModal(){
+  var today=new Date().toISOString().slice(0,10);
+  var parOpts=PARTNERS.map(function(p){return '<option>'+p+'</option>';}).join('');
+  var catOpts=EXP_CATS.map(function(c){return '<option>'+c+'</option>';}).join('');
+  var objOpts=OBJECTS.map(function(o){return '<option>'+o+'</option>';}).join('');
+  var brigOpts=state.brigades.map(function(b){return '<option value="'+b.id+'">'+b.name+' ('+b.spec+')</option>';}).join('');
+
+  var types=[
+    {key:'expense', cls:'tc-exp',ico:'🧾',tit:'Потратили',       dsc:'Расход компании: материалы, зарплата...'},
+    {key:'invest',  cls:'tc-inv',ico:'💼',tit:'Вложил деньги',   dsc:'Партнёр вложил свои деньги в проект'},
+    {key:'income',  cls:'tc-inc',ico:'💰',tit:'Получили деньги', dsc:'Пришла оплата от заказчика'},
+    {key:'personal',cls:'tc-per',ico:'👤',tit:'Взял лично',      dsc:'Партнёр взял деньги себе (из своей доли)'},
+    {key:'return',  cls:'tc-ret',ico:'🔄',tit:'Вернули вложение',dsc:'Вернули партнёру его вложенные деньги'},
+    {key:'repay',   cls:'tc-rep',ico:'💵',tit:'Вернул в кассу',  dsc:'Сотрудник вернул остаток подотчёта в кассу'},
+  ];
+  var tcols=types.map(function(t){
+    return '<div class="tcard '+t.cls+(selType===t.key?' sel':'')+'" onclick="selType=\''+t.key+'\';buildModal()">'+
+      '<div class="tic">'+t.ico+'</div>'+
+      '<div class="ttit" style="color:'+(TC[t.key]||'var(--mut)')+'">'+t.tit+'</div>'+
+      '<div class="tdsc">'+t.dsc+'</div>'+
+    '</div>';
+  }).join('');
+
+  var fields='';
+  if(selType==='expense') fields=
+    '<div class="fg"><label class="fl">Объект</label><select class="fi" id="f-obj">'+objOpts+'</select></div>'+
+    '<div class="fg"><label class="fl">Статья расхода</label><select class="fi" id="f-cat">'+catOpts+'</select></div>'+
+    '<div class="fg"><label class="fl">Кто потратил</label><select class="fi" id="f-who">'+parOpts+'</select></div>'+
+    '<div class="fg"><label class="fl">Что куплено / на что</label><input class="fi" id="f-note" type="text" placeholder="Арматура, аванс бригаде..."/></div>'+
+    '<div class="fg"><label class="fl">Бригада (если аванс бригаде)</label><select class="fi" id="f-brig"><option value="">— не относится к бригаде</option>'+brigOpts+'</select></div>';
+  else if(selType==='invest') fields=
+    '<div class="fg"><label class="fl">Кто вложил / выдал</label><select class="fi" id="f-who">'+parOpts+'</select></div>'+
+    '<div class="fg"><label class="fl">Кому выдал наличными (если выдавал)</label><select class="fi" id="f-to"><option value="">— никому, оплатил напрямую</option>'+parOpts+'</select></div>'+
+    '<div class="fg"><label class="fl">На что пошли деньги</label><input class="fi" id="f-note" type="text" placeholder="На расходы по объекту..."/></div>';
+  else if(selType==='income') fields=
+    '<div class="fg"><label class="fl">Объект</label><select class="fi" id="f-obj">'+objOpts+'</select></div>'+
+    '<div class="fg"><label class="fl">От кого</label><input class="fi" id="f-from" type="text" placeholder="Sensata Group" value="Sensata Group"/></div>'+
+    '<div class="fg"><label class="fl">Примечание</label><input class="fi" id="f-note" type="text" placeholder="КС-2 №1, аванс 30%..."/></div>';
+  else if(selType==='personal') fields=
+    '<div class="fg"><label class="fl">Кто взял</label><select class="fi" id="f-who">'+parOpts+'</select></div>'+
+    '<div class="fg"><label class="fl">Примечание</label><input class="fi" id="f-note" type="text" placeholder="На личные нужды..."/></div>';
+  else if(selType==='return') fields=
+    '<div class="fg"><label class="fl">Кому вернули</label><select class="fi" id="f-who">'+parOpts+'</select></div>'+
+    '<div class="fg"><label class="fl">Примечание</label><input class="fi" id="f-note" type="text" placeholder="Возврат вложений..."/></div>';
+  else if(selType==='repay') fields=
+    '<div class="fg"><label class="fl">Кто вернул в кассу</label><select class="fi" id="f-who">'+parOpts+'</select></div>'+
+    '<div class="fg"><label class="fl">Примечание</label><input class="fi" id="f-note" type="text" placeholder="Возврат остатка подотчёта..."/></div>';
+
+  document.getElementById('mbody').innerHTML=
+    '<div class="tgrid">'+tcols+'</div>'+
+    '<div class="frow">'+
+      '<div class="fg"><label class="fl">Дата</label><input class="fi" id="f-date" type="date" value="'+today+'"/></div>'+
+      '<div class="fg"><label class="fl">Сумма (₸)</label><input class="fi" id="f-amount" type="number" placeholder="0" inputmode="numeric"/></div>'+
+    '</div>'+
+    fields+
+    '<button class="fsave" onclick="saveEntry()">СОХРАНИТЬ</button>'+
+    '<button class="fcanc" onclick="closeModal()">Отмена</button>';
 }
 
-// ══════════════════════════════════════════════════════
-// PWA / SERVICE WORKER
-// ══════════════════════════════════════════════════════
-let deferredPrompt = null;
-window.addEventListener('beforeinstallprompt', e => {
-  e.preventDefault();
-  deferredPrompt = e;
-  document.getElementById('install-banner').classList.add('show');
-});
-document.getElementById('install-btn').addEventListener('click', async () => {
-  if (!deferredPrompt) return;
-  deferredPrompt.prompt();
-  await deferredPrompt.userChoice;
-  deferredPrompt = null;
-  document.getElementById('install-banner').classList.remove('show');
-});
-
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js').catch(()=>{});
+function saveEntry(){
+  var amount=parseFloat(document.getElementById('f-amount')&&document.getElementById('f-amount').value);
+  if(!amount||isNaN(amount)){alert('Введите сумму');return;}
+  var e={id:Date.now(),date:(document.getElementById('f-date')&&document.getElementById('f-date').value)||new Date().toISOString().slice(0,10),type:selType,amount:amount,note:(document.getElementById('f-note')&&document.getElementById('f-note').value)||''};
+  if(selType==='expense'){e.obj=(document.getElementById('f-obj')&&document.getElementById('f-obj').value)||OBJECTS[0];e.cat=(document.getElementById('f-cat')&&document.getElementById('f-cat').value)||'';e.who=(document.getElementById('f-who')&&document.getElementById('f-who').value)||'';var bv=document.getElementById('f-brig')&&document.getElementById('f-brig').value;if(bv)e.brigade=bv;}
+  if(selType==='invest'){e.who=(document.getElementById('f-who')&&document.getElementById('f-who').value)||'';e.obj=OBJECTS[0];var tv=document.getElementById('f-to')&&document.getElementById('f-to').value;if(tv)e.to=tv;else e.to='';}
+  if(selType==='income'){e.obj=(document.getElementById('f-obj')&&document.getElementById('f-obj').value)||OBJECTS[0];e.from=(document.getElementById('f-from')&&document.getElementById('f-from').value)||'';}
+  if(selType==='personal'){e.who=(document.getElementById('f-who')&&document.getElementById('f-who').value)||'';e.obj='-';}
+  if(selType==='return'){e.who=(document.getElementById('f-who')&&document.getElementById('f-who').value)||'';e.obj='-';}
+  if(selType==='repay'){e.who=(document.getElementById('f-who')&&document.getElementById('f-who').value)||'';e.obj='-';}
+  state.entries.push(e);save();closeModal();render();
 }
 
-// ══════════════════════════════════════════════════════
+// Бригадные модалы
+function openVolModal(brigId){
+  var b=state.brigades.find(function(x){return x.id===brigId;});
+  var today=new Date().toISOString().slice(0,10);
+  document.getElementById('mtit').textContent='📐 ОБЪЁМ РАБОТ';
+  document.getElementById('mbody').innerHTML=
+    '<div style="background:var(--tlt);border:1px solid var(--teal);border-radius:8px;padding:10px;margin-bottom:14px;font-size:11px;color:var(--teal)">Бригада: <b>'+b.name+'</b> ('+b.spec+')<br>Сумма = Объём × Расценка</div>'+
+    '<div class="frow">'+
+      '<div class="fg"><label class="fl">Дата</label><input class="fi" id="f-date" type="date" value="'+today+'"/></div>'+
+      '<div class="fg"><label class="fl">Объём (м³)</label><input class="fi" id="f-vol" type="number" placeholder="0.00" step="0.01" inputmode="decimal" oninput="calcVolPreview()"/></div>'+
+    '</div>'+
+    '<div class="frow">'+
+      '<div class="fg"><label class="fl">Расценка (₸/м³)</label><input class="fi" id="f-rate" type="number" placeholder="'+(b.rate||0)+'" value="'+(b.rate||'')+'" inputmode="numeric" oninput="calcVolPreview()"/></div>'+
+      '<div class="fg"><label class="fl">Пятно / зона</label><input class="fi" id="f-zone" type="text" placeholder="Пятно А, секция 1..."/></div>'+
+    '</div>'+
+    '<div class="fg"><label class="fl">Примечание</label><input class="fi" id="f-note" type="text" placeholder="Колонны, перекрытия..."/></div>'+
+    '<div style="background:var(--s2);border-radius:8px;padding:10px;margin-bottom:12px;font-size:11px;color:var(--mut)" id="vol-preview">Введите объём и расценку</div>'+
+    '<button class="fsave" style="background:var(--teal)" onclick="saveVol(\''+brigId+'\')">СОХРАНИТЬ</button>'+
+    '<button class="fcanc" onclick="closeModal()">Отмена</button>';
+  document.getElementById('modal').style.display='flex';
+}
+
+function calcVolPreview(){
+  var vol=parseFloat(document.getElementById('f-vol')&&document.getElementById('f-vol').value)||0;
+  var rate=parseFloat(document.getElementById('f-rate')&&document.getElementById('f-rate').value)||0;
+  var sum=vol*rate;
+  var el=document.getElementById('vol-preview');
+  if(el)el.innerHTML='<span style="color:var(--teal)">'+fmtD(vol)+' м³ × '+fmt(rate)+' ₸/м³ = <b style="font-size:14px">'+fmt(sum)+' ₸</b></span>';
+}
+
+function saveVol(brigId){
+  var vol=parseFloat(document.getElementById('f-vol')&&document.getElementById('f-vol').value);
+  var rate=parseFloat(document.getElementById('f-rate')&&document.getElementById('f-rate').value);
+  if(!vol||isNaN(vol)){alert('Введите объём');return;}
+  if(!rate||isNaN(rate)){alert('Введите расценку');return;}
+  var e={id:Date.now(),date:(document.getElementById('f-date')&&document.getElementById('f-date').value)||new Date().toISOString().slice(0,10),type:'vol',brigade:brigId,volume:vol,rate:rate,amount:Math.round(vol*rate),zone:(document.getElementById('f-zone')&&document.getElementById('f-zone').value)||'',note:(document.getElementById('f-note')&&document.getElementById('f-note').value)||'',obj:OBJECTS[0]};
+  state.entries.push(e);
+  var brig=state.brigades.find(function(x){return x.id===brigId;});
+  if(brig)brig.rate=rate;
+  save();closeModal();render();
+}
+
+function openPayModal(brigId){
+  var b=state.brigades.find(function(x){return x.id===brigId;});
+  var B=calcBrigade(b);
+  var today=new Date().toISOString().slice(0,10);
+  document.getElementById('mtit').textContent='💸 ВЫПЛАТА БРИГАДЕ';
+  document.getElementById('mbody').innerHTML=
+    '<div style="background:var(--grlt);border:1px solid var(--green);border-radius:8px;padding:10px;margin-bottom:14px;font-size:11px">'+
+      '<b style="color:var(--teal)">'+b.name+'</b><br>'+
+      '<span style="color:var(--mut)">Начислено: '+fmt(B.totalEarned)+' ₸ · Выплачено: '+fmt(B.paid)+' ₸</span><br>'+
+      '<span style="color:'+(B.balance>0?'var(--red)':'var(--green)')+'">Остаток к выплате: '+fmt(B.balance)+' ₸</span>'+
+    '</div>'+
+    '<div class="frow">'+
+      '<div class="fg"><label class="fl">Дата</label><input class="fi" id="f-date" type="date" value="'+today+'"/></div>'+
+      '<div class="fg"><label class="fl">Сумма выплаты (₸)</label><input class="fi" id="f-amount" type="number" placeholder="'+(B.balance>0?B.balance:0)+'" inputmode="numeric"/></div>'+
+    '</div>'+
+    '<div class="fg"><label class="fl">Примечание</label><input class="fi" id="f-note" type="text" placeholder="Расчёт за май, аванс..."/></div>'+
+    '<button class="fsave" style="background:var(--green)" onclick="savePay(\''+brigId+'\')">ВЫПЛАТИТЬ</button>'+
+    '<button class="fcanc" onclick="closeModal()">Отмена</button>';
+  document.getElementById('modal').style.display='flex';
+}
+
+function savePay(brigId){
+  var amount=parseFloat(document.getElementById('f-amount')&&document.getElementById('f-amount').value);
+  if(!amount||isNaN(amount)){alert('Введите сумму');return;}
+  var e={id:Date.now(),date:(document.getElementById('f-date')&&document.getElementById('f-date').value)||new Date().toISOString().slice(0,10),type:'pay',brigade:brigId,amount:amount,note:(document.getElementById('f-note')&&document.getElementById('f-note').value)||'',obj:OBJECTS[0]};
+  state.entries.push(e);save();closeModal();render();
+}
+
+function openAddBrigadeModal(){
+  document.getElementById('mtit').textContent='👷 НОВАЯ БРИГАДА';
+  var objOpts=OBJECTS.map(function(o){return '<option>'+o+'</option>';}).join('');
+  document.getElementById('mbody').innerHTML=
+    '<div class="fg"><label class="fl">Название бригады</label><input class="fi" id="f-bname" type="text" placeholder="Бригада 3..."/></div>'+
+    '<div class="fg"><label class="fl">Специализация</label><input class="fi" id="f-bspec" type="text" placeholder="Арматурщики, Бетонщики..."/></div>'+
+    '<div class="fg"><label class="fl">Объект</label><select class="fi" id="f-bobj">'+objOpts+'</select></div>'+
+    '<div class="fg"><label class="fl">Расценка по умолчанию (₸/м³)</label><input class="fi" id="f-brate" type="number" placeholder="0" inputmode="numeric"/></div>'+
+    '<button class="fsave" style="background:var(--teal)" onclick="saveBrigade()">ДОБАВИТЬ</button>'+
+    '<button class="fcanc" onclick="closeModal()">Отмена</button>';
+  document.getElementById('modal').style.display='flex';
+}
+
+function saveBrigade(){
+  var name=document.getElementById('f-bname')&&document.getElementById('f-bname').value.trim();
+  if(!name){alert('Введите название');return;}
+  var b={id:'b'+Date.now(),name:name,spec:(document.getElementById('f-bspec')&&document.getElementById('f-bspec').value)||'',obj:(document.getElementById('f-bobj')&&document.getElementById('f-bobj').value)||OBJECTS[0],rate:parseFloat(document.getElementById('f-brate')&&document.getElementById('f-brate').value)||0,unit:'м³'};
+  state.brigades.push(b);save();closeModal();render();
+}
+
+function openEditBrigadeModal(brigId){
+  var b=state.brigades.find(function(x){return x.id===brigId;});
+  var objOpts=OBJECTS.map(function(o){return '<option'+(o===b.obj?' selected':'')+'>'+o+'</option>';}).join('');
+  document.getElementById('mtit').textContent='✏️ РЕДАКТИРОВАТЬ БРИГАДУ';
+  document.getElementById('mbody').innerHTML=
+    '<div class="fg"><label class="fl">Название бригады</label><input class="fi" id="f-bname" type="text" value="'+b.name+'"/></div>'+
+    '<div class="fg"><label class="fl">Специализация</label><input class="fi" id="f-bspec" type="text" value="'+b.spec+'"/></div>'+
+    '<div class="fg"><label class="fl">Объект</label><select class="fi" id="f-bobj">'+objOpts+'</select></div>'+
+    '<div class="fg"><label class="fl">Расценка по умолчанию (₸/м³)</label><input class="fi" id="f-brate" type="number" value="'+(b.rate||0)+'" inputmode="numeric"/></div>'+
+    '<button class="fsave" style="background:var(--teal)" onclick="updateBrigade(\''+brigId+'\')">СОХРАНИТЬ</button>'+
+    '<button class="fcanc" style="color:var(--red);border-color:var(--red)" onclick="deleteBrigade(\''+brigId+'\')">Удалить бригаду</button>'+
+    '<button class="fcanc" onclick="closeModal()">Отмена</button>';
+  document.getElementById('modal').style.display='flex';
+}
+
+function updateBrigade(brigId){
+  var b=state.brigades.find(function(x){return x.id===brigId;});if(!b)return;
+  b.name=(document.getElementById('f-bname')&&document.getElementById('f-bname').value.trim())||b.name;
+  b.spec=(document.getElementById('f-bspec')&&document.getElementById('f-bspec').value)||b.spec;
+  b.obj=(document.getElementById('f-bobj')&&document.getElementById('f-bobj').value)||b.obj;
+  b.rate=parseFloat(document.getElementById('f-brate')&&document.getElementById('f-brate').value)||b.rate;
+  save();closeModal();render();
+}
+
+function deleteBrigade(brigId){
+  if(!confirm('Удалить бригаду?'))return;
+  state.brigades=state.brigades.filter(function(x){return x.id!==brigId;});
+  save();closeModal();render();
+}
+
+function delEntry(id){
+  if(role!=='editor')return;
+  if(!confirm('Удалить запись?'))return;
+  state.entries=state.entries.filter(function(e){return e.id!==id;});
+  save();render();
+}
+
 // INIT
-// ══════════════════════════════════════════════════════
-render();
+var sr=sessionStorage.getItem('role');if(sr){role=sr;showApp();}
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(function(){});
 </script>
 </body>
 </html>

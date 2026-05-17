@@ -1,7 +1,7 @@
 {
-  "name": "Субподряд — Учёт ИНТЕКС",
-  "short_name": "Субподряд",
-  "description": "Управленческий учёт субподрядной компании. 5 партнёров.",
+  "name": "LIONGATE — LionGate Construction",
+  "short_name": "LIONGATE",
+  "description": "Управленческий учёт LionGate Construction",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0d1117",
@@ -21,7 +21,5 @@
       "type": "image/png",
       "purpose": "any maskable"
     }
-  ],
-  "categories": ["finance", "business", "productivity"],
-  "screenshots": []
+  ]
 }

@@ -1,33 +1,33 @@
-const CACHE = 'subcontract-v1';
+const CACHE = 'liongate-v1';
 const ASSETS = ['/', '/index.html', '/manifest.json', '/icon-192.png', '/icon-512.png'];
 
-self.addEventListener('install', e => {
+self.addEventListener('install', function(e) {
   e.waitUntil(
-    caches.open(CACHE).then(c => c.addAll(ASSETS)).catch(() => {})
+    caches.open(CACHE).then(function(c) { return c.addAll(ASSETS); }).catch(function(){})
   );
   self.skipWaiting();
 });
 
-self.addEventListener('activate', e => {
+self.addEventListener('activate', function(e) {
   e.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
-    )
+    caches.keys().then(function(keys) {
+      return Promise.all(keys.filter(function(k){ return k !== CACHE; }).map(function(k){ return caches.delete(k); }));
+    })
   );
   self.clients.claim();
 });
 
-self.addEventListener('fetch', e => {
+self.addEventListener('fetch', function(e) {
   if (e.request.method !== 'GET') return;
   e.respondWith(
-    caches.match(e.request).then(cached => {
-      const network = fetch(e.request).then(res => {
+    caches.match(e.request).then(function(cached) {
+      var network = fetch(e.request).then(function(res) {
         if (res.ok) {
-          const clone = res.clone();
-          caches.open(CACHE).then(c => c.put(e.request, clone));
+          var clone = res.clone();
+          caches.open(CACHE).then(function(c) { c.put(e.request, clone); });
         }
         return res;
-      }).catch(() => cached);
+      }).catch(function() { return cached; });
       return cached || network;
     })
   );
