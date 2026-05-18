@@ -610,31 +610,50 @@ function rCash(){
 // ══════════════════════════════════════════
 // RENDER JOURNAL
 // ══════════════════════════════════════════
+function renderJournalResults(){
+  var el=document.getElementById('j-results');
+  if(!el){render();return;}
+  var filtered=getFiltered();
+  var cnt=document.getElementById('j-count');
+  if(cnt)cnt.textContent=filtered.length+' из '+S.entries.length;
+  el.innerHTML=filtered.length?filtered.map(function(e){return opRow(e,true);}).join(''):'<div class="empty">Ничего не найдено</div>';
+}
+
 function rJournal(){
-  var objOpts='<option value="all">Все объекты</option>'+S.objects.map(function(o){return '<option value="'+o+'"'+(fObj===o?' selected':'')+'>'+o.split(',')[0]+'</option>';}).join('');
+  var objOpts='<option value="all">Все объекты</option>'+S.objects.map(function(o){
+    return '<option value="'+o+'"'+(fObj===o?' selected':'')+'>'+o.split(',')[0]+'</option>';
+  }).join('');
   var typeOpts=Object.keys(TYPES).concat(['vol']).map(function(t){
     var lbl=TYPES[t]?TYPES[t].lbl:t;
     return '<option value="'+t+'"'+(fType===t?' selected':'')+'>'+lbl+'</option>';
   });
   typeOpts.unshift('<option value="all"'+(fType==='all'?' selected':'')+'>Все типы</option>');
-  var filtered=S.entries.filter(function(e){
+  var filtered=getFiltered();
+  var showReset=searchQ||fType!=='all'||fObj!=='all';
+  var h='<div class="shdr"><h2>ЖУРНАЛ</h2><span id="j-count" style="font-size:11px;color:var(--mut)">'+filtered.length+' из '+S.entries.length+'</span></div>';
+  h+='<div class="card" style="padding:10px 14px;margin-bottom:8px">';
+  h+='<div style="display:flex;gap:6px;margin-bottom:8px">';
+  h+='<input class="fi" id="j-search" type="text" placeholder="🔍 Поиск..." value="'+searchQ+'" style="flex:1" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>';
+  h+='<button id="j-btn-search" style="background:var(--gold);color:#0d1117;border:none;border-radius:8px;padding:0 14px;font-size:18px;cursor:pointer">🔍</button>';
+  h+='</div>';
+  h+='<div style="display:flex;gap:6px">';
+  h+='<select class="fi" id="j-type" style="flex:1;font-size:11px">'+typeOpts.join('')+'</select>';
+  h+='<select class="fi" id="j-obj" style="flex:1;font-size:11px">'+objOpts+'</select>';
+  if(showReset)h+='<button id="j-reset" style="background:var(--rlt);border:1px solid var(--red);color:var(--red);border-radius:8px;padding:6px 10px;font-size:11px;cursor:pointer;white-space:nowrap">✕</button>';
+  h+='</div></div>';
+  h+='<div class="card" style="padding:0 14px" id="j-results">';
+  h+=filtered.length?filtered.map(function(e){return opRow(e,true);}).join(''):'<div class="empty">Ничего не найдено</div>';
+  h+='</div>';
+  return h;
+}
+
+function getFiltered(){
+  return S.entries.filter(function(e){
     if(fType!=='all'&&e.type!==fType)return false;
     if(fObj!=='all'&&e.obj!==fObj)return false;
     if(searchQ){var q=searchQ.toLowerCase();var txt=(e.note||'')+(e.who||'')+(e.cat||'')+(e.date||'')+e.amount;if(txt.toLowerCase().indexOf(q)<0)return false;}
     return true;
   }).sort(function(a,b){return b.date.localeCompare(a.date);});
-  var h='<div class="shdr"><h2>ЖУРНАЛ</h2><span style="font-size:11px;color:var(--mut)">'+filtered.length+' из '+S.entries.length+'</span></div>';
-  h+='<div class="card" style="padding:10px 14px;margin-bottom:8px">';
-  h+='<input class="fi" id="j-search" type="text" placeholder="🔍 Поиск..." value="'+searchQ+'" style="margin-bottom:8px"/>';
-  h+='<div style="display:flex;gap:6px">';
-  h+='<select class="fi" id="j-type" style="flex:1;font-size:11px">'+typeOpts.join('')+'</select>';
-  h+='<select class="fi" id="j-obj" style="flex:1;font-size:11px">'+objOpts+'</select>';
-  if(searchQ||fType!=='all'||fObj!=='all')h+='<button onclick="searchQ=\'\';fType=\'all\';fObj=\'all\';render()" style="background:var(--rlt);border:1px solid var(--red);color:var(--red);border-radius:8px;padding:6px 10px;font-size:11px;cursor:pointer">✕</button>';
-  h+='</div></div>';
-  h+='<div class="card" style="padding:0 14px">';
-  h+=filtered.length?filtered.map(function(e){return opRow(e,true);}).join(''):'<div class="empty">Ничего не найдено</div>';
-  h+='</div>';
-  return h;
 }
 
 // ══════════════════════════════════════════
@@ -1138,16 +1157,30 @@ document.addEventListener('DOMContentLoaded',function(){
 
   // Journal search/filter (delegated)
   document.getElementById('content').addEventListener('change',function(e){
-    if(e.target.id==='j-type')fType=e.target.value;
-    if(e.target.id==='j-obj')fObj=e.target.value;
-    render();
+    if(e.target.id==='j-type'){fType=e.target.value;renderJournalResults();}
+    if(e.target.id==='j-obj') {fObj=e.target.value; renderJournalResults();}
   });
-  document.getElementById('content').addEventListener('input',function(e){
-    if(e.target.id==='j-search'){searchQ=e.target.value;render();}
+  // Search on Enter or button click only — prevents keyboard dismiss on iOS
+  document.getElementById('content').addEventListener('keydown',function(e){
+    if(e.target.id==='j-search'&&e.key==='Enter'){
+      searchQ=e.target.value;
+      e.target.blur();
+      renderJournalResults();
+    }
+  });
+  document.getElementById('content').addEventListener('click',function(e){
+    if(e.target.id==='j-btn-search'){
+      var inp=document.getElementById('j-search');
+      if(inp)searchQ=inp.value;
+      renderJournalResults();
+    }
+    if(e.target.id==='j-reset'){
+      searchQ='';fType='all';fObj='all';render();
+    }
   });
 
   // Auto-refresh every 30s
-  setInterval(function(){if(role)pullCloud(function(){render();});},30000);
+  setInterval(function(){if(role)pullCloud(function(){render();});},10000);
 
   // Check saved session
   var sr=sessionStorage.getItem('role');
