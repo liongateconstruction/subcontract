@@ -7,8 +7,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="LIONGATE"/>
-<link rel="apple-touch-icon" href="icon-192.png"/>
-<link rel="manifest" href="manifest.json"/>
+<link rel="apple-touch-icon" href="./icon-192.png"/>
+<link rel="manifest" href="./manifest.json"/>
 <title>LIONGATE</title>
 <style>
 :root{
@@ -518,7 +518,7 @@ document.getElementById('content').addEventListener('click',function(e){if(e.tar
 setInterval(function(){if(role)pullCloud(function(){render();});},10000);
 var sr=sessionStorage.getItem('role');if(sr){role=sr;startApp();}
 });
-if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(function(){});
+if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(function(){});
 </script>
 </body>
 </html>
