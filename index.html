@@ -265,7 +265,7 @@ var BURL='https://api.jsonbin.io/v3/b/'+BIN;
 var syncT=null;
 function ss(m,e){var el=document.getElementById('sync-st');if(!el)return;el.textContent=m;el.style.color=e?'var(--red)':'var(--green)';setTimeout(function(){el.textContent='';},3000);}
 function pushCloud(){fetch(BURL,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':AK,'X-Bin-Versioning':'false'},body:JSON.stringify({entries:S.entries,brigades:S.brigades,objects:S.objects,history:S.history,weeks:S.weeks,kfu:S.kfu,settings:S.settings})}).then(function(){ss('OK',false);}).catch(function(){ss('!',true);});}
-function pullCloud(cb){ss('..',false);fetch(BURL,{headers:{'X-Master-Key':AK}}).then(function(r){return r.json();}).then(function(d){if(d&&d.record){var r=d.record;if(r.entries&&r.entries.length>0)S.entries=r.entries;if(r.brigades&&r.brigades.length>0)S.brigades=r.brigades;if(r.objects&&r.objects.length>0)S.objects=r.objects;if(r.history)S.history=r.history;if(r.weeks)S.weeks=r.weeks;if(r.kfu)S.kfu=r.kfu;if(r.settings)S.settings=r.settings;persist();ss('OK',false);}else if(S.entries.length>0){pushCloud();}if(cb)cb();}).catch(function(){ss('!',true);if(cb)cb();});}
+function pullCloud(cb){ss('..',false);fetch(BURL,{headers:{'X-Master-Key':AK}}).then(function(r){return r.json();}).then(function(d){if(d&&d.record){var r=d.record;if(r.entries&&r.entries.length>0)S.entries=r.entries;if(r.brigades&&r.brigades.length>0)S.brigades=r.brigades;if(r.objects&&r.objects.length>0)S.objects=r.objects;if(r.history)S.history=r.history;if(r.weeks)S.weeks=r.weeks;if(r.kfu&&r.kfu.length&&r.kfu[0]&&r.kfu[0].auto)S.kfu=r.kfu;else S.kfu=defState().kfu;if(r.settings){S.settings=r.settings;if(!S.settings.norms)S.settings.norms=defState().settings.norms;}persist();ss('OK',false);}else if(S.entries.length>0){pushCloud();}if(cb)cb();}).catch(function(){ss('!',true);if(cb)cb();});}
 function defState(){return{
  objects:['ЖК «Алгабас», Мкр. Нуркент'],
  objMeta:{'ЖК «Алгабас», Мкр. Нуркент':{customer:'Sensata Group',rates:{}}},
@@ -307,8 +307,8 @@ function defState(){return{
   {id:31,date:'2026-05-18',type:'personal',who:'Бекжан',obj:'-',amount:100000,note:'Остаток подотчёта'}
  ]
 };}
-function loadLocal(){try{var s=localStorage.getItem('lg_v8');return s?JSON.parse(s):defState();}catch(e){return defState();}}
-function persist(){try{localStorage.setItem('lg_v8',JSON.stringify(S));}catch(e){}}
+function loadLocal(){try{var s=localStorage.getItem('lg_v9');return s?JSON.parse(s):defState();}catch(e){return defState();}}
+function persist(){try{localStorage.setItem('lg_v9',JSON.stringify(S));}catch(e){}}
 function save(){persist();if(syncT)clearTimeout(syncT);syncT=setTimeout(pushCloud,1500);}
 var S=loadLocal();
 function fmt(n){return new Intl.NumberFormat('ru').format(Math.abs(Math.round(n||0)));}
