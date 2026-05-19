@@ -643,6 +643,7 @@ function saveWeek(){var p=parseFloat(g('w-plan')),f=parseFloat(g('w-fact'));if(i
 window.delWeek=function(id){if(!confirm('Удалить планёрку?'))return;S.weeks=S.weeks.filter(function(w){return w.id!==id;});save();render();};
 window.setKFULight=function(i,v){if(!S.kfu||!S.kfu[i])return;S.kfu[i].light=v;save();render();};
 window.editKFU=function(ki){
+  ki=parseInt(ki);
   var k=S.kfu[ki];if(!k)return;
   document.getElementById('mtit').textContent='КФУ: '+k.name;
   var po=PARTNERS.map(function(p){return '<option'+(k.owner===p?' selected':'')+'>'+p+'</option>';}).join('');
@@ -657,10 +658,15 @@ window.editKFU=function(ki){
   document.getElementById('ek-save').addEventListener('click',function(){
     var nm=g('ek-name').trim();
     if(!nm){alert('Введите название');return;}
-    k.name=nm;
-    k.owner=g('ek-owner')||k.owner;
-    k.target=g('ek-target')||'';
-    save();closeModal();render();
+    var newName=nm;
+    var newOwner=g('ek-owner')||k.owner;
+    var newTarget=g('ek-target')||'';
+    S.kfu[ki].name=newName;
+    S.kfu[ki].owner=newOwner;
+    S.kfu[ki].target=newTarget;
+    closeModal();
+    save();
+    setTimeout(function(){render();},50);
   });
   document.getElementById('ek-cancel').addEventListener('click',closeModal);
 };
