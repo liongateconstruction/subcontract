@@ -1561,31 +1561,51 @@ function processVoiceText(){
   var partnerList = PARTNERS.join(', ');
   var catList = ['Аванс / зарплата рабочим','Материалы','Транспорт','Инструменты и инвентарь','Административные','Представительские','Питание','Топливо','Аренда','Связь','Налоги','Услуги','Прочее'].join(', ');
 
-  var prompt = 'Извлеки из голосового ввода данные о финансовой операции для строительной компании.\n\n'+
+  var prompt = 'Извлеки финансовые операции из голосового ввода для строительной компании. Одна фраза может содержать НЕСКОЛЬКО связанных операций.\n\n'+
     'ТЕКСТ: "'+txt+'"\n\n'+
     'КОНТЕКСТ:\n'+
     'Бригады (id:название): '+brigList+'\n'+
     'Партнёры: '+partnerList+'\n'+
     'Категории расходов: '+catList+'\n\n'+
-    'Верни ТОЛЬКО валидный JSON, без markdown, без комментариев. Формат:\n'+
+    'Верни ТОЛЬКО валидный JSON-массив, без markdown, без комментариев. Каждый элемент массива:\n'+
     '{"type":"expense|income|invest|personal","amount":число_в_тенге,"category":"строка из списка категорий ИЛИ пусто","brigadeId":"id бригады или пусто","who":"имя партнёра или пусто","note":"короткое примечание"}\n\n'+
-    'ПРАВИЛА:\n'+
-    '- "выдал/дал бригаде/аванс/зарплата" → type=expense, category="Аванс / зарплата рабочим"\n'+
-    '- "купил/заплатил за" → type=expense\n'+
-    '- "вложил/закинул в компанию" → type=invest\n'+
-    '- "получил от заказчика/КС-2/оплата" → type=income\n'+
-    '- "личный расход/себе" → type=personal\n'+
-    '- Тысячи: "250 тысяч"=250000, "2.5 млн"=2500000\n'+
-    '- brigadeId — точно id из списка (b1,b2...) или пусто если бригада не названа\n'+
-    '- who — имя точно как в списке (Дмитрий/Бекжан/Евгений/Нурсултан/Сергей) или пусто\n'+
-    '- Если не можешь определить какое-то поле — оставь пустую строку, не выдумывай';
+    'КЛЮЧЕВЫЕ ПРАВИЛА КОГДА СОЗДАВАТЬ НЕСКОЛЬКО ЗАПИСЕЙ (двойная запись):\n'+
+    '★ "Партнёр вложил X на/в/для Y" (где Y — товар/услуга, не "компанию") → 2 ЗАПИСИ:\n'+
+    '  1) {"type":"invest","amount":X,"who":"имя партнёра","note":"на Y"}\n'+
+    '  2) {"type":"expense","amount":X,"category":"подходящая","note":"Y"}\n'+
+    '  Пример "Дмитрий вложил 80к в пояса монтажные 8 шт" → invest 80000 (Дмитрий) + expense 80000 (Инструменты, "пояса монтажные 8 шт")\n'+
+    '★ "Партнёр оплатил/заплатил/купил X со своих" → 2 ЗАПИСИ (invest + expense), партнёр восполнил кассу и сразу же её потратил\n'+
+    '★ "Партнёр дал бригаде X из своих" → 2 ЗАПИСИ:\n'+
+    '  1) invest от партнёра\n'+
+    '  2) expense с категорией "Аванс / зарплата рабочим" и brigadeId\n\n'+
+    'ОБЫЧНЫЕ ОДИНОЧНЫЕ ЗАПИСИ:\n'+
+    '- "вложил X в компанию/в кассу" без указания на что → 1 запись type=invest\n'+
+    '- "купил/заплатил за X" (без указания партнёра) → 1 запись type=expense (деньги из кассы)\n'+
+    '- "выдал бригаде X авансом из кассы" → 1 запись type=expense, category="Аванс / зарплата рабочим"\n'+
+    '- "получил от заказчика/КС-2/оплата" → 1 запись type=income\n'+
+    '- "забрал себе/личное" → 1 запись type=personal\n\n'+
+    'КАТЕГОРИИ-ПОДСКАЗКИ:\n'+
+    '- арматура, бетон, цемент, кирпич, песок, щебень → "Материалы"\n'+
+    '- пояса, инструмент, перфоратор, опалубка, рации → "Инструменты и инвентарь"\n'+
+    '- бензин, заправка, дизель → "Топливо"\n'+
+    '- такси, машина, перевозка → "Транспорт"\n'+
+    '- обед, кофе, заказчики → "Представительские" или "Питание"\n'+
+    '- симки, телефон, интернет → "Связь"\n\n'+
+    'ФОРМАТ ЧИСЕЛ:\n'+
+    '- "250 тысяч"=250000, "2.5 млн"=2500000, "сто восемьдесят тысяч"=180000\n\n'+
+    'ОБЩИЕ ПРАВИЛА:\n'+
+    '- brigadeId — точно id (b1,b2...) или пусто\n'+
+    '- who — имя точно как в списке партнёров или пусто\n'+
+    '- Если поле непонятно — пустая строка, не выдумывай\n'+
+    '- В составных операциях суммы должны быть РАВНЫМИ\n\n'+
+    'Ответ — массив, даже если одна операция: [{"type":"...","amount":...}]';
 
   fetch(AI_WORKER_URL, {
     method:'POST',
     headers:{'Content-Type':'application/json','X-LG-Token':AI_SHARED_TOKEN},
     body: JSON.stringify({
       model:'claude-haiku-4-5-20251001',
-      max_tokens:300,
+      max_tokens:600,
       messages:[{role:'user',content:prompt}]
     })
   }).then(function(r){return r.json();}).then(function(data){
@@ -1600,6 +1620,16 @@ function processVoiceText(){
     try{
       var cleaned = responseText.replace(/```json|```/g,'').trim();
       parsed = JSON.parse(cleaned);
+      // Если ИИ вернул объект вместо массива — обернуть в массив
+      if(!Array.isArray(parsed)) parsed = [parsed];
+      // Отфильтровать пустые
+      parsed = parsed.filter(function(p){return p && p.amount && p.amount>0;});
+      if(parsed.length===0){
+        status.style.color='var(--red)';
+        status.textContent='ИИ не смог извлечь операции. Попробуйте ещё раз чётче.';
+        document.getElementById('v-btn-process').disabled=false;
+        return;
+      }
     }catch(e){
       status.style.color='var(--red)';
       status.textContent='ИИ вернул нечитаемый ответ. Попробуйте ещё раз.';
@@ -1614,57 +1644,92 @@ function processVoiceText(){
   });
 }
 
-function showVoiceConfirm(p, originalText){
+function showVoiceConfirm(ops, originalText){
   document.getElementById('v-stage-record').style.display='none';
   document.getElementById('v-stage-confirm').style.display='';
 
-  var typeNames={expense:'Расход',income:'Доход',invest:'Вложение',personal:'Личный'};
+  var typeNames={expense:'РАСХОД',income:'ДОХОД',invest:'ВЛОЖЕНИЕ',personal:'ЛИЧНЫЙ'};
   var typeColors={expense:'var(--red)',income:'var(--green)',invest:'var(--blue)',personal:'var(--orange)'};
-  var brig = p.brigadeId ? (S.brigades.find(function(b){return b.id===p.brigadeId;})||{name:'?'}).name : '';
+  var today = new Date().toISOString().slice(0,10);
 
   var h='<div style="font-size:10px;color:var(--mut);font-style:italic;margin-bottom:10px;padding:8px;background:var(--s2);border-radius:6px">«'+originalText+'»</div>';
-  h+='<div class="fg"><label class="fl">Тип</label><select class="fi" id="vc-type">';
-  ['expense','income','invest','personal'].forEach(function(t){h+='<option value="'+t+'"'+(p.type===t?' selected':'')+'>'+typeNames[t]+'</option>';});
-  h+='</select></div>';
-  h+='<div class="fg"><label class="fl">Сумма (тг)</label><input class="fi" id="vc-amount" type="number" inputmode="numeric" value="'+(p.amount||'')+'"/></div>';
-  h+='<div class="fg"><label class="fl">Категория</label><input class="fi" id="vc-cat" type="text" value="'+(p.category||'')+'" placeholder="—"/></div>';
-  h+='<div class="frow"><div class="fg"><label class="fl">Бригада</label><select class="fi" id="vc-brig"><option value="">—</option>';
-  S.brigades.forEach(function(b){h+='<option value="'+b.id+'"'+(p.brigadeId===b.id?' selected':'')+'>'+b.name+'</option>';});
-  h+='</select></div>';
-  h+='<div class="fg"><label class="fl">Кто</label><select class="fi" id="vc-who"><option value="">—</option>';
-  PARTNERS.forEach(function(P){h+='<option value="'+P+'"'+(p.who===P?' selected':'')+'>'+P+'</option>';});
-  h+='</select></div></div>';
-  h+='<div class="fg"><label class="fl">Дата</label><input class="fi" id="vc-date" type="date" value="'+new Date().toISOString().slice(0,10)+'"/></div>';
-  h+='<div class="fg"><label class="fl">Примечание</label><input class="fi" id="vc-note" type="text" value="'+(p.note||'').replace(/"/g,'&quot;')+'"/></div>';
-  h+='<div style="display:flex;gap:8px;margin-top:10px"><button class="fsave" id="vc-save" style="background:var(--green);flex:2">✓ СОХРАНИТЬ</button><button class="fcanc" id="vc-back" style="flex:1">Назад</button></div>';
+  if(ops.length>1){
+    h+='<div style="background:var(--glt);border:1px solid var(--gold);border-radius:6px;padding:8px;margin-bottom:12px;font-size:11px;color:var(--gold);font-weight:700;letter-spacing:1px">⚡ СВЯЗАННЫЕ ОПЕРАЦИИ: '+ops.length+'</div>';
+  }
+
+  ops.forEach(function(p,idx){
+    var color = typeColors[p.type]||'var(--mut)';
+    var typeLabel = typeNames[p.type]||'?';
+    h+='<div style="border-left:3px solid '+color+';padding-left:10px;margin-bottom:14px">';
+    h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><div style="font-family:var(--fd);font-size:14px;color:'+color+';letter-spacing:1px">'+(ops.length>1?(idx+1)+'. ':'')+typeLabel+'</div></div>';
+    h+='<div class="fg"><label class="fl">Тип</label><select class="fi" id="vc-type-'+idx+'">';
+    ['expense','income','invest','personal'].forEach(function(t){h+='<option value="'+t+'"'+(p.type===t?' selected':'')+'>'+typeNames[t]+'</option>';});
+    h+='</select></div>';
+    h+='<div class="fg"><label class="fl">Сумма (тг)</label><input class="fi" id="vc-amount-'+idx+'" type="number" inputmode="numeric" value="'+(p.amount||'')+'"/></div>';
+    h+='<div class="fg"><label class="fl">Категория</label><input class="fi" id="vc-cat-'+idx+'" type="text" value="'+(p.category||'').replace(/"/g,'&quot;')+'" placeholder="—"/></div>';
+    h+='<div class="frow"><div class="fg"><label class="fl">Бригада</label><select class="fi" id="vc-brig-'+idx+'"><option value="">—</option>';
+    S.brigades.forEach(function(b){h+='<option value="'+b.id+'"'+(p.brigadeId===b.id?' selected':'')+'>'+b.name+'</option>';});
+    h+='</select></div>';
+    h+='<div class="fg"><label class="fl">Кто</label><select class="fi" id="vc-who-'+idx+'"><option value="">—</option>';
+    PARTNERS.forEach(function(P){h+='<option value="'+P+'"'+(p.who===P?' selected':'')+'>'+P+'</option>';});
+    h+='</select></div></div>';
+    h+='<div class="fg"><label class="fl">Примечание</label><input class="fi" id="vc-note-'+idx+'" type="text" value="'+(p.note||'').replace(/"/g,'&quot;')+'"/></div>';
+    h+='</div>';
+  });
+
+  // Дата общая
+  h+='<div class="fg"><label class="fl">Дата (общая)</label><input class="fi" id="vc-date" type="date" value="'+today+'"/></div>';
+  // Кнопки
+  var saveBtnText = ops.length>1 ? '✓ СОХРАНИТЬ '+ops.length+' ОПЕРАЦИИ' : '✓ СОХРАНИТЬ';
+  h+='<div style="display:flex;gap:8px;margin-top:10px"><button class="fsave" id="vc-save" style="background:var(--green);flex:2">'+saveBtnText+'</button><button class="fcanc" id="vc-back" style="flex:1">Назад</button></div>';
 
   document.getElementById('v-stage-confirm').innerHTML=h;
 
   document.getElementById('vc-save').addEventListener('click',function(){
-    var amount = parseInt(document.getElementById('vc-amount').value)||0;
-    if(amount<=0){alert('Введите сумму');return;}
-    var type = document.getElementById('vc-type').value;
-    var entry = {
-      id: Date.now(),
-      date: document.getElementById('vc-date').value,
-      type: type,
-      amount: amount,
-      who: document.getElementById('vc-who').value || PARTNERS[0],
-      obj: S.objects[0]||'',
-      note: document.getElementById('vc-note').value||''
-    };
-    var brigId = document.getElementById('vc-brig').value;
-    if(brigId) entry.brigade = brigId;
-    var cat = document.getElementById('vc-cat').value;
-    if(cat) entry.cat = cat;
+    var date = document.getElementById('vc-date').value || today;
+    var savedCount = 0;
+    var linkedId = ops.length>1 ? 'lk_'+Date.now() : null;
+    var errors = [];
 
-    S.entries.push(entry);
-    if(!S.history) S.history=[];
-    S.history.push({action:'add',by:role,at:new Date().toISOString(),type:entry.type,amount:entry.amount,source:'voice'});
+    ops.forEach(function(p, idx){
+      var amount = parseInt(document.getElementById('vc-amount-'+idx).value)||0;
+      if(amount<=0){
+        errors.push('Операция '+(idx+1)+': введите сумму');
+        return;
+      }
+      var type = document.getElementById('vc-type-'+idx).value;
+      var entry = {
+        id: Date.now()+idx,
+        date: date,
+        type: type,
+        amount: amount,
+        who: document.getElementById('vc-who-'+idx).value || PARTNERS[0],
+        obj: S.objects[0]||'',
+        note: document.getElementById('vc-note-'+idx).value||''
+      };
+      var brigId = document.getElementById('vc-brig-'+idx).value;
+      if(brigId) entry.brigade = brigId;
+      var cat = document.getElementById('vc-cat-'+idx).value;
+      if(cat) entry.cat = cat;
+      if(linkedId) entry.linkedId = linkedId;
+
+      S.entries.push(entry);
+      if(!S.history) S.history=[];
+      S.history.push({action:'add',by:role,at:new Date().toISOString(),type:entry.type,amount:entry.amount,source:'voice'+(linkedId?'-linked':'')});
+      savedCount++;
+    });
+
+    if(errors.length>0){
+      alert(errors.join('\n'));
+      return;
+    }
+
     save();
     closeVoiceModal();
     render();
-    setTimeout(function(){alert('✓ Запись добавлена');},100);
+    setTimeout(function(){
+      alert('✓ Добавлено: '+savedCount+' '+(savedCount===1?'запись':savedCount<5?'записи':'записей'));
+    },100);
   });
   document.getElementById('vc-back').addEventListener('click',function(){
     document.getElementById('v-stage-record').style.display='';
@@ -1712,7 +1777,7 @@ document.getElementById('fab-mic').addEventListener('contextmenu',function(e){e.
 // Версия приложения. Меняется при каждом релизе.
 // Логика мягкого обновления: настройки ИИ переживают переход на новую версию,
 // обновление применяется при следующем естественном открытии (без миганий).
-var APP_VERSION='11';
+var APP_VERSION='12';
 // Ключи которые НЕ стираем при обновлении (настройки пользователя)
 var PRESERVED_KEYS = ['lg_ai_worker_url', 'lg_ai_token', 'role'];
 (function(){
