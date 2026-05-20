@@ -1709,15 +1709,26 @@ document.getElementById('fab-mic').addEventListener('contextmenu',function(e){e.
 })();
 // ============ КОНЕЦ ГОЛОСОВОГО ВВОДА ============
 
-// Версия приложения. Меняется при каждом релизе — если localStorage хранит другую, страница перезагрузится
-var APP_VERSION='10';
+// Версия приложения. Меняется при каждом релизе.
+// Логика мягкого обновления: настройки ИИ переживают переход на новую версию,
+// обновление применяется при следующем естественном открытии (без миганий).
+var APP_VERSION='11';
+// Ключи которые НЕ стираем при обновлении (настройки пользователя)
+var PRESERVED_KEYS = ['lg_ai_worker_url', 'lg_ai_token', 'role'];
 (function(){
   var stored=localStorage.getItem('lg_app_version');
   if(stored && stored!==APP_VERSION){
-    // Новая версия — чистим кэш и перезагружаемся
+    // Новая версия — сохраняем нужные ключи, чистим кэш, обновляем
+    var preserved={};
+    PRESERVED_KEYS.forEach(function(k){
+      var v=localStorage.getItem(k);
+      if(v!==null) preserved[k]=v;
+    });
     if('caches' in window){
       caches.keys().then(function(keys){
         Promise.all(keys.map(function(k){return caches.delete(k);})).then(function(){
+          // Восстанавливаем защищённые ключи
+          Object.keys(preserved).forEach(function(k){localStorage.setItem(k,preserved[k]);});
           localStorage.setItem('lg_app_version',APP_VERSION);
           location.reload(true);
         });
@@ -1729,29 +1740,24 @@ var APP_VERSION='10';
 })();
 if('serviceWorker' in navigator){
   navigator.serviceWorker.register('./sw.js').then(function(reg){
-    // При обновлении SW
+    // При обнаружении новой версии SW — НЕ перезагружаем сразу
+    // Новая версия скачается в фоне и применится при следующем открытии приложения
     reg.addEventListener('updatefound',function(){
       var nw=reg.installing;
       if(nw){
         nw.addEventListener('statechange',function(){
           if(nw.state==='installed' && navigator.serviceWorker.controller){
-            // Новая версия установилась — перезагружаемся
+            // Тихо активируем нового воркера — он начнёт обслуживать запросы
+            // но текущая открытая страница продолжит работать на старой версии
+            // При следующем открытии (пользователь закрыл/открыл) появится новая
             nw.postMessage('SKIP_WAITING');
-            setTimeout(function(){location.reload();},500);
           }
         });
       }
     });
-    // Проверяем обновление при каждом запуске
     reg.update();
   }).catch(function(){});
-  // Когда новый SW взял управление — перезагрузка
-  var refreshing=false;
-  navigator.serviceWorker.addEventListener('controllerchange',function(){
-    if(refreshing) return;
-    refreshing=true;
-    location.reload();
-  });
+  // НЕ перезагружаем при controllerchange — это и есть «тихое обновление»
 }
 </script>
 </body>
