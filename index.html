@@ -219,6 +219,7 @@ canvas{display:block;width:100%;border-radius:8px}
     <div class="hrgt">
       <span id="sync-st" style="font-size:9px;color:var(--green)"></span>
       <span class="rpill" id="rpill"></span>
+      <button class="hbtn" id="btn-refresh" style="border-color:var(--gold);color:var(--gold)" title="Обновить приложение">↻</button>
       <button class="hbtn" id="btn-obj" style="border-color:var(--teal);color:var(--teal)">Об</button>
       <button class="hbtn" id="btn-rpt" style="border-color:var(--green);color:var(--green)">Отчёт</button>
       <button class="hbtn" id="btn-out">Выйти</button>
@@ -226,6 +227,7 @@ canvas{display:block;width:100%;border-radius:8px}
   </header>
   <div class="content" id="content"></div>
   <button class="fab" id="fab">+</button>
+  <button class="fab" id="fab-mic" style="bottom:calc(120px + env(safe-area-inset-bottom));background:var(--purple);font-size:22px" title="Голосовой ввод">🎤</button>
   <nav>
     <button class="nb active" id="tab-main"><span class="ic">◈</span><span>Сводка</span></button>
     <button class="nb" id="tab-pl"><span class="ic">$</span><span>P&amp;L</span></button>
@@ -243,6 +245,30 @@ canvas{display:block;width:100%;border-radius:8px}
   <div style="text-align:center;max-width:100%">
     <img id="pv-img" style="max-width:100%;max-height:80vh;border-radius:8px"/>
     <div style="margin-top:12px"><button id="pv-close" style="background:#fff;border:none;padding:10px 24px;border-radius:8px;font-size:14px;cursor:pointer">Закрыть</button></div>
+  </div>
+</div>
+<div id="vmodal" style="display:none" class="mbg">
+  <div class="mbox">
+    <div class="mhandle"></div>
+    <div class="mtit" style="color:var(--purple)">🎤 ГОЛОСОВОЙ ВВОД</div>
+    <div id="vbody">
+      <div id="v-stage-record">
+        <div style="text-align:center;padding:20px 0">
+          <div id="v-mic-circle" style="width:100px;height:100px;border-radius:50%;background:var(--purple);display:inline-flex;align-items:center;justify-content:center;font-size:42px;cursor:pointer;box-shadow:0 4px 18px rgba(137,87,229,.4);transition:all .2s">🎤</div>
+        </div>
+        <div id="v-status" style="text-align:center;font-size:12px;color:var(--mut);margin-bottom:12px;min-height:18px">Нажмите микрофон и говорите</div>
+        <div id="v-transcript" style="background:var(--s2);border-radius:8px;padding:12px;min-height:60px;font-size:13px;color:var(--text);margin-bottom:14px;line-height:1.5"></div>
+        <div style="font-size:10px;color:var(--mut);line-height:1.5;padding:10px;background:var(--glt);border-radius:6px;margin-bottom:14px">
+          <b style="color:var(--gold)">Примеры:</b><br>
+          «Выдал бригаде Шынгыс 250 тысяч авансом наличными»<br>
+          «Купил арматуру на 180 тысяч»<br>
+          «Бекжан получил 50 тысяч на такси»
+        </div>
+        <button class="fsave" id="v-btn-process" style="background:var(--purple);display:none">РАЗОБРАТЬ ТЕКСТ</button>
+        <button class="fcanc" id="v-btn-cancel">Отмена</button>
+      </div>
+      <div id="v-stage-confirm" style="display:none"></div>
+    </div>
   </div>
 </div>
 <script>
@@ -1362,6 +1388,28 @@ document.getElementById('btn-login').addEventListener('click',tryLogin);
 document.getElementById('btn-view').addEventListener('click',viewOnly);
 document.getElementById('lpass').addEventListener('keydown',function(e){if(e.key==='Enter')tryLogin();});
 document.getElementById('btn-out').addEventListener('click',doLogout);
+document.getElementById('btn-refresh').addEventListener('click',function(){
+  if(!confirm('Обновить приложение? Несохранённые данные могут быть потеряны.'))return;
+  // 1. Сохранить локальные данные перед обновлением
+  if(typeof persist==='function') persist();
+  // 2. Чистим все кэши SW
+  if('caches' in window){
+    caches.keys().then(function(keys){
+      return Promise.all(keys.map(function(k){return caches.delete(k);}));
+    }).then(function(){
+      // 3. Сбрасываем версию чтобы при следующем заходе тоже почистило
+      localStorage.removeItem('lg_app_version');
+      // 4. Дёргаем SW принудительно
+      if(navigator.serviceWorker && navigator.serviceWorker.controller){
+        navigator.serviceWorker.controller.postMessage('CLEAR_CACHE');
+      }
+      // 5. Жёсткая перезагрузка с сервера
+      setTimeout(function(){location.reload(true);},300);
+    });
+  } else {
+    location.reload(true);
+  }
+});
 document.getElementById('fab').addEventListener('click',openModal);
 document.getElementById('btn-rpt').addEventListener('click',showReport);
 document.getElementById('btn-obj').addEventListener('click',openManageObjects);
@@ -1378,7 +1426,296 @@ document.getElementById('content').addEventListener('click',function(e){if(e.tar
 setInterval(function(){if(role)pullCloud(function(){render();});},10000);
 var sr=sessionStorage.getItem('role');if(sr){role=sr;startApp();}
 });
-if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(function(){});
+// ============ ГОЛОСОВОЙ ВВОД ЧЕРЕЗ ИИ ============
+// Настройки. URL воркера нужно вписать после деплоя на Cloudflare.
+var AI_WORKER_URL = localStorage.getItem('lg_ai_worker_url') || '';
+var AI_SHARED_TOKEN = localStorage.getItem('lg_ai_token') || '';
+var voiceRecognition = null;
+var voiceTranscript = '';
+
+function openVoiceModal(){
+  if(role!=='editor'){alert('Доступно только редакторам');return;}
+  if(!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)){
+    alert('Голосовой ввод не поддерживается в этом браузере. Используйте Chrome на Android или Safari на iOS.');
+    return;
+  }
+  voiceTranscript='';
+  document.getElementById('v-stage-record').style.display='';
+  document.getElementById('v-stage-confirm').style.display='none';
+  document.getElementById('v-transcript').textContent='';
+  document.getElementById('v-status').textContent='Нажмите микрофон и говорите';
+  document.getElementById('v-btn-process').style.display='none';
+  document.getElementById('v-mic-circle').style.background='var(--purple)';
+  document.getElementById('vmodal').style.display='flex';
+}
+function closeVoiceModal(){
+  if(voiceRecognition){try{voiceRecognition.stop();}catch(e){}}
+  document.getElementById('vmodal').style.display='none';
+}
+
+function toggleVoiceRecord(){
+  var circle=document.getElementById('v-mic-circle');
+  var status=document.getElementById('v-status');
+  if(voiceRecognition && voiceRecognition._active){
+    try{voiceRecognition.stop();}catch(e){}
+    return;
+  }
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  voiceRecognition = new SR();
+  voiceRecognition.lang = 'ru-RU';
+  voiceRecognition.interimResults = true;
+  voiceRecognition.continuous = false;
+  voiceRecognition._active = false;
+  voiceRecognition.onstart = function(){
+    voiceRecognition._active=true;
+    circle.style.background='var(--red)';
+    circle.textContent='⬛';
+    status.textContent='Слушаю... говорите';
+    status.style.color='var(--red)';
+  };
+  voiceRecognition.onresult = function(e){
+    var txt='';
+    for(var i=0;i<e.results.length;i++){
+      txt += e.results[i][0].transcript;
+    }
+    voiceTranscript = txt;
+    document.getElementById('v-transcript').textContent = txt;
+  };
+  voiceRecognition.onerror = function(e){
+    voiceRecognition._active=false;
+    circle.style.background='var(--purple)';
+    circle.textContent='🎤';
+    status.style.color='var(--red)';
+    status.textContent='Ошибка: '+e.error+(e.error==='not-allowed'?' (разрешите доступ к микрофону)':'');
+  };
+  voiceRecognition.onend = function(){
+    voiceRecognition._active=false;
+    circle.style.background='var(--purple)';
+    circle.textContent='🎤';
+    if(voiceTranscript){
+      status.style.color='var(--green)';
+      status.textContent='✓ Готово. Проверьте текст и жмите «Разобрать»';
+      document.getElementById('v-btn-process').style.display='';
+    } else {
+      status.style.color='var(--mut)';
+      status.textContent='Ничего не распознано. Попробуйте ещё раз.';
+    }
+  };
+  try{voiceRecognition.start();}catch(e){
+    status.style.color='var(--red)';
+    status.textContent='Не удалось запустить: '+e.message;
+  }
+}
+
+function processVoiceText(){
+  var txt = voiceTranscript.trim();
+  if(!txt){alert('Сначала надиктуйте текст');return;}
+  if(!AI_WORKER_URL){
+    if(confirm('ИИ ещё не настроен. Открыть настройки?')){
+      openAISettings();
+    }
+    return;
+  }
+  var status=document.getElementById('v-status');
+  status.style.color='var(--gold)';
+  status.textContent='ИИ разбирает...';
+  document.getElementById('v-btn-process').disabled=true;
+
+  // Контекст для ИИ: бригады, партнёры, категории
+  var brigList = S.brigades.map(function(b){return b.id+':'+b.name;}).join(', ');
+  var partnerList = PARTNERS.join(', ');
+  var catList = ['Аванс / зарплата рабочим','Материалы','Транспорт','Инструменты и инвентарь','Административные','Представительские','Питание','Топливо','Аренда','Связь','Налоги','Услуги','Прочее'].join(', ');
+
+  var prompt = 'Извлеки из голосового ввода данные о финансовой операции для строительной компании.\n\n'+
+    'ТЕКСТ: "'+txt+'"\n\n'+
+    'КОНТЕКСТ:\n'+
+    'Бригады (id:название): '+brigList+'\n'+
+    'Партнёры: '+partnerList+'\n'+
+    'Категории расходов: '+catList+'\n\n'+
+    'Верни ТОЛЬКО валидный JSON, без markdown, без комментариев. Формат:\n'+
+    '{"type":"expense|income|invest|personal","amount":число_в_тенге,"category":"строка из списка категорий ИЛИ пусто","brigadeId":"id бригады или пусто","who":"имя партнёра или пусто","note":"короткое примечание"}\n\n'+
+    'ПРАВИЛА:\n'+
+    '- "выдал/дал бригаде/аванс/зарплата" → type=expense, category="Аванс / зарплата рабочим"\n'+
+    '- "купил/заплатил за" → type=expense\n'+
+    '- "вложил/закинул в компанию" → type=invest\n'+
+    '- "получил от заказчика/КС-2/оплата" → type=income\n'+
+    '- "личный расход/себе" → type=personal\n'+
+    '- Тысячи: "250 тысяч"=250000, "2.5 млн"=2500000\n'+
+    '- brigadeId — точно id из списка (b1,b2...) или пусто если бригада не названа\n'+
+    '- who — имя точно как в списке (Дмитрий/Бекжан/Евгений/Нурсултан/Сергей) или пусто\n'+
+    '- Если не можешь определить какое-то поле — оставь пустую строку, не выдумывай';
+
+  fetch(AI_WORKER_URL, {
+    method:'POST',
+    headers:{'Content-Type':'application/json','X-LG-Token':AI_SHARED_TOKEN},
+    body: JSON.stringify({
+      model:'claude-haiku-4-5-20251001',
+      max_tokens:300,
+      messages:[{role:'user',content:prompt}]
+    })
+  }).then(function(r){return r.json();}).then(function(data){
+    if(data.error){
+      status.style.color='var(--red)';
+      status.textContent='ИИ ошибка: '+(data.error.message||data.error);
+      document.getElementById('v-btn-process').disabled=false;
+      return;
+    }
+    var responseText = data.content && data.content[0] && data.content[0].text || '';
+    var parsed;
+    try{
+      var cleaned = responseText.replace(/```json|```/g,'').trim();
+      parsed = JSON.parse(cleaned);
+    }catch(e){
+      status.style.color='var(--red)';
+      status.textContent='ИИ вернул нечитаемый ответ. Попробуйте ещё раз.';
+      document.getElementById('v-btn-process').disabled=false;
+      return;
+    }
+    showVoiceConfirm(parsed, txt);
+  }).catch(function(e){
+    status.style.color='var(--red)';
+    status.textContent='Ошибка сети: '+e.message;
+    document.getElementById('v-btn-process').disabled=false;
+  });
+}
+
+function showVoiceConfirm(p, originalText){
+  document.getElementById('v-stage-record').style.display='none';
+  document.getElementById('v-stage-confirm').style.display='';
+
+  var typeNames={expense:'Расход',income:'Доход',invest:'Вложение',personal:'Личный'};
+  var typeColors={expense:'var(--red)',income:'var(--green)',invest:'var(--blue)',personal:'var(--orange)'};
+  var brig = p.brigadeId ? (S.brigades.find(function(b){return b.id===p.brigadeId;})||{name:'?'}).name : '';
+
+  var h='<div style="font-size:10px;color:var(--mut);font-style:italic;margin-bottom:10px;padding:8px;background:var(--s2);border-radius:6px">«'+originalText+'»</div>';
+  h+='<div class="fg"><label class="fl">Тип</label><select class="fi" id="vc-type">';
+  ['expense','income','invest','personal'].forEach(function(t){h+='<option value="'+t+'"'+(p.type===t?' selected':'')+'>'+typeNames[t]+'</option>';});
+  h+='</select></div>';
+  h+='<div class="fg"><label class="fl">Сумма (тг)</label><input class="fi" id="vc-amount" type="number" inputmode="numeric" value="'+(p.amount||'')+'"/></div>';
+  h+='<div class="fg"><label class="fl">Категория</label><input class="fi" id="vc-cat" type="text" value="'+(p.category||'')+'" placeholder="—"/></div>';
+  h+='<div class="frow"><div class="fg"><label class="fl">Бригада</label><select class="fi" id="vc-brig"><option value="">—</option>';
+  S.brigades.forEach(function(b){h+='<option value="'+b.id+'"'+(p.brigadeId===b.id?' selected':'')+'>'+b.name+'</option>';});
+  h+='</select></div>';
+  h+='<div class="fg"><label class="fl">Кто</label><select class="fi" id="vc-who"><option value="">—</option>';
+  PARTNERS.forEach(function(P){h+='<option value="'+P+'"'+(p.who===P?' selected':'')+'>'+P+'</option>';});
+  h+='</select></div></div>';
+  h+='<div class="fg"><label class="fl">Дата</label><input class="fi" id="vc-date" type="date" value="'+new Date().toISOString().slice(0,10)+'"/></div>';
+  h+='<div class="fg"><label class="fl">Примечание</label><input class="fi" id="vc-note" type="text" value="'+(p.note||'').replace(/"/g,'&quot;')+'"/></div>';
+  h+='<div style="display:flex;gap:8px;margin-top:10px"><button class="fsave" id="vc-save" style="background:var(--green);flex:2">✓ СОХРАНИТЬ</button><button class="fcanc" id="vc-back" style="flex:1">Назад</button></div>';
+
+  document.getElementById('v-stage-confirm').innerHTML=h;
+
+  document.getElementById('vc-save').addEventListener('click',function(){
+    var amount = parseInt(document.getElementById('vc-amount').value)||0;
+    if(amount<=0){alert('Введите сумму');return;}
+    var type = document.getElementById('vc-type').value;
+    var entry = {
+      id: Date.now(),
+      date: document.getElementById('vc-date').value,
+      type: type,
+      amount: amount,
+      who: document.getElementById('vc-who').value || PARTNERS[0],
+      obj: S.objects[0]||'',
+      note: document.getElementById('vc-note').value||''
+    };
+    var brigId = document.getElementById('vc-brig').value;
+    if(brigId) entry.brigade = brigId;
+    var cat = document.getElementById('vc-cat').value;
+    if(cat) entry.cat = cat;
+
+    S.entries.push(entry);
+    save();
+    closeVoiceModal();
+    render();
+    setTimeout(function(){alert('✓ Запись добавлена');},100);
+  });
+  document.getElementById('vc-back').addEventListener('click',function(){
+    document.getElementById('v-stage-record').style.display='';
+    document.getElementById('v-stage-confirm').style.display='none';
+    document.getElementById('v-btn-process').disabled=false;
+  });
+}
+
+function openAISettings(){
+  var url = prompt('URL Cloudflare Worker (например https://liongate-ai.yourname.workers.dev):', AI_WORKER_URL);
+  if(url===null) return;
+  var token = prompt('Shared token (любая строка, главное чтобы совпадала с переменной LG_SHARED_TOKEN в Worker):', AI_SHARED_TOKEN);
+  if(token===null) return;
+  AI_WORKER_URL = url.trim();
+  AI_SHARED_TOKEN = token.trim();
+  localStorage.setItem('lg_ai_worker_url', AI_WORKER_URL);
+  localStorage.setItem('lg_ai_token', AI_SHARED_TOKEN);
+  alert('Настройки ИИ сохранены');
+}
+
+// Обработчики
+document.getElementById('fab-mic').addEventListener('click', openVoiceModal);
+document.getElementById('v-mic-circle').addEventListener('click', toggleVoiceRecord);
+document.getElementById('v-btn-process').addEventListener('click', processVoiceText);
+document.getElementById('v-btn-cancel').addEventListener('click', closeVoiceModal);
+document.getElementById('vmodal').addEventListener('click', function(e){if(e.target===this)closeVoiceModal();});
+
+// Долгое нажатие на FAB-mic = настройки ИИ
+var fabMicTimer=null;
+document.getElementById('fab-mic').addEventListener('touchstart',function(){fabMicTimer=setTimeout(openAISettings,800);});
+document.getElementById('fab-mic').addEventListener('touchend',function(){if(fabMicTimer)clearTimeout(fabMicTimer);});
+document.getElementById('fab-mic').addEventListener('contextmenu',function(e){e.preventDefault();openAISettings();});
+
+// Скрывать кнопку микрофона если не редактор
+(function(){
+  var oldStart=startApp;
+  startApp=function(){
+    oldStart();
+    var mic=document.getElementById('fab-mic');
+    if(mic) mic.style.display = role==='editor' ? 'flex' : 'none';
+  };
+})();
+// ============ КОНЕЦ ГОЛОСОВОГО ВВОДА ============
+
+// Версия приложения. Меняется при каждом релизе — если localStorage хранит другую, страница перезагрузится
+var APP_VERSION='9';
+(function(){
+  var stored=localStorage.getItem('lg_app_version');
+  if(stored && stored!==APP_VERSION){
+    // Новая версия — чистим кэш и перезагружаемся
+    if('caches' in window){
+      caches.keys().then(function(keys){
+        Promise.all(keys.map(function(k){return caches.delete(k);})).then(function(){
+          localStorage.setItem('lg_app_version',APP_VERSION);
+          location.reload(true);
+        });
+      });
+      return;
+    }
+  }
+  localStorage.setItem('lg_app_version',APP_VERSION);
+})();
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('./sw.js').then(function(reg){
+    // При обновлении SW
+    reg.addEventListener('updatefound',function(){
+      var nw=reg.installing;
+      if(nw){
+        nw.addEventListener('statechange',function(){
+          if(nw.state==='installed' && navigator.serviceWorker.controller){
+            // Новая версия установилась — перезагружаемся
+            nw.postMessage('SKIP_WAITING');
+            setTimeout(function(){location.reload();},500);
+          }
+        });
+      }
+    });
+    // Проверяем обновление при каждом запуске
+    reg.update();
+  }).catch(function(){});
+  // Когда новый SW взял управление — перезагрузка
+  var refreshing=false;
+  navigator.serviceWorker.addEventListener('controllerchange',function(){
+    if(refreshing) return;
+    refreshing=true;
+    location.reload();
+  });
+}
 </script>
 </body>
 </html>
