@@ -212,7 +212,10 @@ canvas{display:block;width:100%;border-radius:8px}
 </div>
 <div id="app" style="display:none">
   <header>
-    <div><div class="hlog">LIONGATE</div><div class="hsub">ЖК АЛГАБАС · SENSATA GROUP</div></div>
+    <div>
+      <div class="hlog">LIONGATE</div>
+      <div style="font-size:9px;color:var(--gold);letter-spacing:3px;margin-top:3px;font-weight:700">1 МЛРД $ · 2030</div>
+    </div>
     <div class="hrgt">
       <span id="sync-st" style="font-size:9px;color:var(--green)"></span>
       <span class="rpill" id="rpill"></span>
@@ -357,6 +360,143 @@ function lastEntryAge(){if(!S.entries.length)return 999;var d=S.entries.map(func
 function calcCo(){var income=sumT('income'),expense=sumT('expense'),invested=sumT('invest'),returned=sumT('return');var personal=S.entries.filter(function(e){return e.type==='personal';}).reduce(function(s,e){return s+e.amount;},0);var profit=income-expense,owed=invested-returned,toShare=Math.max(profit-owed,0);var cash=invested+income-expense-personal-returned;return{income:income,expense:expense,invested:invested,returned:returned,personal:personal,profit:profit,owed:owed,toShare:toShare,share:toShare/5,cash:cash};}
 function calcPar(name){var invested=sumT('invest','who',name),returned=sumT('return','who',name);var personal=S.entries.filter(function(e){return e.type==='personal'&&e.who===name;}).reduce(function(s,e){return s+e.amount;},0);var C=calcCo();return{invested:invested,returned:returned,personal:personal,share:C.share,totalGet:(invested-returned)+(C.share-personal)};}
 function calcBrig(b){var vols=S.entries.filter(function(e){return e.type==='vol'&&e.brigade===b.id;});var vol=vols.reduce(function(s,e){return s+(e.volume||0);},0);var earned=vols.reduce(function(s,e){return s+e.amount;},0);var paid=S.entries.filter(function(e){return e.type==='expense'&&e.brigade===b.id;}).reduce(function(s,e){return s+e.amount;},0);return{vol:vol,earned:earned,paid:paid,balance:earned-paid,vols:vols};}
+// План года из ПЛАН ДЕЙСТВИЙ LIONGATE. Прибыль и накоплено — в млн тг.
+var YEAR_PLAN=[
+  {m:5,name:'Май',     workers:30, weekVol:160,  profit:6,   cum:6,   note:'Старт, обкатка'},
+  {m:6,name:'Июнь',    workers:80, weekVol:430,  profit:16,  cum:23,  note:'Найм первых бригад'},
+  {m:7,name:'Июль',    workers:150,weekVol:810,  profit:31,  cum:54,  note:'Заказ опалубки'},
+  {m:8,name:'Август',  workers:220,weekVol:1190, profit:45,  cum:99,  note:'Опалубка из Москвы'},
+  {m:9,name:'Сентябрь',workers:300,weekVol:1620, profit:62,  cum:161, note:'2-й объект А, ищем Б'},
+  {m:10,name:'Октябрь',workers:380,weekVol:2050, profit:138, cum:300, note:'Первый объект Б (×2.5)'},
+  {m:11,name:'Ноябрь', workers:440,weekVol:2380, profit:160, cum:460, note:'А + Б + старт отделки'},
+  {m:12,name:'Декабрь',workers:480,weekVol:2590, profit:175, cum:635, note:'Финишный рывок монолита'}
+];
+var GOAL_TOTAL=920; // млн тг — общая годовая цель 2026 (стройка)
+// === ПЯТИЛЕТКА ГРУППЫ LIONGATE === Жёсткая цель: 1 МЛРД $ к 2030 (≈ 500 млрд тг)
+// 5 направлений, прибыль в млрд тг.
+// Источники: подряд (текущий план), торговля (опыт основателя), девелопмент+тендеры (после покупки лицензии 1 кат. в Q1 2027), опалубка-аренда
+var FIVE_YEAR_DEFAULT=[
+  {y:2026, podryad:0.92, trade:0.2,  develop:0,   opalubka:0,    tender:0,   capB:8,   note:'Подряд + опалубка + старт Каспи в августе'},
+  {y:2027, podryad:3,    trade:2.5,  develop:0,   opalubka:0.08, tender:1,   capB:55,  note:'Покупка лицензии 1 кат, тендеры, выход на Озон'},
+  {y:2028, podryad:5,    trade:5,    develop:4,   opalubka:0.15, tender:2,   capB:140, note:'Первый собственный ЖК, торговля СНГ'},
+  {y:2029, podryad:8,    trade:10,   develop:12,  opalubka:0.25, tender:4,   capB:300, note:'3-4 ЖК, торговля как бренд группы'},
+  {y:2030, podryad:12,   trade:18,   develop:30,  opalubka:0.4,  tender:7,   capB:520, note:'Группа 5 направлений · 1 МЛРД $'}
+];
+function getFiveYear(){return (S.settings&&S.settings.fiveYear)||FIVE_YEAR_DEFAULT;}
+function sumYear(y){return (y.podryad||0)+(y.trade||0)+(y.develop||0)+(y.opalubka||0)+(y.tender||0);}
+// Цвета направлений
+var DIR_COLORS={podryad:'var(--teal)',trade:'var(--purple)',develop:'var(--gold)',opalubka:'var(--blue)',tender:'var(--orange)'};
+var DIR_NAMES={podryad:'Подряд',trade:'Торговля',develop:'Девелопмент',opalubka:'Опалубка',tender:'Тендеры'};
+// Подцели 2026 — из плана действий + триггеры новых направлений
+// kind: profit (прибыль накопл.), workers (число рабочих), cash (касса), income (доходы), manual (вручную done)
+var SUBGOALS_2026=[
+  {id:'g1', kind:'profit',  target:100,  unit:'млн', deadline:'2026-07-31', name:'Прибыль 100 млн',       owner:'Все',            icon:'$'},
+  {id:'g2', kind:'workers', target:150,  unit:'чел', deadline:'2026-07-31', name:'150 рабочих',           owner:'Бекжан',         icon:'#'},
+  {id:'g3', kind:'cash',    target:90,   unit:'млн', deadline:'2026-07-31', name:'Опалубка 90 млн',       owner:'Дмитрий+Сергей', icon:'⬢'},
+  {id:'g7', kind:'cash',    target:100,  unit:'млн', deadline:'2026-08-31', name:'Стартовый капитал Каспи', owner:'Дмитрий',      icon:'K', launch:'trade'},
+  {id:'g4', kind:'income',  target:50,   unit:'млн', deadline:'2026-10-31', name:'Объект Тип Б',          owner:'Евгений',        icon:'B'},
+  {id:'g5', kind:'workers', target:480,  unit:'чел', deadline:'2026-12-31', name:'480 рабочих',           owner:'Бекжан',         icon:'#'},
+  {id:'g6', kind:'profit',  target:635,  unit:'млн', deadline:'2026-12-31', name:'Монолит 635 млн',       owner:'Все',            icon:'$'},
+  {id:'g8', kind:'manual',  target:1,    unit:'',    deadline:'2026-12-31', name:'Бренд торговли зарегистрирован', owner:'Дмитрий', icon:'™'}
+];
+// Подцели 2027 — закладка стратегических скачков
+var SUBGOALS_2027=[
+  {id:'h1', kind:'manual',  target:1,    unit:'',    deadline:'2027-03-31', name:'Покупка лицензии 1 категории', owner:'Дмитрий+Евгений', icon:'⚖', critical:true},
+  {id:'h2', kind:'manual',  target:1,    unit:'',    deadline:'2027-06-30', name:'Первый тендер выигран',        owner:'Евгений',         icon:'T'},
+  {id:'h3', kind:'manual',  target:1,    unit:'',    deadline:'2027-09-30', name:'Земельный участок под ЖК',     owner:'Дмитрий',         icon:'L'},
+  {id:'h4', kind:'manual',  target:1,    unit:'',    deadline:'2027-12-31', name:'Торговля на Озон+WB',           owner:'Дмитрий',         icon:'O'},
+  {id:'h5', kind:'manual',  target:1,    unit:'',    deadline:'2027-12-31', name:'Холдинг ТОО «LIONGATE Group»', owner:'Дмитрий+Сергей',  icon:'⬢', critical:true}
+];
+// Роадмап IPO — отдельный список этапов с привязкой к году
+var IPO_ROADMAP=[
+  {id:'ipo1', year:2027, q:'Q4', name:'Холдинг + МСФО аудитор',           desc:'Реорганизация в группу. Найм Big-4 или местного МСФО-аудитора (KPMG/PwC/Deloitte/EY/Crowe/Grant Thornton)', owner:'Сергей+CFO'},
+  {id:'ipo2', year:2028, q:'Q1', name:'Pre-IPO CFO',                       desc:'Найм финдиректора с опытом IPO (отдельно от Сергея). Сергей остаётся операционным.', owner:'Дмитрий'},
+  {id:'ipo3', year:2028, q:'Q2', name:'МСФО за 2026 закрыт',               desc:'Первый из 3 обязательных годов. Аудиторское заключение без оговорок.', owner:'CFO'},
+  {id:'ipo4', year:2028, q:'Q3', name:'Корпуправление: Совет директоров',  desc:'2 независимых директора, комитет по аудиту, регламенты раскрытия информации.', owner:'Дмитрий'},
+  {id:'ipo5', year:2028, q:'Q4', name:'Юр.due-diligence',                  desc:'Проверка всех контрактов, лицензий, земли. Чистка серых схем. Доплата налогов задним числом.', owner:'CFO+юристы'},
+  {id:'ipo6', year:2029, q:'Q1', name:'Pre-IPO раунд 10-15%',              desc:'Продажа доли стратегу за 50-100 млн $. Валидация оценки. Якорный инвестор.', owner:'Дмитрий+CFO', critical:true},
+  {id:'ipo7', year:2029, q:'Q3', name:'МСФО за 2027 + 2028 закрыты',       desc:'2 и 3 годы консолидированной отчётности готовы. Без оговорок.', owner:'CFO'},
+  {id:'ipo8', year:2030, q:'Q1', name:'Выбор площадки и андеррайтера',     desc:'KASE / AIX / двойной листинг. Привлечение инвестбанка (Halyk Finance, BCC Invest, Centras).', owner:'CFO+Дмитрий'},
+  {id:'ipo9', year:2030, q:'Q3', name:'Проспект эмиссии + road-show',       desc:'Документы поданы. Презентации инвесторам в Алматы, Астане, Дубае, Лондоне.', owner:'CFO+Дмитрий'},
+  {id:'ipo10',year:2030, q:'Q4', name:'★ IPO: размещение 15-25% акций',     desc:'Привлечение 75-125 млн $. Публичная капитализация ~500 млрд тг ≈ 1 МЛРД $.', owner:'Группа', critical:true}
+];
+function calcSubgoal(g){
+  var C=calcCo();
+  var val=0;
+  if(g.kind==='profit') val=C.profit/1000000;
+  else if(g.kind==='workers') val=S.brigades.reduce(function(s,b){return s+(b.workers||0);},0);
+  else if(g.kind==='cash') val=C.cash/1000000;
+  else if(g.kind==='income') val=C.income/1000000;
+  else if(g.kind==='manual') val=(S.goalsDone&&S.goalsDone[g.id])?g.target:0;
+  var pct=Math.min(Math.round(val/g.target*100),100);
+  var now=new Date();
+  var dl=new Date(g.deadline);
+  var daysLeft=Math.ceil((dl-now)/86400000);
+  var done=val>=g.target;
+  var status,sColor;
+  if(done){status='ВЫПОЛНЕНО';sColor='var(--green)';}
+  else if(daysLeft<0){status='ПРОСРОЧЕНО';sColor='var(--red)';}
+  else if(daysLeft<14&&pct<80){status='КРИТИЧНО';sColor='var(--red)';}
+  else if(pct>=80){status='БЛИЗКО';sColor='var(--orange)';}
+  else if(pct>=50){status='В РАБОТЕ';sColor='var(--blue)';}
+  else {status='НАЧАЛО';sColor='var(--mut)';}
+  return {val:val, pct:pct, daysLeft:daysLeft, done:done, status:status, sColor:sColor};
+}
+function activeSubgoals(){
+  var now=new Date();
+  var all=SUBGOALS_2026.concat(SUBGOALS_2027);
+  return all.map(function(g){return {g:g,c:calcSubgoal(g)};})
+    .filter(function(x){return !x.c.done && new Date(x.g.deadline)>=now;})
+    .sort(function(a,b){return new Date(a.g.deadline)-new Date(b.g.deadline);})
+    .slice(0,3);
+}
+// Ручное переключение manual целей
+window.toggleManualGoal=function(id){
+  if(!S.goalsDone) S.goalsDone={};
+  S.goalsDone[id]=!S.goalsDone[id];
+  save(); render();
+};
+function calcGoal(){
+  var C=calcCo();
+  var profitM=C.profit/1000000; // в млн
+  var now=new Date(), curM=now.getMonth()+1;
+  var workers=S.brigades.reduce(function(s,b){return s+(b.workers||0);},0);
+  // Текущий месяц плана (если за пределами — берём ближайший)
+  var idx=YEAR_PLAN.findIndex(function(p){return p.m===curM;});
+  if(idx<0) idx = curM<5 ? 0 : YEAR_PLAN.length-1;
+  var cur=YEAR_PLAN[idx];
+  // Прогресс по месяцу (доля дней прошла)
+  var daysInM=new Date(now.getFullYear(),curM,0).getDate();
+  var dayFrac=now.getDate()/daysInM;
+  var prevCum=idx>0?YEAR_PLAN[idx-1].cum:0;
+  var expectedCum=prevCum+(cur.cum-prevCum)*dayFrac; // ожидание накопленного на сегодня
+  var deltaPct=expectedCum>0?Math.round((profitM-expectedCum)/expectedCum*100):0;
+  // Статус: зелёный ±5%, жёлтый -5..-20%, красный <-20% или >+20% (последнее = странно высоко)
+  var status,sColor;
+  if(profitM>=expectedCum*0.95){status='ПО ГРАФИКУ';sColor='var(--green)';}
+  else if(profitM>=expectedCum*0.8){status='ВНИМАНИЕ';sColor='var(--orange)';}
+  else {status='ОТСТАЁМ';sColor='var(--red)';}
+  // Прогноз по текущему темпу (линейная экстраполяция от сегодня)
+  var now2=new Date(now.getFullYear(),11,31);
+  var daysFromStart=Math.max(1,Math.floor((now-new Date(now.getFullYear(),4,1))/86400000));
+  var daysTillEnd=Math.floor((now2-now)/86400000);
+  var rate=profitM/daysFromStart;
+  var forecast=profitM+rate*daysTillEnd;
+  // Найм: статус
+  var wPct=cur.workers>0?Math.round(workers/cur.workers*100):0;
+  var wStatus,wColor;
+  if(workers>=cur.workers*0.9){wStatus='OK';wColor='var(--green)';}
+  else if(workers>=cur.workers*0.6){wStatus='догоняем';wColor='var(--orange)';}
+  else {wStatus='критично';wColor='var(--red)';}
+  return {
+    profitM:profitM, expected:expectedCum, deltaPct:deltaPct,
+    status:status, sColor:sColor,
+    cur:cur, idx:idx,
+    workers:workers, wPct:wPct, wStatus:wStatus, wColor:wColor,
+    forecast:forecast,
+    goalPct:Math.min(Math.round(profitM/GOAL_TOTAL*100),100)
+  };
+}
 function weekData(){var wks=[].concat(S.weeks||[]).sort(function(a,b){return a.date.localeCompare(b.date);});return wks;}
 function kfuAuto(){
   var now=new Date();
@@ -401,7 +541,7 @@ function drawBar(id,labels,datasets,h,legend){var cv=document.getElementById(id)
 function drawLine(id,labels,datasets,h){var cv=document.getElementById(id);if(!cv)return;var ctx=cv.getContext('2d');var W=cv.offsetWidth||300,H=h||150;cv.width=W*2;cv.height=H*2;cv.style.height=H+'px';ctx.scale(2,2);var pb={t:16,r:8,b:34,l:44};var cw=W-pb.l-pb.r,ch=H-pb.t-pb.b;ctx.fillStyle='#161b22';ctx.fillRect(0,0,W,H);var av=[];datasets.forEach(function(d){d.data.forEach(function(v){av.push(v||0);});});var mn=Math.min.apply(null,av),mx=Math.max.apply(null,av);if(mn===mx){mn=mn-1;mx=mx+1;}var rng=mx-mn;ctx.strokeStyle='#3d4655';ctx.lineWidth=0.7;ctx.setLineDash([3,3]);for(var gi=0;gi<=4;gi++){var gy=pb.t+ch*(1-gi/4);ctx.beginPath();ctx.moveTo(pb.l,gy);ctx.lineTo(pb.l+cw,gy);ctx.stroke();ctx.fillStyle='#b9c3d0';ctx.font='11px monospace';ctx.textAlign='right';var gv=mn+(rng*gi/4);ctx.fillText(Math.abs(gv)>=1000?Math.round(gv/1000)+'k':Math.round(gv),pb.l-3,gy+3);}ctx.setLineDash([]);var n=labels.length;datasets.forEach(function(dataset){if(!dataset.data||dataset.data.length<2)return;ctx.strokeStyle=dataset.color||'#388bfd';ctx.lineWidth=2.5;ctx.lineJoin='round';ctx.beginPath();dataset.data.forEach(function(v,i){var x=pb.l+(n>1?i/(n-1):0.5)*cw;var y=pb.t+ch-(v-mn)/rng*ch;if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);});ctx.stroke();ctx.beginPath();dataset.data.forEach(function(v,i){var x=pb.l+(n>1?i/(n-1):0.5)*cw;var y=pb.t+ch-(v-mn)/rng*ch;if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);});ctx.lineTo(pb.l+cw,pb.t+ch);ctx.lineTo(pb.l,pb.t+ch);ctx.closePath();ctx.fillStyle=dataset.fill||'rgba(56,139,253,0.08)';ctx.fill();dataset.data.forEach(function(v,i){var x=pb.l+(n>1?i/(n-1):0.5)*cw;var y=pb.t+ch-(v-mn)/rng*ch;ctx.fillStyle=dataset.color||'#388bfd';ctx.beginPath();ctx.arc(x,y,3,0,Math.PI*2);ctx.fill();});});labels.forEach(function(lbl,i){var x=pb.l+(n>1?i/(n-1):0.5)*cw;ctx.fillStyle='#b9c3d0';ctx.font='11px monospace';ctx.textAlign='center';ctx.fillText(lbl,x,H-pb.b+13);});}
 function drawPie(id,data){var cv=document.getElementById(id);if(!cv)return;var ctx=cv.getContext('2d');var W=cv.offsetWidth||200,H=130;cv.width=W*2;cv.height=H*2;cv.style.height=H+'px';ctx.scale(2,2);ctx.fillStyle='#161b22';ctx.fillRect(0,0,W,H);var total=data.reduce(function(s,d){return s+d.val;},0);if(!total)return;var cx=H/2,cy=H/2,r=H/2-10,start=-Math.PI/2;data.forEach(function(d){var a=d.val/total*Math.PI*2;ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,r,start,start+a);ctx.closePath();ctx.fillStyle=d.color;ctx.fill();ctx.strokeStyle='#161b22';ctx.lineWidth=2.5;ctx.stroke();start+=a;});ctx.beginPath();ctx.arc(cx,cy,r*0.55,0,Math.PI*2);ctx.fillStyle='#161b22';ctx.fill();var lx=H+8,ly=16;data.forEach(function(d){if(!d.val)return;ctx.fillStyle=d.color;ctx.beginPath();ctx.arc(lx+4,ly,4,0,Math.PI*2);ctx.fill();ctx.fillStyle='#b9c3d0';ctx.font='11px monospace';ctx.textAlign='left';ctx.fillText(d.label,lx+12,ly+3);ctx.fillStyle=d.color;ctx.font='bold 11px monospace';ctx.textAlign='right';ctx.fillText(Math.round(d.val/total*100)+'%',W-8,ly+3);ly+=17;});}
 function miniBars(arr,color){if(!arr.length)return '';var mx=Math.max.apply(null,arr)||1;return '<div class="mini-chart">'+arr.map(function(v,i){var op=i===arr.length-1?'1':'0.55';return '<div class="mini-bar" style="height:'+Math.max(8,Math.round(v/mx*100))+'%;background:'+color+';opacity:'+op+'"></div>';}).join('')+'</div>';}
-var curTab='main',searchQ='',fType='all',fObj='all';
+var curTab='main',searchQ='',fType='all',fObj='all',goalExp=false,subExp=false,fyExp=false,ipoExp=false;
 var volPeriod='day',volObj='all',volBrig='all';
 function setTab(t){curTab=t;document.querySelectorAll('.nb').forEach(function(b){b.classList.remove('active');});var el=document.getElementById('tab-'+t);if(el)el.classList.add('active');render();}
 function render(){var el=document.getElementById('content');if(!el)return;var map={main:rMain,pl:rPL,partners:rPartners,brigades:rBrigades,plan:rPlan,journal:rJournal,history:rHistory};if(map[curTab])el.innerHTML=map[curTab]();setTimeout(drawCharts,60);}
@@ -411,6 +551,290 @@ function desc(e){if(e.type==='income')return e.note||'Приход от зака
 function opRow(e,showDel){var tc=TYPES[e.type]||{color:'var(--mut)'};var h='<div class="oprow"><div class="opbody"><div style="margin-bottom:3px">'+badge(e.type)+'</div><div class="opdesc">'+desc(e)+'</div><div class="opmeta">'+e.date+(e.obj&&e.obj!=='-'?' / '+e.obj.split(',')[0]:'')+'</div>';if(e.photo)h+='<img src="'+e.photo+'" class="photo-thumb" onclick="viewPhoto(\''+e.id+'\')"/>';h+='</div><div style="text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:4px">';if(e.type==='vol'){h+='<div style="font-size:13px;font-weight:700;color:var(--teal)">'+fmtD(e.volume||0)+' м³</div>';}else{h+='<div style="font-size:13px;font-weight:700;color:'+tc.color+'">'+fmt(e.amount)+' тг</div>';}if(showDel&&role==='editor')h+='<button class="delbtn" onclick="delEntry('+e.id+')">X</button>';h+='</div></div>';return h;}
 
 function rMain(){var C=calcCo();var vd=totalVolDone(),tv=getTotalVol(),vp=Math.min(Math.round(vd/tv*100),100);var dl=daysLeft();var wks=weekData();var h=warnsHTML();
+// === ЦЕЛЬ ГОДА — 920 млн ===
+var G=calcGoal();
+var forecastColor=G.forecast>=GOAL_TOTAL*0.9?'var(--green)':G.forecast>=GOAL_TOTAL*0.7?'var(--orange)':'var(--red)';
+h+='<div class="sect">Цель года</div>';
+h+='<div class="dcard">';
+h+='<div class="dtop"><div><div class="bn-label">Накоплено</div><div class="dbig" style="color:var(--gold)">'+G.profitM.toFixed(1)+' <span style="font-size:18px">млн</span></div></div><div style="text-align:right"><div class="dpct" style="color:'+G.sColor+'">'+G.goalPct+'%</div><div style="font-size:9px;color:var(--mut)">из '+GOAL_TOTAL+' млн</div></div></div>';
+h+='<div class="ptrack"><div class="pfill" style="width:'+G.goalPct+'%;background:linear-gradient(90deg,var(--gold),'+G.sColor+')"></div></div>';
+h+='<div class="plabels"><span>0</span><span style="color:'+G.sColor+';font-weight:700">'+G.status+'</span><span>'+GOAL_TOTAL+'</span></div>';
+h+='<div class="dmini"><div class="dmini-i"><div class="dmini-v" style="color:'+G.sColor+'">'+(G.deltaPct>=0?'+':'')+G.deltaPct+'%</div><div class="dmini-l">'+G.cur.name+' план/факт</div></div><div class="dmini-i"><div class="dmini-v" style="color:'+G.wColor+'">'+G.workers+'/'+G.cur.workers+'</div><div class="dmini-l">Рабочих</div></div><div class="dmini-i"><div class="dmini-v" style="color:'+forecastColor+'">'+G.forecast.toFixed(0)+'</div><div class="dmini-l">Прогноз млн</div></div></div>';
+h+='</div>';
+// KPI grid по цели — в стиле остальных Сводок
+h+='<div class="kgrid">';
+h+='<div class="kc" style="--cbar:'+G.sColor+'"><div class="kc-l">'+G.cur.name+' план</div><div class="kc-v" style="color:var(--mut)">'+G.expected.toFixed(1)+'</div><div class="kc-s">млн должно быть</div></div>';
+h+='<div class="kc" style="--cbar:'+G.sColor+'"><div class="kc-l">'+G.cur.name+' факт</div><div class="kc-v" style="color:'+G.sColor+'">'+G.profitM.toFixed(1)+'</div><div class="kc-s">млн сейчас</div></div>';
+h+='<div class="kc" style="--cbar:'+G.wColor+'"><div class="kc-l">Рабочие</div><div class="kc-v" style="color:'+G.wColor+'">'+G.workers+'</div><div class="kc-s">из '+G.cur.workers+' план</div><div class="kc-t" style="color:'+G.wColor+'">'+G.wStatus+'</div></div>';
+h+='<div class="kc" style="--cbar:'+forecastColor+'"><div class="kc-l">Прогноз</div><div class="kc-v" style="color:'+forecastColor+'">'+G.forecast.toFixed(0)+'</div><div class="kc-s">млн к 31.12</div><div class="kc-t" style="color:var(--mut)">по текущему темпу</div></div>';
+h+='</div>';
+// Toggle подробностей — золотая кнопка в стиле .lbtn
+h+='<div style="margin-bottom:14px"><button onclick="goalExp=!goalExp;render()" style="width:100%;background:transparent;border:1px solid var(--brd);color:var(--mut);font-family:var(--fm);font-size:11px;padding:10px;border-radius:8px;cursor:pointer;letter-spacing:1px">'+(goalExp?'СКРЫТЬ ▲':'ПЛАН ПО МЕСЯЦАМ ▼')+'</button></div>';
+if(goalExp){
+  h+='<div class="dcard"><div class="ctit">Цели по месяцам</div>';
+  h+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:11px"><thead><tr style="color:var(--mut)"><th style="padding:8px 6px;border-bottom:1px solid var(--brd);text-align:left;font-weight:700;letter-spacing:1px">МЕС</th><th style="padding:8px 6px;border-bottom:1px solid var(--brd);text-align:right;font-weight:700;letter-spacing:1px">РАБ</th><th style="padding:8px 6px;border-bottom:1px solid var(--brd);text-align:right;font-weight:700;letter-spacing:1px">м³/НЕД</th><th style="padding:8px 6px;border-bottom:1px solid var(--brd);text-align:right;font-weight:700;letter-spacing:1px">НАКОПЛ</th></tr></thead><tbody>';
+  YEAR_PLAN.forEach(function(p,i){
+    var isCur=i===G.idx;
+    var rowBg=isCur?'background:var(--glt)':'';
+    var col=isCur?'color:var(--gold);font-weight:700':'color:var(--text)';
+    h+='<tr style="'+rowBg+'"><td style="padding:8px 6px;border-bottom:1px solid var(--brd);'+col+'">'+(isCur?'▸ ':'')+p.name+'</td><td style="padding:8px 6px;border-bottom:1px solid var(--brd);text-align:right;'+col+'">'+p.workers+'</td><td style="padding:8px 6px;border-bottom:1px solid var(--brd);text-align:right;'+col+'">'+p.weekVol+'</td><td style="padding:8px 6px;border-bottom:1px solid var(--brd);text-align:right;'+col+'">'+p.cum+'</td></tr>';
+    if(isCur){h+='<tr style="background:var(--glt)"><td colspan="4" style="padding:0 6px 8px;font-size:10px;color:var(--mut);font-style:italic">'+p.note+'</td></tr>';}
+  });
+  h+='</tbody></table></div>';
+  h+='<div class="divider"></div>';
+  h+='<div style="font-size:11px;color:var(--mut);line-height:1.6">Цель '+GOAL_TOTAL+' млн = <span style="color:var(--green)">250</span> партнёрам в карман + <span style="color:var(--blue)">500</span> реинвест + <span style="color:var(--orange)">80</span> на проживание + <span style="color:var(--teal)">90</span> опалубка. Монолит даёт ~635, отделка добивает ~285.</div>';
+  h+='</div>';
+}
+// === БЛИЖАЙШИЕ ПОДЦЕЛИ ===
+var actSub=activeSubgoals();
+if(actSub.length>0){
+  h+='<div class="sect">Ближайшие этапы</div>';
+  actSub.forEach(function(x){
+    var g=x.g, c=x.c;
+    var dlText = c.daysLeft<0 ? Math.abs(c.daysLeft)+' дн просрочка' : c.daysLeft+' дн осталось';
+    h+='<div class="dcard" style="padding:14px">';
+    h+='<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">';
+    h+='<div><div style="font-size:14px;font-weight:700;color:var(--text)">'+g.name+'</div><div style="font-size:10px;color:var(--mut);margin-top:2px">'+g.owner+' · до '+g.deadline+'</div></div>';
+    h+='<div style="text-align:right"><div style="font-family:var(--fd);font-size:22px;color:'+c.sColor+';line-height:1">'+c.pct+'%</div><div style="font-size:9px;color:'+c.sColor+';font-weight:700;letter-spacing:1px">'+c.status+'</div></div>';
+    h+='</div>';
+    h+='<div class="ptrack" style="height:8px"><div class="pfill" style="width:'+c.pct+'%;background:'+c.sColor+'"></div></div>';
+    h+='<div class="plabels" style="margin-top:6px"><span style="color:'+c.sColor+'">'+c.val.toFixed(c.val>=100?0:1)+' '+g.unit+'</span><span>'+dlText+'</span><span>'+g.target+' '+g.unit+'</span></div>';
+    h+='</div>';
+  });
+  // Кнопка раскрыть все этапы
+  h+='<div style="margin-bottom:14px"><button onclick="subExp=!subExp;render()" style="width:100%;background:transparent;border:1px solid var(--brd);color:var(--mut);font-family:var(--fm);font-size:11px;padding:10px;border-radius:8px;cursor:pointer;letter-spacing:1px">'+(subExp?'СКРЫТЬ ▲':'ВСЕ ЭТАПЫ 2026–2027 ('+(SUBGOALS_2026.length+SUBGOALS_2027.length)+') ▼')+'</button></div>';
+  if(subExp){
+    // 2026
+    h+='<div class="dcard"><div class="ctit">2026 · Фундамент</div>';
+    SUBGOALS_2026.forEach(function(g){
+      var c=calcSubgoal(g);
+      h+='<div style="padding:10px 0;border-bottom:1px solid var(--brd)">';
+      h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">';
+      h+='<div style="flex:1"><div style="font-size:12px;font-weight:700;color:'+(c.done?'var(--green)':'var(--text)')+'">'+(c.done?'✓ ':'')+g.name+(g.launch?' <span style="color:var(--purple);font-size:9px">★ ЗАПУСК</span>':'')+'</div><div style="font-size:9px;color:var(--mut);margin-top:1px">'+g.owner+' · до '+g.deadline+'</div></div>';
+      if(g.kind==='manual'){
+        h+='<button onclick="toggleManualGoal(\''+g.id+'\')" style="background:'+(c.done?'var(--green)':'var(--s2)')+';border:1px solid '+(c.done?'var(--green)':'var(--brd)')+';color:'+(c.done?'#0d1117':'var(--mut)')+';font-family:var(--fm);font-size:9px;padding:5px 10px;border-radius:5px;cursor:pointer;font-weight:700;letter-spacing:1px">'+(c.done?'✓ ГОТОВО':'ОТМЕТИТЬ')+'</button>';
+      } else {
+        h+='<div style="text-align:right;min-width:60px"><div style="font-size:13px;font-weight:700;color:'+c.sColor+'">'+c.pct+'%</div><div style="font-size:8px;color:var(--mut)">'+c.val.toFixed(c.val>=100?0:1)+'/'+g.target+'</div></div>';
+      }
+      h+='</div>';
+      if(g.kind!=='manual') h+='<div class="ptrack" style="height:5px"><div class="pfill" style="width:'+c.pct+'%;background:'+c.sColor+'"></div></div>';
+      h+='</div>';
+    });
+    h+='</div>';
+    // 2027
+    h+='<div class="dcard"><div class="ctit">2027 · Стратегические скачки</div>';
+    SUBGOALS_2027.forEach(function(g){
+      var c=calcSubgoal(g);
+      h+='<div style="padding:10px 0;border-bottom:1px solid var(--brd)">';
+      h+='<div style="display:flex;justify-content:space-between;align-items:center">';
+      h+='<div style="flex:1"><div style="font-size:12px;font-weight:700;color:'+(c.done?'var(--green)':g.critical?'var(--gold)':'var(--text)')+'">'+(c.done?'✓ ':'')+(g.critical?'⚡ ':'')+g.name+'</div><div style="font-size:9px;color:var(--mut);margin-top:1px">'+g.owner+' · до '+g.deadline+'</div></div>';
+      h+='<button onclick="toggleManualGoal(\''+g.id+'\')" style="background:'+(c.done?'var(--green)':'var(--s2)')+';border:1px solid '+(c.done?'var(--green)':'var(--brd)')+';color:'+(c.done?'#0d1117':'var(--mut)')+';font-family:var(--fm);font-size:9px;padding:5px 10px;border-radius:5px;cursor:pointer;font-weight:700;letter-spacing:1px">'+(c.done?'✓ ГОТОВО':'ОТМЕТИТЬ')+'</button>';
+      h+='</div></div>';
+    });
+    h+='<div style="padding:10px;background:var(--glt);border-radius:6px;font-size:10px;color:var(--mut);line-height:1.5;margin-top:8px"><b style="color:var(--gold)">⚡ КРИТИЧНО:</b> покупка лицензии 1 категории — самая дорогая ошибка может быть здесь. Лицензия 80–200 млн тг + скрытые долги. Только через юриста по тендерам, due diligence обязательно.</div>';
+    h+='</div>';
+  }
+}
+// === ГРУППА LIONGATE — ПЯТИЛЕТКА ===
+var fy=getFiveYear();
+var curYear=new Date().getFullYear();
+var curC=calcCo().profit/1000000000; // в млрд тг
+var goalCap=fy[fy.length-1].capB;
+var goalUSD=Math.round(goalCap*2); // ~2 млн $ на 1 млрд тг
+var perPartnerB=Math.round(goalCap/5);
+var perPartnerUSD=Math.round(goalUSD/5);
+var curFY=fy.find(function(y){return y.y===curYear;});
+
+h+='<div class="sect">Группа LIONGATE · 1 МЛРД $ к 2030</div>';
+
+// Главная карточка цели — в стиле "Выполнено м³" (как другие dcard на главной)
+h+='<div class="dcard">';
+h+='<div class="dtop"><div><div class="bn-label">Капитализация цель</div><div class="dbig" style="color:var(--gold)">1 МЛРД <span style="font-size:18px;color:var(--mut)">$</span></div></div><div style="text-align:right"><div class="dpct" style="color:var(--teal)">'+goalCap+'</div><div style="font-size:9px;color:var(--mut)">млрд тг к 2030</div></div></div>';
+// Прогресс капитализации
+var curCapPct=curFY?Math.round((curFY.capB/goalCap)*100):0;
+h+='<div class="ptrack"><div class="pfill" style="width:'+curCapPct+'%;background:linear-gradient(90deg,var(--teal),var(--gold))"></div></div>';
+h+='<div class="plabels"><span>2026</span><span style="color:var(--gold)">'+curYear+' · '+(curFY?curFY.capB:0)+' млрд</span><span>2030</span></div>';
+// Mini метрики — как в карточке Выполнено
+h+='<div class="dmini">';
+h+='<div class="dmini-i"><div class="dmini-v" style="color:var(--gold)">'+perPartnerUSD+'</div><div class="dmini-l">млн $ на партнёра</div></div>';
+if(curFY){
+  var totalPlan=sumYear(curFY);
+  var planPct=totalPlan>0?Math.min(Math.round(curC/totalPlan*100),100):0;
+  h+='<div class="dmini-i"><div class="dmini-v" style="color:'+(planPct>=80?'var(--green)':planPct>=50?'var(--orange)':'var(--mut)')+'">'+planPct+'%</div><div class="dmini-l">'+curYear+' план</div></div>';
+}
+h+='<div class="dmini-i"><div class="dmini-v" style="color:var(--purple)">5</div><div class="dmini-l">направлений</div></div>';
+h+='</div></div>';
+
+// Доля партнёров — компактнее, без отдельной "шапки", сразу с инициалами
+h+='<div class="dcard"><div class="ctit">Доли партнёров · по 1/5 группы</div>';
+PARTNERS.forEach(function(p,i){
+  var isLast=i===PARTNERS.length-1;
+  h+='<div style="display:flex;align-items:center;gap:10px;padding:10px 0'+(isLast?'':';border-bottom:1px solid var(--brd)')+'">';
+  h+='<div style="width:36px;height:36px;border-radius:50%;background:'+PC[i]+';display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-family:var(--fd);font-size:16px;flex-shrink:0">'+p.charAt(0)+'</div>';
+  h+='<div style="flex:1"><div style="font-size:13px;font-weight:700;color:'+PC[i]+'">'+p+'</div><div style="font-size:9px;color:var(--mut);margin-top:1px">в каждом из 5 направлений</div></div>';
+  h+='<div style="text-align:right"><div style="font-family:var(--fd);font-size:20px;color:var(--gold);line-height:1">'+perPartnerUSD+'<span style="font-size:11px;color:var(--mut)"> млн$</span></div><div style="font-size:9px;color:var(--mut);margin-top:2px">к 2030</div></div>';
+  h+='</div>';
+});
+h+='</div>';
+
+// Объединённый график: прибыль ПО ГОДАМ + капитализация ПО ГОДАМ + легенда в одной карточке
+h+='<div class="dcard"><div class="ctit">Прибыль и капитализация · по годам</div>';
+var maxYearProfit=Math.max.apply(null, fy.map(function(y){return sumYear(y);}));
+fy.forEach(function(y){
+  var isCur=y.y===curYear;
+  var totalP=sumYear(y);
+  var barPct=Math.round(totalP/maxYearProfit*100);
+  h+='<div style="margin-bottom:12px">';
+  // Год + прибыль + капитализация одной строкой
+  h+='<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px">';
+  h+='<span style="font-family:var(--fd);font-size:15px;letter-spacing:1px;color:'+(isCur?'var(--gold)':'var(--text)')+'">'+(isCur?'▸ ':'')+y.y+'</span>';
+  h+='<span style="display:flex;gap:10px;align-items:baseline">';
+  h+='<span style="font-family:var(--fd);font-size:14px;color:'+(isCur?'var(--gold)':'var(--text)')+'">'+totalP.toFixed(1)+'<span style="font-size:8px;color:var(--mut)"> ЧП</span></span>';
+  h+='<span style="font-family:var(--fd);font-size:14px;color:var(--teal)">'+y.capB+'<span style="font-size:8px;color:var(--mut)"> КАП</span></span>';
+  h+='</span></div>';
+  // Стэк-бар (прибыль)
+  h+='<div style="display:flex;height:12px;border-radius:6px;overflow:hidden;background:var(--s2);width:'+Math.max(barPct,3)+'%;min-width:'+(totalP>0?'12%':'3%')+'">';
+  ['podryad','trade','develop','tender','opalubka'].forEach(function(k){
+    var v=y[k]||0;
+    if(v>0 && totalP>0){
+      var segPct=Math.round(v/totalP*100);
+      h+='<div style="width:'+segPct+'%;background:'+DIR_COLORS[k]+'"></div>';
+    }
+  });
+  h+='</div>';
+  h+='</div>';
+});
+// Легенда — компактная горизонтальная
+h+='<div class="divider"></div>';
+h+='<div style="display:flex;flex-wrap:wrap;gap:6px;font-size:9px">';
+['podryad','trade','develop','tender','opalubka'].forEach(function(k){
+  h+='<div style="display:flex;align-items:center;gap:4px;padding:4px 8px;background:var(--s2);border-radius:12px"><div style="width:8px;height:8px;background:'+DIR_COLORS[k]+';border-radius:50%"></div><span style="color:var(--mut)">'+DIR_NAMES[k]+'</span></div>';
+});
+h+='</div>';
+h+='<div style="margin-top:10px;font-size:9px;color:var(--mut);font-style:italic">ЧП — чистая прибыль · КАП — капитализация · обе в млрд тг</div>';
+h+='</div>';
+
+// Кнопка детальной таблицы — теперь вторичная, тонкая (главную золотую кнопку используем для IPO)
+h+='<div style="margin-bottom:14px"><button onclick="fyExp=!fyExp;render()" style="width:100%;background:transparent;border:1px solid var(--brd);color:var(--mut);font-family:var(--fm);font-size:11px;padding:10px;border-radius:8px;cursor:pointer;letter-spacing:1px">'+(fyExp?'СКРЫТЬ ТАБЛИЦУ ▲':'ТАБЛИЦА И КОММЕНТАРИИ ПО ГОДАМ ▼')+'</button></div>';
+if(fyExp){
+  h+='<div class="dcard"><div class="ctit">Прибыль по направлениям</div>';
+  h+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:11px"><thead><tr style="color:var(--mut)">';
+  h+='<th style="padding:8px 6px;border-bottom:1px solid var(--brd);text-align:left;font-weight:700;letter-spacing:1px">ГОД</th>';
+  ['podryad','trade','develop','opalubka','tender'].forEach(function(k){
+    h+='<th style="padding:8px 6px;border-bottom:1px solid var(--brd);text-align:right;font-weight:700;letter-spacing:1px;color:'+DIR_COLORS[k]+';font-size:9px">'+DIR_NAMES[k].substr(0,4).toUpperCase()+'</th>';
+  });
+  h+='<th style="padding:8px 6px;border-bottom:1px solid var(--brd);text-align:right;font-weight:700;letter-spacing:1px;color:var(--gold)">∑ЧП</th>';
+  h+='<th style="padding:8px 6px;border-bottom:1px solid var(--brd);text-align:right;font-weight:700;letter-spacing:1px;color:var(--teal)">КАП</th>';
+  h+='</tr></thead><tbody>';
+  fy.forEach(function(y){
+    var isCur=y.y===curYear;
+    var rowBg=isCur?'background:var(--glt)':'';
+    var col=isCur?'color:var(--gold);font-weight:700':'color:var(--text)';
+    h+='<tr style="'+rowBg+'"><td style="padding:8px 6px;border-bottom:1px solid var(--brd);'+col+'">'+(isCur?'▸':'')+y.y+'</td>';
+    ['podryad','trade','develop','opalubka','tender'].forEach(function(k){
+      var v=y[k]||0;
+      h+='<td style="padding:8px 6px;border-bottom:1px solid var(--brd);text-align:right;'+col+'">'+(v>0?(v<1?v.toFixed(1):v.toFixed(0)):'—')+'</td>';
+    });
+    h+='<td style="padding:8px 6px;border-bottom:1px solid var(--brd);text-align:right;font-weight:700;color:var(--gold)">'+sumYear(y).toFixed(sumYear(y)<10?1:0)+'</td>';
+    h+='<td style="padding:8px 6px;border-bottom:1px solid var(--brd);text-align:right;color:var(--teal);font-weight:700">'+y.capB+'</td></tr>';
+  });
+  h+='</tbody></table></div>';
+  // Комментарии к годам
+  h+='<div class="divider"></div>';
+  fy.forEach(function(y){
+    var isCur=y.y===curYear;
+    h+='<div style="display:flex;gap:10px;padding:6px 0;border-bottom:1px solid var(--brd)">';
+    h+='<div style="font-family:var(--fd);font-size:14px;color:'+(isCur?'var(--gold)':'var(--mut)')+';min-width:50px">'+y.y+'</div>';
+    h+='<div style="flex:1;font-size:10px;color:'+(isCur?'var(--text)':'var(--mut)')+';line-height:1.5">'+y.note+'</div>';
+    h+='</div>';
+  });
+  // Три скачка
+  h+='<div style="margin-top:10px;padding:10px;background:var(--glt);border-radius:6px;font-size:10px;color:var(--mut);line-height:1.7">';
+  h+='<b style="color:var(--gold)">⚡ Три критичных скачка:</b><br>';
+  h+='<span style="color:var(--purple)">★ Q3 2026</span> — старт торговли (Каспи, 100 млн оборотки)<br>';
+  h+='<span style="color:var(--gold)">★ Q1 2027</span> — лицензия 1 кат → тендеры + девелопмент<br>';
+  h+='<span style="color:var(--gold)">★ 2028</span> — первый собственный ЖК (главный множитель)';
+  h+='</div>';
+  h+='</div>';
+}
+
+// === IPO 2030 ===
+var ipoDone=IPO_ROADMAP.filter(function(s){return S.goalsDone&&S.goalsDone[s.id];}).length;
+var ipoTotal=IPO_ROADMAP.length;
+var ipoPct=Math.round(ipoDone/ipoTotal*100);
+var nextIPO=IPO_ROADMAP.find(function(s){return !(S.goalsDone&&S.goalsDone[s.id]);});
+h+='<div class="sect">Выход на биржу · IPO 2030</div>';
+
+// Главная карточка IPO — компактная, как другие dcard
+h+='<div class="dcard">';
+h+='<div class="dtop"><div><div class="bn-label">Подготовка к IPO</div><div class="dbig" style="color:var(--gold)">Q4 <span style="font-size:22px">2030</span></div></div><div style="text-align:right"><div class="dpct" style="color:var(--gold)">'+ipoPct+'%</div><div style="font-size:9px;color:var(--mut)">'+ipoDone+' из '+ipoTotal+' этапов</div></div></div>';
+h+='<div class="ptrack"><div class="pfill" style="width:'+ipoPct+'%;background:linear-gradient(90deg,var(--purple),var(--gold))"></div></div>';
+if(nextIPO){
+  h+='<div class="plabels"><span>сейчас</span><span style="color:var(--purple)">▸ '+nextIPO.year+' '+nextIPO.q+' · '+nextIPO.name+'</span><span>2030</span></div>';
+} else {
+  h+='<div class="plabels"><span>0</span><span style="color:var(--green)">всё готово ✓</span><span>'+ipoTotal+'</span></div>';
+}
+// Mini-метрики
+h+='<div class="dmini">';
+h+='<div class="dmini-i"><div class="dmini-v" style="color:var(--blue);font-size:18px">15–25%</div><div class="dmini-l">размещение</div></div>';
+h+='<div class="dmini-i"><div class="dmini-v" style="color:var(--green);font-size:18px">75–125</div><div class="dmini-l">млн $ привлечь</div></div>';
+h+='<div class="dmini-i"><div class="dmini-v" style="color:var(--teal);font-size:18px">75–85%</div><div class="dmini-l">контроль партнёров</div></div>';
+h+='</div>';
+h+='</div>';
+
+// Площадки — отдельной компактной карточкой
+h+='<div class="dcard"><div class="ctit">Площадки листинга</div>';
+h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">';
+h+='<div style="padding:12px;background:var(--bllt);border:1px solid var(--blue);border-radius:8px"><div style="font-family:var(--fd);font-size:18px;color:var(--blue);letter-spacing:2px">KASE</div><div style="font-size:10px;color:var(--mut);margin-top:6px;line-height:1.5">Местные инвесторы<br>Тенге · Дешевле<br>Нужно 3 года МСФО</div></div>';
+h+='<div style="padding:12px;background:var(--glt);border:1px solid var(--gold);border-radius:8px"><div style="font-family:var(--fd);font-size:18px;color:var(--gold);letter-spacing:2px">AIX</div><div style="font-size:10px;color:var(--mut);margin-top:6px;line-height:1.5">Международные<br>Доллар · Англ. право<br>Дороже сопровождение</div></div>';
+h+='</div>';
+h+='<div style="margin-top:10px;font-size:10px;color:var(--mut);line-height:1.5"><b style="color:var(--gold)">★ Рекомендация:</b> двойной листинг KASE+AIX. Максимум инвесторов из СНГ и мира.</div>';
+h+='</div>';
+
+// Кнопка раскрытия роадмапа — золотая (главная кнопка секции)
+h+='<div style="margin-bottom:14px"><button onclick="ipoExp=!ipoExp;render()" style="width:100%;background:'+(ipoExp?'var(--s2)':'var(--gold)')+';border:1px solid '+(ipoExp?'var(--brd)':'var(--gold)')+';color:'+(ipoExp?'var(--mut)':'#0d1117')+';font-family:var(--fd);font-size:15px;letter-spacing:2px;padding:12px;border-radius:8px;cursor:pointer">'+(ipoExp?'СКРЫТЬ РОАДМАП ▲':'РОАДМАП IPO ('+ipoTotal+' ЭТАПОВ) ▼')+'</button></div>';
+
+if(ipoExp){
+  var ipoByYear={};
+  IPO_ROADMAP.forEach(function(s){ if(!ipoByYear[s.year]) ipoByYear[s.year]=[]; ipoByYear[s.year].push(s); });
+  var yearTitles={'2027':'Реорганизация','2028':'Аудит и корпуправление','2029':'Pre-IPO раунд','2030':'IPO'};
+  Object.keys(ipoByYear).sort().forEach(function(yr){
+    h+='<div class="dcard"><div class="ctit">'+yr+' · '+yearTitles[yr]+'</div>';
+    ipoByYear[yr].forEach(function(s,i){
+      var done=S.goalsDone&&S.goalsDone[s.id];
+      var isLast=i===ipoByYear[yr].length-1;
+      h+='<div style="padding:12px 0'+(isLast?'':';border-bottom:1px solid var(--brd)')+'">';
+      h+='<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:6px">';
+      h+='<div style="flex:1">';
+      h+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><span style="font-family:var(--fd);font-size:11px;letter-spacing:1px;padding:2px 6px;background:'+(done?'var(--grlt)':s.critical?'var(--glt)':'var(--s2)')+';color:'+(done?'var(--green)':s.critical?'var(--gold)':'var(--mut)')+';border-radius:4px">'+s.q+'</span>';
+      if(s.critical && !done) h+='<span style="font-size:9px;color:var(--gold);font-weight:700;letter-spacing:1px">⚡ КРИТИЧНО</span>';
+      h+='</div>';
+      h+='<div style="font-size:13px;font-weight:700;color:'+(done?'var(--green)':'var(--text)')+'">'+(done?'✓ ':'')+s.name+'</div>';
+      h+='<div style="font-size:10px;color:var(--mut);margin-top:4px;line-height:1.5">'+s.desc+'</div>';
+      h+='<div style="font-size:9px;color:var(--mut);margin-top:4px"><span style="color:var(--mut)">Ответственный:</span> <b style="color:var(--text)">'+s.owner+'</b></div>';
+      h+='</div>';
+      h+='<button onclick="toggleManualGoal(\''+s.id+'\')" style="background:'+(done?'var(--green)':'var(--gold)')+';border:none;color:#0d1117;font-family:var(--fd);font-size:10px;padding:7px 12px;border-radius:6px;cursor:pointer;font-weight:700;letter-spacing:1px;flex-shrink:0">'+(done?'✓ ГОТОВО':'ОТМЕТИТЬ')+'</button>';
+      h+='</div></div>';
+    });
+    h+='</div>';
+  });
+  // Риски
+  h+='<div class="dcard" style="border-left:3px solid var(--red)"><div class="ctit" style="color:var(--red)">⚠ Критичные риски IPO</div>';
+  var risks=[
+    {t:'Серые схемы',d:'Если хоть один партнёр имеет «свои» проекты вне группы — на IPO всплывёт и убьёт размещение.'},
+    {t:'Зависимость от 1-2 заказчиков',d:'70% подряда от одного заказчика снизит оценку на 30-40%. Нужна диверсификация к 2028.'},
+    {t:'Устные договорённости',d:'С 2027 — каждая копейка между партнёрами через корпоративные документы. Иначе провалится due diligence.'},
+    {t:'Налоги',d:'Перед IPO придётся обелиться полностью и доплатить задним числом. Десятки-сотни миллионов тг — заложите в финплан.'}
+  ];
+  risks.forEach(function(r,i){
+    var isLast=i===risks.length-1;
+    h+='<div style="padding:10px 0'+(isLast?'':';border-bottom:1px solid var(--brd)')+'">';
+    h+='<div style="font-size:12px;font-weight:700;color:var(--red);margin-bottom:4px">'+(i+1)+'. '+r.t+'</div>';
+    h+='<div style="font-size:10px;color:var(--mut);line-height:1.5">'+r.d+'</div>';
+    h+='</div>';
+  });
+  h+='</div>';
+}
 // Deadline banner
 if(dl!==null||S.settings.deadline){h+='<div class="banner"><div><div class="bn-label">Объект</div><div class="bn-obj">'+(S.objects[0]||'').split(',')[0]+'</div><div class="bn-date">Дедлайн: '+(S.settings.deadline||'не задан')+'</div></div>';if(dl!==null){var dc=dl<7?'var(--red)':dl<14?'var(--orange)':'var(--green)';h+='<div style="text-align:right"><div class="bn-big" style="color:'+dc+'">'+Math.max(0,dl)+'</div><div class="bn-unit">дней осталось</div></div>';}h+='</div>';}
 // Volume progress
