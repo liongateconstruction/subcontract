@@ -1797,6 +1797,7 @@ document.getElementById('fab-mic').addEventListener('contextmenu',function(e){e.
 // ============ ЧЕРНОВИКИ ИЗ TELEGRAM-БОТА ============
 var _drafts = [];
 var _draftsTimer = null;
+var _deletedIds = {}; // локальный blacklist удалённых ID
 
 function loadDrafts(silent){
   if(!AI_WORKER_URL||!AI_SHARED_TOKEN) return;
@@ -1809,7 +1810,8 @@ function loadDrafts(silent){
   }).then(function(data){
     if(data&&Array.isArray(data.drafts)){
       var prev=_drafts.length;
-      _drafts=data.drafts;
+      // Фильтруем — не показываем те что уже удалили локально
+      _drafts=data.drafts.filter(function(d){return !_deletedIds[d.id];});
       if(!silent&&_drafts.length>prev){
         var st=document.getElementById('sync-st');
         if(st){st.textContent='✏ +'+(_drafts.length-prev);st.style.color='var(--gold)';setTimeout(function(){st.textContent='';},3000);}
@@ -1852,7 +1854,8 @@ function startDraftsPolling(){
   if(_draftsTimer) clearInterval(_draftsTimer);
   if(role==='editor'&&AI_WORKER_URL&&AI_SHARED_TOKEN){
     loadDrafts(true);
-    _draftsTimer=setInterval(function(){loadDrafts(false);},20000);
+    // Опрашиваем каждые 60 сек (не 20) — чтобы KV успевал реплицировать удаления
+    _draftsTimer=setInterval(function(){loadDrafts(false);},60000);
   }
 }
 
@@ -1938,6 +1941,7 @@ function confirmDraftGroup(linkedKey){
       S.history.push({action:'add',by:role,at:new Date().toISOString(),type:entry.type,amount:entry.amount,source:'tg-confirmed'});
       added++;
     }
+    _deletedIds[d.id]=true; // blacklist
     _drafts=_drafts.filter(function(x){return x.id!==d.id;});
     delDraftOnServer(d.id);
   });
@@ -1948,7 +1952,10 @@ function confirmDraftGroup(linkedKey){
 function rejectDraftGroup(linkedKey){
   if(!confirm('Удалить черновик без сохранения?')) return;
   var group=_drafts.filter(function(d){return (d.linkedId||d.id)===linkedKey;});
-  group.forEach(function(d){_drafts=_drafts.filter(function(x){return x.id!==d.id;});});
+  group.forEach(function(d){
+    _deletedIds[d.id]=true; // blacklist — не показывать даже если сервер вернёт
+    _drafts=_drafts.filter(function(x){return x.id!==d.id;});
+  });
   closeModal();render();
   Promise.all(group.map(function(d){return delDraftOnServer(d.id);}));
 }
@@ -1957,7 +1964,7 @@ function rejectDraftGroup(linkedKey){
 // Версия приложения. Меняется при каждом релизе.
 // Логика мягкого обновления: настройки ИИ переживают переход на новую версию,
 // обновление применяется при следующем естественном открытии (без миганий).
-var APP_VERSION='16';
+var APP_VERSION='17';
 // Ключи которые НЕ стираем при обновлении (настройки пользователя)
 var PRESERVED_KEYS = ['lg_ai_worker_url', 'lg_ai_token', 'role'];
 (function(){
