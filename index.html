@@ -1428,15 +1428,7 @@ function tryLogin(){var p=document.getElementById('lpass').value.trim();if(PWD[p
 function viewOnly(){role='viewer';sessionStorage.setItem('role','viewer');startApp();}
 function doLogout(){sessionStorage.removeItem('role');role=null;document.getElementById('app').style.display='none';document.getElementById('ls').style.display='flex';document.getElementById('lpass').value='';document.getElementById('lerr').textContent='';}
 function startApp(){document.getElementById('ls').style.display='none';document.getElementById('app').style.display='flex';var rp=document.getElementById('rpill'),fab=document.getElementById('fab'),bo=document.getElementById('btn-obj');if(role==='editor'){rp.textContent='Редактор';rp.className='rpill re';fab.style.display='flex';if(bo)bo.style.display='';}else{rp.textContent='Просмотр';rp.className='rpill rv';fab.style.display='none';if(bo)bo.style.display='none';}pullCloud(function(){render();});setTimeout(function(){
-  // Загружаем черновики только если настройки ИИ заполнены
-  if(AI_WORKER_URL&&AI_SHARED_TOKEN){
-    startDraftsPolling();
-  } else {
-    // Настройки ещё не загружены — перечитываем из localStorage
-    AI_WORKER_URL=localStorage.getItem('lg_ai_worker_url')||'';
-    AI_SHARED_TOKEN=localStorage.getItem('lg_ai_token')||'';
-    if(AI_WORKER_URL&&AI_SHARED_TOKEN) startDraftsPolling();
-  }
+  startDraftsPolling();
 },2000);}
 document.addEventListener('DOMContentLoaded',function(){
 document.getElementById('btn-login').addEventListener('click',tryLogin);
@@ -1483,8 +1475,9 @@ var sr=sessionStorage.getItem('role');if(sr){role=sr;startApp();}
 });
 // ============ ГОЛОСОВОЙ ВВОД ЧЕРЕЗ ИИ ============
 // Настройки. URL воркера нужно вписать после деплоя на Cloudflare.
-var AI_WORKER_URL = localStorage.getItem('lg_ai_worker_url') || '';
-var AI_SHARED_TOKEN = localStorage.getItem('lg_ai_token') || '';
+// Настройки ИИ — вшиты в код, не требуют настройки пользователем
+var AI_WORKER_URL = 'https://liongate-ai.hegaidima7.workers.dev';
+var AI_SHARED_TOKEN = 'liongate-2026-secret-x7p2k9m4';
 var voiceRecognition = null;
 var voiceTranscript = '';
 
@@ -1566,9 +1559,7 @@ function processVoiceText(){
   var txt = voiceTranscript.trim();
   if(!txt){alert('Сначала надиктуйте текст');return;}
   if(!AI_WORKER_URL){
-    if(confirm('ИИ ещё не настроен. Открыть настройки?')){
-      openAISettings();
-    }
+    alert('Ошибка: URL воркера не задан');
     return;
   }
   var status=document.getElementById('v-status');
@@ -1779,9 +1770,9 @@ document.getElementById('vmodal').addEventListener('click', function(e){if(e.tar
 
 // Долгое нажатие на FAB-mic = настройки ИИ
 var fabMicTimer=null;
-document.getElementById('fab-mic').addEventListener('touchstart',function(){fabMicTimer=setTimeout(openAISettings,800);});
+document.getElementById('fab-mic').addEventListener('touchstart',function(){fabMicTimer=setTimeout(function(){},800);});
 document.getElementById('fab-mic').addEventListener('touchend',function(){if(fabMicTimer)clearTimeout(fabMicTimer);});
-document.getElementById('fab-mic').addEventListener('contextmenu',function(e){e.preventDefault();openAISettings();});
+document.getElementById('fab-mic').addEventListener('contextmenu',function(e){e.preventDefault();});
 
 // Скрывать кнопку микрофона если не редактор
 (function(){
@@ -1964,7 +1955,7 @@ function rejectDraftGroup(linkedKey){
 // Версия приложения. Меняется при каждом релизе.
 // Логика мягкого обновления: настройки ИИ переживают переход на новую версию,
 // обновление применяется при следующем естественном открытии (без миганий).
-var APP_VERSION='17';
+var APP_VERSION='18';
 // Ключи которые НЕ стираем при обновлении (настройки пользователя)
 var PRESERVED_KEYS = ['lg_ai_worker_url', 'lg_ai_token', 'role'];
 (function(){
