@@ -1788,7 +1788,12 @@ document.getElementById('fab-mic').addEventListener('contextmenu',function(e){e.
 // ============ ЧЕРНОВИКИ ИЗ TELEGRAM-БОТА ============
 var _drafts = [];
 var _draftsTimer = null;
-var _deletedIds = {}; // локальный blacklist удалённых ID
+// Blacklist — сохраняем в sessionStorage чтобы пережить перезагрузку страницы
+var _deletedIds = JSON.parse(sessionStorage.getItem('lg_deleted_ids')||'{}');
+
+function _saveDeletedIds(){
+  sessionStorage.setItem('lg_deleted_ids', JSON.stringify(_deletedIds));
+}
 
 function loadDrafts(silent){
   if(!AI_WORKER_URL||!AI_SHARED_TOKEN) return;
@@ -1932,7 +1937,8 @@ function confirmDraftGroup(linkedKey){
       S.history.push({action:'add',by:role,at:new Date().toISOString(),type:entry.type,amount:entry.amount,source:'tg-confirmed'});
       added++;
     }
-    _deletedIds[d.id]=true; // blacklist
+    _deletedIds[d.id]=true;
+    _saveDeletedIds();
     _drafts=_drafts.filter(function(x){return x.id!==d.id;});
     delDraftOnServer(d.id);
   });
@@ -1944,7 +1950,8 @@ function rejectDraftGroup(linkedKey){
   if(!confirm('Удалить черновик без сохранения?')) return;
   var group=_drafts.filter(function(d){return (d.linkedId||d.id)===linkedKey;});
   group.forEach(function(d){
-    _deletedIds[d.id]=true; // blacklist — не показывать даже если сервер вернёт
+    _deletedIds[d.id]=true;
+    _saveDeletedIds();
     _drafts=_drafts.filter(function(x){return x.id!==d.id;});
   });
   closeModal();render();
@@ -1955,7 +1962,7 @@ function rejectDraftGroup(linkedKey){
 // Версия приложения. Меняется при каждом релизе.
 // Логика мягкого обновления: настройки ИИ переживают переход на новую версию,
 // обновление применяется при следующем естественном открытии (без миганий).
-var APP_VERSION='18';
+var APP_VERSION='19';
 // Ключи которые НЕ стираем при обновлении (настройки пользователя)
 var PRESERVED_KEYS = ['lg_ai_worker_url', 'lg_ai_token', 'role'];
 (function(){
