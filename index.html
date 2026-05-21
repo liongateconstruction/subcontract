@@ -612,6 +612,15 @@ function desc(e){if(e.type==='income')return e.note||'Приход от зака
 function opRow(e,showDel){var tc=TYPES[e.type]||{color:'var(--mut)'};var h='<div class="oprow"><div class="opbody"><div style="margin-bottom:3px">'+badge(e.type)+'</div><div class="opdesc">'+desc(e)+'</div><div class="opmeta">'+e.date+(e.obj&&e.obj!=='-'?' / '+e.obj.split(',')[0]:'')+'</div>';if(e.photo)h+='<img src="'+e.photo+'" class="photo-thumb" onclick="viewPhoto(\''+e.id+'\')"/>';h+='</div><div style="text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:4px">';if(e.type==='vol'){h+='<div style="font-size:13px;font-weight:700;color:var(--teal)">'+fmtD(e.volume||0)+' м³</div>';}else{h+='<div style="font-size:13px;font-weight:700;color:'+tc.color+'">'+fmt(e.amount)+' тг</div>';}if(showDel&&role==='editor')h+='<button class="delbtn" onclick="delEntry('+e.id+')">X</button>';h+='</div></div>';return h;}
 
 function rMain(){var C=calcCo();var vd=totalVolDone(),tv=getTotalVol(),vp=Math.min(Math.round(vd/tv*100),100);var dl=daysLeft();var wks=weekData();var h=warnsHTML();
+// === ПЛАШКА ЧЕРНОВИКОВ НА СВЕРКУ (от Telegram-бота) ===
+var draftsCount = (S._drafts||[]).length;
+if(draftsCount>0){
+  h+='<div onclick="openDraftsModal()" style="background:linear-gradient(90deg,var(--gold),var(--orange));border-radius:10px;padding:12px 14px;margin-bottom:12px;cursor:pointer;display:flex;align-items:center;gap:12px;box-shadow:0 4px 14px rgba(240,165,0,.25)">';
+  h+='<div style="font-size:28px;line-height:1">✏️</div>';
+  h+='<div style="flex:1"><div style="font-family:var(--fd);font-size:16px;color:#0d1117;letter-spacing:1px">НА СВЕРКУ — '+draftsCount+'</div><div style="font-size:10px;color:#0d1117;opacity:.8">черновиков от Telegram-бота · нажмите чтобы открыть</div></div>';
+  h+='<div style="font-size:22px;color:#0d1117">→</div>';
+  h+='</div>';
+}
 // === ЦЕЛЬ ГОДА — 920 млн ===
 var G=calcGoal();
 var forecastColor=G.forecast>=GOAL_TOTAL*0.9?'var(--green)':G.forecast>=GOAL_TOTAL*0.7?'var(--orange)':'var(--red)';
@@ -1774,10 +1783,186 @@ document.getElementById('fab-mic').addEventListener('contextmenu',function(e){e.
 })();
 // ============ КОНЕЦ ГОЛОСОВОГО ВВОДА ============
 
+// ============ ЧЕРНОВИКИ ИЗ TELEGRAM-БОТА ============
+// Хранятся в S._drafts (загружаются с воркера, не сохраняются локально надолго)
+if(!S._drafts) S._drafts=[];
+
+function loadDrafts(silent){
+  if(!AI_WORKER_URL || !AI_SHARED_TOKEN) return;
+  fetch(AI_WORKER_URL.replace(/\/$/,'')+'/api/drafts',{
+    method:'GET',
+    headers:{'X-LG-Token':AI_SHARED_TOKEN}
+  }).then(function(r){return r.json();}).then(function(data){
+    if(data && Array.isArray(data.drafts)){
+      var prev=(S._drafts||[]).length;
+      S._drafts=data.drafts;
+      if(!silent && S._drafts.length>prev){
+        // Появились новые — мягкое уведомление
+        var st=document.getElementById('sync-st');
+        if(st){st.textContent='✏ +'+(S._drafts.length-prev);st.style.color='var(--gold)';setTimeout(function(){st.textContent='';},3000);}
+      }
+      render();
+    }
+  }).catch(function(){});
+}
+
+// Опрашиваем воркер каждые 20 сек на новые черновики (когда роль активна)
+setInterval(function(){if(role==='editor')loadDrafts(false);},20000);
+
+function openDraftsModal(){
+  if(!S._drafts || S._drafts.length===0){
+    alert('Нет черновиков на сверку');
+    return;
+  }
+  var labels={expense:'💸 РАСХОД',income:'💰 ДОХОД',invest:'📥 ВЛОЖЕНИЕ',personal:'🟠 ЛИЧНЫЙ',workers:'👷 РАБОЧИЕ'};
+  var colors={expense:'var(--red)',income:'var(--green)',invest:'var(--blue)',personal:'var(--orange)',workers:'var(--purple)'};
+  document.getElementById('mtit').textContent='НА СВЕРКУ ('+S._drafts.length+')';
+  var h='';
+  // Группируем по linkedId
+  var groups={};
+  S._drafts.forEach(function(d){
+    var k=d.linkedId||d.id;
+    if(!groups[k]) groups[k]={items:[],meta:d};
+    groups[k].items.push(d);
+  });
+  Object.keys(groups).forEach(function(k){
+    var g=groups[k];
+    var first=g.items[0];
+    var multi=g.items.length>1;
+    var dt=new Date(first.ts);
+    var dateStr=dt.toLocaleDateString('ru-RU')+' '+dt.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
+    h+='<div style="background:var(--s2);border-radius:8px;padding:12px;margin-bottom:10px;border-left:3px solid '+(multi?'var(--gold)':colors[first.op.kind]||'var(--mut)')+'">';
+    // Шапка
+    h+='<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--mut);margin-bottom:6px">';
+    h+='<span>📱 '+(first.author||'?')+' · TG</span>';
+    h+='<span>'+dateStr+'</span>';
+    h+='</div>';
+    // Оригинал
+    h+='<div style="font-size:11px;color:var(--text);font-style:italic;padding:6px 8px;background:var(--sur);border-radius:4px;margin-bottom:8px;line-height:1.4">«'+(first.originalText||'').replace(/</g,'&lt;')+'»</div>';
+    // Метка связанных
+    if(multi) h+='<div style="font-size:9px;color:var(--gold);letter-spacing:1px;margin-bottom:6px">⚡ СВЯЗАННЫЕ ОПЕРАЦИИ: '+g.items.length+'</div>';
+    // Каждая операция
+    g.items.forEach(function(d,idx){
+      var op=d.op;
+      var lbl=labels[op.kind]||op.kind;
+      var col=colors[op.kind]||'var(--mut)';
+      h+='<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;'+(idx<g.items.length-1?'border-bottom:1px dashed var(--brd)':'')+'">';
+      h+='<div style="flex:1"><div style="font-family:var(--fd);font-size:13px;color:'+col+';letter-spacing:1px">'+lbl+'</div>';
+      if(op.kind==='workers'){
+        h+='<div style="font-size:11px;color:var(--text);margin-top:2px">'+(op.brigadeName||'?')+' — <b>'+op.workersCount+' чел</b></div>';
+      } else {
+        h+='<div style="font-size:11px;color:var(--text);margin-top:2px"><b>'+(op.amount||0).toLocaleString('ru-RU')+' тг</b>'+(op.category?' · '+op.category:'')+'</div>';
+        var extras=[];
+        if(op.who) extras.push('Кто: '+op.who);
+        if(op.brigadeName) extras.push('Бригада: '+op.brigadeName);
+        if(op.note) extras.push(op.note);
+        if(extras.length) h+='<div style="font-size:9px;color:var(--mut);margin-top:2px">'+extras.join(' · ')+'</div>';
+      }
+      h+='</div></div>';
+    });
+    // Кнопки действий
+    h+='<div style="display:flex;gap:6px;margin-top:10px">';
+    h+='<button onclick="confirmDraftGroup(\''+k+'\')" style="flex:2;background:var(--green);border:none;color:#0d1117;font-family:var(--fd);font-size:12px;padding:9px;border-radius:6px;cursor:pointer;letter-spacing:1px">✓ ПОДТВЕРДИТЬ</button>';
+    h+='<button onclick="rejectDraftGroup(\''+k+'\')" style="flex:1;background:transparent;border:1px solid var(--red);color:var(--red);font-family:var(--fm);font-size:11px;padding:9px;border-radius:6px;cursor:pointer">✗ Отклонить</button>';
+    h+='</div>';
+    h+='</div>';
+  });
+  // Низ — кнопка закрытия
+  h+='<button class="fcanc" onclick="closeModal()">Закрыть</button>';
+  document.getElementById('mbody').innerHTML=h;
+  document.getElementById('modal').style.display='flex';
+}
+
+function confirmDraftGroup(linkedKey){
+  var group=S._drafts.filter(function(d){return (d.linkedId||d.id)===linkedKey;});
+  if(group.length===0) return;
+  var linkedId=group.length>1?'tg_'+linkedKey:null;
+  var added=0;
+  group.forEach(function(d){
+    var op=d.op;
+    if(op.kind==='workers'){
+      // Обновляем рабочих в бригаде + записываем в историю динамики
+      var brig=S.brigades.find(function(b){
+        if(!op.brigadeName) return false;
+        var bn=b.name.toLowerCase();
+        var on=op.brigadeName.toLowerCase();
+        return bn.indexOf(on)>=0 || on.indexOf(bn.replace('бригада ',''))>=0;
+      });
+      if(brig){
+        brig.workers=op.workersCount;
+        // Сохраняем историю динамики (для будущих графиков)
+        if(!S._workersHistory) S._workersHistory=[];
+        S._workersHistory.push({date:new Date(d.ts).toISOString().slice(0,10),brigadeId:brig.id,count:op.workersCount,ts:d.ts});
+        added++;
+      }
+    } else {
+      // Финансовая операция
+      var entry={
+        id:Date.now()+Math.floor(Math.random()*1000),
+        date:new Date(d.ts).toISOString().slice(0,10),
+        type:op.kind,
+        amount:op.amount||0,
+        who:op.who||PARTNERS[0],
+        obj:S.objects[0]||'',
+        note:op.note||'',
+        source:'telegram',
+        tgAuthor:d.author
+      };
+      if(op.category) entry.cat=op.category;
+      if(op.brigadeName){
+        var br=S.brigades.find(function(b){return b.name.toLowerCase().indexOf(op.brigadeName.toLowerCase())>=0;});
+        if(br) entry.brigade=br.id;
+      }
+      if(linkedId) entry.linkedId=linkedId;
+      S.entries.push(entry);
+      if(!S.history) S.history=[];
+      S.history.push({action:'add',by:role,at:new Date().toISOString(),type:entry.type,amount:entry.amount,source:'tg-confirmed'});
+      added++;
+    }
+    // Удаляем черновик с воркера
+    fetch(AI_WORKER_URL.replace(/\/$/,'')+'/api/drafts',{
+      method:'DELETE',
+      headers:{'Content-Type':'application/json','X-LG-Token':AI_SHARED_TOKEN},
+      body:JSON.stringify({id:d.id})
+    }).catch(function(){});
+    // И из локального списка
+    S._drafts=S._drafts.filter(function(x){return x.id!==d.id;});
+  });
+  save();
+  closeModal();
+  render();
+  setTimeout(function(){alert('✓ Подтверждено: '+added);},100);
+}
+
+function rejectDraftGroup(linkedKey){
+  if(!confirm('Отклонить эту запись? Удалится без сохранения.')) return;
+  var group=S._drafts.filter(function(d){return (d.linkedId||d.id)===linkedKey;});
+  group.forEach(function(d){
+    fetch(AI_WORKER_URL.replace(/\/$/,'')+'/api/drafts',{
+      method:'DELETE',
+      headers:{'Content-Type':'application/json','X-LG-Token':AI_SHARED_TOKEN},
+      body:JSON.stringify({id:d.id})
+    }).catch(function(){});
+    S._drafts=S._drafts.filter(function(x){return x.id!==d.id;});
+  });
+  closeModal();
+  render();
+}
+
+// Первая загрузка черновиков после входа
+(function(){
+  var oldStart=startApp;
+  startApp=function(){
+    oldStart();
+    setTimeout(function(){if(role==='editor')loadDrafts(true);},2000);
+  };
+})();
+// ============ КОНЕЦ ЧЕРНОВИКОВ ============
+
 // Версия приложения. Меняется при каждом релизе.
 // Логика мягкого обновления: настройки ИИ переживают переход на новую версию,
 // обновление применяется при следующем естественном открытии (без миганий).
-var APP_VERSION='12';
+var APP_VERSION='13';
 // Ключи которые НЕ стираем при обновлении (настройки пользователя)
 var PRESERVED_KEYS = ['lg_ai_worker_url', 'lg_ai_token', 'role'];
 (function(){
