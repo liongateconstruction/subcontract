@@ -222,6 +222,7 @@ canvas{display:block;width:100%;border-radius:8px}
       <button class="hbtn" id="btn-refresh" style="border-color:var(--gold);color:var(--gold)" title="Обновить приложение">↻</button>
       <button class="hbtn" id="btn-obj" style="border-color:var(--teal);color:var(--teal)">Об</button>
       <button class="hbtn" id="btn-rpt" style="border-color:var(--green);color:var(--green)">Отчёт</button>
+      <button class="hbtn" id="btn-tg" onclick="diagDrafts()" style="border-color:var(--gold);color:var(--gold)">TG</button>
       <button class="hbtn" id="btn-out">Выйти</button>
     </div>
   </header>
@@ -1426,7 +1427,17 @@ function printReport(){var c=document.getElementById('rpt-body').innerHTML;var d
 function tryLogin(){var p=document.getElementById('lpass').value.trim();if(PWD[p]){role=PWD[p];sessionStorage.setItem('role',role);startApp();}else{document.getElementById('lerr').textContent='Неверный пароль';document.getElementById('lpass').value='';}}
 function viewOnly(){role='viewer';sessionStorage.setItem('role','viewer');startApp();}
 function doLogout(){sessionStorage.removeItem('role');role=null;document.getElementById('app').style.display='none';document.getElementById('ls').style.display='flex';document.getElementById('lpass').value='';document.getElementById('lerr').textContent='';}
-function startApp(){document.getElementById('ls').style.display='none';document.getElementById('app').style.display='flex';var rp=document.getElementById('rpill'),fab=document.getElementById('fab'),bo=document.getElementById('btn-obj');if(role==='editor'){rp.textContent='Редактор';rp.className='rpill re';fab.style.display='flex';if(bo)bo.style.display='';}else{rp.textContent='Просмотр';rp.className='rpill rv';fab.style.display='none';if(bo)bo.style.display='none';}pullCloud(function(){render();});setTimeout(function(){startDraftsPolling();},1500);}
+function startApp(){document.getElementById('ls').style.display='none';document.getElementById('app').style.display='flex';var rp=document.getElementById('rpill'),fab=document.getElementById('fab'),bo=document.getElementById('btn-obj');if(role==='editor'){rp.textContent='Редактор';rp.className='rpill re';fab.style.display='flex';if(bo)bo.style.display='';}else{rp.textContent='Просмотр';rp.className='rpill rv';fab.style.display='none';if(bo)bo.style.display='none';}pullCloud(function(){render();});setTimeout(function(){
+  // Загружаем черновики только если настройки ИИ заполнены
+  if(AI_WORKER_URL&&AI_SHARED_TOKEN){
+    startDraftsPolling();
+  } else {
+    // Настройки ещё не загружены — перечитываем из localStorage
+    AI_WORKER_URL=localStorage.getItem('lg_ai_worker_url')||'';
+    AI_SHARED_TOKEN=localStorage.getItem('lg_ai_token')||'';
+    if(AI_WORKER_URL&&AI_SHARED_TOKEN) startDraftsPolling();
+  }
+},2000);}
 document.addEventListener('DOMContentLoaded',function(){
 document.getElementById('btn-login').addEventListener('click',tryLogin);
 document.getElementById('btn-view').addEventListener('click',viewOnly);
@@ -1808,6 +1819,35 @@ function loadDrafts(silent){
   }).catch(function(){});
 }
 
+function diagDrafts(){
+  var url=AI_WORKER_URL||localStorage.getItem('lg_ai_worker_url')||'';
+  var token=AI_SHARED_TOKEN||localStorage.getItem('lg_ai_token')||'';
+  if(!url||!token){
+    alert('❌ Настройки ИИ не заполнены!\n\nURL: '+(url||'ПУСТО')+'\nТокен: '+(token?'есть':'ПУСТО')+'\n\nДолгое нажатие на микрофон → введите настройки.');
+    return;
+  }
+  var st=document.getElementById('btn-tg');
+  if(st){st.textContent='...';st.style.opacity='0.5';}
+  fetch(url.replace(/\/$/,'')+'/api/drafts',{
+    method:'GET',
+    headers:{'X-LG-Token':token}
+  }).then(function(r){
+    if(!r.ok) throw new Error('HTTP '+r.status+' — проверьте URL воркера');
+    return r.json();
+  }).then(function(data){
+    if(st){st.textContent='TG';st.style.opacity='1';}
+    if(data&&Array.isArray(data.drafts)){
+      _drafts=data.drafts;
+      render();
+      alert('✓ Черновиков на сервере: '+data.drafts.length+'\n\n'+(data.drafts.length>0?'Плашка «НА СВЕРКУ» должна появиться на главном экране.':'Черновиков нет. Напишите что-нибудь в Telegram-группу и попробуйте снова.'));
+    } else {
+      alert('⚠️ Странный ответ сервера:\n'+JSON.stringify(data).slice(0,200));
+    }
+  }).catch(function(e){
+    if(st){st.textContent='TG';st.style.opacity='1';}
+    alert('❌ Ошибка подключения:\n'+String(e)+'\n\nURL: '+url);
+  });
+}
 function startDraftsPolling(){
   if(_draftsTimer) clearInterval(_draftsTimer);
   if(role==='editor'&&AI_WORKER_URL&&AI_SHARED_TOKEN){
@@ -1917,7 +1957,7 @@ function rejectDraftGroup(linkedKey){
 // Версия приложения. Меняется при каждом релизе.
 // Логика мягкого обновления: настройки ИИ переживают переход на новую версию,
 // обновление применяется при следующем естественном открытии (без миганий).
-var APP_VERSION='15';
+var APP_VERSION='16';
 // Ключи которые НЕ стираем при обновлении (настройки пользователя)
 var PRESERVED_KEYS = ['lg_ai_worker_url', 'lg_ai_token', 'role'];
 (function(){
