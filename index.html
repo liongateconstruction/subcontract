@@ -1919,14 +1919,14 @@ function confirmDraftGroup(linkedKey){
       S.history.push({action:'add',by:role,at:new Date().toISOString(),type:entry.type,amount:entry.amount,source:'tg-confirmed'});
       added++;
     }
-    // Удаляем черновик с воркера
+    // Удаляем черновик с воркера и из локального списка
+    var draftId=d.id;
     fetch(AI_WORKER_URL.replace(/\/$/,'')+'/api/drafts',{
       method:'DELETE',
       headers:{'Content-Type':'application/json','X-LG-Token':AI_SHARED_TOKEN},
-      body:JSON.stringify({id:d.id})
+      body:JSON.stringify({id:draftId})
     }).catch(function(){});
-    // И из локального списка
-    S._drafts=S._drafts.filter(function(x){return x.id!==d.id;});
+    S._drafts=S._drafts.filter(function(x){return x.id!==draftId;});
   });
   save();
   closeModal();
@@ -1937,16 +1937,24 @@ function confirmDraftGroup(linkedKey){
 function rejectDraftGroup(linkedKey){
   if(!confirm('Отклонить эту запись? Удалится без сохранения.')) return;
   var group=S._drafts.filter(function(d){return (d.linkedId||d.id)===linkedKey;});
+  // Сразу убираем из локального списка
   group.forEach(function(d){
-    fetch(AI_WORKER_URL.replace(/\/$/,'')+'/api/drafts',{
-      method:'DELETE',
-      headers:{'Content-Type':'application/json','X-LG-Token':AI_SHARED_TOKEN},
-      body:JSON.stringify({id:d.id})
-    }).catch(function(){});
     S._drafts=S._drafts.filter(function(x){return x.id!==d.id;});
   });
   closeModal();
   render();
+  // Удаляем на сервере — ждём каждый запрос
+  var delPromises=group.map(function(d){
+    return fetch(AI_WORKER_URL.replace(/\/$/,'')+'/api/drafts',{
+      method:'DELETE',
+      headers:{'Content-Type':'application/json','X-LG-Token':AI_SHARED_TOKEN},
+      body:JSON.stringify({id:d.id})
+    }).catch(function(){});
+  });
+  // После удаления на сервере — перезагружаем список чтобы убедиться
+  Promise.all(delPromises).then(function(){
+    loadDrafts(true);
+  });
 }
 
 // Первая загрузка черновиков после входа
@@ -1962,7 +1970,7 @@ function rejectDraftGroup(linkedKey){
 // Версия приложения. Меняется при каждом релизе.
 // Логика мягкого обновления: настройки ИИ переживают переход на новую версию,
 // обновление применяется при следующем естественном открытии (без миганий).
-var APP_VERSION='13';
+var APP_VERSION='14';
 // Ключи которые НЕ стираем при обновлении (настройки пользователя)
 var PRESERVED_KEYS = ['lg_ai_worker_url', 'lg_ai_token', 'role'];
 (function(){
