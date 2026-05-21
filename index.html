@@ -222,7 +222,6 @@ canvas{display:block;width:100%;border-radius:8px}
       <button class="hbtn" id="btn-refresh" style="border-color:var(--gold);color:var(--gold)" title="Обновить приложение">↻</button>
       <button class="hbtn" id="btn-obj" style="border-color:var(--teal);color:var(--teal)">Об</button>
       <button class="hbtn" id="btn-rpt" style="border-color:var(--green);color:var(--green)">Отчёт</button>
-      <button class="hbtn" id="btn-tg" onclick="diagDrafts()" style="border-color:var(--gold);color:var(--gold)">TG</button>
       <button class="hbtn" id="btn-out">Выйти</button>
     </div>
   </header>
@@ -293,6 +292,9 @@ var AK='$2a$10$GBjOzIGzwTDlm4AZ4NkFS.nQXesYbuM/MNy2EYw4JV/QrDHiZG31m';
 var BIN='6a0a38b9c0954111d83ac9f8';
 var BURL='https://api.jsonbin.io/v3/b/'+BIN;
 var syncT=null;
+// Настройки ИИ — вшиты, не требуют настройки пользователем
+var AI_WORKER_URL = 'https://liongate-ai.hegaidima7.workers.dev';
+var AI_SHARED_TOKEN = 'liongate-2026-secret-x7p2k9m4';
 function ss(m,e){var el=document.getElementById('sync-st');if(!el)return;el.textContent=m;el.style.color=e?'var(--red)':'var(--green)';setTimeout(function(){el.textContent='';},3000);}
 // Метка времени последнего локального изменения
 function touchLocal(){S._modified=Date.now();persist();}
@@ -614,7 +616,7 @@ function opRow(e,showDel){var tc=TYPES[e.type]||{color:'var(--mut)'};var h='<div
 
 function rMain(){var C=calcCo();var vd=totalVolDone(),tv=getTotalVol(),vp=Math.min(Math.round(vd/tv*100),100);var dl=daysLeft();var wks=weekData();var h=warnsHTML();
 // === ПЛАШКА ЧЕРНОВИКОВ НА СВЕРКУ (от Telegram-бота) ===
-var draftsCount = (_drafts||[]).length;
+var draftsCount = (_drafts||[]).filter(function(d){return !_deletedIds[d.id];}).length;
 if(draftsCount>0){
   h+='<div onclick="openDraftsModal()" style="background:linear-gradient(90deg,var(--gold),var(--orange));border-radius:10px;padding:12px 14px;margin-bottom:12px;cursor:pointer;display:flex;align-items:center;gap:12px;box-shadow:0 4px 14px rgba(240,165,0,.25)">';
   h+='<div style="font-size:28px;line-height:1">✏️</div>';
@@ -1474,10 +1476,6 @@ setInterval(function(){if(role)pullCloud(function(){render();});},10000);
 var sr=sessionStorage.getItem('role');if(sr){role=sr;startApp();}
 });
 // ============ ГОЛОСОВОЙ ВВОД ЧЕРЕЗ ИИ ============
-// Настройки. URL воркера нужно вписать после деплоя на Cloudflare.
-// Настройки ИИ — вшиты в код, не требуют настройки пользователем
-var AI_WORKER_URL = 'https://liongate-ai.hegaidima7.workers.dev';
-var AI_SHARED_TOKEN = 'liongate-2026-secret-x7p2k9m4';
 var voiceRecognition = null;
 var voiceTranscript = '';
 
@@ -1749,17 +1747,6 @@ function showVoiceConfirm(ops, originalText){
   });
 }
 
-function openAISettings(){
-  var url = prompt('URL Cloudflare Worker (например https://liongate-ai.yourname.workers.dev):', AI_WORKER_URL);
-  if(url===null) return;
-  var token = prompt('Shared token (любая строка, главное чтобы совпадала с переменной LG_SHARED_TOKEN в Worker):', AI_SHARED_TOKEN);
-  if(token===null) return;
-  AI_WORKER_URL = url.trim();
-  AI_SHARED_TOKEN = token.trim();
-  localStorage.setItem('lg_ai_worker_url', AI_WORKER_URL);
-  localStorage.setItem('lg_ai_token', AI_SHARED_TOKEN);
-  alert('Настройки ИИ сохранены');
-}
 
 // Обработчики
 document.getElementById('fab-mic').addEventListener('click', openVoiceModal);
@@ -1788,26 +1775,31 @@ document.getElementById('fab-mic').addEventListener('contextmenu',function(e){e.
 // ============ ЧЕРНОВИКИ ИЗ TELEGRAM-БОТА ============
 var _drafts = [];
 var _draftsTimer = null;
-// Blacklist — сохраняем в sessionStorage чтобы пережить перезагрузку страницы
-var _deletedIds = JSON.parse(sessionStorage.getItem('lg_deleted_ids')||'{}');
+// Blacklist — сохраняем в localStorage чтобы пережить перезагрузку страницы
+var _deletedIds = JSON.parse(localStorage.getItem('lg_deleted_ids')||'{}');
 
 function _saveDeletedIds(){
-  sessionStorage.setItem('lg_deleted_ids', JSON.stringify(_deletedIds));
+  localStorage.setItem('lg_deleted_ids', JSON.stringify(_deletedIds));
 }
 
 function loadDrafts(silent){
-  if(!AI_WORKER_URL||!AI_SHARED_TOKEN) return;
-  fetch(AI_WORKER_URL.replace(/\/$/,'')+'/api/drafts',{
+  var url=AI_WORKER_URL.replace(/\/$/,'')+'/api/drafts';
+  var token=AI_SHARED_TOKEN;
+  fetch(url,{
     method:'GET',
-    headers:{'X-LG-Token':AI_SHARED_TOKEN}
+    headers:{'X-LG-Token':token}
   }).then(function(r){
-    if(!r.ok) throw new Error('HTTP '+r.status);
+    if(!r.ok){
+      // Показываем ошибку в шапке
+      return null;
+    }
     return r.json();
   }).then(function(data){
+    if(!data) return;
     if(data&&Array.isArray(data.drafts)){
       var prev=_drafts.length;
-      // Фильтруем — не показываем те что уже удалили локально
-      _drafts=data.drafts.filter(function(d){return !_deletedIds[d.id];});
+      // Загружаем ВСЕ — фильтр _deletedIds только при показе
+      _drafts=data.drafts;
       if(!silent&&_drafts.length>prev){
         var st=document.getElementById('sync-st');
         if(st){st.textContent='✏ +'+(_drafts.length-prev);st.style.color='var(--gold)';setTimeout(function(){st.textContent='';},3000);}
@@ -1818,32 +1810,26 @@ function loadDrafts(silent){
 }
 
 function diagDrafts(){
-  var url=AI_WORKER_URL||localStorage.getItem('lg_ai_worker_url')||'';
-  var token=AI_SHARED_TOKEN||localStorage.getItem('lg_ai_token')||'';
-  if(!url||!token){
-    alert('❌ Настройки ИИ не заполнены!\n\nURL: '+(url||'ПУСТО')+'\nТокен: '+(token?'есть':'ПУСТО')+'\n\nДолгое нажатие на микрофон → введите настройки.');
-    return;
-  }
   var st=document.getElementById('btn-tg');
   if(st){st.textContent='...';st.style.opacity='0.5';}
-  fetch(url.replace(/\/$/,'')+'/api/drafts',{
+  fetch(AI_WORKER_URL.replace(/\/$/,'')+'/api/drafts',{
     method:'GET',
-    headers:{'X-LG-Token':token}
+    headers:{'X-LG-Token':AI_SHARED_TOKEN}
   }).then(function(r){
-    if(!r.ok) throw new Error('HTTP '+r.status+' — проверьте URL воркера');
+    if(!r.ok) throw new Error('HTTP '+r.status);
     return r.json();
   }).then(function(data){
     if(st){st.textContent='TG';st.style.opacity='1';}
     if(data&&Array.isArray(data.drafts)){
       _drafts=data.drafts;
       render();
-      alert('✓ Черновиков на сервере: '+data.drafts.length+'\n\n'+(data.drafts.length>0?'Плашка «НА СВЕРКУ» должна появиться на главном экране.':'Черновиков нет. Напишите что-нибудь в Telegram-группу и попробуйте снова.'));
-    } else {
-      alert('⚠️ Странный ответ сервера:\n'+JSON.stringify(data).slice(0,200));
+      var vis=data.drafts.filter(function(d){return !_deletedIds[d.id];}).length;
+      if(vis>0){alert('✓ Черновиков: '+vis+'. Плашка «НА СВЕРКУ» на главном экране.');}
+      else{alert('Черновиков нет. Напишите в Telegram-группу.');}
     }
   }).catch(function(e){
     if(st){st.textContent='TG';st.style.opacity='1';}
-    alert('❌ Ошибка подключения:\n'+String(e)+'\n\nURL: '+url);
+    alert('Ошибка: '+String(e));
   });
 }
 function startDraftsPolling(){
@@ -1864,13 +1850,14 @@ function delDraftOnServer(id){
 }
 
 function openDraftsModal(){
-  if(!_drafts||_drafts.length===0){alert('Нет черновиков на сверку');return;}
+  var visible=(_drafts||[]).filter(function(d){return !_deletedIds[d.id];});
+  if(visible.length===0){alert('Нет черновиков на сверку');return;}
   var labels={expense:'💸 РАСХОД',income:'💰 ДОХОД',invest:'📥 ВЛОЖЕНИЕ',personal:'🟠 ЛИЧНЫЙ',workers:'👷 РАБОЧИЕ'};
   var colors={expense:'var(--red)',income:'var(--green)',invest:'var(--blue)',personal:'var(--orange)',workers:'var(--purple)'};
-  document.getElementById('mtit').textContent='НА СВЕРКУ ('+_drafts.length+')';
+  document.getElementById('mtit').textContent='НА СВЕРКУ ('+visible.length+')';
   var h='';
   var groups={},groupOrder=[];
-  _drafts.forEach(function(d){
+  visible.forEach(function(d){
     var k=d.linkedId||d.id;
     if(!groups[k]){groups[k]={items:[]};groupOrder.push(k);}
     groups[k].items.push(d);
@@ -1910,7 +1897,7 @@ function openDraftsModal(){
 }
 
 function confirmDraftGroup(linkedKey){
-  var group=_drafts.filter(function(d){return (d.linkedId||d.id)===linkedKey;});
+  var group=_drafts.filter(function(d){return (d.linkedId||d.id)===linkedKey&&!_deletedIds[d.id];});
   if(group.length===0) return;
   var linkedId=group.length>1?'tg_'+linkedKey:null,added=0;
   group.forEach(function(d){
@@ -1948,7 +1935,7 @@ function confirmDraftGroup(linkedKey){
 
 function rejectDraftGroup(linkedKey){
   if(!confirm('Удалить черновик без сохранения?')) return;
-  var group=_drafts.filter(function(d){return (d.linkedId||d.id)===linkedKey;});
+  var group=_drafts.filter(function(d){return (d.linkedId||d.id)===linkedKey&&!_deletedIds[d.id];});
   group.forEach(function(d){
     _deletedIds[d.id]=true;
     _saveDeletedIds();
@@ -1962,7 +1949,7 @@ function rejectDraftGroup(linkedKey){
 // Версия приложения. Меняется при каждом релизе.
 // Логика мягкого обновления: настройки ИИ переживают переход на новую версию,
 // обновление применяется при следующем естественном открытии (без миганий).
-var APP_VERSION='19';
+var APP_VERSION='21';
 // Ключи которые НЕ стираем при обновлении (настройки пользователя)
 var PRESERVED_KEYS = ['lg_ai_worker_url', 'lg_ai_token', 'role'];
 (function(){
