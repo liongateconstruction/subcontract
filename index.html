@@ -3486,21 +3486,68 @@ var selType='expense';
 function openModal(){if(role!=='editor')return;selType='expense';pendingPhoto=null;buildModal();document.getElementById('modal').style.display='flex';}
 function closeModal(){document.getElementById('modal').style.display='none';pendingPhoto=null;}
 function buildModal(){var today=new Date().toISOString().slice(0,10);var po=PARTNERS.map(function(p){return '<option>'+p+'</option>';}).join('');var co=EXP_CATS.map(function(c){return '<option>'+c+'</option>';}).join('');var oo=S.objects.map(function(o){return '<option>'+o+'</option>';}).join('');var bo=S.brigades.map(function(b){return '<option value="'+b.id+'">'+b.name+'</option>';}).join('');
-var tp=[{k:'income',c:'tc-income',i:'💰',t:'Приход',d:'Деньги от заказчика'},{k:'invest',c:'tc-invest',i:'💼',t:'Вложил',d:'Партнёр вложил свои'},{k:'expense',c:'tc-expense',i:'🧾',t:'Расход',d:'Потратили из кассы'},{k:'personal',c:'tc-personal',i:'👤',t:T('tookPersonal'),d:'Партнёр взял себе'},{k:'return',c:'tc-return',i:'🔄',t:'Возврат',d:'Вернули вложения'}];
+var tp=[
+  {k:'income',  c:'tc-income',  i:'💰',t:'Доход',     d:'Заказчик заплатил'},
+  {k:'invest',  c:'tc-invest',  i:'📥',t:'Вложение',  d:'Дмитрий внёс / дал партнёру'},
+  {k:'expense', c:'tc-expense', i:'💸',t:'Расход',    d:'Купили для стройки'},
+  {k:'personal',c:'tc-personal',i:'🛍',t:'Лично',     d:'Партнёр взял себе домой'},
+  {k:'return',  c:'tc-return',  i:'🔄',t:'Возврат',   d:'Партнёру вернули вложение'}
+];
 var tc=tp.map(function(t){return '<div class="tcard '+t.c+(selType===t.k?' sel':'')+'" data-type="'+t.k+'"><div class="tic">'+t.i+'</div><div class="ttit" style="color:'+(TYPES[t.k]?TYPES[t.k].color:'var(--mut)')+'">'+t.t+'</div><div class="tdsc">'+t.d+'</div></div>';}).join('');
 var fl='';
-if(selType==='income'){var due=dueFromCustomer();var paidAlr=sumT('income');var dueLeft=Math.max(0,due-paidAlr);fl='<div style="background:var(--bllt);border:1px solid var(--blue);border-radius:8px;padding:10px;margin-bottom:12px;font-size:11px;color:var(--blue)">По выполненному объёму заказчик должен ≈ <b>'+fmt(due)+' тг</b><br>Уже оплачено: '+fmt(paidAlr)+' тг<br><b>Ожидается ещё ≈ '+fmt(dueLeft)+' тг</b></div><div class="fg"><label class="fl">Объект</label><select class="fi" id="f-obj">'+oo+'</select>'+hint('Объект по которому пришла оплата')+'</div><div class="fg"><label class="fl">От кого</label><input class="fi" id="f-from" type="text" value="Sensata Group"/>'+hint('Заказчик который заплатил')+'</div><div class="fg"><label class="fl">Примечание</label><input class="fi" id="f-note" type="text" placeholder="КС-2 №1, аванс..."/>'+hint('За что оплата — номер акта КС-2 и т.д.')+'</div>';}
-else if(selType==='invest')fl='<div class="fg"><label class="fl">Кто вложил</label><select class="fi" id="f-who">'+po+'</select></div><div class="fg"><label class="fl">Объект</label><select class="fi" id="f-obj">'+oo+'</select></div><div class="fg"><label class="fl">Примечание</label><input class="fi" id="f-note" type="text" placeholder="На расходы..."/></div>';
-else if(selType==='expense')fl='<div class="fg"><label class="fl">Объект</label><select class="fi" id="f-obj">'+oo+'</select>'+hint('Объект где был расход')+'</div><div class="fg"><label class="fl">Статья</label><select class="fi" id="f-cat">'+co+'</select>'+hint('Тип расхода. Обеды с заказчиками = Представительские')+'</div><div class="fg"><label class="fl">Кто оплатил</label><select class="fi" id="f-who">'+po+'</select>'+hint('Кто из партнёров заплатил')+'</div><div class="fg"><label class="fl">Что куплено</label><input class="fi" id="f-note" type="text" placeholder="Арматура 12мм, 2 тонны..."/>'+hint('Опишите словами на что потрачено')+'</div><div class="fg"><label class="fl">Бригада (если аванс)</label><select class="fi" id="f-brig"><option value="">- не относится</option>'+bo+'</select>'+hint('Выберите бригаду только если это аванс/зарплата ей')+'</div><div class="fg"><label class="fl">Фото чека</label><label style="display:block;cursor:pointer"><div class="photo-area" id="photo-ph">Камера / Галерея / Файл</div><img id="photo-prev" class="photo-prev"/><input type="file" id="f-photo" accept="image/*" style="display:none"/></label></div>';
-else if(selType==='personal')fl='<div class="fg"><label class="fl">Кто взял</label><select class="fi" id="f-who">'+po+'</select></div><div class="fg"><label class="fl">Примечание</label><input class="fi" id="f-note" type="text" placeholder="На личные..."/></div>';
-else if(selType==='return')fl='<div class="fg"><label class="fl">Кому возврат</label><select class="fi" id="f-who">'+po+'</select></div><div class="fg"><label class="fl">Примечание</label><input class="fi" id="f-note" type="text" placeholder="Возврат..."/></div>';
+if(selType==='income'){
+  var due=dueFromCustomer();var paidAlr=sumT('income');var dueLeft=Math.max(0,due-paidAlr);
+  fl='<div style="background:var(--bllt);border:1px solid var(--blue);border-radius:8px;padding:10px;margin-bottom:12px;font-size:11px;color:var(--blue)">'+
+    'По выполненному объёму заказчик должен ≈ <b>'+fmt(due)+' тг</b><br>'+
+    'Уже оплачено: '+fmt(paidAlr)+' тг<br>'+
+    '<b>Ожидается ещё ≈ '+fmt(dueLeft)+' тг</b></div>'+
+    '<div class="fg"><label class="fl">Объект</label><select class="fi" id="f-obj">'+oo+'</select>'+hint('По какому объекту пришла оплата')+'</div>'+
+    '<div class="fg"><label class="fl">От кого</label><input class="fi" id="f-from" type="text" value="Sensata Group"/>'+hint('Заказчик который перевёл деньги')+'</div>'+
+    '<div class="fg"><label class="fl">Примечание</label><input class="fi" id="f-note" type="text" placeholder="КС-2 №1, аванс..."/>'+hint('За что оплата')+'</div>';
+}
+else if(selType==='invest')fl=
+  '<div style="background:rgba(56,139,253,.05);border:1px solid rgba(56,139,253,.2);border-radius:8px;padding:10px;margin-bottom:12px;font-size:11px;color:var(--blue)">'+
+  '💡 Используйте этот тип когда:<br>'+
+  '• Дмитрий принёс свои деньги в кассу<br>'+
+  '• Дмитрий передал партнёру деньги под отчёт'+
+  '</div>'+
+  '<div class="fg"><label class="fl">Кто вложил</label><select class="fi" id="f-who">'+po+'</select>'+hint('Обычно Дмитрий — тот кто принёс деньги')+'</div>'+
+  '<div class="fg" style="background:rgba(255,179,32,.05);border:1px solid rgba(255,179,32,.25);border-radius:8px;padding:10px">'+
+  '<label class="fl" style="color:var(--gold)">📋 Кому передал (под отчёт)</label>'+
+  '<select class="fi" id="f-fp"><option value="">— никому, в общую кассу —</option>'+po+'</select>'+
+  '<div style="font-size:9px;color:var(--mut);margin-top:6px;line-height:1.4">Если деньги идут партнёру под отчёт — выберите его. Через 30 сек что не отчитается расходом → станет долгом партнёра.</div>'+
+  '</div>'+
+  '<div class="fg"><label class="fl">Объект</label><select class="fi" id="f-obj">'+oo+'</select></div>'+
+  '<div class="fg"><label class="fl">Примечание</label><input class="fi" id="f-note" type="text" placeholder="На расходы Бекжану..."/></div>';
+else if(selType==='expense')fl=
+  '<div style="background:rgba(248,81,73,.04);border:1px solid rgba(248,81,73,.2);border-radius:8px;padding:10px;margin-bottom:12px;font-size:11px;color:var(--mut)">'+
+  '💡 Если партнёр купил из подотчётных — расход автоматом гасит его подотчёт. Если уже долг — гасит долг.'+
+  '</div>'+
+  '<div class="fg"><label class="fl">Кто оплатил</label><select class="fi" id="f-who">'+po+'</select>'+hint('Кто из партнёров заплатил из своего кармана / подотчёта')+'</div>'+
+  '<div class="fg"><label class="fl">Статья расхода</label><select class="fi" id="f-cat">'+co+'</select>'+hint('Обеды с заказчиками = Представительские')+'</div>'+
+  '<div class="fg"><label class="fl">Что куплено</label><input class="fi" id="f-note" type="text" placeholder="Арматура 12мм, 2 тонны..."/>'+hint('Подробно — название, количество')+'</div>'+
+  '<div class="fg"><label class="fl">Бригада (если аванс)</label><select class="fi" id="f-brig"><option value="">— не относится к бригаде —</option>'+bo+'</select>'+hint('Только если это аванс/зарплата бригаде')+'</div>'+
+  '<div class="fg"><label class="fl">Объект</label><select class="fi" id="f-obj">'+oo+'</select></div>'+
+  '<div class="fg"><label class="fl">Фото чека</label><label style="display:block;cursor:pointer"><div class="photo-area" id="photo-ph">Камера / Галерея / Файл</div><img id="photo-prev" class="photo-prev"/><input type="file" id="f-photo" accept="image/*" style="display:none"/></label></div>';
+else if(selType==='personal')fl=
+  '<div style="background:rgba(163,113,247,.04);border:1px solid rgba(163,113,247,.2);border-radius:8px;padding:10px;margin-bottom:12px;font-size:11px;color:var(--purple)">'+
+  '⚠️ Это <b>личный долг</b> партнёра — он взял деньги себе домой (не на стройку). Уменьшит его долю прибыли.'+
+  '</div>'+
+  '<div class="fg"><label class="fl">Кто взял лично</label><select class="fi" id="f-who">'+po+'</select>'+hint('Партнёр который забрал деньги себе')+'</div>'+
+  '<div class="fg"><label class="fl">На что (примечание)</label><input class="fi" id="f-note" type="text" placeholder="Семейные расходы, квартира..."/>'+hint('Куда пошли деньги (опционально)')+'</div>';
+else if(selType==='return')fl=
+  '<div style="background:rgba(46,160,67,.04);border:1px solid rgba(46,160,67,.2);border-radius:8px;padding:10px;margin-bottom:12px;font-size:11px;color:var(--green)">'+
+  '💡 Когда компания возвращает партнёру его вложения деньгами обратно.'+
+  '</div>'+
+  '<div class="fg"><label class="fl">Кому возврат</label><select class="fi" id="f-who">'+po+'</select>'+hint('Партнёр которому возвращаем')+'</div>'+
+  '<div class="fg"><label class="fl">Примечание</label><input class="fi" id="f-note" type="text" placeholder="Возврат вложения..."/></div>';
 document.getElementById('mtit').textContent='НОВАЯ ЗАПИСЬ';
 document.getElementById('mbody').innerHTML='<div class="tgrid">'+tc+'</div><div class="frow"><div class="fg"><label class="fl">Дата</label><input class="fi" id="f-date" type="date" value="'+today+'"/></div><div class="fg"><label class="fl">Сумма тг</label><input class="fi" id="f-amount" type="number" placeholder="0" inputmode="numeric"/></div></div>'+fl+'<button class="fsave" id="btn-sv">СОХРАНИТЬ</button><button class="fcanc" id="btn-cn">Отмена</button>';
 document.querySelectorAll('.tcard').forEach(function(c){c.addEventListener('click',function(){selType=this.getAttribute('data-type');pendingPhoto=null;buildModal();});});
 var pi=document.getElementById('f-photo');if(pi)pi.addEventListener('change',function(){if(!this.files||!this.files[0])return;compressPhoto(this.files[0],function(d){pendingPhoto=d;var pv=document.getElementById('photo-prev'),ph=document.getElementById('photo-ph');if(pv){pv.src=d;pv.style.display='block';}if(ph)ph.style.display='none';});});
 document.getElementById('btn-sv').addEventListener('click',saveEntry);
 document.getElementById('btn-cn').addEventListener('click',closeModal);}
-function saveEntry(){var a=parseFloat(g('f-amount'));if(!a||isNaN(a)){alert('Введите сумму');return;}var e={id:Date.now(),date:g('f-date')||new Date().toISOString().slice(0,10),type:selType,amount:a,note:g('f-note')||''};if(selType==='income'){e.obj=g('f-obj')||S.objects[0];e.from=g('f-from')||'';}if(selType==='invest'){e.who=g('f-who')||'';e.obj=g('f-obj')||S.objects[0];}if(selType==='expense'){e.obj=g('f-obj')||S.objects[0];e.cat=g('f-cat')||'';e.who=g('f-who')||'';var bv=g('f-brig');if(bv)e.brigade=bv;if(pendingPhoto)e.photo=pendingPhoto;}if(selType==='personal'){e.who=g('f-who')||'';e.obj='-';}if(selType==='return'){e.who=g('f-who')||'';e.obj='-';}S.entries.push(e);if(!S.history)S.history=[];S.history.push({action:'add',by:role,at:new Date().toISOString(),type:e.type,amount:e.amount});save();closeModal();render();}
+function saveEntry(){var a=parseFloat(g('f-amount'));if(!a||isNaN(a)){alert('Введите сумму');return;}var e={id:Date.now(),date:g('f-date')||new Date().toISOString().slice(0,10),type:selType,amount:a,note:g('f-note')||''};if(selType==='income'){e.obj=g('f-obj')||S.objects[0];e.from=g('f-from')||'';}if(selType==='invest'){e.who=g('f-who')||'';e.obj=g('f-obj')||S.objects[0];var fp=g('f-fp');if(fp)e.forPartner=fp;}if(selType==='expense'){e.obj=g('f-obj')||S.objects[0];e.cat=g('f-cat')||'';e.who=g('f-who')||'';var bv=g('f-brig');if(bv)e.brigade=bv;if(pendingPhoto)e.photo=pendingPhoto;}if(selType==='personal'){e.who=g('f-who')||'';e.obj='-';}if(selType==='return'){e.who=g('f-who')||'';e.obj='-';}S.entries.push(e);if(!S.history)S.history=[];S.history.push({action:'add',by:role,at:new Date().toISOString(),type:e.type,amount:e.amount});save();closeModal();render();}
 function delEntry(id){if(role!=='editor')return;if(!confirm(T('confirmDel')))return;var d=S.entries.find(function(e){return e.id==id;});S.entries=S.entries.filter(function(e){return e.id!=id;});if(!S.history)S.history=[];if(d)S.history.push({action:'delete',by:role,at:new Date().toISOString(),type:d.type,amount:d.amount});save();render();}
 function openNewWeek(){var today=new Date().toISOString().slice(0,10);var lt=(S.weeks||[]).slice().sort(function(a,b){return b.date.localeCompare(a.date);})[0];document.getElementById('mtit').textContent='ПЛАНЁРКА';document.getElementById('mbody').innerHTML='<div style="background:var(--bllt);border:1px solid var(--blue);border-radius:8px;padding:10px;margin-bottom:14px;font-size:10px;color:var(--blue)">ТПСИ: твёрдые цифры план/факт, полный анализ, сравнение, договорённости письменно.</div><div class="fg"><label class="fl">Дата планёрки</label><input class="fi" id="w-date" type="date" value="'+today+'"/></div><div class="frow"><div class="fg"><label class="fl">ПЛАН м³</label><input class="fi" id="w-plan" type="number" step="0.1" inputmode="decimal" value="'+(lt&&lt.nextPlan?lt.nextPlan:'')+'"/></div><div class="fg"><label class="fl">ФАКТ м³</label><input class="fi" id="w-fact" type="number" step="0.1" inputmode="decimal"/></div></div><div class="fg"><label class="fl">Анализ - почему (ТПСИ)</label><textarea class="fi" id="w-why" rows="2" placeholder="С цифрами: было 5 рабочих вместо 8..."></textarea></div><div class="fg"><label class="fl">Решение</label><textarea class="fi" id="w-sol" rows="2" placeholder="Что делаем..."></textarea></div><div class="fg"><label class="fl">Договорённости (кто что обязался)</label><textarea class="fi" id="w-deals" rows="3" placeholder="Бекжан - нанять 2 рабочих до пт&#10;Сергей - проверить смету..."></textarea></div><div class="fg"><label class="fl">Действия на неделю</label><textarea class="fi" id="w-act" rows="2" placeholder="1. ...&#10;2. ..."></textarea></div><div class="fg"><label class="fl">ПЛАН на след. неделю м³</label><input class="fi" id="w-next" type="number" step="0.1" inputmode="decimal"/></div><button class="fsave" id="btn-sv-w">СОХРАНИТЬ</button><button class="fcanc" id="btn-cn-w">Отмена</button>';document.getElementById('modal').style.display='flex';document.getElementById('btn-sv-w').addEventListener('click',saveWeek);document.getElementById('btn-cn-w').addEventListener('click',closeModal);}
 function saveWeek(){var p=parseFloat(g('w-plan')),f=parseFloat(g('w-fact'));if(isNaN(p)||isNaN(f)){alert('Введите план и факт');return;}var w={id:Date.now(),date:g('w-date')||new Date().toISOString().slice(0,10),plan:p,fact:f,why:g('w-why')||'',solution:g('w-sol')||'',deals:g('w-deals')||'',actions:g('w-act')||'',nextPlan:parseFloat(g('w-next'))||0};if(!S.weeks)S.weeks=[];S.weeks.push(w);save();closeModal();setTab('plan');}
@@ -4222,31 +4269,73 @@ function closeUnreported(){
 function autoCloseUnreported(){
   if(!isEditor())return;
   var now=Date.now();
-  var dayMs=24*60*60*1000;
+  var thirtySec=30*1000; // 30 секунд
   var changed=false;
   PARTNERS.forEach(function(p){
-    var invs=S.entries.filter(function(e){return e.type==='invest'&&e.forPartner===p;})
-      .sort(function(a,b){return new Date(a.date)-new Date(b.date);});
+    // Берём invest с forPartner=p СОЗДАННЫЕ более 30 секунд назад
+    var invs=S.entries.filter(function(e){
+      if(e.type!=='invest'||e.forPartner!==p) return false;
+      // id это timestamp создания (Date.now() при создании)
+      var createdAt=typeof e.id==='number'?e.id:new Date(e.date).getTime();
+      return (now-createdAt)>thirtySec;
+    });
     if(invs.length===0)return;
+    // Сумма того что выдано более 30 сек назад
     var rec=invs.reduce(function(s,e){return s+e.amount;},0);
+    // Расходы партнёра (они гасят подотчёт)
     var spt=S.entries.filter(function(e){return e.type==='expense'&&e.who===p;}).reduce(function(s,e){return s+e.amount;},0);
-    var onH=rec-spt;
+    // Уже закрытое в личное по этому подотчёту
+    var alreadyClosed=S.entries.filter(function(e){
+      return e.type==='personal'&&e.who===p&&e.note&&e.note.indexOf('Авто-закрытие подотчёта')>=0;
+    }).reduce(function(s,e){return s+e.amount;},0);
+    // Остаток для закрытия = выдано - потрачено - уже закрыто
+    var onH=rec-spt-alreadyClosed;
     if(onH<=0)return;
-    var oldestInv=invs[0];
-    var ageMs=now-new Date(oldestInv.date).getTime();
-    if(ageMs>dayMs){
-      var today=new Date().toISOString().slice(0,10);
-      S.entries.push({
-        id:Date.now()+Math.random(),
-        date:today,
-        type:'personal',
-        who:p,
-        obj:'-',
-        amount:onH,
-        note:'Авто-закрытие подотчёта (>24ч без отчёта)'
-      });
-      changed=true;
-    }
+    var today=new Date().toISOString().slice(0,10);
+    S.entries.push({
+      id:Date.now()+Math.random(),
+      date:today,
+      type:'personal',
+      who:p,
+      obj:'-',
+      amount:onH,
+      note:'Авто-закрытие подотчёта (через 30 сек)'
+    });
+    changed=true;
+  });
+  if(changed){save();render();}
+}
+
+// === АВТО-ПОГАШЕНИЕ ДОЛГА РАСХОДОМ ===
+// Если у партнёра есть долг (personal) и пришёл новый расход — расход уменьшает долг
+// Делается через создание корректирующей записи personal с минусом (или прямое уменьшение)
+function autoReduceDebt(){
+  if(!isEditor())return;
+  var changed=false;
+  PARTNERS.forEach(function(p){
+    // Текущий долг (personal) партнёра
+    var debt=S.entries.filter(function(e){return e.type==='personal'&&e.who===p;}).reduce(function(s,e){return s+e.amount;},0);
+    if(debt<=0)return;
+    // Расходы партнёра БЕЗ покрытия подотчётом
+    var rec=S.entries.filter(function(e){return e.type==='invest'&&e.forPartner===p;}).reduce(function(s,e){return s+e.amount;},0);
+    var spt=S.entries.filter(function(e){return e.type==='expense'&&e.who===p;}).reduce(function(s,e){return s+e.amount;},0);
+    // Сколько расходов "висит без покрытия" = расходы - подотчёт
+    var uncovered=spt-rec;
+    if(uncovered<=0)return;
+    // Списываем из долга минимум из (долг, непокрытое)
+    var writeOff=Math.min(debt,uncovered);
+    if(writeOff<=0)return;
+    // Создаём корректирующую запись с отрицательной суммой (уменьшаем долг)
+    S.entries.push({
+      id:Date.now()+Math.random(),
+      date:new Date().toISOString().slice(0,10),
+      type:'personal',
+      who:p,
+      obj:'-',
+      amount:-writeOff,
+      note:'Авто-погашение долга расходом на стройку'
+    });
+    changed=true;
   });
   if(changed){save();render();}
 }
@@ -4286,7 +4375,12 @@ function startApp(){
   setTimeout(function(){startDraftsPolling();initPushNotifications();},2000);
   setTimeout(function(){if(typeof loadAIForecast==='function')loadAIForecast();},3000);
   setInterval(function(){if(role&&typeof loadAIForecast==='function')loadAIForecast();},1800000);
-  setInterval(function(){if(isEditor())autoCloseUnreported();},3600000);
+  setInterval(function(){
+    if(isEditor()){
+      autoCloseUnreported();
+      autoReduceDebt();
+    }
+  },10000); // каждые 10 секунд
 }
 
 // ============ PUSH УВЕДОМЛЕНИЯ ============
@@ -4590,44 +4684,47 @@ function processVoiceText(){
   var partnerList = PARTNERS.join(', ');
   var catList = ['Аванс / зарплата рабочим','Материалы','Транспорт','Инструменты и инвентарь','Административные','Представительские','Питание','Топливо','Аренда','Связь','Налоги','Услуги','Прочее'].join(', ');
 
-  var prompt = 'Извлеки финансовые операции из голосового ввода для строительной компании. Одна фраза может содержать НЕСКОЛЬКО связанных операций.\n\n'+
+  var prompt = 'Ты парсер расходов строительной компании LIONGATE. Извлеки операции из голосового ввода.\n\n'+
     'ТЕКСТ: "'+txt+'"\n\n'+
     'КОНТЕКСТ:\n'+
     'Бригады (id:название): '+brigList+'\n'+
     'Партнёры: '+partnerList+'\n'+
-    'Категории расходов: '+catList+'\n\n'+
-    'Верни ТОЛЬКО валидный JSON-массив, без markdown, без комментариев. Каждый элемент массива:\n'+
-    '{"type":"expense|income|invest|personal","amount":число_в_тенге,"category":"строка из списка категорий ИЛИ пусто","brigadeId":"id бригады или пусто","who":"имя партнёра или пусто","note":"короткое примечание"}\n\n'+
-    'КЛЮЧЕВЫЕ ПРАВИЛА КОГДА СОЗДАВАТЬ НЕСКОЛЬКО ЗАПИСЕЙ (двойная запись):\n'+
-    '★ "Партнёр вложил X на/в/для Y" (где Y — товар/услуга, не "компанию") → 2 ЗАПИСИ:\n'+
-    '  1) {"type":"invest","amount":X,"who":"имя партнёра","note":"на Y"}\n'+
-    '  2) {"type":"expense","amount":X,"category":"подходящая","note":"Y"}\n'+
-    '  Пример "Дмитрий вложил 80к в пояса монтажные 8 шт" → invest 80000 (Дмитрий) + expense 80000 (Инструменты, "пояса монтажные 8 шт")\n'+
-    '★ "Партнёр оплатил/заплатил/купил X со своих" → 2 ЗАПИСИ (invest + expense), партнёр восполнил кассу и сразу же её потратил\n'+
-    '★ "Партнёр дал бригаде X из своих" → 2 ЗАПИСИ:\n'+
-    '  1) invest от партнёра\n'+
-    '  2) expense с категорией "Аванс / зарплата рабочим" и brigadeId\n\n'+
-    'ОБЫЧНЫЕ ОДИНОЧНЫЕ ЗАПИСИ:\n'+
-    '- "вложил X в компанию/в кассу" без указания на что → 1 запись type=invest\n'+
-    '- "купил/заплатил за X" (без указания партнёра) → 1 запись type=expense (деньги из кассы)\n'+
-    '- "выдал бригаде X авансом из кассы" → 1 запись type=expense, category="Аванс / зарплата рабочим"\n'+
-    '- "получил от заказчика/КС-2/оплата" → 1 запись type=income\n'+
-    '- "забрал себе/личное" → 1 запись type=personal\n\n'+
-    'КАТЕГОРИИ-ПОДСКАЗКИ:\n'+
-    '- арматура, бетон, цемент, кирпич, песок, щебень → "Материалы"\n'+
-    '- пояса, инструмент, перфоратор, опалубка, рации → "Инструменты и инвентарь"\n'+
-    '- бензин, заправка, дизель → "Топливо"\n'+
-    '- такси, машина, перевозка → "Транспорт"\n'+
-    '- обед, кофе, заказчики → "Представительские" или "Питание"\n'+
-    '- симки, телефон, интернет → "Связь"\n\n'+
-    'ФОРМАТ ЧИСЕЛ:\n'+
-    '- "250 тысяч"=250000, "2.5 млн"=2500000, "сто восемьдесят тысяч"=180000\n\n'+
-    'ОБЩИЕ ПРАВИЛА:\n'+
-    '- brigadeId — точно id (b1,b2...) или пусто\n'+
-    '- who — имя точно как в списке партнёров или пусто\n'+
-    '- Если поле непонятно — пустая строка, не выдумывай\n'+
-    '- В составных операциях суммы должны быть РАВНЫМИ\n\n'+
-    'Ответ — массив, даже если одна операция: [{"type":"...","amount":...}]';
+    'Категории: '+catList+'\n\n'+
+    '━━━ ГЛАВНОЕ ПРАВИЛО ━━━\n'+
+    'ОДНА СУММА В ФРАЗЕ = ОДНА ЗАПИСЬ (даже если перечислено несколько товаров).\n'+
+    'Пример: "Перчатки перфоратор бензин 65к" → ОДНА запись expense на 65000.\n\n'+
+    'НЕСКОЛЬКО ЗАПИСЕЙ — только если суммы УКАЗАНЫ ОТДЕЛЬНО:\n'+
+    '✓ "Бензин 30к, обед 5к" → 2 записи\n'+
+    '✗ "Перчатки каска перфоратор 50к" → 1 запись на 50000\n\n'+
+    '━━━ ТИПЫ ━━━\n'+
+    '• expense — купил/заплатил/потратил (без указания "вложил")\n'+
+    '• income — получил от заказчика/КС-2\n'+
+    '• invest — "Дмитрий принёс/вложил/дал партнёру X" (передача денег)\n'+
+    '• personal — "взял лично/себе/на свои нужды"\n\n'+
+    '━━━ КЛЮЧЕВОЕ ПОЛЕ forPartner (под отчёт) ━━━\n'+
+    'Когда Дмитрий ПЕРЕДАЁТ деньги партнёру → invest с forPartner=имя партнёра\n'+
+    '• "Дал Бекжану 75000 на расходы" → invest 75000 (who:Дмитрий, forPartner:Бекжан)\n'+
+    '• "Дмитрий передал Евгению 20000" → invest 20000 (who:Дмитрий, forPartner:Евгений)\n'+
+    '• "Дмитрий вложил 170000 на страховку" (без указания партнёра) → invest 170000 (who:Дмитрий, forPartner пусто)\n\n'+
+    '━━━ ВАЖНО: НЕ создавай парных invest+expense ━━━\n'+
+    'Раньше делали двойную запись, теперь НЕ нужно. Просто:\n'+
+    '• "Дмитрий дал Бекжану 75000" → ТОЛЬКО invest с forPartner=Бекжан (одна запись)\n'+
+    '• "Бекжан купил вибратор 45000" → ТОЛЬКО expense who=Бекжан (одна запись)\n'+
+    'Если автор уточнил оба факта одной фразой ("Бекжан получил 75к и купил вибратор 45к") → 2 ОТДЕЛЬНЫЕ записи.\n\n'+
+    '━━━ КАТЕГОРИИ ━━━\n'+
+    '- арматура, бетон, цемент → "Материалы"\n'+
+    '- перчатки, перфоратор, рации, пояса, СИЗ → "Инструменты и инвентарь"\n'+
+    '- бензин, дизель, заправка → "Топливо"\n'+
+    '- такси, перевозка → "Транспорт"\n'+
+    '- обед/напитки с заказчиками → "Представительские"\n'+
+    '- страховка, банк, налоги → "Административные"\n'+
+    '- аванс/зарплата бригаде → "Аванс / зарплата рабочим"\n\n'+
+    '━━━ ЧИСЛА ━━━\n'+
+    '"250 тысяч"=250000, "2.5 млн"=2500000, "сто восемьдесят тысяч"=180000, "65к"=65000\n\n'+
+    '━━━ ФОРМАТ ━━━\n'+
+    'Верни ТОЛЬКО JSON-массив без markdown:\n'+
+    '[{"type":"expense|income|invest|personal","amount":число,"category":"строка","brigadeId":"b1/b2 или пусто","who":"имя или пусто","forPartner":"имя партнёра или пусто","note":"короткое описание"}]\n\n'+
+    'Если ничего не распознано — верни [].';
 
   fetch(AI_WORKER_URL, {
     method:'POST',
@@ -4677,13 +4774,13 @@ function showVoiceConfirm(ops, originalText){
   document.getElementById('v-stage-record').style.display='none';
   document.getElementById('v-stage-confirm').style.display='';
 
-  var typeNames={expense:'РАСХОД',income:'ДОХОД',invest:'ВЛОЖЕНИЕ',personal:'ЛИЧНЫЙ'};
-  var typeColors={expense:'var(--red)',income:'var(--green)',invest:'var(--blue)',personal:'var(--orange)'};
+  var typeNames={expense:'💸 РАСХОД',income:'💰 ДОХОД',invest:'📥 ВЛОЖЕНИЕ',personal:'🛍 ЛИЧНО'};
+  var typeColors={expense:'var(--red)',income:'var(--green)',invest:'var(--blue)',personal:'var(--purple)'};
   var today = new Date().toISOString().slice(0,10);
 
   var h='<div style="font-size:10px;color:var(--mut);font-style:italic;margin-bottom:10px;padding:8px;background:var(--s2);border-radius:6px">«'+originalText+'»</div>';
   if(ops.length>1){
-    h+='<div style="background:var(--glt);border:1px solid var(--gold);border-radius:6px;padding:8px;margin-bottom:12px;font-size:11px;color:var(--gold);font-weight:700;letter-spacing:1px">⚡ СВЯЗАННЫЕ ОПЕРАЦИИ: '+ops.length+'</div>';
+    h+='<div style="background:var(--glt);border:1px solid var(--gold);border-radius:6px;padding:8px;margin-bottom:12px;font-size:11px;color:var(--gold);font-weight:700;letter-spacing:1px">⚡ ОПЕРАЦИИ: '+ops.length+'</div>';
   }
 
   ops.forEach(function(p,idx){
@@ -4692,16 +4789,25 @@ function showVoiceConfirm(ops, originalText){
     h+='<div style="border-left:3px solid '+color+';padding-left:10px;margin-bottom:14px">';
     h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><div style="font-family:var(--fd);font-size:14px;color:'+color+';letter-spacing:1px">'+(ops.length>1?(idx+1)+'. ':'')+typeLabel+'</div></div>';
     h+='<div class="fg"><label class="fl">Тип</label><select class="fi" id="vc-type-'+idx+'">';
-    ['expense','income','invest','personal'].forEach(function(t){h+='<option value="'+t+'"'+(p.type===t?' selected':'')+'>'+typeNames[t]+'</option>';});
+    [['expense','💸 РАСХОД'],['income','💰 ДОХОД'],['invest','📥 ВЛОЖЕНИЕ'],['personal','🛍 ЛИЧНО']].forEach(function(tt){h+='<option value="'+tt[0]+'"'+(p.type===tt[0]?' selected':'')+'>'+tt[1]+'</option>';});
     h+='</select></div>';
     h+='<div class="fg"><label class="fl">Сумма (тг)</label><input class="fi" id="vc-amount-'+idx+'" type="number" inputmode="numeric" value="'+(p.amount||'')+'"/></div>';
-    h+='<div class="fg"><label class="fl">Категория</label><input class="fi" id="vc-cat-'+idx+'" type="text" value="'+(p.category||'').replace(/"/g,'&quot;')+'" placeholder="—"/></div>';
-    h+='<div class="frow"><div class="fg"><label class="fl">Бригада</label><select class="fi" id="vc-brig-'+idx+'"><option value="">—</option>';
-    S.brigades.forEach(function(b){h+='<option value="'+b.id+'"'+(p.brigadeId===b.id?' selected':'')+'>'+b.name+'</option>';});
-    h+='</select></div>';
     h+='<div class="fg"><label class="fl">Кто</label><select class="fi" id="vc-who-'+idx+'"><option value="">—</option>';
     PARTNERS.forEach(function(P){h+='<option value="'+P+'"'+(p.who===P?' selected':'')+'>'+P+'</option>';});
-    h+='</select></div></div>';
+    h+='</select></div>';
+    // Поле forPartner — только для invest
+    if(p.type==='invest'){
+      h+='<div class="fg" style="background:rgba(255,179,32,.05);border:1px solid rgba(255,179,32,.25);border-radius:8px;padding:10px"><label class="fl" style="color:var(--gold)">📋 Кому передал (под отчёт)</label><select class="fi" id="vc-fp-'+idx+'"><option value="">— никому, в общую кассу —</option>';
+      PARTNERS.forEach(function(P){h+='<option value="'+P+'"'+(p.forPartner===P?' selected':'')+'>'+P+'</option>';});
+      h+='</select><div style="font-size:9px;color:var(--mut);margin-top:6px">Если деньги передаются партнёру под отчёт</div></div>';
+    }
+    // Категория и бригада только для expense
+    if(p.type==='expense'){
+      h+='<div class="fg"><label class="fl">Категория</label><input class="fi" id="vc-cat-'+idx+'" type="text" value="'+(p.category||'').replace(/"/g,'&quot;')+'" placeholder="—"/></div>';
+      h+='<div class="fg"><label class="fl">Бригада (если аванс)</label><select class="fi" id="vc-brig-'+idx+'"><option value="">— не относится —</option>';
+      S.brigades.forEach(function(b){h+='<option value="'+b.id+'"'+(p.brigadeId===b.id?' selected':'')+'>'+b.name+'</option>';});
+      h+='</select></div>';
+    }
     h+='<div class="fg"><label class="fl">Примечание</label><input class="fi" id="vc-note-'+idx+'" type="text" value="'+(p.note||'').replace(/"/g,'&quot;')+'"/></div>';
     h+='</div>';
   });
@@ -4733,13 +4839,18 @@ function showVoiceConfirm(ops, originalText){
         type: type,
         amount: amount,
         who: document.getElementById('vc-who-'+idx).value || PARTNERS[0],
-        obj: S.objects[0]||'',
+        obj: type==='personal'?'-':(S.objects[0]||''),
         note: document.getElementById('vc-note-'+idx).value||''
       };
-      var brigId = document.getElementById('vc-brig-'+idx).value;
-      if(brigId) entry.brigade = brigId;
-      var cat = document.getElementById('vc-cat-'+idx).value;
-      if(cat) entry.cat = cat;
+      // Бригада — только если есть поле (expense)
+      var brigEl = document.getElementById('vc-brig-'+idx);
+      if(brigEl && brigEl.value) entry.brigade = brigEl.value;
+      // Категория — только если есть поле (expense)
+      var catEl = document.getElementById('vc-cat-'+idx);
+      if(catEl && catEl.value) entry.cat = catEl.value;
+      // forPartner — только если invest
+      var fpEl = document.getElementById('vc-fp-'+idx);
+      if(fpEl && fpEl.value) entry.forPartner = fpEl.value;
       if(linkedId) entry.linkedId = linkedId;
 
       S.entries.push(entry);
@@ -5028,7 +5139,7 @@ function rejectDraftGroup(linkedKey){
 // Версия приложения. Меняется при каждом релизе.
 // Логика мягкого обновления: настройки ИИ переживают переход на новую версию,
 // обновление применяется при следующем естественном открытии (без миганий).
-var APP_VERSION='67';
+var APP_VERSION='73';
 // Ключи которые НЕ стираем при обновлении (настройки пользователя)
 var PRESERVED_KEYS = ['lg_ai_worker_url', 'lg_ai_token', 'role'];
 (function(){
