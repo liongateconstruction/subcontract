@@ -1045,45 +1045,62 @@ function defState(){return{
   {id:5,name:'Безопасность',owner:'Бекжан',target:'0 происшествий, все в СИЗ',light:2,hist:[]}
  ],
  entries:[
-  // === ВЛОЖЕНИЯ ===
-  {id:101,date:'2026-05-14',type:'invest',who:'Дмитрий',obj:'ЖК «Алгабас», Мкр. Нуркент',amount:400000,note:'Выдал Бекжану наличными на расходы'},
-  {id:102,date:'2026-05-15',type:'invest',who:'Дмитрий',obj:'ЖК «Алгабас», Мкр. Нуркент',amount:5000,note:'Пополнил мобильный Бекжана напрямую'},
-  {id:103,date:'2026-05-16',type:'invest',who:'Дмитрий',obj:'ЖК «Алгабас», Мкр. Нуркент',amount:53100,note:'Смартфон и номер для финансовых операций'},
-  {id:104,date:'2026-05-16',type:'invest',who:'Дмитрий',obj:'ЖК «Алгабас», Мкр. Нуркент',amount:20000,note:'Дал Евгению (личный расход)'},
-  {id:105,date:'2026-05-17',type:'invest',who:'Дмитрий',obj:'ЖК «Алгабас», Мкр. Нуркент',amount:150000,note:'Выдал Бекжану наличными на расходы'},
-  {id:106,date:'2026-05-18',type:'invest',who:'Дмитрий',obj:'ЖК «Алгабас», Мкр. Нуркент',amount:170000,note:'Закинул на счет компании для оплаты страховки'},
-  {id:107,date:'2026-05-18',type:'invest',who:'Дмитрий',obj:'ЖК «Алгабас», Мкр. Нуркент',amount:54000,note:'На покупку раций'},
-  {id:108,date:'2026-05-18',type:'invest',who:'Дмитрий',obj:'ЖК «Алгабас», Мкр. Нуркент',amount:20000,note:'Аванс бригада Шынгыс'},
-  {id:109,date:'2026-05-19',type:'invest',who:'Дмитрий',obj:'ЖК «Алгабас», Мкр. Нуркент',amount:500000,note:'Аванс бригада Шынгыс'},
-  {id:110,date:'2026-05-19',type:'invest',who:'Дмитрий',obj:'ЖК «Алгабас», Мкр. Нуркент',amount:400000,note:'Аванс бригада Нурсултан'},
-  {id:111,date:'2026-05-19',type:'invest',who:'Дмитрий',obj:'ЖК «Алгабас», Мкр. Нуркент',amount:25135,note:'Обед с заказчиками'},
-  {id:112,date:'2026-05-19',type:'invest',who:'Дмитрий',obj:'ЖК «Алгабас», Мкр. Нуркент',amount:2000,note:'Напитки заказчики на объекте'},
-  {id:113,date:'2026-05-19',type:'invest',who:'Бекжан',obj:'ЖК «Алгабас», Мкр. Нуркент',amount:7000,note:'Перчатки 2 пачки, молотки 2 шт'},
-  {id:114,date:'2026-05-19',type:'invest',who:'Дмитрий',obj:'ЖК «Алгабас», Мкр. Нуркент',amount:198000,note:'Вложение в компанию'},
-  {id:115,date:'2026-05-20',type:'invest',who:'Дмитрий',obj:'ЖК «Алгабас», Мкр. Нуркент',amount:100000,note:'На расходы Бекжану'},
-  {id:116,date:'2026-05-20',type:'invest',who:'Дмитрий',obj:'ЖК «Алгабас», Мкр. Нуркент',amount:80000,note:'Пояса монтажные 8 шт'},
-  // === РАСХОДЫ ===
-  {id:1,date:'2026-05-15',type:'expense',who:'Дмитрий',obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Мобильная связь',amount:5000,note:'Мобильный Бекжана — оплатил Дмитрий напрямую'},
-  {id:2,date:'2026-05-16',type:'expense',who:'Дмитрий',obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Административные',amount:53100,note:'Смартфон и номер для финансовых операций'},
-  {id:3,date:'2026-05-16',type:'expense',who:'Бекжан',obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Аванс / зарплата рабочим',brigade:'b1',amount:150000,note:'Аванс Бригада Шынгыс — перевод'},
-  {id:4,date:'2026-05-16',type:'expense',who:'Бекжан',obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Аванс / зарплата рабочим',brigade:'b1',amount:100000,note:'Аванс Бригада Шынгыс — наличные'},
-  {id:5,date:'2026-05-16',type:'expense',who:'Бекжан',obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Транспорт',amount:20000,note:'Такси Бригада Нурсултан до объекта'},
-  {id:6,date:'2026-05-17',type:'expense',who:'Бекжан',obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Инструменты и инвентарь',amount:70000,note:'Каски, жилеты, перчатки, диски, молоток, бур'},
-  {id:7,date:'2026-05-18',type:'expense',who:'Дмитрий',obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Административные',amount:158100,note:'Страховка компания'},
-  {id:8,date:'2026-05-18',type:'expense',who:'Дмитрий',obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Аванс / зарплата рабочим',brigade:'b1',amount:20000,note:'Аванс бригада Шынгыс'},
-  {id:9,date:'2026-05-18',type:'expense',who:'Дмитрий',obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Инструменты и инвентарь',amount:54000,note:'Рации 3 шт × 18 000'},
-  {id:10,date:'2026-05-18',type:'expense',who:'Дмитрий',obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Административные',amount:4500,note:'Комиссия банка — Абонентская плата'},
-  {id:11,date:'2026-05-18',type:'expense',who:'Дмитрий',obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Административные',amount:1000,note:'Комиссия банка — ведение счёта'},
-  {id:12,date:'2026-05-18',type:'expense',who:'Дмитрий',obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Административные',amount:1000,note:'Комиссия банка — Внешний перевод'},
-  {id:13,date:'2026-05-19',type:'expense',who:'Дмитрий',obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Аванс / зарплата рабочим',brigade:'b1',amount:500000,note:'Аванс наличными бригада Шынгыс'},
-  {id:14,date:'2026-05-19',type:'expense',who:'Дмитрий',obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Аванс / зарплата рабочим',brigade:'b2',amount:400000,note:'Аванс наличными бригада Нурсултан'},
-  {id:15,date:'2026-05-19',type:'expense',who:'Дмитрий',obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Представительские',amount:25135,note:'Обед с заказчиками'},
-  {id:16,date:'2026-05-19',type:'expense',who:'Дмитрий',obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Представительские',amount:2000,note:'Напитки заказчики на объекте'},
+  // === ВЛОЖЕНИЯ ДМИТРИЯ (итого 2 369 235 тг) ===
+  // 1) Бекжану под отчёт — 1 886 000 тг (потратил 1 529 000, долг 357 000)
+  {id:100,date:'2026-05-14',type:'invest',who:'Дмитрий',forPartner:'Бекжан',obj:'ЖК «Алгабас», Мкр. Нуркент',amount:400000,note:'Выдал Бекжану наличными на расходы'},
+  {id:101,date:'2026-05-17',type:'invest',who:'Дмитрий',forPartner:'Бекжан',obj:'ЖК «Алгабас», Мкр. Нуркент',amount:150000,note:'Выдал Бекжану наличными на расходы'},
+  {id:102,date:'2026-05-18',type:'invest',who:'Дмитрий',forPartner:'Бекжан',obj:'ЖК «Алгабас», Мкр. Нуркент',amount:54000,note:'Бекжану на покупку раций'},
+  {id:103,date:'2026-05-18',type:'invest',who:'Дмитрий',forPartner:'Бекжан',obj:'ЖК «Алгабас», Мкр. Нуркент',amount:20000,note:'Бекжану на аванс Шынгыс'},
+  {id:104,date:'2026-05-19',type:'invest',who:'Дмитрий',forPartner:'Бекжан',obj:'ЖК «Алгабас», Мкр. Нуркент',amount:500000,note:'Бекжану на аванс Шынгыс наличными'},
+  {id:105,date:'2026-05-19',type:'invest',who:'Дмитрий',forPartner:'Бекжан',obj:'ЖК «Алгабас», Мкр. Нуркент',amount:400000,note:'Бекжану на аванс Нурсултан наличными'},
+  {id:106,date:'2026-05-19',type:'invest',who:'Дмитрий',forPartner:'Бекжан',obj:'ЖК «Алгабас», Мкр. Нуркент',amount:7000,note:'Бекжану на перчатки и молотки'},
+  {id:107,date:'2026-05-20',type:'invest',who:'Дмитрий',forPartner:'Бекжан',obj:'ЖК «Алгабас», Мкр. Нуркент',amount:100000,note:'Бекжану на расходы'},
+  {id:108,date:'2026-05-20',type:'invest',who:'Дмитрий',forPartner:'Бекжан',obj:'ЖК «Алгабас», Мкр. Нуркент',amount:80000,note:'Бекжану на пояса монтажные'},
+  {id:109,date:'2026-05-21',type:'invest',who:'Дмитрий',forPartner:'Бекжан',obj:'ЖК «Алгабас», Мкр. Нуркент',amount:100000,note:'Бекжану на расходы (перчатка, перфоратор, бензин)'},
+  {id:130,date:'2026-05-22',type:'invest',who:'Дмитрий',forPartner:'Бекжан',obj:'ЖК «Алгабас», Мкр. Нуркент',amount:75000,note:'Бекжану на расход отправил'},
+  // 2) На счёт компании 170 000 (страховка 158 100 + комиссии 6 500, остаток 5 400)
+  {id:110,date:'2026-05-18',type:'invest',who:'Дмитрий',obj:'ЖК «Алгабас», Мкр. Нуркент',amount:170000,note:'Закинул на счёт компании для оплаты страховки'},
+  // 3) Прямые расходы Дмитрия из своих — 85 235 тг
+  {id:112,date:'2026-05-15',type:'invest',who:'Дмитрий',obj:'ЖК «Алгабас», Мкр. Нуркент',amount:5000,note:'Сам оплатил мобильный Бекжана'},
+  {id:113,date:'2026-05-16',type:'invest',who:'Дмитрий',obj:'ЖК «Алгабас», Мкр. Нуркент',amount:53100,note:'Сам оплатил смартфон'},
+  {id:114,date:'2026-05-19',type:'invest',who:'Дмитрий',obj:'ЖК «Алгабас», Мкр. Нуркент',amount:25135,note:'Сам оплатил обед с заказчиками'},
+  {id:115,date:'2026-05-19',type:'invest',who:'Дмитрий',obj:'ЖК «Алгабас», Мкр. Нуркент',amount:2000,note:'Сам оплатил напитки на объекте'},
+  // 4) Евгению и Нурсултану — личное (228 000 тг)
+  {id:116,date:'2026-05-16',type:'invest',who:'Дмитрий',obj:'ЖК «Алгабас», Мкр. Нуркент',amount:20000,note:'Дал Евгению (личное)'},
+  {id:117,date:'2026-05-19',type:'invest',who:'Дмитрий',obj:'ЖК «Алгабас», Мкр. Нуркент',amount:198000,note:'Дал Евгению (личное)'},
+  {id:118,date:'2026-05-22',type:'invest',who:'Дмитрий',obj:'ЖК «Алгабас», Мкр. Нуркент',amount:10000,note:'Дал Нурсултану (личное)'},
+
+  // === РАСХОДЫ (1 778 835 тг) ===
+  // Дмитрий — прямые офисные (249 835 тг)
+  {id:1,date:'2026-05-15',type:'expense',who:'Дмитрий',obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Связь',amount:5000,note:'Мобильный Бекжана'},
+  {id:2,date:'2026-05-16',type:'expense',who:'Дмитрий',obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Административные',amount:53100,note:'Смартфон и номер'},
+  {id:3,date:'2026-05-18',type:'expense',who:'Дмитрий',obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Административные',amount:158100,note:'Страховка компании'},
+  {id:4,date:'2026-05-18',type:'expense',who:'Дмитрий',obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Административные',amount:4500,note:'Комиссия банка'},
+  {id:5,date:'2026-05-18',type:'expense',who:'Дмитрий',obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Административные',amount:1000,note:'Комиссия банка — ведение счёта'},
+  {id:6,date:'2026-05-18',type:'expense',who:'Дмитрий',obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Административные',amount:1000,note:'Комиссия банка — Внешний перевод'},
+  {id:7,date:'2026-05-19',type:'expense',who:'Дмитрий',obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Представительские',amount:25135,note:'Обед с заказчиками'},
+  {id:8,date:'2026-05-19',type:'expense',who:'Дмитрий',obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Представительские',amount:2000,note:'Напитки на объекте'},
+  // Бекжан — все полевые (1 529 000 тг)
+  {id:9,date:'2026-05-16',type:'expense',who:'Бекжан',obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Аванс / зарплата рабочим',brigade:'b1',amount:150000,note:'Аванс Бригада Шынгыс — перевод'},
+  {id:10,date:'2026-05-16',type:'expense',who:'Бекжан',obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Аванс / зарплата рабочим',brigade:'b1',amount:100000,note:'Аванс Бригада Шынгыс — наличные'},
+  {id:11,date:'2026-05-16',type:'expense',who:'Бекжан',obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Транспорт',amount:20000,note:'Такси Бригада Нурсултан до объекта'},
+  {id:12,date:'2026-05-17',type:'expense',who:'Бекжан',obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Инструменты и инвентарь',amount:70000,note:'Каски, жилеты, перчатки, диски, молоток, бур'},
+  {id:13,date:'2026-05-18',type:'expense',who:'Бекжан',obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Аванс / зарплата рабочим',brigade:'b1',amount:20000,note:'Аванс бригада Шынгыс'},
+  {id:14,date:'2026-05-18',type:'expense',who:'Бекжан',obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Инструменты и инвентарь',amount:54000,note:'Рации 3 шт × 18 000'},
+  {id:15,date:'2026-05-19',type:'expense',who:'Бекжан',obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Аванс / зарплата рабочим',brigade:'b1',amount:500000,note:'Аванс наличными бригада Шынгыс'},
+  {id:16,date:'2026-05-19',type:'expense',who:'Бекжан',obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Аванс / зарплата рабочим',brigade:'b2',amount:400000,note:'Аванс наличными бригада Нурсултан'},
   {id:17,date:'2026-05-19',type:'expense',who:'Бекжан',obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Инструменты и инвентарь',amount:7000,note:'Перчатки 2 пачки, молотки 2 шт'},
-  {id:18,date:'2026-05-20',type:'expense',who:'Дмитрий',obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Инструменты и инвентарь',amount:80000,note:'Пояс монтажный 8 шт ЖК Алгабас'},
-  // === ЛИЧНЫЕ РАСХОДЫ ===
-  {id:201,date:'2026-05-16',type:'personal',who:'Бекжан',obj:'-',amount:310000,note:'Личные расходы Бекжан'},
-  {id:202,date:'2026-05-16',type:'personal',who:'Евгений',obj:'-',amount:218000,note:'Личные расходы Евгений'}
+  {id:18,date:'2026-05-20',type:'expense',who:'Бекжан',obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Инструменты и инвентарь',amount:80000,note:'Пояс монтажный 8 шт'},
+  {id:19,date:'2026-05-21',type:'expense',who:'Бекжан',obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Инструменты и инвентарь',amount:65000,note:'Перчатка, перфоратор, бензин'},
+  {id:20,date:'2026-05-22',type:'expense',who:'Бекжан',obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Инструменты и инвентарь',amount:45000,note:'Вибратор'},
+  {id:21,date:'2026-05-22',type:'expense',who:'Бекжан',obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Материалы',amount:10000,note:'Дождевик 5 шт'},
+  {id:22,date:'2026-05-22',type:'expense',who:'Бекжан',obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Топливо',amount:8000,note:'Заправка бензина'},
+
+  // === ЛИЧНЫЕ (долги партнёров — 585 000 тг) ===
+  {id:201,date:'2026-05-22',type:'personal',who:'Бекжан',obj:'-',amount:357000,note:'Остаток подотчёта (не отчитался, взял себе)'},
+  {id:202,date:'2026-05-16',type:'personal',who:'Евгений',obj:'-',amount:20000,note:'Взял лично'},
+  {id:203,date:'2026-05-19',type:'personal',who:'Евгений',obj:'-',amount:198000,note:'Взял лично'},
+  {id:204,date:'2026-05-22',type:'personal',who:'Нурсултан',obj:'-',amount:10000,note:'Взял лично'}
  ]
 };}
 
@@ -1135,7 +1152,16 @@ function getTotalVol(){return(S.settings&&S.settings.totalVol)||9999;}
 function daysLeft(){if(!S.settings||!S.settings.deadline)return null;return Math.ceil((new Date(S.settings.deadline)-new Date())/86400000);}
 function lastEntryAge(){if(!S.entries.length)return 999;var d=S.entries.map(function(e){return e.date;}).sort();return Math.floor((new Date()-new Date(d[d.length-1]))/86400000);}
 function calcCo(){var income=sumT('income'),expense=sumT('expense'),invested=sumT('invest'),returned=sumT('return');var personal=S.entries.filter(function(e){return e.type==='personal';}).reduce(function(s,e){return s+e.amount;},0);var profit=income-expense,owed=invested-returned,toShare=Math.max(profit-owed,0);var cash=invested+income-expense-personal-returned;return{income:income,expense:expense,invested:invested,returned:returned,personal:personal,profit:profit,owed:owed,toShare:toShare,share:toShare/5,cash:cash};}
-function calcPar(name){var invested=sumT('invest','who',name),returned=sumT('return','who',name);var personal=S.entries.filter(function(e){return e.type==='personal'&&e.who===name;}).reduce(function(s,e){return s+e.amount;},0);var C=calcCo();return{invested:invested,returned:returned,personal:personal,share:C.share,totalGet:(invested-returned)+(C.share-personal)};}
+function calcPar(name){
+  var invested=sumT('invest','who',name),returned=sumT('return','who',name);
+  var personal=S.entries.filter(function(e){return e.type==='personal'&&e.who===name;}).reduce(function(s,e){return s+e.amount;},0);
+  // Подотчёт: получил под отчёт (invest forPartner = name) − потратил на компанию (expense who = name)
+  var received=S.entries.filter(function(e){return e.type==='invest'&&e.forPartner===name;}).reduce(function(s,e){return s+e.amount;},0);
+  var spent=S.entries.filter(function(e){return e.type==='expense'&&e.who===name;}).reduce(function(s,e){return s+e.amount;},0);
+  var onHands=Math.max(0, received - spent);
+  var C=calcCo();
+  return{invested:invested,returned:returned,personal:personal,received:received,spent:spent,onHands:onHands,share:C.share,totalGet:(invested-returned)+(C.share-personal)};
+}
 function calcBrig(b){var vols=S.entries.filter(function(e){return e.type==='vol'&&e.brigade===b.id;});var vol=vols.reduce(function(s,e){return s+(e.volume||0);},0);var earned=vols.reduce(function(s,e){return s+e.amount;},0);var paid=S.entries.filter(function(e){return e.type==='expense'&&e.brigade===b.id;}).reduce(function(s,e){return s+e.amount;},0);return{vol:vol,earned:earned,paid:paid,balance:earned-paid,vols:vols};}
 // План года из ПЛАН ДЕЙСТВИЙ LIONGATE. Прибыль и накоплено — в млн тг.
 var YEAR_PLAN=[
@@ -2777,6 +2803,42 @@ var KA=kfuAuto();
 // Week compare// Week compare
 if(wks.length>=2){var tW=parseFloat(wks[wks.length-1].fact)||0,pW=parseFloat(wks[wks.length-2].fact)||0;var diff=tW-pW;var dc2=diff>=0?'var(--green)':'var(--red)';var dbg=diff>=0?'var(--grlt)':'var(--rlt)';
  h+='<div class="sect">Сравнение недель</div><div class="wkcmp"><div class="wkcols"><div class="wkc"><div class="wkl">Прошлая</div><div class="wkv" style="color:var(--mut)">'+fmtD(pW)+'</div><div class="wks">м³ факт</div></div><div style="color:var(--mut)">to</div><div class="wkc"><div class="wkl">Эта неделя</div><div class="wkv" style="color:var(--teal)">'+fmtD(tW)+'</div><div class="wks">м³ факт</div></div></div><div class="wkd" style="background:'+dbg+';border:1px solid '+dc2+'"><div style="font-family:var(--fd);font-size:18px;color:'+dc2+'">'+(diff>=0?'+':'')+fmtD(diff)+' м³ '+(diff>=0?'▲':'▼')+'</div><div style="font-size:9px;color:var(--mut)">'+(pW>0?(diff>=0?'рост':'спад')+' '+Math.abs(Math.round(diff/pW*100))+'%':'первое сравнение')+'</div></div></div>';}
+// === НА РУКАХ У ПАРТНЁРОВ (подотчёт) ===
+var partnersOnHands=[];
+PARTNERS.forEach(function(p,pi){
+  var rec=S.entries.filter(function(e){return e.type==='invest'&&e.forPartner===p;}).reduce(function(s,e){return s+e.amount;},0);
+  var spt=S.entries.filter(function(e){return e.type==='expense'&&e.who===p;}).reduce(function(s,e){return s+e.amount;},0);
+  var onH=rec-spt;
+  if(onH!==0||rec>0) partnersOnHands.push({name:p,color:PC[pi],received:rec,spent:spt,onHands:onH});
+});
+var totalOnHands=partnersOnHands.reduce(function(s,p){return s+Math.max(0,p.onHands);},0);
+if(partnersOnHands.length>0){
+  h+='<div class="dcard" style="background:linear-gradient(135deg,rgba(255,179,32,.08),rgba(255,179,32,.02));border:1px solid rgba(255,179,32,.25);margin-top:14px">';
+  h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">';
+  h+='<div><div style="font-size:11px;color:var(--gold);letter-spacing:2px;font-weight:700">📋 НА РУКАХ У ПАРТНЁРОВ</div>';
+  h+='<div style="font-size:9px;color:var(--mut);margin-top:3px">подотчётные деньги</div></div>';
+  h+='<div style="text-align:right"><div style="font-family:var(--fd);font-size:22px;color:var(--gold)">'+fmt(totalOnHands)+'</div><div style="font-size:9px;color:var(--mut)">тг ⏳</div></div>';
+  h+='</div>';
+  partnersOnHands.forEach(function(p){
+    var pct=p.received>0?Math.round(p.spent/p.received*100):0;
+    var status=p.onHands===0?'✅':p.onHands<p.received*0.3?'⚡':'⏳';
+    var stColor=p.onHands===0?'var(--green)':p.onHands<p.received*0.3?'var(--orange)':'var(--gold)';
+    h+='<div style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05)">';
+    h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">';
+    h+='<span style="font-size:11px;color:'+p.color+';font-weight:700">'+p.name+'</span>';
+    h+='<span style="font-family:var(--fd);font-size:14px;color:'+stColor+'">'+fmt(p.onHands)+' '+status+'</span>';
+    h+='</div>';
+    h+='<div style="display:flex;justify-content:space-between;font-size:9px;color:var(--mut);margin-bottom:4px">';
+    h+='<span>получил '+fmt(p.received)+' · отчитался '+fmt(p.spent)+'</span><span>'+pct+'%</span></div>';
+    h+='<div style="height:4px;background:rgba(255,255,255,.06);border-radius:2px"><div style="height:100%;width:'+pct+'%;background:'+p.color+';border-radius:2px"></div></div>';
+    h+='</div>';
+  });
+  if(isEditor()&&totalOnHands>0){
+    h+='<button onclick="closeUnreported()" style="width:100%;background:linear-gradient(135deg,var(--gold),var(--orange));border:none;color:#0d1117;border-radius:10px;padding:12px;font-weight:700;font-family:var(--fm);letter-spacing:1px;cursor:pointer;margin-top:10px;font-size:12px">🔄 ЗАКРЫТЬ ОСТАТКИ → ЛИЧНОЕ</button>';
+    h+='<div style="font-size:9px;color:var(--mut);text-align:center;margin-top:6px">автоматическое закрытие через 24 часа</div>';
+  }
+  h+='</div>';
+}
 // Recent
 var rec=[].concat(S.entries).sort(function(a,b){return b.date.localeCompare(a.date);}).slice(0,5);
 h+='<div class="sect">Последние записи</div><div class="recc">'+rec.map(function(e){var tc=TYPES[e.type]||{color:'var(--mut)'};var val=e.type==='vol'?fmtD(e.volume||0)+' м³':fmt(e.amount)+' тг';return '<div class="reci"><div><div class="recb" style="background:'+(tc.bg||'var(--s2)')+';color:'+tc.color+'">'+badge(e.type).replace(/<[^>]+>/g,'')+'</div><div class="recd">'+desc(e).slice(0,42)+'</div></div><div><div class="reca" style="color:'+tc.color+'">'+val+'</div><div class="rect">'+e.date.slice(5)+'</div></div></div>';}).join('')+'</div>';
@@ -3552,12 +3614,14 @@ function openSettings(){
   var normRows=WORK_TYPES.map(function(w){
     return '<div class="frow" style="align-items:center;margin-bottom:6px"><div style="font-size:11px;color:var(--mut)">'+w+'</div><input class="fi" data-norm="'+w+'" type="number" step="0.05" value="'+(norms[w]||'')+'" placeholder="м³/чел/день" inputmode="decimal" style="font-size:13px"/></div>';
   }).join('');
+  var resetBlock = '';
   document.getElementById('mbody').innerHTML=
     '<div class="fg"><label class="fl">Дедлайн по договору</label><input class="fi" id="f-dl" type="date" value="'+(s.deadline||'')+'"/>'+hint('Крайний срок сдачи объекта')+'</div>'+
     '<div class="fg"><label class="fl">Общий объём по договору м³</label><input class="fi" id="f-tv" type="number" value="'+(s.totalVol||9999)+'" inputmode="numeric"/>'+hint('Сколько м³ всего по договору')+'</div>'+
     '<div class="sect" style="margin:14px 0 8px">Нормы выработки (м³ на 1 рабочего в день)</div>'+
     hint('Напряжённая норма — чуть выше среднего, чтобы бригады держали темп. Цель бригады = норма × количество рабочих. Подстройте под реальность ваших бригад')+
     '<div style="margin-top:10px">'+normRows+'</div>'+
+    resetBlock+
     '<button class="fsave" id="bss">СОХРАНИТЬ</button>'+
     '<button class="fcanc" id="bsc">Отмена</button>';
   document.getElementById('modal').style.display='flex';
@@ -4111,6 +4175,71 @@ function doLogout(){
   document.getElementById('lpass').value='';
   document.getElementById('lerr').textContent='';
 }
+// Закрытие невозвращённых подотчётов вручную
+function closeUnreported(){
+  if(!isEditor())return;
+  if(!confirm('Закрыть все подотчётные остатки → перевести в личное соответствующих партнёров?'))return;
+  var closed=[];
+  PARTNERS.forEach(function(p){
+    var rec=S.entries.filter(function(e){return e.type==='invest'&&e.forPartner===p;}).reduce(function(s,e){return s+e.amount;},0);
+    var spt=S.entries.filter(function(e){return e.type==='expense'&&e.who===p;}).reduce(function(s,e){return s+e.amount;},0);
+    var onH=rec-spt;
+    if(onH>0){
+      var today=new Date().toISOString().slice(0,10);
+      S.entries.push({
+        id:Date.now()+Math.random(),
+        date:today,
+        type:'personal',
+        who:p,
+        obj:'-',
+        amount:onH,
+        note:'Авто-закрытие подотчёта (остаток не отчитан)'
+      });
+      closed.push(p+': '+fmt(onH)+' тг');
+    }
+  });
+  if(closed.length){
+    save();
+    alert('Закрыто:\n'+closed.join('\n'));
+    render();
+  } else {
+    alert('Нечего закрывать — у всех партнёров подотчёт 0');
+  }
+}
+
+// Автоматическое закрытие подотчётов старше 24 часов
+function autoCloseUnreported(){
+  if(!isEditor())return;
+  var now=Date.now();
+  var dayMs=24*60*60*1000;
+  var changed=false;
+  PARTNERS.forEach(function(p){
+    var invs=S.entries.filter(function(e){return e.type==='invest'&&e.forPartner===p;})
+      .sort(function(a,b){return new Date(a.date)-new Date(b.date);});
+    if(invs.length===0)return;
+    var rec=invs.reduce(function(s,e){return s+e.amount;},0);
+    var spt=S.entries.filter(function(e){return e.type==='expense'&&e.who===p;}).reduce(function(s,e){return s+e.amount;},0);
+    var onH=rec-spt;
+    if(onH<=0)return;
+    var oldestInv=invs[0];
+    var ageMs=now-new Date(oldestInv.date).getTime();
+    if(ageMs>dayMs){
+      var today=new Date().toISOString().slice(0,10);
+      S.entries.push({
+        id:Date.now()+Math.random(),
+        date:today,
+        type:'personal',
+        who:p,
+        obj:'-',
+        amount:onH,
+        note:'Авто-закрытие подотчёта (>24ч без отчёта)'
+      });
+      changed=true;
+    }
+  });
+  if(changed){save();render();}
+}
+
 function startApp(){
   document.getElementById('ls').style.display='none';
   document.getElementById('app').style.display='flex';
@@ -4136,10 +4265,17 @@ function startApp(){
   // Сначала рендерим локальные данные — сразу без ожидания облака
   render();
   // Потом тянем облако и обновляем
-  pullCloud(function(){render();checkSmartAlerts();});
+  pullCloud(function(){
+    render();
+    checkSmartAlerts();
+    autoCloseUnreported();
+    // Миграция долгов v62 — только ВРУЧНУЮ через кнопку в настройках
+    // НЕ запускаем автоматически чтобы не дублировать
+  });
   setTimeout(function(){startDraftsPolling();initPushNotifications();},2000);
   setTimeout(function(){if(typeof loadAIForecast==='function')loadAIForecast();},3000);
   setInterval(function(){if(role&&typeof loadAIForecast==='function')loadAIForecast();},1800000);
+  setInterval(function(){if(isEditor())autoCloseUnreported();},3600000);
 }
 
 // ============ PUSH УВЕДОМЛЕНИЯ ============
@@ -4881,7 +5017,7 @@ function rejectDraftGroup(linkedKey){
 // Версия приложения. Меняется при каждом релизе.
 // Логика мягкого обновления: настройки ИИ переживают переход на новую версию,
 // обновление применяется при следующем естественном открытии (без миганий).
-var APP_VERSION='56';
+var APP_VERSION='64';
 // Ключи которые НЕ стираем при обновлении (настройки пользователя)
 var PRESERVED_KEYS = ['lg_ai_worker_url', 'lg_ai_token', 'role'];
 (function(){
