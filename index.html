@@ -999,7 +999,9 @@ function pushCloud(){
   }
   fetch(BURL,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':AK,'X-Bin-Versioning':'false'},body:JSON.stringify({_modified:S._modified,entries:S.entries,brigades:S.brigades,objects:S.objects,history:S.history,weeks:S.weeks,kfu:S.kfu,settings:S.settings,goalsDone:S.goalsDone})}).then(function(){ss('OK',false);}).catch(function(){ss('!',true);});
 }
+var _editLock=false; // блокировка синхронизации во время редактирования
 function pullCloud(cb){
+  if(_editLock){if(cb)cb();return;} // не синхронизируем во время правки
   ss('..',false);
   // Если нет интернета или ключей — показываем локальные данные сразу
   if(!AK||!BIN){if(cb)cb();return;}
@@ -2334,8 +2336,9 @@ function openEntryCard(id){
 }
 
 function openEditEntry(id){
+  _editLock=true; // блокируем синхронизацию пока редактируется запись
   var e=S.entries.find(function(x){return x.id===id;});
-  if(!e) return;
+  if(!e){_editLock=false;return;}
   var T2=TYPES[e.type]||{lbl:e.type};
   var oo=S.objects.map(function(o){return '<option'+(e.obj===o?' selected':'')+'>'+o+'</option>';}).join('');
   var po=PARTNERS.map(function(p){return '<option'+(e.who===p?' selected':'')+'>'+p+'</option>';}).join('');
@@ -2352,7 +2355,7 @@ function openEditEntry(id){
     '<div class="fg"><label class="fl">Объект</label><select class="fi" id="ee-obj">'+oo+'</select></div>'+
     '<div class="fg"><label class="fl">Примечание</label><input class="fi" id="ee-note" type="text" value="'+(e.note||'').replace(/"/g,'&quot;')+'"/></div>'+
     '<button class="fsave" id="ee-save">СОХРАНИТЬ ИЗМЕНЕНИЯ</button>'+
-    '<button class="fcanc" onclick="closeModal()">Отмена</button>';
+    '<button class="fcanc" onclick="_editLock=false;closeModal()">Отмена</button>';
   document.getElementById('modal').style.display='flex';
   document.getElementById('ee-save').addEventListener('click',function(){
     e.date=document.getElementById('ee-date').value||e.date;
@@ -2366,8 +2369,9 @@ function openEditEntry(id){
     S.history.push({action:'edit',by:role,at:new Date().toISOString(),type:e.type,amount:e.amount});
     S._modified=Date.now();
     save();
-    // Принудительно отправляем в облако сразу (не ждём 1.5 сек)
+    // Принудительно отправляем в облако сразу + повторно через 2 сек для надёжности
     setTimeout(function(){pushCloud();},100);
+    setTimeout(function(){pushCloud();_editLock=false;},2500);
     closeModal();render();
   });
 }
@@ -5024,7 +5028,7 @@ function rejectDraftGroup(linkedKey){
 // Версия приложения. Меняется при каждом релизе.
 // Логика мягкого обновления: настройки ИИ переживают переход на новую версию,
 // обновление применяется при следующем естественном открытии (без миганий).
-var APP_VERSION='65';
+var APP_VERSION='67';
 // Ключи которые НЕ стираем при обновлении (настройки пользователя)
 var PRESERVED_KEYS = ['lg_ai_worker_url', 'lg_ai_token', 'role'];
 (function(){
