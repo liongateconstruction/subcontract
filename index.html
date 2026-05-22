@@ -2944,10 +2944,15 @@ h+='<div class="kgrid"><div class="kc" style="--cbar:var(--green);cursor:pointer
 h+='<div class="dcard"><div class="ctit">Доли вложений партнёров</div><canvas id="ch-pie" style="height:130px"></canvas></div>';
 h+='<div class="dcard"><div class="ctit">Вложил vs взял лично (тыс тг)</div><canvas id="ch-par" style="height:160px"></canvas></div>';
 h+='<div class="sect">Расчёт по каждому</div>';
-PARTNERS.forEach(function(p,i){var P=calcPar(p);var fc=P.totalGet>=0?'var(--green)':'var(--red)';h+='<div class="pcard" style="border-top:3px solid '+PC[i]+';cursor:pointer;transition:transform .15s" onclick="openPartnerCard(\''+p+'\')" ontouchstart="this.style.transform=\'scale(.98)\'" ontouchend="this.style.transform=\'scale(1)\'"><div class="phdr"><div><div class="pname" style="color:'+PC[i]+'">'+p+'</div>'+(P.invested>0?'<div style="font-size:9px;color:var(--blue)">Вложил: '+fmt(P.invested)+' тг</div>':'<div style="font-size:9px;color:var(--mut)">доля 1/5</div>')+'</div><div style="text-align:right"><div style="font-size:8px;color:var(--mut);text-transform:uppercase">Итого</div><div style="font-family:var(--fd);font-size:22px;color:'+fc+'">'+fmt(Math.abs(P.totalGet))+'</div></div></div><div class="pbody">';
+PARTNERS.forEach(function(p,i){var P=calcPar(p);var fc=P.totalGet>=0?'var(--green)':'var(--red)';
+// Подотчётный остаток: личные минус расходы партнёра
+var pSpent=S.entries.filter(function(e){return e.type==='expense'&&e.who===p;}).reduce(function(s,e){return s+e.amount;},0);
+var pUnder=Math.max(0, P.personal - pSpent);
+h+='<div class="pcard" style="border-top:3px solid '+PC[i]+';cursor:pointer;transition:transform .15s" onclick="openPartnerCard(\''+p+'\')" ontouchstart="this.style.transform=\'scale(.98)\'" ontouchend="this.style.transform=\'scale(1)\'"><div class="phdr"><div><div class="pname" style="color:'+PC[i]+'">'+p+'</div>'+(P.invested>0?'<div style="font-size:9px;color:var(--blue)">Вложил: '+fmt(P.invested)+' тг</div>':'<div style="font-size:9px;color:var(--mut)">доля 1/5</div>')+'</div><div style="text-align:right"><div style="font-size:8px;color:var(--mut);text-transform:uppercase">Итого</div><div style="font-family:var(--fd);font-size:22px;color:'+fc+'">'+fmt(Math.abs(P.totalGet))+'</div></div></div><div class="pbody">';
 if(P.invested>0)h+='<div class="r2"><span class="lb">Возврат вложений</span><span class="vl" style="color:var(--blue)">+'+fmt(P.invested-P.returned)+' тг</span></div>';
 h+='<div class="r2"><span class="lb">Доля прибыли</span><span class="vl" style="color:var(--gold)">+'+fmt(C.share)+' тг</span></div>';
 if(P.personal>0)h+='<div class="r2"><span class="lb">Взял лично</span><span class="vl" style="color:var(--purple)">-'+fmt(P.personal)+' тг</span></div>';
+if(pUnder>0)h+='<div class="r2" style="background:rgba(255,179,32,.06);margin:4px -4px;padding:4px 10px;border-radius:6px"><span class="lb" style="color:var(--gold)">📋 Подотчёт остаток</span><span class="vl" style="color:var(--gold);font-weight:700">'+fmt(pUnder)+' тг</span></div>';
 h+='<div class="divider"></div><div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:11px;font-weight:700;color:'+fc+'">'+(P.totalGet>=0?T('toReceive'):T('toReturn'))+'</span><span style="font-family:var(--fd);font-size:20px;color:'+fc+'">'+fmt(Math.abs(P.totalGet))+' тг</span></div>';
 h+='<button onclick="openPartnerCard(\''+p+'\')" style="margin-top:10px;width:100%;background:linear-gradient(135deg,rgba('+( i===0?'240,165,0':i===1?'46,160,67':i===2?'56,139,253':i===3?'137,87,229':i===4?'218,54,51':'61,70,85' )+',0.15),transparent);border:1px solid '+PC[i]+';color:'+PC[i]+';border-radius:10px;padding:10px;font-size:12px;font-family:var(--fd);letter-spacing:1px;cursor:pointer">ПОДРОБНЕЕ →</button>';
 h+='</div></div>';});
@@ -2963,6 +2968,10 @@ function openPartnerCard(name){
   var invested=ops.filter(function(e){return e.type==='invest';}).reduce(function(s,e){return s+e.amount;},0);
   var personal=ops.filter(function(e){return e.type==='personal';}).reduce(function(s,e){return s+e.amount;},0);
   var returned=ops.filter(function(e){return e.type==='return';}).reduce(function(s,e){return s+e.amount;},0);
+  // Подотчёт: расходы которые партнёр сделал из взятых лично денег
+  var spentForCo=ops.filter(function(e){return e.type==='expense';}).reduce(function(s,e){return s+e.amount;},0);
+  // Подотчётный остаток: взял лично − потратил на компанию (если положительное — деньги на руках)
+  var underReport=Math.max(0, personal - spentForCo);
   var share=C.share||0;
   var toReceive=invested+share-personal-returned;
   var goalShare=Math.round(920/5*10)/10; // 184 млн на партнёра
@@ -3011,6 +3020,31 @@ function openPartnerCard(name){
   h+='<div style="height:8px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden">';
   h+='<div style="height:100%;width:'+goalPct+'%;background:linear-gradient(90deg,'+color+','+color+'88);border-radius:4px;transition:width .8s"></div>';
   h+='</div></div>';
+
+  // ПОДОТЧЁТНЫЕ ДЕНЬГИ
+  if(personal>0){
+    var reportedPct=personal>0?Math.min(Math.round(spentForCo/personal*100),100):0;
+    var underColor=underReport===0?'var(--green)':underReport<personal*0.3?'var(--orange)':'var(--red)';
+    h+='<div style="background:linear-gradient(145deg,rgba(255,179,32,.08),rgba(255,179,32,.03));border:1px solid rgba(255,179,32,.2);border-radius:12px;padding:14px;margin-bottom:14px">';
+    h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">';
+    h+='<span style="font-size:10px;color:var(--gold);letter-spacing:2px;font-weight:700">📋 ПОДОТЧЁТ</span>';
+    h+='<span style="font-size:10px;color:var(--mut)">'+reportedPct+'% отчитался</span>';
+    h+='</div>';
+    h+='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px">';
+    h+='<div style="text-align:center"><div style="font-size:9px;color:var(--mut);margin-bottom:3px">Взял</div><div style="font-family:var(--fd);font-size:15px;color:var(--purple)">'+fmt(personal)+'</div></div>';
+    h+='<div style="text-align:center"><div style="font-size:9px;color:var(--mut);margin-bottom:3px">Отчитался</div><div style="font-family:var(--fd);font-size:15px;color:var(--green)">'+fmt(spentForCo)+'</div></div>';
+    h+='<div style="text-align:center"><div style="font-size:9px;color:var(--mut);margin-bottom:3px">Остаток</div><div style="font-family:var(--fd);font-size:15px;color:'+underColor+'">'+fmt(underReport)+'</div></div>';
+    h+='</div>';
+    h+='<div style="height:6px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden">';
+    h+='<div style="height:100%;width:'+reportedPct+'%;background:linear-gradient(90deg,var(--green),var(--gold));border-radius:3px"></div>';
+    h+='</div>';
+    var status='';
+    if(underReport===0) status='✅ Все деньги отчитаны расходами';
+    else if(underReport<personal*0.3) status='⚡ Почти всё отчитано, остаток '+fmt(underReport)+' тг на руках';
+    else status='⚠️ На руках '+fmt(underReport)+' тг — нужен отчёт по расходам';
+    h+='<div style="font-size:10px;color:var(--mut);margin-top:8px;line-height:1.5">'+status+'</div>';
+    h+='</div>';
+  }
 
   // Детальный расчёт
   h+='<div style="background:var(--s2);border-radius:12px;padding:12px 14px;margin-bottom:14px">';
@@ -4847,7 +4881,7 @@ function rejectDraftGroup(linkedKey){
 // Версия приложения. Меняется при каждом релизе.
 // Логика мягкого обновления: настройки ИИ переживают переход на новую версию,
 // обновление применяется при следующем естественном открытии (без миганий).
-var APP_VERSION='55';
+var APP_VERSION='56';
 // Ключи которые НЕ стираем при обновлении (настройки пользователя)
 var PRESERVED_KEYS = ['lg_ai_worker_url', 'lg_ai_token', 'role'];
 (function(){
