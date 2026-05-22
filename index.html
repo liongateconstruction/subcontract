@@ -2388,25 +2388,25 @@ var mForecastMln=Math.round(mForecast/100000)/10;
 var mForecastColor=mForecastMln>=mPlanMln?'var(--green)':mForecastMln>=mPlanMln*0.7?'var(--orange)':'var(--red)';
 
 h+='<div class="kgrid">';
-h+='<div class="kc" style="--cbar:'+mColor+';cursor:pointer" onclick="openMonthCard(\"plan\")">';
+h+='<div class="kc" style="--cbar:'+mColor+';cursor:pointer" onclick="openMonthCard(this.dataset.f)" data-f="plan">';
 h+='<div class="kc-l">'+G.cur.name+' план</div>';
 h+='<div class="kc-v" style="color:var(--mut)">'+mPlanMln.toFixed(1)+'</div>';
 h+='<div class="kc-s">млн цель месяца</div>';
 h+='<div class="kc-t" style="color:var(--mut)">'+daysLeftInMonth+' дн осталось</div></div>';
 
-h+='<div class="kc" style="--cbar:'+mColor+';cursor:pointer" onclick="openMonthCard(\"fact\")">';
+h+='<div class="kc" style="--cbar:'+mColor+';cursor:pointer" onclick="openMonthCard(this.dataset.f)" data-f="fact">';
 h+='<div class="kc-l">'+G.cur.name+' факт</div>';
 h+='<div class="kc-v" style="color:'+mColor+'">'+mProfitMln.toFixed(1)+'</div>';
 h+='<div class="kc-s">млн '+(mPct>=100?'✓ план выполнен!':mPct+'% от плана')+'</div>';
 h+='<div class="kc-t" style="color:'+mColor+'">'+(mInc>0?'доход: '+fmt(mInc)+' тг':'ждём доход')+'</div></div>';
 
-h+='<div class="kc" style="--cbar:'+G.wColor+';cursor:pointer" onclick="openMonthCard(\"workers\")">';
+h+='<div class="kc" style="--cbar:'+G.wColor+';cursor:pointer" onclick="openMonthCard(this.dataset.f)" data-f="workers">';
 h+='<div class="kc-l">Рабочие</div>';
 h+='<div class="kc-v" style="color:'+G.wColor+'">'+G.workers+'</div>';
 h+='<div class="kc-s">из '+G.cur.workers+' план</div>';
 h+='<div class="kc-t" style="color:'+G.wColor+'">'+G.wStatus+'</div></div>';
 
-h+='<div class="kc" style="--cbar:'+mForecastColor+';cursor:pointer" onclick="openMonthCard(\"forecast\")">';
+h+='<div class="kc" style="--cbar:'+mForecastColor+';cursor:pointer" onclick="openMonthCard(this.dataset.f)" data-f="forecast">';
 h+='<div class="kc-l">Прогноз</div>';
 h+='<div class="kc-v" style="color:'+mForecastColor+'">'+mForecastMln.toFixed(1)+'</div>';
 h+='<div class="kc-s">млн к концу месяца</div>';
@@ -2718,12 +2718,12 @@ h+='<div class="dmini"><div class="dmini-i"><div class="dmini-v" style="color:va
 // KPI grid
 var lastWkExp=0;var weekAgo=new Date();weekAgo.setDate(weekAgo.getDate()-7);S.entries.filter(function(e){return e.type==='expense'&&new Date(e.date)>=weekAgo;}).forEach(function(e){lastWkExp+=e.amount;});
 h+='<div class="kgrid">';
-h+='<div class="kc" style="--cbar:var(--green);cursor:pointer" onclick="openPLCard(\"income\")"><div class="kc-l">Доходы</div><div class="kc-v" style="color:var(--green)">'+fmt(C.income)+'</div><div class="kc-s">тг от заказчика</div><div class="kc-t" style="color:var(--mut)">'+(C.income?'':'ждём оплату')+'</div></div>';
-h+='<div class="kc" style="--cbar:var(--red);cursor:pointer" onclick="openPLCard(\"expense\")"><div class="kc-l">Расходы</div><div class="kc-v" style="color:var(--red)">'+fmt(C.expense)+'</div><div class="kc-s">тг компания</div><div class="kc-t" style="color:var(--mut)">+'+fmt(lastWkExp)+' за 7 дн</div></div>';
-h+='<div class="kc" style="--cbar:'+(C.cash>=0?'var(--gold)':'var(--red)')+';cursor:pointer" onclick="openPLCard(\"cash\")"><div class="kc-l">Касса</div><div class="kc-v" style="color:'+(C.cash>=0?'var(--gold)':'var(--red)')+'">'+fmt(C.cash)+'</div><div class="kc-s">тг остаток</div><div class="kc-t" style="color:'+(C.cash<50000?'var(--orange)':'var(--mut)')+'">'+(C.cash<0?'минус!':C.cash<50000?'мало':'норма')+'</div></div>';
-h+='<div class="kc" style="--cbar:var(--blue);cursor:pointer" onclick="openPLCard(\"invested\")"><div class="kc-l">Вложено</div><div class="kc-v" style="color:var(--blue)">'+fmt(C.invested)+'</div><div class="kc-s">тг партнёры</div><div class="kc-t" style="color:var(--blue)">вернуть '+fmt(C.owed)+'</div></div>';
+h+='<div class="kc" style="--cbar:var(--green);cursor:pointer" onclick="openPLCard(this.dataset.f)" data-f="income"><div class="kc-l">Доходы</div><div class="kc-v" style="color:var(--green)">'+fmt(C.income)+'</div><div class="kc-s">тг от заказчика</div><div class="kc-t" style="color:var(--mut)">'+(C.income?'':'ждём оплату')+'</div></div>';
+h+='<div class="kc" style="--cbar:var(--red);cursor:pointer" onclick="openPLCard(this.dataset.f)" data-f="expense"><div class="kc-l">Расходы</div><div class="kc-v" style="color:var(--red)">'+fmt(C.expense)+'</div><div class="kc-s">тг компания</div><div class="kc-t" style="color:var(--mut)">+'+fmt(lastWkExp)+' за 7 дн</div></div>';
+h+='<div class="kc" style="--cbar:'+(C.cash>=0?'var(--gold)':'var(--red)')+';cursor:pointer" onclick="openPLCard(this.dataset.f)" data-f="cash"><div class="kc-l">Касса</div><div class="kc-v" style="color:'+(C.cash>=0?'var(--gold)':'var(--red)')+'">'+fmt(C.cash)+'</div><div class="kc-s">тг остаток</div><div class="kc-t" style="color:'+(C.cash<50000?'var(--orange)':'var(--mut)')+'">'+(C.cash<0?'минус!':C.cash<50000?'мало':'норма')+'</div></div>';
+h+='<div class="kc" style="--cbar:var(--blue);cursor:pointer" onclick="openPLCard(this.dataset.f)" data-f="invested"><div class="kc-l">Вложено</div><div class="kc-v" style="color:var(--blue)">'+fmt(C.invested)+'</div><div class="kc-s">тг партнёры</div><div class="kc-t" style="color:var(--blue)">вернуть '+fmt(C.owed)+'</div></div>';
 h+='<div class="kc" style="--cbar:var(--purple)"><div class="kc-l">Взяли лично</div><div class="kc-v" style="color:var(--purple)">'+fmt(C.personal)+'</div><div class="kc-s">тг партнёры</div><div class="kc-t" style="color:var(--mut)">из своей доли</div></div>';
-h+='<div class="kc" style="--cbar:'+(C.profit>=0?'var(--green)':'var(--red)')+';cursor:pointer" onclick="openPLCard(\"profit\")"><div class="kc-l">Прибыль</div><div class="kc-v" style="color:'+(C.profit>=0?'var(--green)':'var(--red)')+'">'+fmtS(C.profit)+'</div><div class="kc-s">тг доходы−расходы</div><div class="kc-t" style="color:var(--mut)">'+(C.profit>=0?'плюс':'пока минус')+'</div></div>';
+h+='<div class="kc" style="--cbar:'+(C.profit>=0?'var(--green)':'var(--red)')+';cursor:pointer" onclick="openPLCard(this.dataset.f)" data-f="profit"><div class="kc-l">Прибыль</div><div class="kc-v" style="color:'+(C.profit>=0?'var(--green)':'var(--red)')+'">'+fmtS(C.profit)+'</div><div class="kc-s">тг доходы−расходы</div><div class="kc-t" style="color:var(--mut)">'+(C.profit>=0?'плюс':'пока минус')+'</div></div>';
 h+='</div>';
 // Cash chart
 h+='<div class="dcard"><div class="ctit">Движение кассы (тыс тг)</div><canvas id="ch-cash" style="height:140px"></canvas></div>';
@@ -2829,7 +2829,7 @@ if(vf.length>0){
 
 function rPL(){var C=calcCo();var cm={};S.entries.filter(function(e){return e.type==='expense';}).forEach(function(e){cm[e.cat]=(cm[e.cat]||0)+e.amount;});var cats=Object.entries(cm).sort(function(a,b){return b[1]-a[1];});var mc=cats.length?cats[0][1]:1;
 var h='<div class="shdr"><h2>P&L</h2></div>';
-h+='<div class="kgrid"><div class="kc" style="--cbar:var(--green);cursor:pointer" onclick="openPLCard(\"income\")"><div class="kc-l">Доходы</div><div class="kc-v" style="color:var(--green)">'+fmt(C.income)+'</div><div class="kc-s">тг</div></div><div class="kc" style="--cbar:var(--red);cursor:pointer" onclick="openPLCard(\"expense\")"><div class="kc-l">Расходы</div><div class="kc-v" style="color:var(--red)">'+fmt(C.expense)+'</div><div class="kc-s">тг</div></div><div class="kc" style="--cbar:'+(C.profit>=0?'var(--green)':'var(--red)')+'"><div class="kc-l">Прибыль</div><div class="kc-v" style="color:'+(C.profit>=0?'var(--green)':'var(--red)')+'">'+fmtS(C.profit)+'</div><div class="kc-s">тг</div></div><div class="kc" style="--cbar:var(--gold);cursor:pointer" onclick="openPLCard(\"cash\")"><div class="kc-l">Касса</div><div class="kc-v" style="color:var(--gold)">'+fmt(C.cash)+'</div><div class="kc-s">тг</div></div></div>';
+h+='<div class="kgrid"><div class="kc" style="--cbar:var(--green);cursor:pointer" onclick="openPLCard(this.dataset.f)" data-f="income"><div class="kc-l">Доходы</div><div class="kc-v" style="color:var(--green)">'+fmt(C.income)+'</div><div class="kc-s">тг</div></div><div class="kc" style="--cbar:var(--red);cursor:pointer" onclick="openPLCard(this.dataset.f)" data-f="expense"><div class="kc-l">Расходы</div><div class="kc-v" style="color:var(--red)">'+fmt(C.expense)+'</div><div class="kc-s">тг</div></div><div class="kc" style="--cbar:'+(C.profit>=0?'var(--green)':'var(--red)')+'"><div class="kc-l">Прибыль</div><div class="kc-v" style="color:'+(C.profit>=0?'var(--green)':'var(--red)')+'">'+fmtS(C.profit)+'</div><div class="kc-s">тг</div></div><div class="kc" style="--cbar:var(--gold);cursor:pointer" onclick="openPLCard(this.dataset.f)" data-f="cash"><div class="kc-l">Касса</div><div class="kc-v" style="color:var(--gold)">'+fmt(C.cash)+'</div><div class="kc-s">тг</div></div></div>';
 // График помесячно — доходы vs расходы
 var mInc={},mExp={};
 S.entries.forEach(function(e){
@@ -4847,7 +4847,7 @@ function rejectDraftGroup(linkedKey){
 // Версия приложения. Меняется при каждом релизе.
 // Логика мягкого обновления: настройки ИИ переживают переход на новую версию,
 // обновление применяется при следующем естественном открытии (без миганий).
-var APP_VERSION='54';
+var APP_VERSION='55';
 // Ключи которые НЕ стираем при обновлении (настройки пользователя)
 var PRESERVED_KEYS = ['lg_ai_worker_url', 'lg_ai_token', 'role'];
 (function(){
