@@ -2339,13 +2339,15 @@ function openEditEntry(id){
   var T2=TYPES[e.type]||{lbl:e.type};
   var oo=S.objects.map(function(o){return '<option'+(e.obj===o?' selected':'')+'>'+o+'</option>';}).join('');
   var po=PARTNERS.map(function(p){return '<option'+(e.who===p?' selected':'')+'>'+p+'</option>';}).join('');
+  var pfp=PARTNERS.map(function(p){return '<option'+(e.forPartner===p?' selected':'')+'>'+p+'</option>';}).join('');
   var co=EXP_CATS.map(function(c){return '<option'+(e.cat===c?' selected':'')+'>'+c+'</option>';}).join('');
   document.getElementById('mtit').textContent='РЕДАКТИРОВАТЬ';
   document.getElementById('mbody').innerHTML=
     '<div style="background:var(--s2);border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:11px;color:var(--mut)">'+badge(e.type)+' '+T2.lbl+' · '+e.date+'</div>'+
     '<div class="fg"><label class="fl">Дата</label><input class="fi" id="ee-date" type="date" value="'+e.date+'"/></div>'+
     '<div class="fg"><label class="fl">Сумма, тг</label><input class="fi" id="ee-amt" type="number" value="'+(e.amount||0)+'" inputmode="numeric"/></div>'+
-    '<div class="fg"><label class="fl">Партнёр</label><select class="fi" id="ee-who"><option value="">— нет —</option>'+po+'</select></div>'+
+    '<div class="fg"><label class="fl">Партнёр (кто)</label><select class="fi" id="ee-who"><option value="">— нет —</option>'+po+'</select></div>'+
+    (e.type==='invest'?'<div class="fg" style="background:rgba(255,179,32,.05);border:1px solid rgba(255,179,32,.2);border-radius:8px;padding:10px"><label class="fl" style="color:var(--gold)">📋 Для партнёра (под отчёт)</label><select class="fi" id="ee-fp"><option value="">— общая касса —</option>'+pfp+'</select><div style="font-size:9px;color:var(--mut);margin-top:6px">Если деньги переданы партнёру под отчёт — выберите его</div></div>':'')+
     (e.type==='expense'?'<div class="fg"><label class="fl">Категория</label><select class="fi" id="ee-cat"><option value="">— нет —</option>'+co+'</select></div>':'')+
     '<div class="fg"><label class="fl">Объект</label><select class="fi" id="ee-obj">'+oo+'</select></div>'+
     '<div class="fg"><label class="fl">Примечание</label><input class="fi" id="ee-note" type="text" value="'+(e.note||'').replace(/"/g,'&quot;')+'"/></div>'+
@@ -2356,12 +2358,17 @@ function openEditEntry(id){
     e.date=document.getElementById('ee-date').value||e.date;
     e.amount=parseInt(document.getElementById('ee-amt').value)||e.amount;
     var who=document.getElementById('ee-who');if(who)e.who=who.value;
+    var fp=document.getElementById('ee-fp');if(fp){if(fp.value)e.forPartner=fp.value;else delete e.forPartner;}
     var cat=document.getElementById('ee-cat');if(cat)e.cat=cat.value;
     var obj=document.getElementById('ee-obj');if(obj)e.obj=obj.value;
     e.note=document.getElementById('ee-note').value;
     if(!S.history)S.history=[];
     S.history.push({action:'edit',by:role,at:new Date().toISOString(),type:e.type,amount:e.amount});
-    save();closeModal();render();
+    S._modified=Date.now();
+    save();
+    // Принудительно отправляем в облако сразу (не ждём 1.5 сек)
+    setTimeout(function(){pushCloud();},100);
+    closeModal();render();
   });
 }
 
@@ -5017,7 +5024,7 @@ function rejectDraftGroup(linkedKey){
 // Версия приложения. Меняется при каждом релизе.
 // Логика мягкого обновления: настройки ИИ переживают переход на новую версию,
 // обновление применяется при следующем естественном открытии (без миганий).
-var APP_VERSION='64';
+var APP_VERSION='65';
 // Ключи которые НЕ стираем при обновлении (настройки пользователя)
 var PRESERVED_KEYS = ['lg_ai_worker_url', 'lg_ai_token', 'role'];
 (function(){
