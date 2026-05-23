@@ -3267,29 +3267,6 @@ function rMyPartnerCard(){
   h+='<div class="kc" style="--cbar:'+(balance>=0?'var(--gold)':'var(--red)')+'"><div class="kc-l">📊 '+(balance>=0?'К получению':'К возврату')+'</div><div class="kc-v" style="color:'+(balance>=0?'var(--gold)':'var(--red)')+';font-size:18px">'+fmt(Math.abs(balance))+'</div><div class="kc-s">тг</div></div>';
   h+='</div>';
 
-  // Мои черновики из Telegram, ожидающие сверки учётчицей
-  var myDrafts=(_drafts||[]).filter(function(d){
-    if(_deletedIds[d.id]) return false;
-    var a=(d.author||'').toLowerCase(), n=name.toLowerCase();
-    // показываем партнёру черновики где он автор сообщения ИЛИ упомянут как получатель/исполнитель
-    return a.indexOf(n)>=0 || (d.op&&((d.op.who||'').toLowerCase()===n || (d.op.forPartner||'').toLowerCase()===n));
-  });
-  if(myDrafts.length>0){
-    var labels2={expense:'💸 Расход',income:'💰 Доход',invest:'📥 Вложение',personal:'🟠 Личный',workers:'👷 Рабочие'};
-    h+='<div class="sect">⏳ На сверке у учётчицы</div>';
-    h+='<div class="dcard" style="border-left:3px solid var(--orange);margin-bottom:14px">';
-    myDrafts.slice(0,5).forEach(function(d){
-      var op=d.op||{}; var dt=new Date(d.ts);
-      h+='<div style="padding:9px 0;border-bottom:1px solid var(--s2)">';
-      h+='<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--mut);margin-bottom:4px"><span>'+dt.toLocaleDateString('ru-RU')+' '+dt.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})+'</span><span style="color:var(--orange)">⏳ ждёт сверки</span></div>';
-      h+='<div style="font-size:12px;font-weight:600">'+(labels2[op.kind]||op.kind||'?')+' · '+(op.amount?fmt(op.amount)+' тг':((op.workersCount||0)+' чел'))+'</div>';
-      if(d.originalText) h+='<div style="font-size:10px;color:var(--mut);font-style:italic;margin-top:2px">«'+d.originalText.replace(/</g,'&lt;').slice(0,80)+(d.originalText.length>80?'…':'')+'»</div>';
-      h+='</div>';
-    });
-    if(myDrafts.length>5) h+='<div style="padding:6px 0;font-size:10px;color:var(--mut);text-align:center">+ ещё '+(myDrafts.length-5)+'</div>';
-    h+='</div>';
-  }
-
   // Прогресс к цели года
   var goalShare=9200000/5; // 920 млн / 5 партнёров
   var pct=Math.min(Math.round(shareVal/goalShare*100),100);
@@ -3319,7 +3296,7 @@ function rMyPartnerCard(){
     ops.slice(0,20).forEach(function(e){
       var T2=TYPES[e.type]||{color:'var(--mut)',ico:'·',lbl:e.type};
       h+='<div class="oprow"><div class="opbody">';
-      h+='<div style="font-size:11px;font-weight:700;color:'+T2.color+'">'+T2.ico+' '+T2.lbl+(e.source==='telegram'?' <span style="font-size:9px;color:var(--mut);font-weight:400">· 📱</span>':'')+'</div>';
+      h+='<div style="font-size:11px;font-weight:700;color:'+T2.color+'">'+T2.ico+' '+T2.lbl+'</div>';
       h+='<div style="font-size:10px;color:var(--mut)">'+e.date+(e.note?' · '+e.note:'')+'</div>';
       h+='</div><div style="font-family:var(--fd);font-size:14px;color:'+T2.color+'">'+fmt(e.amount)+'</div></div>';
     });
@@ -3330,9 +3307,7 @@ function rMyPartnerCard(){
 }
 
 function rPartners(){
-  // Если вошёл партнёр — показываем только его карточку
-  if(isPartner()) return rMyPartnerCard();
-
+  // Партнёр видит то же что админ — все карточки, по клику полная сверка (без права редактировать)
   var C=calcCo();var h='<div class="shdr"><h2>ПАРТНЁРЫ</h2></div>';
 h+='<div class="kgrid"><div class="kc" style="--cbar:var(--green);cursor:pointer" onclick="openGoalCard()"><div class="kc-l">Прибыль</div><div class="kc-v" style="color:'+(C.profit>=0?'var(--green)':'var(--red)')+'">'+fmtS(C.profit)+'</div><div class="kc-s">тг</div></div><div class="kc" style="--cbar:var(--blue)"><div class="kc-l">Вернуть</div><div class="kc-v" style="color:var(--blue)">'+fmt(C.owed)+'</div><div class="kc-s">тг вложения</div></div><div class="kc" style="--cbar:var(--gold)"><div class="kc-l">Доля 1/5</div><div class="kc-v" style="color:var(--gold)">'+fmt(C.share)+'</div><div class="kc-s">тг каждому</div></div><div class="kc" style="--cbar:var(--purple)"><div class="kc-l">Изъятия</div><div class="kc-v" style="color:var(--purple)">'+fmt(C.personal)+'</div><div class="kc-s">тг лично</div></div></div>';
 h+='<div class="dcard"><div class="ctit">Доли вложений партнёров</div><canvas id="ch-pie" style="height:130px"></canvas></div>';
@@ -5429,13 +5404,11 @@ function startDraftsPolling(){
   if(_draftsTimer) clearInterval(_draftsTimer);
   if((role==='editor'||isPartner())&&AI_WORKER_URL&&AI_SHARED_TOKEN){
     loadDrafts(true);
-    // Первые 30 сек — опрашиваем каждые 5 сек (для быстрого появления свежих)
     var fastCount=0;
     _draftsTimer=setInterval(function(){
       loadDrafts(false);
       fastCount++;
       if(fastCount>=6){
-        // Переключаемся на медленный режим — каждые 30 сек
         clearInterval(_draftsTimer);
         _draftsTimer=setInterval(function(){loadDrafts(false);},30000);
       }
@@ -5443,7 +5416,6 @@ function startDraftsPolling(){
   }
 }
 
-// При фокусе вкладки — сразу обновить черновики
 document.addEventListener('visibilitychange',function(){
   if(!document.hidden&&(role==='editor'||isPartner())&&AI_WORKER_URL){
     loadDrafts(false);
@@ -5535,12 +5507,22 @@ function openDraftsModal(){
       }
       h+='</div>';
     });
-    h+='<div style="display:flex;gap:6px;margin-top:10px">';
-    h+='<button onclick="confirmDraftGroup(\''+k+'\')" style="flex:2;background:var(--green);border:none;color:#0d1117;font-family:var(--fd);font-size:13px;padding:11px;border-radius:6px;cursor:pointer">✓ ПОДТВЕРДИТЬ</button>';
-    h+='<button onclick="rejectDraftGroup(\''+k+'\')" style="flex:1;background:transparent;border:1px solid var(--red);color:var(--red);font-family:var(--fm);font-size:11px;padding:11px;border-radius:6px;cursor:pointer">✗ Удалить</button>';
-    h+='</div></div>';
+    if(canEdit()){
+      h+='<div style="display:flex;gap:6px;margin-top:10px">';
+      h+='<button onclick="confirmDraftGroup(\''+k+'\')" style="flex:2;background:var(--green);border:none;color:#0d1117;font-family:var(--fd);font-size:13px;padding:11px;border-radius:6px;cursor:pointer">✓ ПОДТВЕРДИТЬ</button>';
+      h+='<button onclick="rejectDraftGroup(\''+k+'\')" style="flex:1;background:transparent;border:1px solid var(--red);color:var(--red);font-family:var(--fm);font-size:11px;padding:11px;border-radius:6px;cursor:pointer">✗ Удалить</button>';
+      h+='</div>';
+    } else {
+      h+='<div style="margin-top:10px;font-size:10px;color:var(--mut);text-align:center;padding:6px;background:rgba(255,255,255,.03);border-radius:6px">⏳ Ожидает сверки учётчицей</div>';
+    }
+    h+='</div>';
   });
   h+='<button class="fcanc" onclick="closeModal()">Закрыть</button>';
+  // Read-only режим для партнёров: блокируем поля
+  if(!canEdit()){
+    h = h.replace(/<select /g, '<select disabled style="opacity:.7;cursor:not-allowed" ')
+         .replace(/<input /g, '<input disabled style="opacity:.7;cursor:not-allowed" ');
+  }
   document.getElementById('mbody').innerHTML=h;
   document.getElementById('modal').style.display='flex';
 }
@@ -5589,7 +5571,6 @@ function confirmDraftGroup(linkedKey){
   });
   save();closeModal();render();
   showUndoToast('✓ Добавлено: '+added,function(){
-    // UNDO: убираем добавленные entries
     if(addedEntryIds.length){
       S.entries=S.entries.filter(function(e){return addedEntryIds.indexOf(e.id)<0;});
       save();render();
