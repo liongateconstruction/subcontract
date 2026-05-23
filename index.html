@@ -1398,6 +1398,9 @@ function calcCo(){
   var profit=income-expense,owed=invested-returned,toShare=Math.max(profit-owed,0);
   // КАССА: если установлена стартовая касса с датой — считаем от неё,
   // иначе используем общую формулу
+  // ВАЖНО: invest с forPartner НЕ идёт в кассу — это передача из кармана в карман,
+  // деньги физически не попали в общую кассу. В кассу идут только invest БЕЗ forPartner.
+  var investedToCash=S.entries.filter(function(e){return e.type==='invest'&&!e.forPartner;}).reduce(function(s,e){return s+e.amount;},0);
   var startCash=(S.settings&&S.settings.startCash)||0;
   var startCashDate=(S.settings&&S.settings.startCashDate)||'';
   var cash;
@@ -1406,7 +1409,8 @@ function calcCo(){
     var newInv=0, newExp=0, newPer=0, newRet=0, newInc=0;
     S.entries.forEach(function(e){
       if(!e.date || e.date<=startCashDate) return; // только после даты
-      if(e.type==='invest') newInv+=e.amount;
+      // invest с forPartner — НЕ в кассу (передача между партнёрами)
+      if(e.type==='invest' && !e.forPartner) newInv+=e.amount;
       else if(e.type==='income') newInc+=e.amount;
       else if(e.type==='expense') newExp+=e.amount;
       else if(e.type==='personal') newPer+=e.amount;
@@ -1414,7 +1418,7 @@ function calcCo(){
     });
     cash=startCash+newInv+newInc-newExp-newPer-newRet;
   } else {
-    cash=invested+income-expense-personal-returned;
+    cash=investedToCash+income-expense-personal-returned;
   }
   return{income:income,expense:expense,invested:invested,returned:returned,personal:personal,profit:profit,owed:owed,toShare:toShare,share:toShare/5,cash:cash,startCash:startCash,startCashDate:startCashDate};
 }
@@ -5648,7 +5652,7 @@ function rejectDraftGroup(linkedKey){
 // Версия приложения. Меняется при каждом релизе.
 // Логика мягкого обновления: настройки ИИ переживают переход на новую версию,
 // обновление применяется при следующем естественном открытии (без миганий).
-var APP_VERSION='96';
+var APP_VERSION='98';
 // Ключи которые НЕ стираем при обновлении (настройки пользователя)
 var PRESERVED_KEYS = ['lg_ai_worker_url', 'lg_ai_token', 'role'];
 (function(){
