@@ -1535,7 +1535,7 @@ function calcSubgoal(g){
   else if(g.kind==='cash') val=C.cash/1000000;
   else if(g.kind==='income') val=C.income/1000000;
   else if(g.kind==='manual') val=(S.goalsDone&&S.goalsDone[g.id])?g.target:0;
-  var pct=Math.min(Math.round(val/g.target*100),100);
+  var pct=g.target>0?Math.min(Math.round(val/g.target*100),100):0;
   var now=new Date();
   var dl=new Date(g.deadline);
   var daysLeft=Math.ceil((dl-now)/86400000);
@@ -1682,7 +1682,7 @@ function insights(){
     invByP[e.who||'?']=(invByP[e.who||'?']||0)+e.amount;
   });
   var topP=Object.entries(invByP).sort(function(a,b){return b[1]-a[1];})[0];
-  if(topP&&topP[1]>0){
+  if(topP&&topP[1]>0&&C.invested>0){
     ins.push({type:'positive',icon:'🏆',title:T('ins_leader')+' '+topP[0],text:T('ins_leaderHint')+' '+fmt(topP[1])+' тг — '+Math.round(topP[1]/C.invested*100)+'% '+T('ins_leaderHint2')});
   }
   // 4. Доходы есть?
@@ -5419,29 +5419,6 @@ function loadDrafts(silent){
   }).catch(function(){});
 }
 
-function diagDrafts(){
-  var st=document.getElementById('btn-tg');
-  if(st){st.textContent='...';st.style.opacity='0.5';}
-  fetch(AI_WORKER_URL.replace(/\/$/,'')+'/api/drafts',{
-    method:'GET',
-    headers:{'X-LG-Token':AI_SHARED_TOKEN}
-  }).then(function(r){
-    if(!r.ok) throw new Error('HTTP '+r.status);
-    return r.json();
-  }).then(function(data){
-    if(st){st.textContent='TG';st.style.opacity='1';}
-    if(data&&Array.isArray(data.drafts)){
-      _drafts=data.drafts;
-      render();
-      var vis=data.drafts.filter(function(d){return !_deletedIds[d.id];}).length;
-      if(vis>0){alert('✓ Черновиков: '+vis+'. Плашка «НА СВЕРКУ» на главном экране.');}
-      else{alert('Черновиков нет. Напишите в Telegram-группу.');}
-    }
-  }).catch(function(e){
-    if(st){st.textContent='TG';st.style.opacity='1';}
-    alert('Ошибка: '+String(e));
-  });
-}
 function startDraftsPolling(){
   if(_draftsTimer) clearInterval(_draftsTimer);
   if((role==='editor'||isPartner())&&AI_WORKER_URL&&AI_SHARED_TOKEN){
@@ -5702,7 +5679,7 @@ if('serviceWorker' in navigator){
     'openPLCard','openVolAnalytics','openPartnerCard','openBrigCard',
     'openEntryCard','openKS2Card','openInsightCard','openSubgoalCard','openWeekCard'];
   modalFns.forEach(function(name){
-    var fn = window[name] || (typeof eval(name+'!==undefined')?eval(name):null);
+    var fn = window[name];
     if(typeof fn==='function'){
       window[name]=function(){
         try{return fn.apply(this,arguments);}
