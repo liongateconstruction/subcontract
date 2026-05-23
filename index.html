@@ -885,33 +885,218 @@ var KZ_DICT=[
   ['доля 1/5','1/5 үлесі']
 ];
 
+// Защищённые слова (никогда не переводятся)
+var PROTECTED_WORDS=['Дмитрий','Бекжан','Евгений','Нурсултан','Сергей','LIONGATE','Sensata Group','Шынгыс','Алгабас','Нуркент','ЖК','Мкр','м³','тг','тыс','млн','млрд'];
+
+// Облачный словарь переводов (общий для всей команды, синхронизируется через jsonbin)
+// Загружается из S.kzDict при pullCloud
+// Сохраняется в S.kzDict при pushCloud
+function getKzDict(){
+  if(!S.kzDict)S.kzDict={};
+  return S.kzDict;
+}
+
+// Очистка текста от служебных символов перед переводом
+function cleanForTranslate(t){
+  return t.replace(/\s+/g,' ').trim();
+}
+
+// Проверка содержит ли строка русские буквы
+function hasRussian(s){
+  return /[А-Яа-яёЁ]/.test(s);
+}
+
+// Защищаем имена и системные слова маркерами
+function protectNames(text){
+  var protectedMap={};
+  var counter=0;
+  var protected=text;
+  PROTECTED_WORDS.forEach(function(w){
+    var re=new RegExp('\\b'+w+'\\b','g');
+    protected=protected.replace(re,function(match){
+      counter++;
+      var marker='__P'+counter+'__';
+      protectedMap[marker]=match;
+      return marker;
+    });
+  });
+  return {text:protected, map:protectedMap};
+}
+
+function restoreNames(text,map){
+  var result=text;
+  Object.keys(map).forEach(function(marker){
+    result=result.split(marker).join(map[marker]);
+  });
+  return result;
+}
+
+// Очередь строк ожидающих перевода
+var translateQueue=[];
+var translateInProgress=false;
+
+// Перевод через бесплатный публичный endpoint Google Translate
+function translateBatch(texts,cb){
+  if(!texts.length){cb({});return;}
+  // Объединяем строки разделителем
+  var SEP='|||';
+  var combined=texts.join(' '+SEP+' ');
+  if(combined.length>4500){
+    // Если слишком длинно — переводим по одной
+    var results={};
+    var done=0;
+    texts.forEach(function(t){
+      translateOne(t,function(tr){
+        if(tr)results[t]=tr;
+        done++;
+        if(done===texts.length)cb(results);
+      });
+    });
+    return;
+  }
+  translateOne(combined,function(translated){
+    if(!translated){cb({});return;}
+    var parts=translated.split(/\s*\|\|\|\s*/);
+    var results={};
+    if(parts.length===texts.length){
+      texts.forEach(function(t,i){
+        results[t]=parts[i].trim();
+      });
+    }
+    cb(results);
+  });
+}
+
+function translateOne(text,cb){
+  // Защищаем имена
+  var prot=protectNames(text);
+  var url='https://translate.googleapis.com/translate_a/single?client=gtx&sl=ru&tl=kk&dt=t&q='+encodeURIComponent(prot.text);
+  fetch(url).then(function(r){return r.json();}).then(function(data){
+    try{
+      var translated='';
+      if(data && data[0]){
+        data[0].forEach(function(seg){
+          if(seg[0])translated+=seg[0];
+        });
+      }
+      translated=restoreNames(translated,prot.map);
+      cb(translated);
+    }catch(e){cb(null);}
+  }).catch(function(){cb(null);});
+}
+
+// Сбор непереведённых русских строк со страницы
+function collectUntranslated(root){
+  if(!root) root=document.body;
+  var found={};
+  var dict=getKzDict();
+  function walk(node){
+    if(node.nodeType===3){
+      var t=cleanForTranslate(node.textContent);
+      if(t.length>1 && t.length<200 && hasRussian(t)){
+        // Уже переведено?
+        var inStaticDict=false;
+        // Проверим что эта строка не покрыта статичным словарём
+        var simulatedTr=t;
+        KZ_DICT.forEach(function(p){
+          if(simulatedTr.indexOf(p[0])>=0)simulatedTr=simulatedTr.split(p[0]).join(p[1]);
+        });
+        // Если после статичного перевода всё ещё есть русский — нужно перевести
+        if(hasRussian(simulatedTr) && !dict[t]){
+          found[t]=true;
+        }
+      }
+    } else if(node.nodeType===1 && ['INPUT','TEXTAREA','SCRIPT','STYLE'].indexOf(node.nodeName)<0){
+      if(node.placeholder){
+        var ph=cleanForTranslate(node.placeholder);
+        if(hasRussian(ph) && !dict[ph]){
+          var simPh=ph;
+          KZ_DICT.forEach(function(p){if(simPh.indexOf(p[0])>=0)simPh=simPh.split(p[0]).join(p[1]);});
+          if(hasRussian(simPh))found[ph]=true;
+        }
+      }
+      for(var i=0;i<node.childNodes.length;i++)walk(node.childNodes[i]);
+    }
+  }
+  walk(root);
+  return Object.keys(found);
+}
+
+// Применить накопленный облачный словарь к тексту
+function applyCloudDict(t){
+  var dict=getKzDict();
+  // Сортируем ключи по длине (длинные сначала) чтобы не разбивать словосочетания
+  var keys=Object.keys(dict).sort(function(a,b){return b.length-a.length;});
+  for(var i=0;i<keys.length;i++){
+    if(t.indexOf(keys[i])>=0)t=t.split(keys[i]).join(dict[keys[i]]);
+  }
+  return t;
+}
+
 function applyTranslation(root){
   if(!root) root=document.getElementById('content');
   if(!root) return;
-  // Переводим все текстовые узлы
+  // 1. Применяем статичный + облачный словари
   function walk(node){
-    if(node.nodeType===3){ // текстовый узел
+    if(node.nodeType===3){
       var t=node.textContent;
       KZ_DICT.forEach(function(pair){
         if(t.indexOf(pair[0])>=0) t=t.split(pair[0]).join(pair[1]);
       });
+      t=applyCloudDict(t);
       node.textContent=t;
     } else if(node.nodeType===1 && node.nodeName!=='INPUT' && node.nodeName!=='TEXTAREA' && node.nodeName!=='SCRIPT' && node.nodeName!=='STYLE'){
-      // Атрибуты placeholder
       if(node.placeholder){
         var ph=node.placeholder;
         KZ_DICT.forEach(function(p){ph=ph.split(p[0]).join(p[1]);});
+        ph=applyCloudDict(ph);
         node.placeholder=ph;
       }
       for(var i=0;i<node.childNodes.length;i++) walk(node.childNodes[i]);
     }
   }
   walk(root);
-  // Также переводим шапку и модальные окна
   ['header','#modal','#voice-modal'].forEach(function(sel){
     var el=document.querySelector(sel);
     if(el) walk(el);
   });
+
+  // 2. Собираем НЕпереведённые строки и переводим через Google
+  if(navigator.onLine && !translateInProgress){
+    var untranslated=collectUntranslated(document.body);
+    if(untranslated.length>0){
+      translateInProgress=true;
+      // Берём максимум 20 строк за раз
+      var batch=untranslated.slice(0,20);
+      translateBatch(batch,function(results){
+        var newCount=0;
+        var dict=getKzDict();
+        Object.keys(results).forEach(function(orig){
+          var tr=results[orig];
+          if(tr && tr!==orig && !hasRussian(tr.replace(/__P\d+__/g,''))){
+            dict[orig]=tr;
+            newCount++;
+          }
+        });
+        if(newCount>0){
+          S.kzDict=dict;
+          if(typeof persist==='function')persist();
+          if(typeof pushCloud==='function')setTimeout(pushCloud,500);
+          // Применяем новые переводы
+          setTimeout(function(){
+            if(LANG==='kz'){
+              walk(document.body);
+              ['header','#modal','#voice-modal'].forEach(function(sel){
+                var el=document.querySelector(sel);
+                if(el) walk(el);
+              });
+            }
+          },100);
+        }
+        translateInProgress=false;
+      });
+    }
+  }
 }
 
 function setLang(l){
@@ -997,7 +1182,7 @@ function pushCloud(){
       body:JSON.stringify(snap)
     }).catch(function(){});
   }
-  fetch(BURL,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':AK,'X-Bin-Versioning':'false'},body:JSON.stringify({_modified:S._modified,entries:S.entries,brigades:S.brigades,objects:S.objects,history:S.history,weeks:S.weeks,kfu:S.kfu,settings:S.settings,goalsDone:S.goalsDone})}).then(function(){ss('OK',false);}).catch(function(){ss('!',true);});
+  fetch(BURL,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':AK,'X-Bin-Versioning':'false'},body:JSON.stringify({_modified:S._modified,entries:S.entries,brigades:S.brigades,objects:S.objects,history:S.history,weeks:S.weeks,kfu:S.kfu,settings:S.settings,goalsDone:S.goalsDone,kzDict:S.kzDict||{}})}).then(function(){ss('OK',false);}).catch(function(){ss('!',true);});
 }
 var _editLock=false; // блокировка синхронизации во время редактирования
 function pullCloud(cb){
@@ -1021,6 +1206,7 @@ function pullCloud(cb){
       if(r.kfu&&r.kfu.length&&r.kfu[0]&&r.kfu[0].auto)S.kfu=r.kfu;else S.kfu=defState().kfu;
       if(r.settings){S.settings=r.settings;if(!S.settings.norms)S.settings.norms=defState().settings.norms;}
       if(r.goalsDone)S.goalsDone=r.goalsDone;
+      if(r.kzDict)S.kzDict=r.kzDict;
       S._modified=remoteTime;persist();ss('OK',false);
     }else if(S.entries.length>0){pushCloud();}
     if(cb)cb();
@@ -1038,7 +1224,7 @@ function defState(){return{
   {id:'b1',name:'Бригада Шынгыс',spec:'Арматурщики',obj:'ЖК «Алгабас», Мкр. Нуркент',workers:15,prices:{},people:[],attendance:{}},
   {id:'b2',name:'Бригада Нурсултан',spec:'Опалубщики',obj:'ЖК «Алгабас», Мкр. Нуркент',workers:8,prices:{},people:[],attendance:{}}
  ],
- history:[],weeks:[],goalsDone:{},ks2:[],
+ history:[],weeks:[],goalsDone:{},ks2:[],kzDict:{},
  kfu:[
   {id:1,name:'Темп заливки',owner:'Бекжан',target:'150 м³/нед',auto:'temp',light:1,hist:[]},
   {id:2,name:'Деньги от заказчика',owner:'Евгений',target:'оплата КС-2 ≤15 дней',auto:'money',light:1,hist:[]},
@@ -5381,7 +5567,7 @@ function rejectDraftGroup(linkedKey){
 // Версия приложения. Меняется при каждом релизе.
 // Логика мягкого обновления: настройки ИИ переживают переход на новую версию,
 // обновление применяется при следующем естественном открытии (без миганий).
-var APP_VERSION='88';
+var APP_VERSION='89';
 // Ключи которые НЕ стираем при обновлении (настройки пользователя)
 var PRESERVED_KEYS = ['lg_ai_worker_url', 'lg_ai_token', 'role'];
 (function(){
