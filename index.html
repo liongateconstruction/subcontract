@@ -1378,7 +1378,9 @@ function calcCo(){
         var isForBrigade=noteLower.indexOf('бригад')>=0;
         if(!isForBrigade && keywords.some(function(k){return noteLower.indexOf(k)>=0;})) match=true;
       }
-      if(!match && e.who===pName) match=true;
+      // Партнёр сам вложил В КАССУ (без forPartner — деньги в общую кассу)
+      // Если forPartner есть — деньги ушли другому партнёру, к этому НЕ приходили
+      if(!match && e.who===pName && !e.forPartner) match=true;
       if(match){
         receivedIds[e.id]=true;
         received+=e.amount;
@@ -1441,7 +1443,9 @@ function calcPar(name){
       var isForBrigade=noteLower.indexOf('бригад')>=0;
       if(!isForBrigade && keywords.some(function(k){return noteLower.indexOf(k)>=0;})) match=true;
     }
-    if(!match && e.who===name && name!=='Дмитрий') match=true;
+    // Партнёр сам вложил В КАССУ (без forPartner — деньги в общую кассу)
+    // Если forPartner есть — деньги ушли другому, к этому партнёру они НЕ приходили
+    if(!match && e.who===name && name!=='Дмитрий' && !e.forPartner) match=true;
     if(match){
       receivedIds[e.id]=true;
       received+=e.amount;
@@ -1832,7 +1836,13 @@ function render(){
 }
 function drawCharts(){try{if(curTab==='main')dcMain();if(curTab==='pl')dcPL();if(curTab==='partners')dcPartners();if(curTab==='brigades')dcBrig();if(curTab==='plan')dcPlan();}catch(e){}}
 function badge(t){var x=TYPES[t]||{ico:'.',lbl:t,color:'var(--mut)',bg:'var(--s2)'};return '<span class="badge" style="color:'+x.color+';background:'+x.bg+'">'+x.ico+' '+x.lbl+'</span>';}
-function desc(e){if(e.type==='income')return e.note||'Приход от заказчика';if(e.type==='invest')return e.who+' вложил: '+(e.note||'');if(e.type==='expense')return (e.note||'')+(e.cat?' ['+e.cat+']':'')+(e.brigade?' / '+bName(e.brigade):'');if(e.type==='personal')return e.who+' взял лично: '+(e.note||'');if(e.type==='return')return 'Возврат вложений: '+e.who;if(e.type==='vol')return bName(e.brigade)+': '+fmtD(e.volume||0)+' м³'+(e.struct?' / '+e.struct:'')+(e.zone?' / Пятно '+e.zone:'')+(e.floor?' / '+e.floor:'');return e.note||'';}
+// Дательный падеж имени партнёра ("Бекжан" → "Бекжану", "Евгений" → "Евгению")
+function _dat(name){
+  if(!name) return '';
+  var map={'Дмитрий':'Дмитрию','Бекжан':'Бекжану','Евгений':'Евгению','Нурсултан':'Нурсултану','Сергей':'Сергею'};
+  return map[name]||name;
+}
+function desc(e){if(e.type==='income')return e.note||'Приход от заказчика';if(e.type==='invest'){var fp=e.forPartner?' → '+_dat(e.forPartner):'';return (e.who||'?')+fp+': '+(e.note||'');}if(e.type==='expense')return (e.note||'')+(e.cat?' ['+e.cat+']':'')+(e.brigade?' / '+bName(e.brigade):'');if(e.type==='personal')return e.who+' взял лично: '+(e.note||'');if(e.type==='return')return 'Возврат вложений: '+e.who;if(e.type==='vol')return bName(e.brigade)+': '+fmtD(e.volume||0)+' м³'+(e.struct?' / '+e.struct:'')+(e.zone?' / Пятно '+e.zone:'')+(e.floor?' / '+e.floor:'');return e.note||'';}
 function opRow(e,showDel){
   var tc=TYPES[e.type]||{color:'var(--mut)'};
   var h='<div class="oprow" style="cursor:pointer" onclick="openEntryCard('+e.id+')">';
@@ -3366,7 +3376,9 @@ function openPartnerCard(name){
       var isForBrigade=noteLower.indexOf('бригад')>=0;
       if(!isForBrigade && keywords.some(function(k){return noteLower.indexOf(k)>=0;})) match=true;
     }
-    if(!match && e.who===name && name!=='Дмитрий') match=true;
+    // Партнёр сам себя записал как «вложил» БЕЗ forPartner — это его собственное вложение в кассу
+    // (если есть forPartner — деньги ушли другому, не считаем как его поступление)
+    if(!match && e.who===name && name!=='Дмитрий' && !e.forPartner) match=true;
     if(match){
       receivedIdsTop[e.id]=true;
       realReceivedTop+=e.amount;
@@ -3447,8 +3459,9 @@ function openPartnerCard(name){
         if(keywords.some(function(k){return noteLower.indexOf(k)>=0;})) match=true;
       }
     }
-    // Способ 3: партнёр сам вложил (он же = who, кроме Дмитрия который вкладывает в общую кассу)
-    if(!match && e.who===name && name!=='Дмитрий') match=true;
+    // Способ 3: партнёр сам вложил В КАССУ (без forPartner — деньги в общую кассу)
+    // Если forPartner есть — деньги ушли другому, к этому партнёру они НЕ приходили
+    if(!match && e.who===name && name!=='Дмитрий' && !e.forPartner) match=true;
     if(match){
       receivedIds[e.id]=true;
       receivedOps.push(e);
@@ -5617,7 +5630,7 @@ function rejectDraftGroup(linkedKey){
 // Версия приложения. Меняется при каждом релизе.
 // Логика мягкого обновления: настройки ИИ переживают переход на новую версию,
 // обновление применяется при следующем естественном открытии (без миганий).
-var APP_VERSION='92';
+var APP_VERSION='94';
 // Ключи которые НЕ стираем при обновлении (настройки пользователя)
 var PRESERVED_KEYS = ['lg_ai_worker_url', 'lg_ai_token', 'role'];
 (function(){
