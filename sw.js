@@ -1,4 +1,4 @@
-const CACHE = 'liongate-v81';
+const CACHE = 'liongate-v85';
 const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', function(e) {

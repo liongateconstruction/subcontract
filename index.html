@@ -1156,11 +1156,41 @@ function lastEntryAge(){if(!S.entries.length)return 999;var d=S.entries.map(func
 function calcCo(){var income=sumT('income'),expense=sumT('expense'),invested=sumT('invest'),returned=sumT('return');var personal=S.entries.filter(function(e){return e.type==='personal';}).reduce(function(s,e){return s+e.amount;},0);var profit=income-expense,owed=invested-returned,toShare=Math.max(profit-owed,0);var cash=invested+income-expense-personal-returned;return{income:income,expense:expense,invested:invested,returned:returned,personal:personal,profit:profit,owed:owed,toShare:toShare,share:toShare/5,cash:cash};}
 function calcPar(name){
   var invested=sumT('invest','who',name),returned=sumT('return','who',name);
-  var personal=S.entries.filter(function(e){return e.type==='personal'&&e.who===name;}).reduce(function(s,e){return s+e.amount;},0);
-  // Подотчёт: получил под отчёт (invest forPartner = name) − потратил на компанию (expense who = name)
-  var received=S.entries.filter(function(e){return e.type==='invest'&&e.forPartner===name;}).reduce(function(s,e){return s+e.amount;},0);
+  // Раньше: personal = сумма записей personal
+  // Теперь: personal = реальный долг = всё что прошло через партнёра - что потратил на стройку
+  // Это работает как в Сверке внизу карточки
+  var keywords={
+    'Бекжан':['бекжан','бекжану','бек'],
+    'Евгений':['евгений','евгению','жен','жене','евген'],
+    'Нурсултан':['нурсултан','нурсултану','нурс'],
+    'Сергей':['сергей','сергею','серг'],
+    'Дмитрий':['дмитрий','дмитрию']
+  }[name]||[name.toLowerCase()];
+  // Уникальные вложения которые попали к партнёру
+  var receivedIds={};
+  var received=0;
+  S.entries.forEach(function(e){
+    if(e.type!=='invest') return;
+    if(receivedIds[e.id]) return;
+    var match=false;
+    if(e.forPartner===name) match=true;
+    if(!match && e.who==='Дмитрий' && e.note && !e.forPartner){
+      var noteLower=e.note.toLowerCase();
+      var isForBrigade=noteLower.indexOf('бригад')>=0;
+      if(!isForBrigade && keywords.some(function(k){return noteLower.indexOf(k)>=0;})) match=true;
+    }
+    if(!match && e.who===name && name!=='Дмитрий') match=true;
+    if(match){
+      receivedIds[e.id]=true;
+      received+=e.amount;
+    }
+  });
   var spent=S.entries.filter(function(e){return e.type==='expense'&&e.who===name;}).reduce(function(s,e){return s+e.amount;},0);
-  var onHands=Math.max(0, received - spent);
+  // Реальный долг партнёра = что прошло через руки - что потратил на стройку
+  var personal=Math.max(0, received-spent);
+  // Для Дмитрия — он вкладывает в общую кассу, не считаем "долгом"
+  if(name==='Дмитрий') personal=S.entries.filter(function(e){return e.type==='personal'&&e.who===name;}).reduce(function(s,e){return s+e.amount;},0);
+  var onHands=personal;
   var C=calcCo();
   return{invested:invested,returned:returned,personal:personal,received:received,spent:spent,onHands:onHands,share:C.share,totalGet:(invested-returned)+(C.share-personal)};
 }
@@ -3039,15 +3069,49 @@ function openPartnerCard(name){
 
   // Считаем детально
   var invested=ops.filter(function(e){return e.type==='invest';}).reduce(function(s,e){return s+e.amount;},0);
-  var personal=ops.filter(function(e){return e.type==='personal';}).reduce(function(s,e){return s+e.amount;},0);
+  var personalRaw=ops.filter(function(e){return e.type==='personal';}).reduce(function(s,e){return s+e.amount;},0);
   var returned=ops.filter(function(e){return e.type==='return';}).reduce(function(s,e){return s+e.amount;},0);
   // Подотчёт: расходы которые партнёр сделал из взятых лично денег
   var spentForCo=ops.filter(function(e){return e.type==='expense';}).reduce(function(s,e){return s+e.amount;},0);
   // Подотчётный остаток: взял лично − потратил на компанию (если положительное — деньги на руках)
-  var underReport=Math.max(0, personal - spentForCo);
+  var underReport=Math.max(0, personalRaw - spentForCo);
   var share=C.share||0;
-  var toReceive=invested+share-personal-returned;
   var goalShare=Math.round(920/5*10)/10; // 184 млн на партнёра
+
+  // === ПРАВИЛЬНЫЙ РАСЧЁТ ДОЛГА (как в Сверке) ===
+  // Получил - Потратил = Реальный долг партнёра
+  var nameFormsRu={
+    'Бекжан':['бекжан','бекжану','бек'],
+    'Евгений':['евгений','евгению','жен','жене','евген'],
+    'Нурсултан':['нурсултан','нурсултану','нурс'],
+    'Сергей':['сергей','сергею','серг'],
+    'Дмитрий':['дмитрий','дмитрию']
+  };
+  var keywords=nameFormsRu[name]||[name.toLowerCase()];
+  var receivedIdsTop={};
+  var realReceivedTop=0;
+  S.entries.forEach(function(e){
+    if(e.type!=='invest') return;
+    if(receivedIdsTop[e.id]) return;
+    var match=false;
+    if(e.forPartner===name) match=true;
+    if(!match && e.who==='Дмитрий' && e.note && !e.forPartner){
+      var noteLower=e.note.toLowerCase();
+      var isForBrigade=noteLower.indexOf('бригад')>=0;
+      if(!isForBrigade && keywords.some(function(k){return noteLower.indexOf(k)>=0;})) match=true;
+    }
+    if(!match && e.who===name && name!=='Дмитрий') match=true;
+    if(match){
+      receivedIdsTop[e.id]=true;
+      realReceivedTop+=e.amount;
+    }
+  });
+  // Реальный долг партнёра = что прошло через руки - что потратил на стройку
+  var personal=realReceivedTop-spentForCo;
+  if(personal<0) personal=0; // если потратил больше чем получил — это компания должна ему
+  // К возврату/получению — для партнёра это означает сколько он должен или сколько ему должны
+  var toReceive=share-personal-returned;
+  if(name==='Дмитрий') toReceive=invested+share-personalRaw-returned; // для Дмитрия старая логика
 
   document.getElementById('mtit').textContent=name;
   var h='';
@@ -3098,31 +3162,27 @@ function openPartnerCard(name){
   // Получил − Потратил = ДОЛГ (главная цифра)
   // Расшифровка: что признал + что не объяснено
 
-  var nameFormsRu={
-    'Бекжан':['бекжан','бекжану','бек'],
-    'Евгений':['евгений','евгению','жен','жене','евген'],
-    'Нурсултан':['нурсултан','нурсултану','нурс'],
-    'Сергей':['сергей','сергею','серг'],
-    'Дмитрий':['дмитрий','дмитрию']
-  };
-  var keywords=nameFormsRu[name]||[name.toLowerCase()];
-
   // Уникальные вложения которые попали к партнёру (без дубликатов по id)
   var receivedIds={};
   var receivedOps=[];
   S.entries.forEach(function(e){
     if(e.type!=='invest') return;
-    if(receivedIds[e.id]) return; // уже добавлено
+    if(receivedIds[e.id]) return;
     var match=false;
     // Способ 1: явный forPartner
     if(e.forPartner===name) match=true;
-    // Способ 2: упоминание имени в примечании (только если не указан forPartner у другого партнёра)
+    // Способ 2: упоминание имени в примечании (только если forPartner не указан)
     if(!match && e.who==='Дмитрий' && e.note && !e.forPartner){
       var noteLower=e.note.toLowerCase();
-      if(keywords.some(function(k){return noteLower.indexOf(k)>=0;})) match=true;
+      // Если в примечании есть "бригада" — это деньги для бригады, не для партнёра
+      // (даже если упомянуто имя — это бригадир)
+      var isForBrigade=noteLower.indexOf('бригад')>=0;
+      if(!isForBrigade){
+        if(keywords.some(function(k){return noteLower.indexOf(k)>=0;})) match=true;
+      }
     }
-    // Способ 3: партнёр сам вложил (он же = who)
-    if(!match && e.who===name) match=true;
+    // Способ 3: партнёр сам вложил (он же = who, кроме Дмитрия который вкладывает в общую кассу)
+    if(!match && e.who===name && name!=='Дмитрий') match=true;
     if(match){
       receivedIds[e.id]=true;
       receivedOps.push(e);
@@ -5219,7 +5279,7 @@ function rejectDraftGroup(linkedKey){
 // Версия приложения. Меняется при каждом релизе.
 // Логика мягкого обновления: настройки ИИ переживают переход на новую версию,
 // обновление применяется при следующем естественном открытии (без миганий).
-var APP_VERSION='81';
+var APP_VERSION='85';
 // Ключи которые НЕ стираем при обновлении (настройки пользователя)
 var PRESERVED_KEYS = ['lg_ai_worker_url', 'lg_ai_token', 'role'];
 (function(){
