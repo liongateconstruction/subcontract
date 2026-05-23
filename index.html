@@ -1033,7 +1033,7 @@ function pullCloud(cb){
 function defState(){return{
  objects:['ЖК «Алгабас», Мкр. Нуркент'],
  objMeta:{'ЖК «Алгабас», Мкр. Нуркент':{customer:'Sensata Group',rates:{}}},
- settings:{deadline:'2026-12-31',totalVol:48000,norms:{'Армирование':0.5,'Опалубка':0.75,'Бетонирование':3.0,'Комплекс':0.9}},
+ settings:{deadline:'2026-12-31',totalVol:48000,norms:{'Армирование':0.5,'Опалубка':0.75,'Бетонирование':3.0,'Комплекс':0.9},startCash:0,startCashDate:''},
  brigades:[
   {id:'b1',name:'Бригада Шынгыс',spec:'Арматурщики',obj:'ЖК «Алгабас», Мкр. Нуркент',workers:15,prices:{},people:[],attendance:{}},
   {id:'b2',name:'Бригада Нурсултан',spec:'Опалубщики',obj:'ЖК «Алгабас», Мкр. Нуркент',workers:8,prices:{},people:[],attendance:{}}
@@ -1153,7 +1153,69 @@ function totalVolDone(){return S.entries.filter(function(e){return e.type==='vol
 function getTotalVol(){return(S.settings&&S.settings.totalVol)||9999;}
 function daysLeft(){if(!S.settings||!S.settings.deadline)return null;return Math.ceil((new Date(S.settings.deadline)-new Date())/86400000);}
 function lastEntryAge(){if(!S.entries.length)return 999;var d=S.entries.map(function(e){return e.date;}).sort();return Math.floor((new Date()-new Date(d[d.length-1]))/86400000);}
-function calcCo(){var income=sumT('income'),expense=sumT('expense'),invested=sumT('invest'),returned=sumT('return');var personal=S.entries.filter(function(e){return e.type==='personal';}).reduce(function(s,e){return s+e.amount;},0);var profit=income-expense,owed=invested-returned,toShare=Math.max(profit-owed,0);var cash=invested+income-expense-personal-returned;return{income:income,expense:expense,invested:invested,returned:returned,personal:personal,profit:profit,owed:owed,toShare:toShare,share:toShare/5,cash:cash};}
+function calcCo(){
+  var income=sumT('income'),expense=sumT('expense'),invested=sumT('invest'),returned=sumT('return');
+  // personal = СУММА РЕАЛЬНЫХ ДОЛГОВ ВСЕХ ПАРТНЁРОВ (по формуле получил-потратил)
+  // Не считаем для Дмитрия (он вкладывает, не получает под отчёт)
+  var personal=0;
+  var keywordsMap={
+    'Бекжан':['бекжан','бекжану','бек'],
+    'Евгений':['евгений','евгению','жен','жене','евген'],
+    'Нурсултан':['нурсултан','нурсултану','нурс'],
+    'Сергей':['сергей','сергею','серг']
+  };
+  Object.keys(keywordsMap).forEach(function(pName){
+    var keywords=keywordsMap[pName];
+    var receivedIds={};
+    var received=0;
+    S.entries.forEach(function(e){
+      if(e.type!=='invest') return;
+      if(receivedIds[e.id]) return;
+      var match=false;
+      if(e.forPartner===pName) match=true;
+      if(!match && e.who==='Дмитрий' && e.note && !e.forPartner){
+        var noteLower=e.note.toLowerCase();
+        var isForBrigade=noteLower.indexOf('бригад')>=0;
+        if(!isForBrigade && keywords.some(function(k){return noteLower.indexOf(k)>=0;})) match=true;
+      }
+      if(!match && e.who===pName) match=true;
+      if(match){
+        receivedIds[e.id]=true;
+        received+=e.amount;
+      }
+    });
+    var spent=S.entries.filter(function(e){return e.type==='expense'&&e.who===pName;}).reduce(function(s,e){return s+e.amount;},0);
+    // Сколько партнёр сам вложил (его собственные средства)
+    var pInvested=S.entries.filter(function(e){return e.type==='invest'&&e.who===pName;}).reduce(function(s,e){return s+e.amount;},0);
+    // Долг = что прошло через руки - что потратил - что своих вложил
+    var partnerDebt=Math.max(0, received-spent-pInvested);
+    personal+=partnerDebt;
+  });
+  // Плюс старые записи personal Дмитрия (если есть)
+  personal+=S.entries.filter(function(e){return e.type==='personal'&&e.who==='Дмитрий';}).reduce(function(s,e){return s+e.amount;},0);
+  var profit=income-expense,owed=invested-returned,toShare=Math.max(profit-owed,0);
+  // КАССА: если установлена стартовая касса с датой — считаем от неё,
+  // иначе используем общую формулу
+  var startCash=(S.settings&&S.settings.startCash)||0;
+  var startCashDate=(S.settings&&S.settings.startCashDate)||'';
+  var cash;
+  if(startCash>0 && startCashDate){
+    // Касса = стартовая + новые приходы/расходы ПОСЛЕ даты
+    var newInv=0, newExp=0, newPer=0, newRet=0, newInc=0;
+    S.entries.forEach(function(e){
+      if(!e.date || e.date<=startCashDate) return; // только после даты
+      if(e.type==='invest') newInv+=e.amount;
+      else if(e.type==='income') newInc+=e.amount;
+      else if(e.type==='expense') newExp+=e.amount;
+      else if(e.type==='personal') newPer+=e.amount;
+      else if(e.type==='return') newRet+=e.amount;
+    });
+    cash=startCash+newInv+newInc-newExp-newPer-newRet;
+  } else {
+    cash=invested+income-expense-personal-returned;
+  }
+  return{income:income,expense:expense,invested:invested,returned:returned,personal:personal,profit:profit,owed:owed,toShare:toShare,share:toShare/5,cash:cash,startCash:startCash,startCashDate:startCashDate};
+}
 function calcPar(name){
   var invested=sumT('invest','who',name),returned=sumT('return','who',name);
   // Раньше: personal = сумма записей personal
@@ -1186,13 +1248,19 @@ function calcPar(name){
     }
   });
   var spent=S.entries.filter(function(e){return e.type==='expense'&&e.who===name;}).reduce(function(s,e){return s+e.amount;},0);
-  // Реальный долг партнёра = что прошло через руки - что потратил на стройку
-  var personal=Math.max(0, received-spent);
-  // Для Дмитрия — он вкладывает в общую кассу, не считаем "долгом"
-  if(name==='Дмитрий') personal=S.entries.filter(function(e){return e.type==='personal'&&e.who===name;}).reduce(function(s,e){return s+e.amount;},0);
-  var onHands=personal;
   var C=calcCo();
-  return{invested:invested,returned:returned,personal:personal,received:received,spent:spent,onHands:onHands,share:C.share,totalGet:(invested-returned)+(C.share-personal)};
+  var personal, totalGet;
+  if(name==='Дмитрий'){
+    // Для Дмитрия — он вкладчик, по-старому
+    personal=S.entries.filter(function(e){return e.type==='personal'&&e.who===name;}).reduce(function(s,e){return s+e.amount;},0);
+    totalGet=(invested-returned)+(C.share-personal);
+  } else {
+    // Для остальных — долг = получил - потратил - сам вложил
+    personal=Math.max(0, received-spent-invested);
+    totalGet=C.share-personal-returned;
+  }
+  var onHands=personal;
+  return{invested:invested,returned:returned,personal:personal,received:received,spent:spent,onHands:onHands,share:C.share,totalGet:totalGet};
 }
 function calcBrig(b){var vols=S.entries.filter(function(e){return e.type==='vol'&&e.brigade===b.id;});var vol=vols.reduce(function(s,e){return s+(e.volume||0);},0);var earned=vols.reduce(function(s,e){return s+e.amount;},0);var paid=S.entries.filter(function(e){return e.type==='expense'&&e.brigade===b.id;}).reduce(function(s,e){return s+e.amount;},0);return{vol:vol,earned:earned,paid:paid,balance:earned-paid,vols:vols};}
 // План года из ПЛАН ДЕЙСТВИЙ LIONGATE. Прибыль и накоплено — в млн тг.
@@ -3106,8 +3174,8 @@ function openPartnerCard(name){
       realReceivedTop+=e.amount;
     }
   });
-  // Реальный долг партнёра = что прошло через руки - что потратил на стройку
-  var personal=realReceivedTop-spentForCo;
+  // Реальный долг = всё что прошло через руки - что потратил - что своих вложил
+  var personal=realReceivedTop-spentForCo-invested;
   if(personal<0) personal=0; // если потратил больше чем получил — это компания должна ему
   // К возврату/получению — для партнёра это означает сколько он должен или сколько ему должны
   var toReceive=share-personal-returned;
@@ -3194,8 +3262,8 @@ function openPartnerCard(name){
   var realSpent=ops.filter(function(e){return e.type==='expense';}).reduce(function(s,e){return s+e.amount;},0);
   var realPersonal=personal;
 
-  // ГЛАВНАЯ ФОРМУЛА: получил - потратил = долг
-  var realDebt=realReceived-realSpent;
+  // ГЛАВНАЯ ФОРМУЛА: получил - потратил - сам вложил = долг (с зачётом вложений)
+  var realDebt=realReceived-realSpent-invested;
   // Расхождение: между реальным долгом и записанным личным
   var unexplained=realDebt-realPersonal;
 
@@ -3239,6 +3307,9 @@ function openPartnerCard(name){
     h+='<div style="background:rgba(248,81,73,.12);border:2px solid rgba(248,81,73,.35);border-radius:10px;padding:14px;margin-top:12px">';
     h+='<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0"><span style="color:var(--mut)">📥 Получил</span><span style="color:var(--blue);font-family:var(--fd)">+'+fmt(realReceived)+'</span></div>';
     h+='<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0"><span style="color:var(--mut)">💸 Потратил на стройку</span><span style="color:var(--green);font-family:var(--fd)">−'+fmt(realSpent)+'</span></div>';
+    if(invested>0){
+      h+='<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0"><span style="color:var(--mut)">💼 Сам вложил (своих)</span><span style="color:var(--blue);font-family:var(--fd)">−'+fmt(invested)+'</span></div>';
+    }
     h+='<div style="height:1px;background:rgba(255,255,255,.15);margin:10px 0"></div>';
     h+='<div style="display:flex;justify-content:space-between;font-size:16px;font-weight:700"><span style="color:var(--text)">💰 '+debtLabel+'</span><span style="color:'+debtColor+';font-family:var(--fd)">'+fmt(Math.abs(realDebt))+' тг</span></div>';
     h+='</div>';
@@ -4291,11 +4362,42 @@ function openManageObjects(){
   document.getElementById('mbody').innerHTML='<div id="ol">'+bl()+'</div>'+
     '<div class="fg" style="margin-top:12px"><label class="fl">Новый объект</label><input class="fi" id="f-no" type="text" placeholder="ЖК Название, район..."/>'+hint('Полное название объекта')+'</div>'+
     '<button class="fsave" style="background:var(--teal)" id="bao">+ ДОБАВИТЬ ОБЪЕКТ</button>'+
-    '<button class="fcanc" id="bco">Закрыть</button>';
+    '<div class="sect" style="margin:20px 0 8px;color:var(--gold)">💰 ФАКТИЧЕСКАЯ КАССА</div>'+
+    hint('Установите фактическую сумму денег на счету компании на сегодня. Все НОВЫЕ операции (после даты) будут изменять эту цифру. Прошлые записи не пересчитываются.')+
+    '<div style="background:var(--s2);border-radius:8px;padding:12px;margin-top:8px">'+
+      '<div class="fg"><label class="fl">Касса на сегодня (тг)</label><input class="fi" id="f-startcash" type="number" inputmode="numeric" value="'+(S.settings&&S.settings.startCash||0)+'" placeholder="5400"/></div>'+
+      '<div class="fg"><label class="fl">Дата фиксации (касса на эту дату)</label><input class="fi" id="f-startdate" type="date" value="'+(S.settings&&S.settings.startCashDate||new Date().toISOString().slice(0,10))+'"/></div>'+
+      '<button class="fsave" id="bsavecash" style="background:var(--gold);color:#0d1117">💾 СОХРАНИТЬ КАССУ</button>'+
+      (S.settings&&S.settings.startCash>0?'<button class="fcanc" id="bresetcash" style="margin-top:6px;border-color:var(--red);color:var(--red)">Сбросить (вернуть авто-расчёт)</button>':'')+
+    '</div>'+
+    '<button class="fcanc" id="bco" style="margin-top:14px">Закрыть</button>';
   document.getElementById('modal').style.display='flex';
   document.getElementById('bao').addEventListener('click',function(){
     var n=g('f-no').trim();if(!n){alert('Введите название');return;}
     S.objects.push(n);objMeta(n);save();document.getElementById('f-no').value='';document.getElementById('ol').innerHTML=bl();
+  });
+  document.getElementById('bsavecash').addEventListener('click',function(){
+    var amt=Number(g('f-startcash'))||0;
+    var dt=g('f-startdate');
+    if(amt<=0){alert('Введите сумму больше 0');return;}
+    if(!dt){alert('Выберите дату');return;}
+    if(!S.settings)S.settings={};
+    S.settings.startCash=amt;
+    S.settings.startCashDate=dt;
+    save();
+    alert('✅ Стартовая касса '+amt.toLocaleString()+' тг на '+dt+' сохранена. Все операции после этой даты будут изменять кассу.');
+    closeModal();
+    if(typeof renderAll==='function')renderAll();
+  });
+  var resetBtn=document.getElementById('bresetcash');
+  if(resetBtn) resetBtn.addEventListener('click',function(){
+    if(!confirm('Сбросить стартовую кассу? Касса вернётся к автоматическому расчёту по формуле.'))return;
+    S.settings.startCash=0;
+    S.settings.startCashDate='';
+    save();
+    alert('Стартовая касса сброшена');
+    closeModal();
+    if(typeof renderAll==='function')renderAll();
   });
   document.getElementById('bco').addEventListener('click',closeModal);
 }
@@ -5279,7 +5381,7 @@ function rejectDraftGroup(linkedKey){
 // Версия приложения. Меняется при каждом релизе.
 // Логика мягкого обновления: настройки ИИ переживают переход на новую версию,
 // обновление применяется при следующем естественном открытии (без миганий).
-var APP_VERSION='85';
+var APP_VERSION='88';
 // Ключи которые НЕ стираем при обновлении (настройки пользователя)
 var PRESERVED_KEYS = ['lg_ai_worker_url', 'lg_ai_token', 'role'];
 (function(){
