@@ -3478,7 +3478,12 @@ function openPartnerCard(name){
   // Расхождение: между реальным долгом и записанным личным
   var unexplained=realDebt-realPersonal;
 
-  if(realReceived>0 || realPersonal>0){
+  // Считаем заранее — нужны для проверки «показывать ли блок вообще»
+  var _spentForCheck=ops.filter(function(e){return e.type==='expense';}).reduce(function(s,e){return s+e.amount;},0);
+  var _transfersForCheck=S.entries.filter(function(e){return e.type==='invest'&&e.who===name&&e.forPartner&&e.forPartner!==name;}).reduce(function(s,e){return s+e.amount;},0);
+  var _investedToCashForCheck=S.entries.filter(function(e){return e.type==='invest'&&e.who===name&&!e.forPartner;}).reduce(function(s,e){return s+e.amount;},0);
+
+  if(realReceived>0 || realPersonal>0 || _spentForCheck>0 || _transfersForCheck>0 || _investedToCashForCheck>0){
     h+='<div style="background:linear-gradient(145deg,rgba(248,81,73,.06),rgba(248,81,73,.02));border:1px solid rgba(248,81,73,.2);border-radius:12px;padding:14px;margin-bottom:14px">';
     h+='<div style="font-size:11px;color:var(--red);letter-spacing:2px;font-weight:700;margin-bottom:8px">📋 СВЕРКА С '+name.toUpperCase()+'</div>';
     h+='<div style="font-size:10px;color:var(--mut);margin-bottom:14px;line-height:1.5">Что прошло через руки партнёра. Разница между полученным и потраченным = долг.</div>';
@@ -3497,18 +3502,29 @@ function openPartnerCard(name){
       h+='</div>';
     }
 
-    // Расходы партнёра
-    var spentOps=ops.filter(function(e){return e.type==='expense';}).sort(function(a,b){return a.date.localeCompare(b.date);});
-    if(spentOps.length>0){
+    // Расходы партнёра + его передачи другим партнёрам (это тоже деньги "ушедшие на стройку")
+    var spentOps=ops.filter(function(e){return e.type==='expense';});
+    // Добавляем записи где партнёр сам отдал другому партнёру (invest с forPartner)
+    var transferOps=S.entries.filter(function(e){return e.type==='invest'&&e.who===name&&e.forPartner&&e.forPartner!==name;});
+    var allOutOps=spentOps.concat(transferOps).sort(function(a,b){return a.date.localeCompare(b.date);});
+    var transferTotal=transferOps.reduce(function(s,e){return s+e.amount;},0);
+    var totalOut=realSpent+transferTotal; // всё что ушло из рук партнёра
+    if(allOutOps.length>0){
       h+='<div style="background:rgba(63,185,80,.06);border:1px solid rgba(63,185,80,.2);border-radius:8px;padding:10px;margin-bottom:10px">';
-      h+='<div style="font-size:10px;color:var(--green);letter-spacing:1px;font-weight:700;margin-bottom:8px">💸 ЧТО ПОТРАТИЛ НА СТРОЙКУ</div>';
-      spentOps.slice(0,20).forEach(function(e){
+      h+='<div style="font-size:10px;color:var(--green);letter-spacing:1px;font-weight:700;margin-bottom:8px">💸 ЧТО ПОТРАТИЛ И ПЕРЕДАЛ</div>';
+      allOutOps.slice(0,20).forEach(function(e){
+        var label, isTransfer = (e.type==='invest');
+        if(isTransfer){
+          label='Передал → '+_dat(e.forPartner)+(e.note?' · '+e.note.slice(0,40):'');
+        } else {
+          label=(e.cat||'')+(e.note?' · '+e.note.slice(0,40):'');
+        }
         h+='<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:10px;gap:8px;border-bottom:1px solid rgba(255,255,255,.04)">';
-        h+='<div style="color:var(--mut);flex:1"><b style="color:var(--text)">'+e.date+'</b> · '+(e.cat||'')+(e.note?' · '+e.note.slice(0,40):'')+'</div>';
+        h+='<div style="color:var(--mut);flex:1"><b style="color:var(--text)">'+e.date+'</b> · '+label+'</div>';
         h+='<div style="color:var(--green);font-family:var(--fd);white-space:nowrap">−'+fmt(e.amount)+'</div>';
         h+='</div>';
       });
-      h+='<div style="display:flex;justify-content:space-between;padding:8px 0 2px;font-size:11px;font-weight:700"><span style="color:var(--text)">ВСЕГО ПОТРАТИЛ</span><span style="color:var(--green);font-family:var(--fd)">−'+fmt(realSpent)+'</span></div>';
+      h+='<div style="display:flex;justify-content:space-between;padding:8px 0 2px;font-size:11px;font-weight:700"><span style="color:var(--text)">ВСЕГО ПОТРАТИЛ И ПЕРЕДАЛ</span><span style="color:var(--green);font-family:var(--fd)">−'+fmt(totalOut)+'</span></div>';
       h+='</div>';
     }
 
@@ -3517,9 +3533,11 @@ function openPartnerCard(name){
     var debtLabel=realDebt>0?'ДОЛГ КОМПАНИИ':realDebt<0?'КОМПАНИЯ ДОЛЖНА':'СОШЛОСЬ В НОЛЬ';
     h+='<div style="background:rgba(248,81,73,.12);border:2px solid rgba(248,81,73,.35);border-radius:10px;padding:14px;margin-top:12px">';
     h+='<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0"><span style="color:var(--mut)">📥 Получил</span><span style="color:var(--blue);font-family:var(--fd)">+'+fmt(realReceived)+'</span></div>';
-    h+='<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0"><span style="color:var(--mut)">💸 Потратил на стройку</span><span style="color:var(--green);font-family:var(--fd)">−'+fmt(realSpent)+'</span></div>';
-    if(invested>0){
-      h+='<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0"><span style="color:var(--mut)">💼 Сам вложил (своих)</span><span style="color:var(--blue);font-family:var(--fd)">−'+fmt(invested)+'</span></div>';
+    h+='<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0"><span style="color:var(--mut)">💸 Потратил и передал</span><span style="color:var(--green);font-family:var(--fd)">−'+fmt(totalOut)+'</span></div>';
+    // Сам вложил В КАССУ (без forPartner) — это собственный взнос. Передачи другим уже учтены выше.
+    var investedToCash=S.entries.filter(function(e){return e.type==='invest'&&e.who===name&&!e.forPartner;}).reduce(function(s,e){return s+e.amount;},0);
+    if(investedToCash>0){
+      h+='<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0"><span style="color:var(--mut)">💼 Сам вложил в кассу</span><span style="color:var(--blue);font-family:var(--fd)">−'+fmt(investedToCash)+'</span></div>';
     }
     h+='<div style="height:1px;background:rgba(255,255,255,.15);margin:10px 0"></div>';
     h+='<div style="display:flex;justify-content:space-between;font-size:16px;font-weight:700"><span style="color:var(--text)">💰 '+debtLabel+'</span><span style="color:'+debtColor+';font-family:var(--fd)">'+fmt(Math.abs(realDebt))+' тг</span></div>';
@@ -5630,7 +5648,7 @@ function rejectDraftGroup(linkedKey){
 // Версия приложения. Меняется при каждом релизе.
 // Логика мягкого обновления: настройки ИИ переживают переход на новую версию,
 // обновление применяется при следующем естественном открытии (без миганий).
-var APP_VERSION='94';
+var APP_VERSION='96';
 // Ключи которые НЕ стираем при обновлении (настройки пользователя)
 var PRESERVED_KEYS = ['lg_ai_worker_url', 'lg_ai_token', 'role'];
 (function(){
