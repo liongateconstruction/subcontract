@@ -1272,10 +1272,21 @@ function pullCloud(cb){
       var r=d.record;
       var remoteTime=r._modified||0;
       var localTime=S._modified||0;
-      if(localTime>remoteTime+1000){
+      
+      // === ЗАЩИТА ОТ ЗАТИРАНИЯ ===
+      // Если в облаке есть РЕАЛЬНЫЕ данные (entries.length > 0 или brigades.length > 0) И облако новее — забираем их
+      var cloudHasData = (r.entries && r.entries.length>0) || (r.brigades && r.brigades.length>0);
+      var localIsFresh = localTime > remoteTime + 1000;
+      
+      // Если локально явно новее (только что что-то изменили) — пушим
+      if(localIsFresh && S.entries.length>0){
         pushCloud();ss('↑',false);if(cb)cb();return;
       }
-      // Если облако ещё на старой схеме — мигрируем перед применением
+      // Если в облаке ничего нет, а локально есть — пушим
+      if(!cloudHasData && S.entries.length>0){
+        pushCloud();ss('↑',false);if(cb)cb();return;
+      }
+      // Если облако ещё на старой схеме — мигрируем перед применением (но НЕ перезаписываем)
       if(!r._schema || r._schema<2){
         var tmpState={entries:r.entries||[],history:r.history||[],_schema:r._schema};
         migrateToSchemaV2(tmpState);
@@ -1283,16 +1294,7 @@ function pullCloud(cb){
         r.history=tmpState.history;
         r._schema=2;
       }
-      // Если облако ещё не имеет ресета v3 (а у нас локально уже есть) — игнорируем облако и пушим наше
-      if(S._schema>=3 && (!r._schema || r._schema<3)){
-        // Локально уже ресет, а в облаке старая v2 — наш ресет важнее, пушим в облако
-        S._modified=Date.now();
-        persist();
-        pushCloud();
-        ss('↑',false);
-        if(cb)cb();
-        return;
-      }
+      // Принимаем данные облака (защита от потери:только если облако новее ИЛИ у нас локально пусто)
       if(r.entries&&r.entries.length>0)S.entries=r.entries;
       if(r.brigades&&r.brigades.length>0)S.brigades=r.brigades;
       if(r.objects&&r.objects.length>0)S.objects=r.objects;
@@ -1303,7 +1305,8 @@ function pullCloud(cb){
       if(r.goalsDone)S.goalsDone=r.goalsDone;
       if(r.kzDict)S.kzDict=r.kzDict;
       if(r.workTypes&&r.workTypes.length>0)S.workTypes=r.workTypes;
-      S._schema=r._schema||2;
+      // Схема — берём максимум из локальной и облачной
+      S._schema=Math.max(S._schema||2, r._schema||2);
       S._modified=remoteTime;persist();ss('OK',false);
     }else if(S.entries.length>0){pushCloud();}
     if(cb)cb();
@@ -1330,62 +1333,6 @@ function defState(){return{
   {id:5,name:'Безопасность',owner:'Бекжан',target:'0 происшествий, все в СИЗ',light:2,hist:[]}
  ],
  entries:[
-  // === ВЛОЖЕНИЯ ДМИТРИЯ (итого 2 369 235 тг) ===
-  // 1) Бекжану под отчёт — 1 886 000 тг (потратил 1 529 000, долг 357 000)
-  {id:100,date:'2026-05-14',type:'invest',who:'Дмитрий',forPartner:'Бекжан',obj:'ЖК «Алгабас», Мкр. Нуркент',amount:400000,note:'Выдал Бекжану наличными на расходы'},
-  {id:101,date:'2026-05-17',type:'invest',who:'Дмитрий',forPartner:'Бекжан',obj:'ЖК «Алгабас», Мкр. Нуркент',amount:150000,note:'Выдал Бекжану наличными на расходы'},
-  {id:102,date:'2026-05-18',type:'invest',who:'Дмитрий',forPartner:'Бекжан',obj:'ЖК «Алгабас», Мкр. Нуркент',amount:54000,note:'Бекжану на покупку раций'},
-  {id:103,date:'2026-05-18',type:'invest',who:'Дмитрий',forPartner:'Бекжан',obj:'ЖК «Алгабас», Мкр. Нуркент',amount:20000,note:'Бекжану на аванс Шынгыс'},
-  {id:104,date:'2026-05-19',type:'invest',who:'Дмитрий',forPartner:'Бекжан',obj:'ЖК «Алгабас», Мкр. Нуркент',amount:500000,note:'Бекжану на аванс Шынгыс наличными'},
-  {id:105,date:'2026-05-19',type:'invest',who:'Дмитрий',forPartner:'Бекжан',obj:'ЖК «Алгабас», Мкр. Нуркент',amount:400000,note:'Бекжану на аванс Нурсултан наличными'},
-  {id:106,date:'2026-05-19',type:'invest',who:'Дмитрий',forPartner:'Бекжан',obj:'ЖК «Алгабас», Мкр. Нуркент',amount:7000,note:'Бекжану на перчатки и молотки'},
-  {id:107,date:'2026-05-20',type:'invest',who:'Дмитрий',forPartner:'Бекжан',obj:'ЖК «Алгабас», Мкр. Нуркент',amount:100000,note:'Бекжану на расходы'},
-  {id:108,date:'2026-05-20',type:'invest',who:'Дмитрий',forPartner:'Бекжан',obj:'ЖК «Алгабас», Мкр. Нуркент',amount:80000,note:'Бекжану на пояса монтажные'},
-  {id:109,date:'2026-05-21',type:'invest',who:'Дмитрий',forPartner:'Бекжан',obj:'ЖК «Алгабас», Мкр. Нуркент',amount:100000,note:'Бекжану на расходы (перчатка, перфоратор, бензин)'},
-  {id:130,date:'2026-05-22',type:'invest',who:'Дмитрий',forPartner:'Бекжан',obj:'ЖК «Алгабас», Мкр. Нуркент',amount:75000,note:'Бекжану на расход отправил'},
-  // 2) На счёт компании 170 000 (страховка 158 100 + комиссии 6 500, остаток 5 400)
-  {id:110,date:'2026-05-18',type:'invest',who:'Дмитрий',obj:'ЖК «Алгабас», Мкр. Нуркент',amount:170000,note:'Закинул на счёт компании для оплаты страховки'},
-  // 3) Прямые расходы Дмитрия из своих — 85 235 тг
-  {id:112,date:'2026-05-15',type:'invest',who:'Дмитрий',obj:'ЖК «Алгабас», Мкр. Нуркент',amount:5000,note:'Сам оплатил мобильный Бекжана'},
-  {id:113,date:'2026-05-16',type:'invest',who:'Дмитрий',obj:'ЖК «Алгабас», Мкр. Нуркент',amount:53100,note:'Сам оплатил смартфон'},
-  {id:114,date:'2026-05-19',type:'invest',who:'Дмитрий',obj:'ЖК «Алгабас», Мкр. Нуркент',amount:25135,note:'Сам оплатил обед с заказчиками'},
-  {id:115,date:'2026-05-19',type:'invest',who:'Дмитрий',obj:'ЖК «Алгабас», Мкр. Нуркент',amount:2000,note:'Сам оплатил напитки на объекте'},
-  // 4) Евгению и Нурсултану — личное (228 000 тг)
-  {id:116,date:'2026-05-16',type:'invest',who:'Дмитрий',obj:'ЖК «Алгабас», Мкр. Нуркент',amount:20000,note:'Дал Евгению (личное)'},
-  {id:117,date:'2026-05-19',type:'invest',who:'Дмитрий',obj:'ЖК «Алгабас», Мкр. Нуркент',amount:198000,note:'Дал Евгению (личное)'},
-  {id:118,date:'2026-05-22',type:'invest',who:'Дмитрий',obj:'ЖК «Алгабас», Мкр. Нуркент',amount:10000,note:'Дал Нурсултану (личное)'},
-
-  // === РАСХОДЫ (1 778 835 тг) ===
-  // Дмитрий — прямые офисные (249 835 тг)
-  {id:1,date:'2026-05-15',type:'expense',who:'Дмитрий',obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Связь',amount:5000,note:'Мобильный Бекжана'},
-  {id:2,date:'2026-05-16',type:'expense',who:'Дмитрий',obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Административные',amount:53100,note:'Смартфон и номер'},
-  {id:3,date:'2026-05-18',type:'expense',who:'Дмитрий',obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Административные',amount:158100,note:'Страховка компании'},
-  {id:4,date:'2026-05-18',type:'expense',who:'Дмитрий',obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Административные',amount:4500,note:'Комиссия банка'},
-  {id:5,date:'2026-05-18',type:'expense',who:'Дмитрий',obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Административные',amount:1000,note:'Комиссия банка — ведение счёта'},
-  {id:6,date:'2026-05-18',type:'expense',who:'Дмитрий',obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Административные',amount:1000,note:'Комиссия банка — Внешний перевод'},
-  {id:7,date:'2026-05-19',type:'expense',who:'Дмитрий',obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Представительские',amount:25135,note:'Обед с заказчиками'},
-  {id:8,date:'2026-05-19',type:'expense',who:'Дмитрий',obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Представительские',amount:2000,note:'Напитки на объекте'},
-  // Бекжан — все полевые (1 529 000 тг)
-  {id:9,date:'2026-05-16',type:'expense',who:'Бекжан',obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Аванс / зарплата рабочим',brigade:'b1',amount:150000,note:'Аванс Бригада Шынгыс — перевод'},
-  {id:10,date:'2026-05-16',type:'expense',who:'Бекжан',obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Аванс / зарплата рабочим',brigade:'b1',amount:100000,note:'Аванс Бригада Шынгыс — наличные'},
-  {id:11,date:'2026-05-16',type:'expense',who:'Бекжан',obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Транспорт',amount:20000,note:'Такси Бригада Нурсултан до объекта'},
-  {id:12,date:'2026-05-17',type:'expense',who:'Бекжан',obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Инструменты и инвентарь',amount:70000,note:'Каски, жилеты, перчатки, диски, молоток, бур'},
-  {id:13,date:'2026-05-18',type:'expense',who:'Бекжан',obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Аванс / зарплата рабочим',brigade:'b1',amount:20000,note:'Аванс бригада Шынгыс'},
-  {id:14,date:'2026-05-18',type:'expense',who:'Бекжан',obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Инструменты и инвентарь',amount:54000,note:'Рации 3 шт × 18 000'},
-  {id:15,date:'2026-05-19',type:'expense',who:'Бекжан',obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Аванс / зарплата рабочим',brigade:'b1',amount:500000,note:'Аванс наличными бригада Шынгыс'},
-  {id:16,date:'2026-05-19',type:'expense',who:'Бекжан',obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Аванс / зарплата рабочим',brigade:'b2',amount:400000,note:'Аванс наличными бригада Нурсултан'},
-  {id:17,date:'2026-05-19',type:'expense',who:'Бекжан',obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Инструменты и инвентарь',amount:7000,note:'Перчатки 2 пачки, молотки 2 шт'},
-  {id:18,date:'2026-05-20',type:'expense',who:'Бекжан',obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Инструменты и инвентарь',amount:80000,note:'Пояс монтажный 8 шт'},
-  {id:19,date:'2026-05-21',type:'expense',who:'Бекжан',obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Инструменты и инвентарь',amount:65000,note:'Перчатка, перфоратор, бензин'},
-  {id:20,date:'2026-05-22',type:'expense',who:'Бекжан',obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Инструменты и инвентарь',amount:45000,note:'Вибратор'},
-  {id:21,date:'2026-05-22',type:'expense',who:'Бекжан',obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Материалы',amount:10000,note:'Дождевик 5 шт'},
-  {id:22,date:'2026-05-22',type:'expense',who:'Бекжан',obj:'ЖК «Алгабас», Мкр. Нуркент',cat:'Топливо',amount:8000,note:'Заправка бензина'},
-
-  // === ЛИЧНЫЕ (долги партнёров — 585 000 тг) ===
-  {id:201,date:'2026-05-22',type:'personal',who:'Бекжан',obj:'-',amount:357000,note:'Остаток подотчёта (не отчитался, взял себе)'},
-  {id:202,date:'2026-05-16',type:'personal',who:'Евгений',obj:'-',amount:20000,note:'Взял лично'},
-  {id:203,date:'2026-05-19',type:'personal',who:'Евгений',obj:'-',amount:198000,note:'Взял лично'},
-  {id:204,date:'2026-05-22',type:'personal',who:'Нурсултан',obj:'-',amount:10000,note:'Взял лично'}
  ]
 };}
 
@@ -1564,7 +1511,16 @@ var CLEAN_ENTRIES_V3 = [
 ];
 
 function resetToCleanV3(state){
+  // Если уже v3 — ничего не делаем
   if(state._schema && state._schema>=3) return state;
+  // Проверяем: есть ли в локальных данных записи v3 (id >= 1000 это маркер новых чистых)?
+  var hasV3Entries = state.entries && state.entries.some(function(e){return e.id>=1000;});
+  if(hasV3Entries){
+    // Локально уже есть новые данные — просто помечаем v3 без перезаписи
+    state._schema = 3;
+    return state;
+  }
+  // Если в локальных данных только старые записи (или ничего) — применяем чистый набор
   state.entries = JSON.parse(JSON.stringify(CLEAN_ENTRIES_V3));
   state._schema = 3;
   state._resetAt = new Date().toISOString();
@@ -5864,26 +5820,38 @@ if(btnLang){
   });
 }
 document.getElementById('btn-refresh').addEventListener('click',function(){
-  if(!confirm('Обновить приложение? Несохранённые данные могут быть потеряны.'))return;
-  // 1. Сохранить локальные данные перед обновлением
+  if(!confirm('Обновить приложение?\n\nСначала ваши данные будут принудительно отправлены в облако, потом обновится код. Это безопасно.'))return;
+  // 1. Принудительно сохранить локально
   if(typeof persist==='function') persist();
-  // 2. Чистим все кэши SW
-  if('caches' in window){
-    caches.keys().then(function(keys){
-      return Promise.all(keys.map(function(k){return caches.delete(k);}));
-    }).then(function(){
-      // 3. Сбрасываем версию чтобы при следующем заходе тоже почистило
-      localStorage.removeItem('lg_app_version');
-      // 4. Дёргаем SW принудительно
-      if(navigator.serviceWorker && navigator.serviceWorker.controller){
-        navigator.serviceWorker.controller.postMessage('CLEAR_CACHE');
-      }
-      // 5. Жёсткая перезагрузка с сервера
+  S._modified=Date.now();
+  try{localStorage.setItem('lg_v9',JSON.stringify(S));}catch(e){}
+  // 2. Отправить в облако и ПОДОЖДАТЬ подтверждения перед очисткой
+  ss('↑ Отправка в облако...',false);
+  fetch(BURL,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':AK,'X-Bin-Versioning':'false'},body:JSON.stringify({_modified:S._modified,_schema:S._schema||3,entries:S.entries,brigades:S.brigades,objects:S.objects,history:S.history,weeks:S.weeks,kfu:S.kfu,settings:S.settings,goalsDone:S.goalsDone,kzDict:S.kzDict||{},workTypes:S.workTypes||[]})}).then(function(res){
+    if(!res.ok){
+      alert('❌ Не удалось сохранить в облако! Обновление отменено чтобы не потерять данные.\n\nПроверьте интернет и попробуйте снова.');
+      ss('!',true);
+      return;
+    }
+    ss('✓ Сохранено',false);
+    // 3. Теперь можно чистить кэши SW
+    if('caches' in window){
+      caches.keys().then(function(keys){
+        return Promise.all(keys.map(function(k){return caches.delete(k);}));
+      }).then(function(){
+        localStorage.removeItem('lg_app_version');
+        if(navigator.serviceWorker && navigator.serviceWorker.controller){
+          navigator.serviceWorker.controller.postMessage('CLEAR_CACHE');
+        }
+        setTimeout(function(){location.reload(true);},300);
+      });
+    } else {
       setTimeout(function(){location.reload(true);},300);
-    });
-  } else {
-    location.reload(true);
-  }
+    }
+  }).catch(function(err){
+    alert('❌ Ошибка отправки в облако! Обновление отменено.\n\nОшибка: '+(err&&err.message||err));
+    ss('!',true);
+  });
 });
 document.getElementById('fab').addEventListener('click',openModal);
 document.getElementById('btn-rpt').addEventListener('click',showReport);
