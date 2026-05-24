@@ -2933,6 +2933,7 @@ function openEditEntry(id){
   var poWho=PARTNERS.map(function(p){return '<option'+(curWho===p?' selected':'')+'>'+p+'</option>';}).join('');
   var poTo=PARTNERS.map(function(p){return '<option'+(curTo===p?' selected':'')+'>'+p+'</option>';}).join('');
   var co=EXP_CATS.map(function(c){return '<option'+(e.cat===c?' selected':'')+'>'+c+'</option>';}).join('');
+  var bo=S.brigades.map(function(b){return '<option value="'+b.id+'"'+(e.brigade===b.id?' selected':'')+'>'+b.name+'</option>';}).join('');
   var curSource=e.paySource||'advance';
   // Список 5 новых типов для смены
   var typeOpts='';
@@ -2967,6 +2968,8 @@ function openEditEntry(id){
     '<div class="fg" id="ee-source-wrap" style="display:'+(e.type==='expense'?'block':'none')+'"><label class="fl">Источник денег</label><select class="fi" id="ee-source">'+srcOpts+'</select><div style="font-size:9px;color:var(--mut);margin-top:4px;line-height:1.4">Из подотчётных — деньги были у партнёра под отчёт. Со своих — заплатил из своего кармана.</div></div>'+
     // Категория — для expense
     '<div class="fg" id="ee-cat-wrap" style="display:'+(e.type==='expense'?'block':'none')+'"><label class="fl">Категория</label><select class="fi" id="ee-cat"><option value="">— нет —</option>'+co+'</select></div>'+
+    // Бригада — для expense (если аванс)
+    '<div class="fg" id="ee-brig-wrap" style="display:'+(e.type==='expense'?'block':'none')+'"><label class="fl">Бригада (если аванс/зарплата)</label><select class="fi" id="ee-brig"><option value="">— не относится к бригаде —</option>'+bo+'</select></div>'+
     '<div class="fg"><label class="fl">Объект</label><select class="fi" id="ee-obj">'+oo+'</select></div>'+
     '<div class="fg"><label class="fl">Примечание</label><input class="fi" id="ee-note" type="text" value="'+(e.note||'').replace(/"/g,'&quot;')+'"/></div>'+
     '<button class="fsave" id="ee-save">СОХРАНИТЬ ИЗМЕНЕНИЯ</button>'+
@@ -2982,11 +2985,13 @@ function openEditEntry(id){
       var toWrap=document.getElementById('ee-to-wrap');
       var srcWrap=document.getElementById('ee-source-wrap');
       var catWrap=document.getElementById('ee-cat-wrap');
+      var brigWrap=document.getElementById('ee-brig-wrap');
       if(whoWrap)whoWrap.style.display=(nt==='advance')?'none':'block';
       if(fromWrap)fromWrap.style.display=(nt==='advance')?'block':'none';
       if(toWrap)toWrap.style.display=(nt==='advance')?'block':'none';
       if(srcWrap)srcWrap.style.display=(nt==='expense')?'block':'none';
       if(catWrap)catWrap.style.display=(nt==='expense')?'block':'none';
+      if(brigWrap)brigWrap.style.display=(nt==='expense')?'block':'none';
     });
   }
   document.getElementById('ee-save').addEventListener('click',function(){
@@ -3003,6 +3008,7 @@ function openEditEntry(id){
     delete e.forPartner;
     delete e.cat;
     delete e.paySource;
+    delete e.brigade;
     if(newType==='advance'){
       var fr=document.getElementById('ee-from');
       var t=document.getElementById('ee-to');
@@ -3020,6 +3026,8 @@ function openEditEntry(id){
       if(cat&&cat.value)e.cat=cat.value;
       var src=document.getElementById('ee-source');
       if(src)e.paySource=src.value||'advance';
+      var brig=document.getElementById('ee-brig');
+      if(brig&&brig.value)e.brigade=brig.value;
     }
     var obj=document.getElementById('ee-obj');if(obj)e.obj=obj.value;
     e.note=document.getElementById('ee-note').value;
@@ -4532,7 +4540,9 @@ function openSettings(){
   document.getElementById('bsc').addEventListener('click',closeModal);
 }
 function openVol(bId){
+  _editLock=true;
   var b=S.brigades.find(function(x){return x.id===bId;});
+  if(!b){_editLock=false;return;}
   var today=new Date().toISOString().slice(0,10);
   var oo=S.objects.map(function(o){return '<option'+(o===b.obj?' selected':'')+'>'+o+'</option>';}).join('');
   var zones=uniqVals('zone');
@@ -4584,11 +4594,89 @@ function openVol(bId){
     var e={id:Date.now(),date:g('f-date')||new Date().toISOString().slice(0,10),type:'vol',brigade:bId,volume:v,wtype:wt,rateOverride:rt,rate:rt,amount:Math.round(v*rt),zone:getSelCustom('f-zone'),floor:getSelCustom('f-floor'),struct:st,note:g('f-note')||'',obj:g('f-obj')||S.objects[0]};
     if(redo)e.redo=true;
     if(closes){e.closes=true;e.closed=closed;}
-    S.entries.push(e);save();closeModal();render();
+    S.entries.push(e);
+    S._modified=Date.now();
+    save();
+    setTimeout(function(){pushCloud();},100);
+    setTimeout(function(){pushCloud();_editLock=false;},2500);
+    closeModal();render();
   });
-  document.getElementById('bcv').addEventListener('click',closeModal);
+  document.getElementById('bcv').addEventListener('click',function(){_editLock=false;closeModal();});
 }
-function openPay(bId){var b=S.brigades.find(function(x){return x.id===bId;}),B=calcBrig(b);var today=new Date().toISOString().slice(0,10);document.getElementById('mtit').textContent='ВЫПЛАТА';document.getElementById('mbody').innerHTML='<div style="background:var(--grlt);border:1px solid var(--green);border-radius:8px;padding:10px;margin-bottom:14px;font-size:11px"><b style="color:var(--teal)">'+b.name+'</b><br><span style="color:var(--mut)">Начислено '+fmt(B.earned)+' / Выплачено '+fmt(B.paid)+'</span><br><span style="color:'+(B.balance>0?'var(--red)':'var(--green)')+'">Остаток '+fmt(B.balance)+' тг</span></div><div class="frow"><div class="fg"><label class="fl">Дата</label><input class="fi" id="f-date" type="date" value="'+today+'"/></div><div class="fg"><label class="fl">Сумма тг</label><input class="fi" id="f-amount" type="number" placeholder="'+(B.balance>0?B.balance:0)+'" inputmode="numeric"/></div></div><div class="fg"><label class="fl">Примечание</label><input class="fi" id="f-note" type="text" placeholder="Расчёт..."/></div><button class="fsave" style="background:var(--green)" id="bsp">ВЫПЛАТИТЬ</button><button class="fcanc" id="bcp">Отмена</button>';document.getElementById('modal').style.display='flex';document.getElementById('bsp').addEventListener('click',function(){var a=parseFloat(g('f-amount'));if(!a||isNaN(a)){alert('Введите сумму');return;}var e={id:Date.now(),date:g('f-date')||new Date().toISOString().slice(0,10),type:'expense',brigade:bId,amount:a,cat:'Аванс / зарплата рабочим',who:'Компания',note:g('f-note')||'Выплата бригаде',obj:S.objects[0]};S.entries.push(e);save();closeModal();render();});document.getElementById('bcp').addEventListener('click',closeModal);}
+function openPay(bId){
+  _editLock=true;
+  var b=S.brigades.find(function(x){return x.id===bId;});
+  if(!b){_editLock=false;return;}
+  var B=calcBrig(b);
+  var today=new Date().toISOString().slice(0,10);
+  // Партнёры с их подотчётом — кому-то удобнее выбирать из тех у кого деньги уже на руках
+  var poOpts=PARTNERS.map(function(p){
+    var P=calcPar(p);
+    var hint='';
+    if(P.debtToCompany>0) hint=' (под отчёт: '+fmt(P.debtToCompany)+')';
+    return '<option value="'+p+'">'+p+hint+'</option>';
+  }).join('');
+  // Дефолтный плательщик — Бекжан (если есть деньги под отчёт), иначе Дмитрий
+  var defaultPayer = (calcPar('Бекжан').debtToCompany>0) ? 'Бекжан' : 'Дмитрий';
+  poOpts = PARTNERS.map(function(p){
+    var P=calcPar(p);
+    var hint='';
+    if(P.debtToCompany>0) hint=' (под отчёт: '+fmt(P.debtToCompany)+')';
+    return '<option value="'+p+'"'+(p===defaultPayer?' selected':'')+'>'+p+hint+'</option>';
+  }).join('');
+  
+  document.getElementById('mtit').textContent='ВЫПЛАТА БРИГАДЕ';
+  document.getElementById('mbody').innerHTML=
+    '<div style="background:var(--grlt);border:1px solid var(--green);border-radius:8px;padding:10px;margin-bottom:14px;font-size:11px">'+
+      '<b style="color:var(--teal)">'+b.name+'</b><br>'+
+      '<span style="color:var(--mut)">Начислено '+fmt(B.earned)+' / Выплачено '+fmt(B.paid)+'</span><br>'+
+      '<span style="color:'+(B.balance>0?'var(--red)':'var(--green)')+'">'+(B.balance>0?'Остаток к выплате: ':'Переплата: ')+fmt(Math.abs(B.balance))+' тг</span>'+
+    '</div>'+
+    '<div class="frow">'+
+      '<div class="fg"><label class="fl">Дата</label><input class="fi" id="f-date" type="date" value="'+today+'"/></div>'+
+      '<div class="fg"><label class="fl">Сумма тг</label><input class="fi" id="f-amount" type="number" placeholder="'+(B.balance>0?B.balance:0)+'" inputmode="numeric"/></div>'+
+    '</div>'+
+    '<div class="fg"><label class="fl">Кто платит</label><select class="fi" id="f-who">'+poOpts+'</select>'+
+    '<div style="font-size:9px;color:var(--mut);margin-top:4px;line-height:1.4">Партнёр который физически отдаёт деньги бригадиру</div></div>'+
+    '<div class="fg"><label class="fl">Откуда деньги</label><select class="fi" id="f-source">'+
+      '<option value="advance" selected>Из подотчётных (гасит долг плательщика)</option>'+
+      '<option value="own">Со своих (компания будет должна плательщику)</option>'+
+      '<option value="cash">Из кассы компании</option>'+
+    '</select>'+
+    '<div style="font-size:9px;color:var(--mut);margin-top:4px;line-height:1.4">По умолчанию: партнёр выдаёт из тех денег что ему дали под отчёт</div></div>'+
+    '<div class="fg"><label class="fl">Примечание</label><input class="fi" id="f-note" type="text" placeholder="Аванс/расчёт за объём..."/></div>'+
+    '<button class="fsave" style="background:var(--green)" id="bsp">ВЫПЛАТИТЬ</button>'+
+    '<button class="fcanc" id="bcp">Отмена</button>';
+  document.getElementById('modal').style.display='flex';
+  document.getElementById('bsp').addEventListener('click',function(){
+    var a=parseFloat(g('f-amount'));
+    if(!a||isNaN(a)){alert('Введите сумму');return;}
+    var who=g('f-who')||'Дмитрий';
+    var src=g('f-source')||'advance';
+    var e={
+      id:Date.now(),
+      date:g('f-date')||new Date().toISOString().slice(0,10),
+      type:'expense',
+      brigade:bId,
+      amount:a,
+      cat:'Аванс / зарплата рабочим',
+      who:who,
+      paySource:src,
+      note:g('f-note')||('Выплата бригаде '+b.name),
+      obj:S.objects[0]
+    };
+    S.entries.push(e);
+    S._modified=Date.now();
+    if(!S.history)S.history=[];
+    S.history.push({action:'add',by:role,at:new Date().toISOString(),type:'expense',amount:a,source:'brig-pay'});
+    save();
+    setTimeout(function(){pushCloud();},100);
+    setTimeout(function(){pushCloud();_editLock=false;},2500);
+    closeModal();
+    render();
+  });
+  document.getElementById('bcp').addEventListener('click',function(){_editLock=false;closeModal();});
+}
 function openBrigCard(bId){
   var b=S.brigades.find(function(x){return x.id===bId;});
   if(!b) return;
@@ -4747,8 +4835,9 @@ function openAddBrig(){
 var SPECS_LIST=['Бригадир','Арматурщик','Опалубщик','Бетонщик','Универсал','Разнорабочий','Сварщик','Стропальщик','Прораб','Мастер'];
 
 function openPeople(bId){
+  _editLock=true;
   var b=S.brigades.find(function(x){return x.id===bId;});
-  if(!b) return;
+  if(!b){_editLock=false;return;}
   if(!b.people) b.people=[];
   document.getElementById('mtit').textContent=T('peopleTitle')+' — '+b.name;
   function render(){
@@ -4769,7 +4858,7 @@ function openPeople(bId){
       });
     }
     h+='<button onclick="addPerson(\''+bId+'\')" style="width:100%;background:var(--blue);border:none;color:#fff;border-radius:8px;padding:11px;font-family:var(--fd);font-size:13px;cursor:pointer;margin-top:6px">+ ДОБАВИТЬ ЧЕЛОВЕКА</button>';
-    h+='<button class="fcanc" onclick="closeModal()">Закрыть</button>';
+    h+='<button class="fcanc" onclick="_editLock=false;closeModal()">Закрыть</button>';
     document.getElementById('mbody').innerHTML=h;
   }
   render();
@@ -4778,8 +4867,9 @@ function openPeople(bId){
 }
 
 function addPerson(bId){
+  _editLock=true; // блокируем синхронизацию пока редактируем
   var b=S.brigades.find(function(x){return x.id===bId;});
-  if(!b) return;
+  if(!b){_editLock=false;return;}
   if(!b.people) b.people=[];
   var specOpts=SPECS_LIST.map(function(s){return '<option>'+s+'</option>';}).join('');
   document.getElementById('mtit').textContent=T('newPerson');
@@ -4795,15 +4885,20 @@ function addPerson(bId){
     if(!name){alert('Введите ФИО');return;}
     b.people.push({id:'p'+Date.now()+Math.floor(Math.random()*999),name:name,spec:g('pn-spec'),rate:parseInt(g('pn-rate'))||0,phone:g('pn-phone').trim()});
     b.workers=b.people.length;
+    S._modified=Date.now();
     save();
+    // Принудительный push сразу + повтор через 2 сек чтобы выиграть гонку с pullCloud
+    setTimeout(function(){pushCloud();},100);
+    setTimeout(function(){pushCloud();_editLock=false;},2500);
     openPeople(bId);
   });
-  document.getElementById('pn-back').addEventListener('click',function(){openPeople(bId);});
+  document.getElementById('pn-back').addEventListener('click',function(){_editLock=false;openPeople(bId);});
 }
 
 function editPerson(bId,idx){
+  _editLock=true;
   var b=S.brigades.find(function(x){return x.id===bId;});
-  if(!b||!b.people||!b.people[idx]) return;
+  if(!b||!b.people||!b.people[idx]){_editLock=false;return;}
   var p=b.people[idx];
   var specOpts=SPECS_LIST.map(function(s){return '<option'+(s===p.spec?' selected':'')+'>'+s+'</option>';}).join('');
   document.getElementById('mtit').textContent=T('editPerson2');
@@ -4820,25 +4915,33 @@ function editPerson(bId,idx){
     p.spec=g('pe-spec');
     p.rate=parseInt(g('pe-rate'))||0;
     p.phone=g('pe-phone').trim();
+    S._modified=Date.now();
     save();
+    setTimeout(function(){pushCloud();},100);
+    setTimeout(function(){pushCloud();_editLock=false;},2500);
     openPeople(bId);
   });
   document.getElementById('pe-del').addEventListener('click',function(){
-    if(!confirm('Удалить '+p.name+'?')) return;
+    if(!confirm('Удалить '+p.name+'?')){return;}
     b.people.splice(idx,1);
     b.workers=b.people.length;
+    S._modified=Date.now();
     save();
+    setTimeout(function(){pushCloud();},100);
+    setTimeout(function(){pushCloud();_editLock=false;},2500);
     openPeople(bId);
   });
-  document.getElementById('pe-back').addEventListener('click',function(){openPeople(bId);});
+  document.getElementById('pe-back').addEventListener('click',function(){_editLock=false;openPeople(bId);});
 }
 
 // ============ ТАБЕЛЬ ПОСЕЩАЕМОСТИ ============
 function openAttendance(bId){
+  _editLock=true;
   var b=S.brigades.find(function(x){return x.id===bId;});
-  if(!b) return;
+  if(!b){_editLock=false;return;}
   if(!b.people||b.people.length===0){
-    if(confirm(T('noAttendPeople'))) openPeople(bId);
+    _editLock=false;
+    if(confirm('В этой бригаде ещё нет добавленных людей. Добавить?')) openPeople(bId);
     return;
   }
   if(!b.attendance) b.attendance={};
@@ -4914,7 +5017,7 @@ function openAttendance(bId){
     h+='<button onclick="payByTabель(\''+bId+'\')" style="width:100%;margin-top:8px;background:linear-gradient(135deg,var(--green),#2ea043);color:#fff;border:none;border-radius:8px;padding:10px;font-family:var(--fd);font-size:14px;cursor:pointer;letter-spacing:1px">ВЫДАТЬ ЗАРПЛАТУ</button>';
     h+='</div>';
   }
-  h+='<button class="fcanc" onclick="closeModal()">Закрыть</button>';
+  h+='<button class="fcanc" onclick="_editLock=false;closeModal()">Закрыть</button>';
   document.getElementById('mbody').innerHTML=h;
   document.getElementById('modal').style.display='flex';
 }
@@ -4937,21 +5040,24 @@ function payByTabель(bId){
     }
   });
   if(totalPay===0){alert('Нет данных для расчёта');return;}
-  if(!confirm('Выдать зарплату '+fmt(totalPay)+' тг?\n\n'+details.join('\n')+'\n\nЭто создаст запись расхода в журнале.')){return;}
-  var entry={
-    id:Date.now(),
-    date:new Date().toISOString().slice(0,10),
-    type:'expense',amount:totalPay,who:'',
-    obj:b.obj||S.objects[0]||'',
-    note:'Зарплата '+b.name+' за 14 дн',
-    cat:'Аванс / зарплата рабочим',
-    brigade:b.id
-  };
-  S.entries.push(entry);
-  if(!S.history)S.history=[];
-  S.history.push({action:'add',by:role,at:new Date().toISOString(),type:'expense',amount:totalPay,source:'tabель'});
-  save();closeModal();render();
-  alert('✓ Выплата '+fmt(totalPay)+' тг добавлена в журнал');
+  // Открываем стандартную форму выплаты — но с предзаполненной суммой
+  _editLock=false; // openPay сама поставит lock
+  closeModal();
+  // Сохраним информацию для подстановки в openPay
+  window._prefillPayAmount=totalPay;
+  window._prefillPayNote='Зарплата '+b.name+' за 14 дн ('+details.join(', ')+')';
+  setTimeout(function(){
+    openPay(bId);
+    // Подставим значения после открытия формы
+    setTimeout(function(){
+      var amt=document.getElementById('f-amount');
+      var note=document.getElementById('f-note');
+      if(amt){amt.value=window._prefillPayAmount;amt.placeholder='';}
+      if(note)note.value=window._prefillPayNote;
+      window._prefillPayAmount=null;
+      window._prefillPayNote=null;
+    },100);
+  },100);
 }
 
 function toggleAttend(bId,personId,date){
@@ -4961,7 +5067,10 @@ function toggleAttend(bId,personId,date){
   if(!b.attendance[date]) b.attendance[date]={};
   b.attendance[date][personId]=!b.attendance[date][personId];
   if(!b.attendance[date][personId]) delete b.attendance[date][personId];
+  S._modified=Date.now();
   save();
+  setTimeout(function(){pushCloud();},100);
+  // Не сбрасываем _editLock — пользователь продолжает в табеле
   openAttendance(bId);
 }
 
@@ -4976,7 +5085,9 @@ function markAllToday(bId,present){
   } else {
     delete b.attendance[today];
   }
+  S._modified=Date.now();
   save();
+  setTimeout(function(){pushCloud();},100);
   openAttendance(bId);
 }
 // ============ КОНЕЦ БРИГАД ============
@@ -5979,10 +6090,57 @@ function confirmDraftGroup(linkedKey){
         added++;
       }
     } else {
-      var entry={id:Date.now()+Math.floor(Math.random()*9999),date:new Date(d.ts).toISOString().slice(0,10),type:op.kind,amount:op.amount||0,who:op.who||PARTNERS[0],obj:op.obj||S.objects[0]||'',note:op.note||'',source:'telegram',tgAuthor:d.author};
-      if(op.category) entry.cat=op.category;
-      if(op.forPartner) entry.forPartner=op.forPartner;
-      if(op.brigadeName){var br=S.brigades.find(function(b){return b.name.toLowerCase().indexOf((op.brigadeName||'').toLowerCase())>=0;});if(br) entry.brigade=br.id;}
+      // Конвертация в новую модель v2
+      // op.kind может быть 'expense', 'income', 'invest', 'personal' (старые типы из бота)
+      var newType = op.kind;
+      var entry = {
+        id: Date.now()+Math.floor(Math.random()*9999),
+        date: new Date(d.ts).toISOString().slice(0,10),
+        amount: op.amount||0,
+        obj: op.obj||S.objects[0]||'',
+        note: op.note||'',
+        tgSource: 'telegram',  // оставляем для отображения "📱" в журнале (через alias source)
+        source: 'telegram',
+        tgAuthor: d.author
+      };
+      
+      if(op.kind==='income'){
+        entry.type='income';
+        if(op.who) entry.who=op.who;
+      } else if(op.kind==='invest'){
+        // Бот ставит forPartner если деньги передавались партнёру под отчёт
+        if(op.forPartner && op.forPartner!==op.who){
+          // Это передача под отчёт → advance в новой модели
+          entry.type='advance';
+          entry.from=op.who||'Дмитрий';
+          entry.to=op.forPartner;
+        } else {
+          // Чистое вложение в кассу
+          entry.type='invest';
+          entry.who=op.who||'Дмитрий';
+        }
+      } else if(op.kind==='personal'){
+        // "Взял лично" → advance от Дмитрия к этому партнёру (это его долг)
+        entry.type='advance';
+        entry.from='Дмитрий';
+        entry.to=op.who||PARTNERS[0];
+        entry.note='[Лично] '+(op.note||'');
+      } else if(op.kind==='expense'){
+        entry.type='expense';
+        entry.who=op.who||PARTNERS[0];
+        // Источник денег: для Дмитрия по умолчанию из своих, для остальных — из подотчётных
+        entry.paySource = (entry.who==='Дмитрий') ? 'own' : 'advance';
+        if(op.category) entry.cat=op.category;
+        if(op.brigadeName){
+          var br=S.brigades.find(function(b){return b.name.toLowerCase().indexOf((op.brigadeName||'').toLowerCase())>=0;});
+          if(br) entry.brigade=br.id;
+        }
+      } else {
+        // Неизвестный тип — оставляем как есть
+        entry.type=op.kind;
+        if(op.who) entry.who=op.who;
+        if(op.category) entry.cat=op.category;
+      }
       if(linkedId) entry.linkedId=linkedId;
       S.entries.push(entry);
       addedEntryIds.push(entry.id);
