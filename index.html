@@ -1267,6 +1267,18 @@ function pushCloud(){
   }
   fetch(BURL,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':AK,'X-Bin-Versioning':'false'},body:JSON.stringify({_modified:S._modified,_schema:S._schema||3,entries:S.entries,brigades:S.brigades,objects:S.objects,history:S.history,weeks:S.weeks,kfu:S.kfu,settings:S.settings,goalsDone:S.goalsDone,kzDict:S.kzDict||{},workTypes:S.workTypes||[]})}).then(function(){ss('OK',false);}).catch(function(){ss('!',true);});
 }
+
+// Отправка события в архивную группу Telegram (через worker)
+function auditLog(title, body){
+  if(!AI_WORKER_URL||!AI_SHARED_TOKEN) return;
+  try{
+    fetch(AI_WORKER_URL.replace(/\/$/,'')+'/api/audit-log',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-LG-Token':AI_SHARED_TOKEN},
+      body:JSON.stringify({title:title,body:body})
+    }).catch(function(){});
+  }catch(e){}
+}
 var _editLock=false; // блокировка синхронизации во время редактирования
 function pullCloud(cb){
   if(_editLock){if(cb)cb();return;} // не синхронизируем во время правки
@@ -4617,7 +4629,33 @@ function saveEntry(){
   closeModal();
   render();
 }
-function delEntry(id){if(role!=='editor')return;if(!confirm(T('confirmDel')))return;var d=S.entries.find(function(e){return e.id==id;});S.entries=S.entries.filter(function(e){return e.id!=id;});if(!S.history)S.history=[];if(d)S.history.push({action:'delete',by:role,at:new Date().toISOString(),type:d.type,amount:d.amount});save();render();}
+function delEntry(id){
+  if(role!=='editor')return;
+  if(!confirm(T('confirmDel')))return;
+  var d=S.entries.find(function(e){return e.id==id;});
+  S.entries=S.entries.filter(function(e){return e.id!=id;});
+  if(!S.history)S.history=[];
+  if(d){
+    S.history.push({action:'delete',by:role,at:new Date().toISOString(),type:d.type,amount:d.amount});
+    // Лог в архив
+    var TYPES_LBL={expense:'💸 РАСХОД',income:'💰 ДОХОД',advance:'🔄 ПЕРЕДАЧА',vol:'📐 ОБЪЁМ',invest:'📥 ВЛОЖЕНИЕ',workers:'👷 РАБОЧИЕ'};
+    var lbl=TYPES_LBL[d.type]||d.type;
+    var details=lbl;
+    if(d.amount) details+=' '+fmt(d.amount)+' тг';
+    if(d.volume) details+=' '+d.volume+' '+(d.unit||'м³');
+    if(d.from&&d.to) details+=' ('+d.from+' → '+d.to+')';
+    else if(d.who) details+=' ('+d.who+')';
+    auditLog('🗑 ЗАПИСЬ УДАЛЕНА',
+      'ID: '+d.id+'\n'+
+      'Была: '+details+'\n'+
+      (d.note?'Примечание: '+d.note+'\n':'')+
+      (d.date?'Дата: '+d.date+'\n':'')+
+      'Удалил(а): '+(role==='editor'?'Учётчица':role));
+  }
+  S._modified=Date.now();
+  save();
+  render();
+}
 function openNewWeek(){var today=new Date().toISOString().slice(0,10);var lt=(S.weeks||[]).slice().sort(function(a,b){return b.date.localeCompare(a.date);})[0];document.getElementById('mtit').textContent='ПЛАНЁРКА';document.getElementById('mbody').innerHTML='<div style="background:var(--bllt);border:1px solid var(--blue);border-radius:8px;padding:10px;margin-bottom:14px;font-size:10px;color:var(--blue)">ТПСИ: твёрдые цифры план/факт, полный анализ, сравнение, договорённости письменно.</div><div class="fg"><label class="fl">Дата планёрки</label><input class="fi" id="w-date" type="date" value="'+today+'"/></div><div class="frow"><div class="fg"><label class="fl">ПЛАН м³</label><input class="fi" id="w-plan" type="number" step="0.1" inputmode="decimal" value="'+(lt&&lt.nextPlan?lt.nextPlan:'')+'"/></div><div class="fg"><label class="fl">ФАКТ м³</label><input class="fi" id="w-fact" type="number" step="0.1" inputmode="decimal"/></div></div><div class="fg"><label class="fl">Анализ - почему (ТПСИ)</label><textarea class="fi" id="w-why" rows="2" placeholder="С цифрами: было 5 рабочих вместо 8..."></textarea></div><div class="fg"><label class="fl">Решение</label><textarea class="fi" id="w-sol" rows="2" placeholder="Что делаем..."></textarea></div><div class="fg"><label class="fl">Договорённости (кто что обязался)</label><textarea class="fi" id="w-deals" rows="3" placeholder="Бекжан - нанять 2 рабочих до пт&#10;Сергей - проверить смету..."></textarea></div><div class="fg"><label class="fl">Действия на неделю</label><textarea class="fi" id="w-act" rows="2" placeholder="1. ...&#10;2. ..."></textarea></div><div class="fg"><label class="fl">ПЛАН на след. неделю м³</label><input class="fi" id="w-next" type="number" step="0.1" inputmode="decimal"/></div><button class="fsave" id="btn-sv-w">СОХРАНИТЬ</button><button class="fcanc" id="btn-cn-w">Отмена</button>';document.getElementById('modal').style.display='flex';document.getElementById('btn-sv-w').addEventListener('click',saveWeek);document.getElementById('btn-cn-w').addEventListener('click',closeModal);}
 function saveWeek(){var p=parseFloat(g('w-plan')),f=parseFloat(g('w-fact'));if(isNaN(p)||isNaN(f)){alert('Введите план и факт');return;}var w={id:Date.now(),date:g('w-date')||new Date().toISOString().slice(0,10),plan:p,fact:f,why:g('w-why')||'',solution:g('w-sol')||'',deals:g('w-deals')||'',actions:g('w-act')||'',nextPlan:parseFloat(g('w-next'))||0};if(!S.weeks)S.weeks=[];S.weeks.push(w);save();closeModal();setTab('plan');}
 window.openWeekCard=function(id){
@@ -6542,8 +6580,27 @@ function delDraftOnServer(id){
 function openDraftsModal(){
   var visible=(_drafts||[]).filter(function(d){return !_deletedIds[d.id];});
   if(visible.length===0){alert(T('noDrafts'));return;}
-  var labels={expense:'💸 РАСХОД',income:'💰 ДОХОД',invest:'📥 ВЛОЖЕНИЕ',personal:'🟠 ЛИЧНЫЙ',workers:'👷 РАБОЧИЕ'};
-  var colors={expense:'var(--red)',income:'var(--green)',invest:'var(--blue)',personal:'var(--orange)',workers:'var(--purple)'};
+  // Labels для новой модели v3 (+ старые типы для обратной совместимости)
+  var labels={
+    income:'💰 ДОХОД',
+    invest:'💼 ВЛОЖЕНИЕ В КАССУ',
+    advance:'🔄 ПЕРЕДАЧА',
+    expense:'🧾 РАСХОД',
+    payout:'↩️ ВЫПЛАТА ПАРТНЁРУ',
+    vol:'📐 ОБЪЁМ',
+    workers:'👷 РАБОЧИЕ',
+    personal:'👤 ВЗЯЛ ЛИЧНО (старое)'
+  };
+  var colors={
+    expense:'var(--red)',
+    income:'var(--green)',
+    advance:'var(--teal)',
+    invest:'var(--blue)',
+    payout:'var(--gold)',
+    vol:'var(--teal)',
+    personal:'var(--purple)',
+    workers:'var(--purple)'
+  };
   document.getElementById('mtit').textContent=T('onReview')+' ('+visible.length+')';
   var h='';
   var groups={},groupOrder=[];
@@ -6552,6 +6609,27 @@ function openDraftsModal(){
     if(!groups[k]){groups[k]={items:[]};groupOrder.push(k);}
     groups[k].items.push(d);
   });
+  
+  // АВТО-КОНВЕРТАЦИЯ старых форматов при отображении
+  // invest + forPartner → advance (это была передача под отчёт)
+  // invest без forPartner → остаётся как invest (это вложение в кассу)
+  visible.forEach(function(d){
+    if(d.op.kind==='invest' && d.op.forPartner && d.op.forPartner!==d.op.who){
+      d.op.kind='advance';
+      d.op.from=d.op.who||'Дмитрий';
+      d.op.to=d.op.forPartner;
+      delete d.op.who;
+      delete d.op.forPartner;
+    } else if(d.op.kind==='personal'){
+      // Старый "Личный" → advance от Дмитрия к этому партнёру
+      d.op.kind='advance';
+      d.op.from='Дмитрий';
+      d.op.to=d.op.who||'';
+      d.op.note='[Лично] '+(d.op.note||'');
+      delete d.op.who;
+    }
+  });
+  
   groupOrder.forEach(function(k){
     var g=groups[k],first=g.items[0],multi=g.items.length>1;
     var dt=new Date(first.ts);
@@ -6564,15 +6642,18 @@ function openDraftsModal(){
       var op=d.op,col=colors[op.kind]||'var(--mut)';
       h+='<div style="padding:8px;margin:4px 0;background:var(--sur);border-radius:6px;border-left:2px solid '+col+'">';
       h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">';
-      h+='<div style="font-family:var(--fd);font-size:11px;color:'+col+'">'+( labels[op.kind]||op.kind)+'</div>';
-      h+='<select onchange="updateDraftField(\''+d.id+'\',\'kind\',this.value)" style="background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:3px 6px;font-size:11px">';
-      ['expense','income','invest','personal','workers'].forEach(function(kk){
+      h+='<div style="font-family:var(--fd);font-size:11px;color:'+col+'">'+(labels[op.kind]||op.kind)+'</div>';
+      // Селектор типов — новые типы первыми
+      h+='<select onchange="updateDraftField(\''+d.id+'\',\'kind\',this.value);openDraftsModal()" style="background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:3px 6px;font-size:11px">';
+      ['income','invest','advance','expense','payout','vol','workers'].forEach(function(kk){
         h+='<option value="'+kk+'"'+(op.kind===kk?' selected':'')+'>'+(labels[kk]||kk)+'</option>';
       });
       h+='</select></div>';
+      
+      // ВЫВОДИМ ПОЛЯ В ЗАВИСИМОСТИ ОТ ТИПА
       if(op.kind==='workers'){
+        // 👷 РАБОЧИЕ — бригада + количество
         h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">';
-        // Бригада
         h+='<div><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Бригада</div>';
         h+='<select onchange="updateDraftField(\''+d.id+'\',\'brigadeName\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px">';
         h+='<option value="">— выберите —</option>';
@@ -6581,42 +6662,32 @@ function openDraftsModal(){
           h+='<option value="'+b.name.replace(/"/g,'&quot;')+'"'+(sel?' selected':'')+'>'+b.name+'</option>';
         });
         h+='</select></div>';
-        // Количество
         h+='<div><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Чел</div>';
         h+='<input type="number" value="'+(op.workersCount||0)+'" onchange="updateDraftField(\''+d.id+'\',\'workersCount\',parseInt(this.value)||0)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px"/></div>';
         h+='</div>';
-      } else {
+      } 
+      else if(op.kind==='advance'){
+        // 🔄 ПЕРЕДАЧА — сумма + от кого → кому
+        h+='<div style="background:rgba(255,179,32,.06);border:1px solid rgba(255,179,32,.25);border-radius:6px;padding:8px;margin-bottom:6px">';
+        h+='<div style="font-size:9px;color:var(--gold);margin-bottom:6px;font-weight:700">🔄 ПЕРЕДАЧА ДЕНЕГ МЕЖДУ ПАРТНЁРАМИ</div>';
         h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">';
         // Сумма
         h+='<div><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Сумма, тг</div>';
         h+='<input type="number" value="'+(op.amount||0)+'" onchange="updateDraftField(\''+d.id+'\',\'amount\',parseInt(this.value)||0)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px"/></div>';
-        // Кто (для invest подпись «Кто вложил», для остальных «Партнёр»)
-        var whoLabel=(op.kind==='invest')?'Кто вложил':'Партнёр';
-        h+='<div><div style="font-size:9px;color:var(--mut);margin-bottom:2px">'+whoLabel+'</div>';
-        h+='<select onchange="updateDraftField(\''+d.id+'\',\'who\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px">';
-        h+='<option value="">— нет —</option>';
-        PARTNERS.forEach(function(p){h+='<option value="'+p+'"'+(op.who===p?' selected':'')+'>'+p+'</option>';});
+        // От кого
+        h+='<div><div style="font-size:9px;color:var(--mut);margin-bottom:2px">От кого</div>';
+        h+='<select onchange="updateDraftField(\''+d.id+'\',\'from\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px">';
+        h+='<option value="">— выберите —</option>';
+        PARTNERS.forEach(function(p){h+='<option value="'+p+'"'+(op.from===p?' selected':'')+'>'+p+'</option>';});
         h+='</select></div>';
         h+='</div>';
-        // Кому передал (под отчёт) — только для invest, выделено золотым как в основной форме
-        if(op.kind==='invest'){
-          h+='<div style="margin-bottom:6px;padding:8px;background:rgba(255,179,32,.06);border:1px solid rgba(255,179,32,.25);border-radius:6px">';
-          h+='<div style="font-size:9px;color:var(--gold);margin-bottom:3px;font-weight:700">📋 КОМУ ПЕРЕДАЛ (ПОД ОТЧЁТ)</div>';
-          h+='<select onchange="updateDraftField(\''+d.id+'\',\'forPartner\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px">';
-          h+='<option value="">— никому, в общую кассу —</option>';
-          PARTNERS.forEach(function(p){h+='<option value="'+p+'"'+(op.forPartner===p?' selected':'')+'>'+p+'</option>';});
-          h+='</select>';
-          h+='<div style="font-size:9px;color:var(--mut);margin-top:3px;line-height:1.3">Если деньги передаются партнёру под отчёт</div>';
-          h+='</div>';
-        }
-        // Категория (только для expense)
-        if(op.kind==='expense'){
-          h+='<div style="margin-bottom:6px"><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Категория</div>';
-          h+='<select onchange="updateDraftField(\''+d.id+'\',\'category\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px">';
-          h+='<option value="">— нет —</option>';
-          EXP_CATS.forEach(function(c){h+='<option value="'+c+'"'+(op.category===c?' selected':'')+'>'+c+'</option>';});
-          h+='</select></div>';
-        }
+        // Кому
+        h+='<div><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Кому передал</div>';
+        h+='<select onchange="updateDraftField(\''+d.id+'\',\'to\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px">';
+        h+='<option value="">— выберите —</option>';
+        PARTNERS.forEach(function(p){h+='<option value="'+p+'"'+(op.to===p?' selected':'')+'>'+p+'</option>';});
+        h+='</select></div>';
+        h+='</div>';
         // Объект
         h+='<div style="margin-bottom:6px"><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Объект</div>';
         h+='<select onchange="updateDraftField(\''+d.id+'\',\'obj\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px">';
@@ -6626,6 +6697,152 @@ function openDraftsModal(){
         h+='<div><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Примечание</div>';
         h+='<input type="text" value="'+(op.note||'').replace(/"/g,'&quot;')+'" onchange="updateDraftField(\''+d.id+'\',\'note\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px"/></div>';
       }
+      else if(op.kind==='expense'){
+        // 💸 РАСХОД — сумма + кто платит + откуда + категория + бригада + объект
+        h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">';
+        h+='<div><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Сумма, тг</div>';
+        h+='<input type="number" value="'+(op.amount||0)+'" onchange="updateDraftField(\''+d.id+'\',\'amount\',parseInt(this.value)||0)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px"/></div>';
+        h+='<div><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Кто платит</div>';
+        h+='<select onchange="updateDraftField(\''+d.id+'\',\'who\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px">';
+        h+='<option value="">— выберите —</option>';
+        PARTNERS.forEach(function(p){h+='<option value="'+p+'"'+(op.who===p?' selected':'')+'>'+p+'</option>';});
+        h+='</select></div>';
+        h+='</div>';
+        // Откуда деньги (paySource)
+        h+='<div style="margin-bottom:6px"><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Откуда деньги</div>';
+        var defaultPaySource = op.paySource || (op.who==='Дмитрий'?'own':'advance');
+        h+='<select onchange="updateDraftField(\''+d.id+'\',\'paySource\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px">';
+        h+='<option value="advance"'+(defaultPaySource==='advance'?' selected':'')+'>Из подотчётных</option>';
+        h+='<option value="own"'+(defaultPaySource==='own'?' selected':'')+'>Со своих</option>';
+        h+='<option value="cash"'+(defaultPaySource==='cash'?' selected':'')+'>Из кассы</option>';
+        h+='</select></div>';
+        // Категория
+        h+='<div style="margin-bottom:6px"><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Категория</div>';
+        h+='<select onchange="updateDraftField(\''+d.id+'\',\'category\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px">';
+        h+='<option value="">— нет —</option>';
+        EXP_CATS.forEach(function(c){h+='<option value="'+c+'"'+(op.category===c?' selected':'')+'>'+c+'</option>';});
+        h+='</select></div>';
+        // Бригада (опционально, если выплата бригаде)
+        h+='<div style="margin-bottom:6px"><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Бригада (если выплата бригаде)</div>';
+        h+='<select onchange="updateDraftField(\''+d.id+'\',\'brigadeName\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px">';
+        h+='<option value="">— нет —</option>';
+        (S.brigades||[]).forEach(function(b){
+          var sel=(op.brigadeName&&b.name.toLowerCase().indexOf(op.brigadeName.toLowerCase())>=0)||(op.brigadeName===b.name);
+          h+='<option value="'+b.name.replace(/"/g,'&quot;')+'"'+(sel?' selected':'')+'>'+b.name+'</option>';
+        });
+        h+='</select></div>';
+        // Объект
+        h+='<div style="margin-bottom:6px"><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Объект</div>';
+        h+='<select onchange="updateDraftField(\''+d.id+'\',\'obj\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px">';
+        (S.objects||[]).forEach(function(o){h+='<option value="'+o+'"'+(op.obj===o?' selected':'')+'>'+o+'</option>';});
+        h+='</select></div>';
+        // Примечание
+        h+='<div><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Примечание</div>';
+        h+='<input type="text" value="'+(op.note||'').replace(/"/g,'&quot;')+'" onchange="updateDraftField(\''+d.id+'\',\'note\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px"/></div>';
+      }
+      else if(op.kind==='income'){
+        // 💰 ДОХОД — сумма + кто получил + объект + примечание
+        h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">';
+        h+='<div><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Сумма, тг</div>';
+        h+='<input type="number" value="'+(op.amount||0)+'" onchange="updateDraftField(\''+d.id+'\',\'amount\',parseInt(this.value)||0)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px"/></div>';
+        h+='<div><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Кто получил</div>';
+        h+='<select onchange="updateDraftField(\''+d.id+'\',\'who\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px">';
+        h+='<option value="">— нет —</option>';
+        PARTNERS.forEach(function(p){h+='<option value="'+p+'"'+(op.who===p?' selected':'')+'>'+p+'</option>';});
+        h+='</select></div>';
+        h+='</div>';
+        h+='<div style="margin-bottom:6px"><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Объект</div>';
+        h+='<select onchange="updateDraftField(\''+d.id+'\',\'obj\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px">';
+        (S.objects||[]).forEach(function(o){h+='<option value="'+o+'"'+(op.obj===o?' selected':'')+'>'+o+'</option>';});
+        h+='</select></div>';
+        h+='<div><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Примечание</div>';
+        h+='<input type="text" value="'+(op.note||'').replace(/"/g,'&quot;')+'" onchange="updateDraftField(\''+d.id+'\',\'note\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px"/></div>';
+      }
+      else if(op.kind==='vol'){
+        // 📐 ОБЪЁМ — объём + единица + вид работ + бригада
+        h+='<div style="display:grid;grid-template-columns:1fr 100px;gap:6px;margin-bottom:6px">';
+        h+='<div><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Объём</div>';
+        h+='<input type="number" step="0.01" value="'+(op.volume||0)+'" onchange="updateDraftField(\''+d.id+'\',\'volume\',parseFloat(this.value)||0)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px"/></div>';
+        h+='<div><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Ед.</div>';
+        h+='<select onchange="updateDraftField(\''+d.id+'\',\'unit\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px">';
+        ['м³','м²','тн','шт','м/п','кг'].forEach(function(u){
+          h+='<option value="'+u+'"'+(op.unit===u||(u==='м³'&&!op.unit)?' selected':'')+'>'+u+'</option>';
+        });
+        h+='</select></div>';
+        h+='</div>';
+        h+='<div style="margin-bottom:6px"><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Вид работ</div>';
+        h+='<select onchange="updateDraftField(\''+d.id+'\',\'wtype\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px">';
+        h+='<option value="">— выберите —</option>';
+        WORK_TYPES.forEach(function(w){h+='<option value="'+w+'"'+(op.wtype===w?' selected':'')+'>'+w+'</option>';});
+        h+='</select></div>';
+        h+='<div style="margin-bottom:6px"><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Бригада</div>';
+        h+='<select onchange="updateDraftField(\''+d.id+'\',\'brigadeName\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px">';
+        h+='<option value="">— выберите —</option>';
+        (S.brigades||[]).forEach(function(b){
+          var sel=(op.brigadeName&&b.name.toLowerCase().indexOf(op.brigadeName.toLowerCase())>=0)||(op.brigadeName===b.name);
+          h+='<option value="'+b.name.replace(/"/g,'&quot;')+'"'+(sel?' selected':'')+'>'+b.name+'</option>';
+        });
+        h+='</select></div>';
+        h+='<div style="margin-bottom:6px"><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Объект</div>';
+        h+='<select onchange="updateDraftField(\''+d.id+'\',\'obj\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px">';
+        (S.objects||[]).forEach(function(o){h+='<option value="'+o+'"'+(op.obj===o?' selected':'')+'>'+o+'</option>';});
+        h+='</select></div>';
+        h+='<div><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Примечание</div>';
+        h+='<input type="text" value="'+(op.note||'').replace(/"/g,'&quot;')+'" onchange="updateDraftField(\''+d.id+'\',\'note\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px"/></div>';
+      }
+      else if(op.kind==='invest'){
+        // 💼 ВЛОЖЕНИЕ В КАССУ — партнёр положил свои деньги в общую кассу
+        h+='<div style="background:rgba(88,166,255,.06);border:1px solid rgba(88,166,255,.25);border-radius:6px;padding:8px;margin-bottom:6px">';
+        h+='<div style="font-size:9px;color:var(--blue);margin-bottom:6px;font-weight:700">💼 ВЛОЖЕНИЕ В ОБЩУЮ КАССУ</div>';
+        h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">';
+        // Сумма
+        h+='<div><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Сумма, тг</div>';
+        h+='<input type="number" value="'+(op.amount||0)+'" onchange="updateDraftField(\''+d.id+'\',\'amount\',parseInt(this.value)||0)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px"/></div>';
+        // Кто вложил
+        h+='<div><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Кто вложил</div>';
+        h+='<select onchange="updateDraftField(\''+d.id+'\',\'who\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px">';
+        h+='<option value="">— выберите —</option>';
+        PARTNERS.forEach(function(p){h+='<option value="'+p+'"'+(op.who===p?' selected':'')+'>'+p+'</option>';});
+        h+='</select></div>';
+        h+='</div></div>';
+        // Объект
+        h+='<div style="margin-bottom:6px"><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Объект</div>';
+        h+='<select onchange="updateDraftField(\''+d.id+'\',\'obj\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px">';
+        (S.objects||[]).forEach(function(o){h+='<option value="'+o+'"'+(op.obj===o?' selected':'')+'>'+o+'</option>';});
+        h+='</select></div>';
+        // Примечание
+        h+='<div><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Примечание</div>';
+        h+='<input type="text" value="'+(op.note||'').replace(/"/g,'&quot;')+'" onchange="updateDraftField(\''+d.id+'\',\'note\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px"/></div>';
+      }
+      else if(op.kind==='payout'){
+        // ↩️ ВЫПЛАТА — компания вернула партнёру (закрыла свой долг)
+        h+='<div style="background:rgba(255,179,32,.06);border:1px solid rgba(255,179,32,.25);border-radius:6px;padding:8px;margin-bottom:6px">';
+        h+='<div style="font-size:9px;color:var(--gold);margin-bottom:6px;font-weight:700">↩️ ВЫПЛАТА (КОМПАНИЯ → ПАРТНЁР)</div>';
+        h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">';
+        // Сумма
+        h+='<div><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Сумма, тг</div>';
+        h+='<input type="number" value="'+(op.amount||0)+'" onchange="updateDraftField(\''+d.id+'\',\'amount\',parseInt(this.value)||0)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px"/></div>';
+        // Кому
+        h+='<div><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Кому</div>';
+        h+='<select onchange="updateDraftField(\''+d.id+'\',\'who\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px">';
+        h+='<option value="">— выберите —</option>';
+        PARTNERS.forEach(function(p){h+='<option value="'+p+'"'+(op.who===p?' selected':'')+'>'+p+'</option>';});
+        h+='</select></div>';
+        h+='</div></div>';
+        // Объект
+        h+='<div style="margin-bottom:6px"><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Объект</div>';
+        h+='<select onchange="updateDraftField(\''+d.id+'\',\'obj\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px">';
+        (S.objects||[]).forEach(function(o){h+='<option value="'+o+'"'+(op.obj===o?' selected':'')+'>'+o+'</option>';});
+        h+='</select></div>';
+        // Примечание
+        h+='<div><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Примечание</div>';
+        h+='<input type="text" value="'+(op.note||'').replace(/"/g,'&quot;')+'" onchange="updateDraftField(\''+d.id+'\',\'note\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px"/></div>';
+      }
+      else {
+        // Старые типы personal или неизвестный
+        h+='<div style="font-size:10px;color:var(--mut);padding:8px;background:rgba(255,179,32,.05);border-radius:4px">⚠️ Старый формат — измените тип сверху</div>';
+      }
+      
       h+='</div>';
     });
     if(canEdit()){
@@ -6659,6 +6876,41 @@ function confirmDraftGroup(linkedKey){
   if(group.length===0) return;
   var linkedId=group.length>1?'tg_'+linkedKey:null,added=0;
   var addedEntryIds=[]; // для undo
+  
+  // ВАЛИДАЦИЯ перед добавлением — проверим что все поля заполнены
+  var errors=[];
+  group.forEach(function(d,idx){
+    var op=d.op;
+    if(op.kind==='advance'){
+      if(!op.amount||op.amount<=0) errors.push('Запись '+(idx+1)+': укажите сумму');
+      if(!op.from) errors.push('Запись '+(idx+1)+': укажите кто передал');
+      if(!op.to) errors.push('Запись '+(idx+1)+': укажите кому передал');
+      if(op.from===op.to) errors.push('Запись '+(idx+1)+': «от» и «кому» — один и тот же партнёр');
+    } else if(op.kind==='expense'){
+      if(!op.amount||op.amount<=0) errors.push('Запись '+(idx+1)+': укажите сумму');
+      if(!op.who) errors.push('Запись '+(idx+1)+': укажите кто платит');
+    } else if(op.kind==='income'){
+      if(!op.amount||op.amount<=0) errors.push('Запись '+(idx+1)+': укажите сумму');
+    } else if(op.kind==='invest'){
+      if(!op.amount||op.amount<=0) errors.push('Запись '+(idx+1)+': укажите сумму');
+      if(!op.who) errors.push('Запись '+(idx+1)+': укажите кто вложил');
+    } else if(op.kind==='payout'){
+      if(!op.amount||op.amount<=0) errors.push('Запись '+(idx+1)+': укажите сумму');
+      if(!op.who) errors.push('Запись '+(idx+1)+': укажите кому выплата');
+    } else if(op.kind==='vol'){
+      if(!op.volume||op.volume<=0) errors.push('Запись '+(idx+1)+': укажите объём');
+      if(!op.brigadeName) errors.push('Запись '+(idx+1)+': выберите бригаду');
+      if(!op.wtype) errors.push('Запись '+(idx+1)+': укажите вид работ');
+    } else if(op.kind==='workers'){
+      if(!op.workersCount||op.workersCount<=0) errors.push('Запись '+(idx+1)+': укажите количество');
+      if(!op.brigadeName) errors.push('Запись '+(idx+1)+': выберите бригаду');
+    }
+  });
+  if(errors.length>0){
+    alert('⚠️ Не все поля заполнены:\n\n'+errors.join('\n'));
+    return;
+  }
+  
   group.forEach(function(d){
     var op=d.op;
     if(op.kind==='workers'){
@@ -6674,16 +6926,12 @@ function confirmDraftGroup(linkedKey){
         added++;
       }
     } else {
-      // Конвертация в новую модель v2
-      // op.kind может быть 'expense', 'income', 'invest', 'personal' (старые типы из бота)
-      var newType = op.kind;
       var entry = {
         id: Date.now()+Math.floor(Math.random()*9999),
         date: new Date(d.ts).toISOString().slice(0,10),
         amount: op.amount||0,
         obj: op.obj||S.objects[0]||'',
         note: op.note||'',
-        tgSource: 'telegram',  // оставляем для отображения "📱" в журнале (через alias source)
         source: 'telegram',
         tgAuthor: d.author
       };
@@ -6691,36 +6939,69 @@ function confirmDraftGroup(linkedKey){
       if(op.kind==='income'){
         entry.type='income';
         if(op.who) entry.who=op.who;
-      } else if(op.kind==='invest'){
-        // Бот ставит forPartner если деньги передавались партнёру под отчёт
+      } 
+      else if(op.kind==='advance'){
+        // НОВАЯ модель — прямой advance с from/to
+        entry.type='advance';
+        entry.from=op.from;
+        entry.to=op.to;
+      }
+      else if(op.kind==='invest'){
+        // Старый формат с forPartner → конвертация в advance
         if(op.forPartner && op.forPartner!==op.who){
-          // Это передача под отчёт → advance в новой модели
           entry.type='advance';
           entry.from=op.who||'Дмитрий';
           entry.to=op.forPartner;
         } else {
-          // Чистое вложение в кассу
+          // Чистое вложение в кассу — оставляем invest
           entry.type='invest';
           entry.who=op.who||'Дмитрий';
         }
-      } else if(op.kind==='personal'){
-        // "Взял лично" → advance от Дмитрия к этому партнёру (это его долг)
+      } 
+      else if(op.kind==='payout'){
+        // ↩️ ВЫПЛАТА — компания вернула партнёру
+        entry.type='payout';
+        entry.who=op.who||'';
+      }
+      else if(op.kind==='personal'){
+        // Старый "Личный" → advance
         entry.type='advance';
         entry.from='Дмитрий';
         entry.to=op.who||PARTNERS[0];
         entry.note='[Лично] '+(op.note||'');
-      } else if(op.kind==='expense'){
+      } 
+      else if(op.kind==='expense'){
         entry.type='expense';
         entry.who=op.who||PARTNERS[0];
-        // Источник денег: для Дмитрия по умолчанию из своих, для остальных — из подотчётных
-        entry.paySource = (entry.who==='Дмитрий') ? 'own' : 'advance';
+        entry.paySource = op.paySource || ((entry.who==='Дмитрий') ? 'own' : 'advance');
         if(op.category) entry.cat=op.category;
         if(op.brigadeName){
           var br=S.brigades.find(function(b){return b.name.toLowerCase().indexOf((op.brigadeName||'').toLowerCase())>=0;});
           if(br) entry.brigade=br.id;
         }
-      } else {
-        // Неизвестный тип — оставляем как есть
+      } 
+      else if(op.kind==='vol'){
+        // НОВАЯ модель — прямой vol
+        entry.type='vol';
+        entry.volume=op.volume||0;
+        entry.unit=op.unit||'м³';
+        entry.wtype=op.wtype||'';
+        if(op.brigadeName){
+          var br2=S.brigades.find(function(b){return b.name.toLowerCase().indexOf((op.brigadeName||'').toLowerCase())>=0;});
+          if(br2){
+            entry.brigade=br2.id;
+            // Подставляем расценку бригады если есть
+            var rate=brigPriceFor(br2, entry.wtype, entry.unit);
+            if(rate>0){
+              entry.rate=rate;
+              entry.amount=Math.round(entry.volume*rate);
+            }
+          }
+        }
+        // Объём по умолчанию ожидает приёмки
+        // accepted: false → НЕ ставим, по умолчанию это и есть "ожидает"
+      } 
+      else {
         entry.type=op.kind;
         if(op.who) entry.who=op.who;
         if(op.category) entry.cat=op.category;
@@ -6737,7 +7018,36 @@ function confirmDraftGroup(linkedKey){
     _drafts=_drafts.filter(function(x){return x.id!==d.id;});
     delDraftOnServer(d.id);
   });
-  save();closeModal();render();
+  S._modified=Date.now();
+  save();
+  setTimeout(function(){pushCloud();},100);
+  setTimeout(function(){pushCloud();},2500);
+  closeModal();render();
+  
+  // Лог в архив о подтверждении (одно сводное сообщение)
+  if(addedEntryIds.length>0){
+    var TYPES_LBL={expense:'💸 РАСХОД',income:'💰 ДОХОД',advance:'🔄 ПЕРЕДАЧА',vol:'📐 ОБЪЁМ',invest:'📥 ВЛОЖЕНИЕ',workers:'👷 РАБОЧИЕ'};
+    var confirmedLines=[];
+    addedEntryIds.forEach(function(eid){
+      var e=S.entries.find(function(x){return x.id===eid;});
+      if(!e) return;
+      var lbl=TYPES_LBL[e.type]||e.type;
+      var line=lbl;
+      if(e.amount) line+=' '+fmt(e.amount)+' тг';
+      if(e.volume) line+=' '+e.volume+' '+(e.unit||'м³');
+      if(e.from&&e.to) line+=' ('+e.from+' → '+e.to+')';
+      else if(e.who) line+=' ('+e.who+')';
+      if(e.note) line+='\n   '+e.note;
+      confirmedLines.push(line);
+    });
+    if(confirmedLines.length>0){
+      auditLog('✅ ЧЕРНОВИКИ ПОДТВЕРЖДЕНЫ',
+        'Партнёр: '+(role==='editor'?'Учётчица':role)+'\n'+
+        'Записей: '+confirmedLines.length+'\n\n'+
+        confirmedLines.join('\n\n'));
+    }
+  }
+  
   showUndoToast('✓ Добавлено: '+added,function(){
     if(addedEntryIds.length){
       S.entries=S.entries.filter(function(e){return addedEntryIds.indexOf(e.id)<0;});
