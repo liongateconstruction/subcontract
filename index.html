@@ -1529,6 +1529,22 @@ var CLEAN_ENTRIES_V3 = [
 ];
 
 function resetToCleanV3(state){
+  // Проверяем есть ли КРИВЫЕ записи advance без полей from/to
+  // или expense без paySource — это означает что данные были полу-конвертированы
+  var hasBrokenEntries = state.entries && state.entries.some(function(e){
+    if(e.type==='advance' && (!e.from || !e.to)) return true;
+    return false;
+  });
+  if(hasBrokenEntries){
+    // Принудительный сброс — заменяем все данные чистым правильным набором
+    state.entries = JSON.parse(JSON.stringify(CLEAN_ENTRIES_V3));
+    state._schema = 3;
+    state._resetAt = new Date().toISOString();
+    state._modified = Date.now();
+    if(!state.history) state.history = [];
+    state.history.push({action:'force_reset_broken_advances',at:state._resetAt,entries:state.entries.length});
+    return state;
+  }
   // Если уже v3 — ничего не делаем
   if(state._schema && state._schema>=3) return state;
   // Проверяем: есть ли в локальных данных записи v3 (id >= 1000 это маркер новых чистых)?
