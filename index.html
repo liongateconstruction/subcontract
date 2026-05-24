@@ -158,7 +158,9 @@ nav{position:fixed;bottom:0;left:0;right:0;background:rgba(22,27,34,0.97);border
 .tcard.sel{opacity:1}.tcard:not(.sel){opacity:.4}
 .tc-income{border-color:var(--green);background:var(--grlt)}
 .tc-invest{border-color:var(--blue);background:var(--bllt)}
+.tc-advance{border-color:var(--teal);background:var(--tlt)}
 .tc-expense{border-color:var(--red);background:var(--rlt)}
+.tc-payout{border-color:var(--gold);background:var(--glt)}
 .tc-personal{border-color:var(--purple);background:var(--plt)}
 .tc-return{border-color:var(--gold);background:var(--glt)}
 .fg{margin-bottom:12px}
@@ -1112,8 +1114,11 @@ function setLang(l){
 // ============ КОНЕЦ ЛОКАЛИЗАЦИИ ============
 var TYPES={
   income:{ico:'💰',lbl:'Приход от заказчика',color:'var(--green)',bg:'var(--grlt)'},
-  invest:{ico:'💼',lbl:'Вложил партнёр',color:'var(--blue)',bg:'var(--bllt)'},
+  invest:{ico:'💼',lbl:'Вложение в кассу',color:'var(--blue)',bg:'var(--bllt)'},
+  advance:{ico:'🔄',lbl:'Передача под отчёт',color:'var(--teal)',bg:'var(--tlt)'},
   expense:{ico:'🧾',lbl:'Расход компании',color:'var(--red)',bg:'var(--rlt)'},
+  payout:{ico:'↩️',lbl:'Выплата партнёру',color:'var(--gold)',bg:'var(--glt)'},
+  // Старые типы — для обратной совместимости при отображении старых записей
   personal:{ico:'👤',lbl:'Взял лично',color:'var(--purple)',bg:'var(--plt)'},
   return:{ico:'🔄',lbl:'Возврат вложений',color:'var(--gold)',bg:'var(--glt)'}
 };
@@ -1196,7 +1201,7 @@ function pushCloud(){
       body:JSON.stringify(snap)
     }).catch(function(){});
   }
-  fetch(BURL,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':AK,'X-Bin-Versioning':'false'},body:JSON.stringify({_modified:S._modified,entries:S.entries,brigades:S.brigades,objects:S.objects,history:S.history,weeks:S.weeks,kfu:S.kfu,settings:S.settings,goalsDone:S.goalsDone,kzDict:S.kzDict||{}})}).then(function(){ss('OK',false);}).catch(function(){ss('!',true);});
+  fetch(BURL,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':AK,'X-Bin-Versioning':'false'},body:JSON.stringify({_modified:S._modified,_schema:S._schema||3,entries:S.entries,brigades:S.brigades,objects:S.objects,history:S.history,weeks:S.weeks,kfu:S.kfu,settings:S.settings,goalsDone:S.goalsDone,kzDict:S.kzDict||{}})}).then(function(){ss('OK',false);}).catch(function(){ss('!',true);});
 }
 var _editLock=false; // блокировка синхронизации во время редактирования
 function pullCloud(cb){
@@ -1212,6 +1217,24 @@ function pullCloud(cb){
       if(localTime>remoteTime+1000){
         pushCloud();ss('↑',false);if(cb)cb();return;
       }
+      // Если облако ещё на старой схеме — мигрируем перед применением
+      if(!r._schema || r._schema<2){
+        var tmpState={entries:r.entries||[],history:r.history||[],_schema:r._schema};
+        migrateToSchemaV2(tmpState);
+        r.entries=tmpState.entries;
+        r.history=tmpState.history;
+        r._schema=2;
+      }
+      // Если облако ещё не имеет ресета v3 (а у нас локально уже есть) — игнорируем облако и пушим наше
+      if(S._schema>=3 && (!r._schema || r._schema<3)){
+        // Локально уже ресет, а в облаке старая v2 — наш ресет важнее, пушим в облако
+        S._modified=Date.now();
+        persist();
+        pushCloud();
+        ss('↑',false);
+        if(cb)cb();
+        return;
+      }
       if(r.entries&&r.entries.length>0)S.entries=r.entries;
       if(r.brigades&&r.brigades.length>0)S.brigades=r.brigades;
       if(r.objects&&r.objects.length>0)S.objects=r.objects;
@@ -1221,6 +1244,7 @@ function pullCloud(cb){
       if(r.settings){S.settings=r.settings;if(!S.settings.norms)S.settings.norms=defState().settings.norms;}
       if(r.goalsDone)S.goalsDone=r.goalsDone;
       if(r.kzDict)S.kzDict=r.kzDict;
+      S._schema=r._schema||2;
       S._modified=remoteTime;persist();ss('OK',false);
     }else if(S.entries.length>0){pushCloud();}
     if(cb)cb();
@@ -1309,7 +1333,194 @@ function defState(){return{
 function loadLocal(){try{var s=localStorage.getItem('lg_v9');return s?JSON.parse(s):defState();}catch(e){return defState();}}
 function persist(){try{localStorage.setItem('lg_v9',JSON.stringify(S));}catch(e){}}
 function save(){S._modified=Date.now();persist();if(syncT)clearTimeout(syncT);syncT=setTimeout(pushCloud,1500);}
-var S=loadLocal();
+
+// === МИГРАЦИЯ К СХЕМЕ v2 ===
+// Конвертирует старые типы записей (invest+forPartner, personal) в новые (advance)
+// Схлопывает явные двойники "Дмитрий вложил X + Дмитрий потратил X" → expense source=own
+// Срабатывает один раз, помечает state._schema=2
+function _findPartnerInNote(note, exclude){
+  note=(note||'').toLowerCase();
+  var map={'Бекжан':['бекж','бек '],'Евгений':['евген','жен'],'Нурсултан':['нурс'],'Сергей':['серг']};
+  for(var p in map){
+    if(p===exclude) continue;
+    if(map[p].some(function(k){return note.indexOf(k)>=0;})) return p;
+  }
+  return null;
+}
+// Эвристика: invest от Дмитрия без forPartner и без явного имени партнёра в примечании
+// Если примечание содержит слова, типичные для подотчётных трат через прораба (Бекжана),
+// считаем это передачей под отчёт Бекжану. Это снимает 90% двойников где суммы не совпадают точно.
+function _guessReceiverFromNote(note){
+  note=(note||'').toLowerCase();
+  // Слова, характерные для подотчётных операций через прораба
+  var foremanKeywords=['барана','баран','напитк','обед','бензин','топлив','аванс','шынгыс','разнораб','стройк','рабоч','еда','питани','перчатк','каск','инструмент','рации','расход'];
+  for(var i=0;i<foremanKeywords.length;i++){
+    if(note.indexOf(foremanKeywords[i])>=0) return 'Бекжан';
+  }
+  return null;
+}
+function migrateToSchemaV2(state){
+  if(state._schema && state._schema>=2) return state;
+  if(!state.entries||!state.entries.length){state._schema=2;return state;}
+  var entries=state.entries.slice();
+  // 1) Нормализация имён "Дмитрий Хегай" → "Дмитрий"
+  entries.forEach(function(e){
+    if(e.who==='Дмитрий Хегай') e.who='Дмитрий';
+    if(e.forPartner==='Дмитрий Хегай') e.forPartner='Дмитрий';
+  });
+  var toRemove={};
+  // 2) Схлопывание ДВОЙНИКОВ ТИПА А: invest от Дмитрия (без forPartner) + personal от X
+  //    в тот же день та же сумма → одна запись advance Дмитрий→X
+  entries.forEach(function(inv){
+    if(toRemove[inv.id]||inv.type!=='invest'||inv.who!=='Дмитрий'||inv.forPartner) return;
+    entries.forEach(function(per){
+      if(toRemove[per.id]||toRemove[inv.id]) return;
+      if(per.type!=='personal'||per.who==='Дмитрий') return;
+      if(per.date!==inv.date||per.amount!==inv.amount) return;
+      inv.type='advance';inv.from='Дмитрий';inv.to=per.who;
+      inv.note=(inv.note||'')+' [лично]';
+      delete inv.who;
+      toRemove[per.id]=true;
+    });
+  });
+  // 3) Схлопывание ДВОЙНИКОВ ТИПА Б: invest от X (без forPartner) + expense X в тот же день, та же сумма
+  //    → expense получает source='own' (X из своих), invest удаляется
+  //    Работает для ЛЮБОГО партнёра (Дмитрий, Бекжан, Евгений и т.д.)
+  entries.forEach(function(inv){
+    if(toRemove[inv.id]||inv.type!=='invest'||!inv.who||inv.forPartner) return;
+    entries.forEach(function(exp){
+      if(toRemove[exp.id]||toRemove[inv.id]) return;
+      if(exp.type!=='expense'||exp.who!==inv.who) return;
+      if(exp.date!==inv.date||exp.amount!==inv.amount) return;
+      exp.paySource='own';
+      toRemove[inv.id]=true;
+    });
+  });
+  // 4) Удалить помеченные
+  entries=entries.filter(function(e){return !toRemove[e.id];});
+  // 5) Конвертация типов
+  entries.forEach(function(e){
+    if(e.type==='invest'){
+      if(e.forPartner && e.forPartner!==e.who){
+        // Передача под отчёт
+        e._oldType='invest';
+        e.type='advance';
+        e.from=e.who;
+        e.to=e.forPartner;
+        delete e.who;
+        delete e.forPartner;
+      } else if(!e.forPartner){
+        // Возможно, в примечании упомянут другой партнёр — это была передача
+        var hidden=_findPartnerInNote(e.note,e.who);
+        if(!hidden){
+          // Если явного имени нет, но в примечании "стройные" слова — это передача Бекжану
+          // Работает для ЛЮБОГО партнёра (Дмитрий, Евгений и т.д.)
+          var guess=_guessReceiverFromNote(e.note);
+          if(guess && guess!==e.who) hidden=guess;
+        }
+        if(hidden){
+          e._oldType='invest';
+          e.type='advance';
+          e.from=e.who;
+          e.to=hidden;
+          delete e.who;
+        }
+        // Иначе остаётся чистым invest (вложение в кассу)
+      }
+    } else if(e.type==='personal'){
+      // Не схлопнутые personal → advance от Дмитрия
+      e._oldType='personal';
+      e.type='advance';
+      e.from='Дмитрий';
+      e.to=e.who;
+      e.note='[Лично] '+(e.note||'');
+      delete e.who;
+    }
+  });
+  // 6) Расставить paySource (источник денег для расхода) у оставшихся расходов
+  //    paySource — отдельное поле от source (где source может быть 'telegram' для пометки происхождения записи)
+  entries.forEach(function(e){
+    if(e.type==="expense" && !e.paySource){
+      if(e.who==='Дмитрий') e.paySource='cash';
+      else e.paySource='advance';
+    }
+  });
+  state.entries=entries;
+  state._schema=2;
+  state._migratedAt=new Date().toISOString();
+  if(!state.history) state.history=[];
+  state.history.push({action:'migrate_v2',at:state._migratedAt,kept:entries.length,removed:Object.keys(toRemove).length});
+  return state;
+}
+
+// === ЧИСТЫЙ НАБОР ЗАПИСЕЙ V3 (24.05.2026) ===
+// Полностью переделанный учёт по новой модели.
+// Касса = 5400, долг Евгения = 152800, долг Бекжана = 467000, должны Дмитрию = 2697235
+var CLEAN_ENTRIES_V3 = [
+  {id:1001,date:'2026-05-14',type:'advance',amount:400000,obj:'ЖК «Алгабас», Мкр. Нуркент',from:'Дмитрий',to:'Бекжан',note:'Выдал Бекжану наличными на расходы'},
+  {id:1002,date:'2026-05-15',type:'expense',amount:5000,obj:'ЖК «Алгабас», Мкр. Нуркент',who:'Дмитрий',paySource:'own',cat:'Связь',note:'Мобильный Бекжана — оплатил Дмитрий напрямую'},
+  {id:1003,date:'2026-05-16',type:'expense',amount:53100,obj:'ЖК «Алгабас», Мкр. Нуркент',who:'Дмитрий',paySource:'own',cat:'Административные',note:'Смартфон и номер для финансовых операций'},
+  {id:1004,date:'2026-05-16',type:'expense',amount:150000,obj:'ЖК «Алгабас», Мкр. Нуркент',who:'Бекжан',paySource:'advance',cat:'Аванс / зарплата рабочим',brigade:'b1',note:'Аванс Бригада Шынгыс — перевод'},
+  {id:1005,date:'2026-05-16',type:'expense',amount:100000,obj:'ЖК «Алгабас», Мкр. Нуркент',who:'Бекжан',paySource:'advance',cat:'Аванс / зарплата рабочим',brigade:'b1',note:'Аванс Бригада Шынгыс — наличные'},
+  {id:1006,date:'2026-05-16',type:'expense',amount:20000,obj:'ЖК «Алгабас», Мкр. Нуркент',who:'Бекжан',paySource:'advance',cat:'Транспорт',note:'Такси Бригада Нурсултан до объекта'},
+  {id:1007,date:'2026-05-16',type:'advance',amount:20000,obj:'ЖК «Алгабас», Мкр. Нуркент',from:'Дмитрий',to:'Евгений',note:'Дал Евгению (личное)'},
+  {id:1008,date:'2026-05-17',type:'expense',amount:70000,obj:'ЖК «Алгабас», Мкр. Нуркент',who:'Бекжан',paySource:'advance',cat:'Инструменты и инвентарь',note:'Каски, жилеты, перчатки, диски, молоток, бур'},
+  {id:1009,date:'2026-05-17',type:'advance',amount:150000,obj:'ЖК «Алгабас», Мкр. Нуркент',from:'Дмитрий',to:'Бекжан',note:'Выдал Бекжану наличными на расходы'},
+  {id:1010,date:'2026-05-17',type:'advance',amount:110000,obj:'ЖК «Алгабас», Мкр. Нуркент',from:'Дмитрий',to:'Бекжан',note:'Проценты за Альфард — личный расход Бекжана'},
+  {id:1012,date:'2026-05-18',type:'expense',amount:20000,obj:'ЖК «Алгабас», Мкр. Нуркент',who:'Дмитрий',paySource:'own',cat:'Аванс / зарплата рабочим',brigade:'b1',note:'Аванс бригада Шынгыс'},
+  {id:1013,date:'2026-05-18',type:'expense',amount:54000,obj:'ЖК «Алгабас», Мкр. Нуркент',who:'Дмитрий',paySource:'own',cat:'Инструменты и инвентарь',note:'Рации 3 шт × 18 000'},
+  {id:1014,date:'2026-05-18',type:'invest',amount:170000,obj:'ЖК «Алгабас», Мкр. Нуркент',who:'Дмитрий',note:'Закинул на счёт компании для оплаты страховки'},
+  {id:1015,date:'2026-05-18',type:'expense',amount:158100,obj:'ЖК «Алгабас», Мкр. Нуркент',who:'Дмитрий',paySource:'cash',cat:'Административные',note:'Страховка компании'},
+  {id:1016,date:'2026-05-18',type:'expense',amount:4500,obj:'ЖК «Алгабас», Мкр. Нуркент',who:'Дмитрий',paySource:'cash',cat:'Административные',note:'Комиссия банка — Оплата К2'},
+  {id:1017,date:'2026-05-18',type:'expense',amount:1000,obj:'ЖК «Алгабас», Мкр. Нуркент',who:'Дмитрий',paySource:'cash',cat:'Административные',note:'Комиссия банка — ведение счёта'},
+  {id:1018,date:'2026-05-18',type:'expense',amount:1000,obj:'ЖК «Алгабас», Мкр. Нуркент',who:'Дмитрий',paySource:'cash',cat:'Административные',note:'Комиссия банка — Внешний перевод'},
+  {id:1019,date:'2026-05-19',type:'expense',amount:500000,obj:'ЖК «Алгабас», Мкр. Нуркент',who:'Дмитрий',paySource:'own',cat:'Аванс / зарплата рабочим',brigade:'b1',note:'Аванс наличными бригада Шынгыс'},
+  {id:1020,date:'2026-05-19',type:'expense',amount:400000,obj:'ЖК «Алгабас», Мкр. Нуркент',who:'Дмитрий',paySource:'own',cat:'Аванс / зарплата рабочим',brigade:'b2',note:'Аванс наличными бригада Нурсултан'},
+  {id:1021,date:'2026-05-19',type:'expense',amount:25135,obj:'ЖК «Алгабас», Мкр. Нуркент',who:'Дмитрий',paySource:'own',cat:'Административные',note:'Обед с заказчиками'},
+  {id:1022,date:'2026-05-19',type:'expense',amount:2000,obj:'ЖК «Алгабас», Мкр. Нуркент',who:'Дмитрий',paySource:'own',cat:'Административные',note:'Напитки заказчики на объекте'},
+  {id:1023,date:'2026-05-19',type:'expense',amount:7000,obj:'ЖК «Алгабас», Мкр. Нуркент',who:'Бекжан',paySource:'own',cat:'Инструменты и инвентарь',note:'Перчатки 2 пачки, молотки 2 шт'},
+  {id:1024,date:'2026-05-19',type:'advance',amount:198000,obj:'ЖК «Алгабас», Мкр. Нуркент',from:'Дмитрий',to:'Евгений',note:'Дал Евгению (личное)'},
+  {id:1025,date:'2026-05-20',type:'expense',amount:80000,obj:'ЖК «Алгабас», Мкр. Нуркент',who:'Дмитрий',paySource:'own',cat:'Инструменты и инвентарь',note:'Пояс монтажный 8 шт'},
+  {id:1026,date:'2026-05-20',type:'advance',amount:100000,obj:'ЖК «Алгабас», Мкр. Нуркент',from:'Дмитрий',to:'Бекжан',note:'На расходы Бекжан'},
+  {id:1027,date:'2026-05-21',type:'expense',amount:65000,obj:'ЖК «Алгабас», Мкр. Нуркент',who:'Бекжан',paySource:'advance',cat:'Инструменты и инвентарь',note:'Перчатка, перфоратор, бензин'},
+  {id:1028,date:'2026-05-21',type:'advance',amount:100000,obj:'ЖК «Алгабас», Мкр. Нуркент',from:'Дмитрий',to:'Бекжан',note:'Бекжану на расходы'},
+  {id:1029,date:'2026-05-22',type:'expense',amount:45000,obj:'ЖК «Алгабас», Мкр. Нуркент',who:'Бекжан',paySource:'advance',cat:'Инструменты и инвентарь',note:'Вибратор'},
+  {id:1030,date:'2026-05-22',type:'expense',amount:10000,obj:'ЖК «Алгабас», Мкр. Нуркент',who:'Бекжан',paySource:'advance',cat:'Материалы',note:'Дождевик 5 шт'},
+  {id:1031,date:'2026-05-22',type:'expense',amount:8000,obj:'ЖК «Алгабас», Мкр. Нуркент',who:'Бекжан',paySource:'advance',cat:'Топливо',note:'Заправка бензина'},
+  {id:1032,date:'2026-05-22',type:'advance',amount:10000,obj:'ЖК «Алгабас», Мкр. Нуркент',from:'Дмитрий',to:'Нурсултан',note:'Нурсултану на личные'},
+  {id:1033,date:'2026-05-22',type:'advance',amount:75000,obj:'ЖК «Алгабас», Мкр. Нуркент',from:'Дмитрий',to:'Бекжан',note:'Бекжану на расход отправил'},
+  {id:1034,date:'2026-05-23',type:'expense',amount:15200,obj:'ЖК «Алгабас», Мкр. Нуркент',who:'Евгений',paySource:'own',cat:'Административные',note:'Бургеры, кола, картофель фри'},
+  {id:1035,date:'2026-05-23',type:'advance',amount:100000,obj:'ЖК «Алгабас», Мкр. Нуркент',from:'Дмитрий',to:'Бекжан',note:'На барана'},
+  {id:1036,date:'2026-05-23',type:'advance',amount:50000,obj:'ЖК «Алгабас», Мкр. Нуркент',from:'Евгений',to:'Бекжан',note:'На барана, салаты, напитки'},
+  {id:1037,date:'2026-05-23',type:'advance',amount:60000,obj:'ЖК «Алгабас», Мкр. Нуркент',from:'Дмитрий',to:'Бекжан',note:'На расход Шынгыс'},
+  {id:1038,date:'2026-05-23',type:'advance',amount:30000,obj:'ЖК «Алгабас», Мкр. Нуркент',from:'Дмитрий',to:'Бекжан',note:'На расход разнорабочий'},
+  {id:1039,date:'2026-05-23',type:'expense',amount:10000,obj:'ЖК «Алгабас», Мкр. Нуркент',who:'Дмитрий',paySource:'own',cat:'Топливо',note:'Бензин'},
+  {id:1040,date:'2026-05-23',type:'advance',amount:25000,obj:'ЖК «Алгабас», Мкр. Нуркент',from:'Дмитрий',to:'Бекжан',note:'На напитки'},
+  {id:1041,date:'2026-05-23',type:'expense',amount:26000,obj:'ЖК «Алгабас», Мкр. Нуркент',who:'Бекжан',paySource:'advance',cat:'Питание',note:'Картошка, яблоки, бананы, помидоры, огурцы'},
+  {id:1042,date:'2026-05-23',type:'expense',amount:105000,obj:'ЖК «Алгабас», Мкр. Нуркент',who:'Бекжан',paySource:'advance',cat:'Питание',note:'Баран'},
+  {id:1043,date:'2026-05-23',type:'expense',amount:3000,obj:'ЖК «Алгабас», Мкр. Нуркент',who:'Бекжан',paySource:'advance',cat:'Транспорт',note:'Такси'},
+  {id:1044,date:'2026-05-23',type:'expense',amount:34000,obj:'ЖК «Алгабас», Мкр. Нуркент',who:'Бекжан',paySource:'advance',cat:'Питание',note:'Напитки, пирожное, пирожки'},
+  {id:1045,date:'2026-05-23',type:'expense',amount:60000,obj:'ЖК «Алгабас», Мкр. Нуркент',who:'Бекжан',paySource:'advance',cat:'Аванс / зарплата рабочим',brigade:'b1',note:'Аванс'},
+  {id:1046,date:'2026-05-23',type:'expense',amount:30000,obj:'ЖК «Алгабас», Мкр. Нуркент',who:'Бекжан',paySource:'advance',cat:'Аванс / зарплата рабочим',note:'Аванс разнорабочий'}
+];
+
+function resetToCleanV3(state){
+  if(state._schema && state._schema>=3) return state;
+  state.entries = JSON.parse(JSON.stringify(CLEAN_ENTRIES_V3));
+  state._schema = 3;
+  state._resetAt = new Date().toISOString();
+  if(!state.history) state.history = [];
+  state.history.push({action:'reset_to_clean_v3',at:state._resetAt,entries:state.entries.length});
+  return state;
+}
+
+var S = resetToCleanV3(migrateToSchemaV2(loadLocal()));
+// Если был ресет/миграция — пометим как изменённое СЕЙЧАС,
+// чтобы pullCloud не перезаписал свежие данные старыми из облака.
+if((S._resetAt || S._migratedAt) && (!S._modified || S._modified < Date.now() - 1000)){
+  S._modified = Date.now();
+  try{localStorage.setItem('lg_v9',JSON.stringify(S));}catch(e){}
+}
 function fmt(n){return new Intl.NumberFormat('ru').format(Math.abs(Math.round(n||0)));}
 function fmtS(n){var v=Math.round(n||0);return (v<0?'−':'')+new Intl.NumberFormat('ru').format(Math.abs(v));}
 function fmtD(n){return new Intl.NumberFormat('ru',{maximumFractionDigits:2}).format(n||0);}
@@ -1353,118 +1564,160 @@ function totalVolDone(){return S.entries.filter(function(e){return e.type==='vol
 function getTotalVol(){return(S.settings&&S.settings.totalVol)||9999;}
 function daysLeft(){if(!S.settings||!S.settings.deadline)return null;return Math.ceil((new Date(S.settings.deadline)-new Date())/86400000);}
 function lastEntryAge(){if(!S.entries.length)return 999;var d=S.entries.map(function(e){return e.date;}).sort();return Math.floor((new Date()-new Date(d[d.length-1]))/86400000);}
+// Хелпер: как одна запись влияет на кассу (для графиков и накопления)
+// income/invest добавляют в кассу. expense с paySource='cash' и payout вычитают.
+// advance и expense с paySource в (own,advance) на кассу не влияют.
+function cashEffect(e){
+  if(e.type==='income') return e.amount;
+  if(e.type==='invest') return e.amount;
+  if(e.type==='expense'){
+    var src=e.paySource||(e.source==='telegram'?'advance':e.source)||'cash';
+    return src==='cash' ? -e.amount : 0;
+  }
+  if(e.type==='payout' || e.type==='return') return -e.amount;
+  return 0; // advance, personal, vol — на кассу не влияют
+}
 function calcCo(){
-  var income=sumT('income'),expense=sumT('expense'),invested=sumT('invest'),returned=sumT('return');
-  // personal = СУММА РЕАЛЬНЫХ ДОЛГОВ ВСЕХ ПАРТНЁРОВ (по формуле получил-потратил)
-  // Не считаем для Дмитрия (он вкладывает, не получает под отчёт)
-  var personal=0;
-  var keywordsMap={
-    'Бекжан':['бекжан','бекжану','бек'],
-    'Евгений':['евгений','евгению','жен','жене','евген'],
-    'Нурсултан':['нурсултан','нурсултану','нурс'],
-    'Сергей':['сергей','сергею','серг']
-  };
-  Object.keys(keywordsMap).forEach(function(pName){
-    var keywords=keywordsMap[pName];
-    var receivedIds={};
-    var received=0;
-    S.entries.forEach(function(e){
-      if(e.type!=='invest') return;
-      if(receivedIds[e.id]) return;
-      var match=false;
-      if(e.forPartner===pName) match=true;
-      if(!match && e.who==='Дмитрий' && e.note && !e.forPartner){
-        var noteLower=e.note.toLowerCase();
-        var isForBrigade=noteLower.indexOf('бригад')>=0;
-        if(!isForBrigade && keywords.some(function(k){return noteLower.indexOf(k)>=0;})) match=true;
-      }
-      // Партнёр сам вложил В КАССУ (без forPartner — деньги в общую кассу)
-      // Если forPartner есть — деньги ушли другому партнёру, к этому НЕ приходили
-      if(!match && e.who===pName && !e.forPartner) match=true;
-      if(match){
-        receivedIds[e.id]=true;
-        received+=e.amount;
-      }
-    });
-    var spent=S.entries.filter(function(e){return e.type==='expense'&&e.who===pName;}).reduce(function(s,e){return s+e.amount;},0);
-    // Сколько партнёр сам вложил (его собственные средства)
-    var pInvested=S.entries.filter(function(e){return e.type==='invest'&&e.who===pName;}).reduce(function(s,e){return s+e.amount;},0);
-    // Долг = что прошло через руки - что потратил - что своих вложил
-    var partnerDebt=Math.max(0, received-spent-pInvested);
-    personal+=partnerDebt;
-  });
-  // Плюс старые записи personal Дмитрия (если есть)
-  personal+=S.entries.filter(function(e){return e.type==='personal'&&e.who==='Дмитрий';}).reduce(function(s,e){return s+e.amount;},0);
-  var profit=income-expense,owed=invested-returned,toShare=Math.max(profit-owed,0);
-  // КАССА: если установлена стартовая касса с датой — считаем от неё,
-  // иначе используем общую формулу
+  // === НОВАЯ МОДЕЛЬ v2 ===
+  // Касса = доход + вложения_в_кассу - расходы_из_кассы - выплаты
+  // Долги партнёров перед компанией: накапливаются через advance и расходы из подотчётных
+  // Долг компании Дмитрию: всё что вложено - выплачено
+  var entries=S.entries||[];
+  // Сортируем по дате для корректного гашения долгов
+  var sorted=entries.slice().sort(function(a,b){return (a.date||'').localeCompare(b.date||'');});
+  var cash=0;
+  var income=0, expense=0;
+  var investedRaw=0;     // суммарные вложения в кассу
+  var returnedRaw=0;     // суммарные выплаты партнёрам
+  var debtToCompany={};  // партнёр должен компании
+  var debtToPartner={};  // компания должна партнёру
+  var advances={};       // сколько роздано под отчёт (по получателю)
   var startCash=(S.settings&&S.settings.startCash)||0;
   var startCashDate=(S.settings&&S.settings.startCashDate)||'';
-  var cash;
-  if(startCash>0 && startCashDate){
-    // Касса = стартовая + новые приходы/расходы ПОСЛЕ даты
-    var newInv=0, newExp=0, newPer=0, newRet=0, newInc=0;
-    S.entries.forEach(function(e){
-      if(!e.date || e.date<=startCashDate) return; // только после даты
-      if(e.type==='invest') newInv+=e.amount;
-      else if(e.type==='income') newInc+=e.amount;
-      else if(e.type==='expense') newExp+=e.amount;
-      else if(e.type==='personal') newPer+=e.amount;
-      else if(e.type==='return') newRet+=e.amount;
-    });
-    cash=startCash+newInv+newInc-newExp-newPer-newRet;
-  } else {
-    cash=invested+income-expense-personal-returned;
-  }
-  return{income:income,expense:expense,invested:invested,returned:returned,personal:personal,profit:profit,owed:owed,toShare:toShare,share:toShare/5,cash:cash,startCash:startCash,startCashDate:startCashDate};
-}
-function calcPar(name){
-  var invested=sumT('invest','who',name),returned=sumT('return','who',name);
-  // Раньше: personal = сумма записей personal
-  // Теперь: personal = реальный долг = всё что прошло через партнёра - что потратил на стройку
-  // Это работает как в Сверке внизу карточки
-  var keywords={
-    'Бекжан':['бекжан','бекжану','бек'],
-    'Евгений':['евгений','евгению','жен','жене','евген'],
-    'Нурсултан':['нурсултан','нурсултану','нурс'],
-    'Сергей':['сергей','сергею','серг'],
-    'Дмитрий':['дмитрий','дмитрию']
-  }[name]||[name.toLowerCase()];
-  // Уникальные вложения которые попали к партнёру
-  var receivedIds={};
-  var received=0;
-  S.entries.forEach(function(e){
-    if(e.type!=='invest') return;
-    if(receivedIds[e.id]) return;
-    var match=false;
-    if(e.forPartner===name) match=true;
-    if(!match && e.who==='Дмитрий' && e.note && !e.forPartner){
-      var noteLower=e.note.toLowerCase();
-      var isForBrigade=noteLower.indexOf('бригад')>=0;
-      if(!isForBrigade && keywords.some(function(k){return noteLower.indexOf(k)>=0;})) match=true;
-    }
-    // Партнёр сам вложил В КАССУ (без forPartner — деньги в общую кассу)
-    // Если forPartner есть — деньги ушли другому, к этому партнёру они НЕ приходили
-    if(!match && e.who===name && name!=='Дмитрий' && !e.forPartner) match=true;
-    if(match){
-      receivedIds[e.id]=true;
-      received+=e.amount;
+  if(startCash>0 && startCashDate) cash=startCash;
+  sorted.forEach(function(e){
+    if(startCash>0 && startCashDate && (!e.date || e.date<=startCashDate)) return;
+    if(e.type==='income'){
+      cash+=e.amount;
+      income+=e.amount;
+    } else if(e.type==='invest'){
+      // Вложение в кассу: касса +X, гасит свой долг (если есть), излишек — компания должна
+      cash+=e.amount;
+      investedRaw+=e.amount;
+      var d=debtToCompany[e.who]||0;
+      var pay=Math.min(d,e.amount);
+      if(pay>0) debtToCompany[e.who]-=pay;
+      var s=e.amount-pay;
+      if(s>0) debtToPartner[e.who]=(debtToPartner[e.who]||0)+s;
+    } else if(e.type==='advance'){
+      // Передача под отчёт: касса не меняется
+      debtToPartner[e.from]=(debtToPartner[e.from]||0)+e.amount;
+      debtToCompany[e.to]=(debtToCompany[e.to]||0)+e.amount;
+      advances[e.to]=(advances[e.to]||0)+e.amount;
+    } else if(e.type==='expense'){
+      expense+=e.amount;
+      // paySource — наше поле для нового учёта; source='telegram' — старая метка происхождения (игнорируем при расчёте)
+      var src=e.paySource||(e.source==='telegram'?'advance':e.source)||'cash';
+      if(src==='cash'){
+        cash-=e.amount;
+      } else if(src==='advance'){
+        // Платил партнёр из подотчётных — гасит его долг
+        debtToCompany[e.who]=(debtToCompany[e.who]||0)-e.amount;
+      } else if(src==='own'){
+        // Платил из своих — сначала гасит его долг компании, излишек — компания должна
+        var d2=debtToCompany[e.who]||0;
+        var pay2=Math.min(d2,e.amount);
+        if(pay2>0) debtToCompany[e.who]-=pay2;
+        var s2=e.amount-pay2;
+        if(s2>0) debtToPartner[e.who]=(debtToPartner[e.who]||0)+s2;
+      }
+    } else if(e.type==='return' || e.type==='payout'){
+      cash-=e.amount;
+      returnedRaw+=e.amount;
+      debtToPartner[e.who]=(debtToPartner[e.who]||0)-e.amount;
     }
   });
-  var spent=S.entries.filter(function(e){return e.type==='expense'&&e.who===name;}).reduce(function(s,e){return s+e.amount;},0);
+  // personal = сумма положительных долгов партнёров (для совместимости с UI)
+  var personal=0;
+  Object.keys(debtToCompany).forEach(function(p){
+    if(debtToCompany[p]>0) personal+=debtToCompany[p];
+  });
+  // invested = сумма всего что компания должна вернуть всем партнёрам (для совместимости)
+  // owed — то же самое
+  var totalOwedToPartners=0;
+  Object.keys(debtToPartner).forEach(function(p){
+    if(debtToPartner[p]>0) totalOwedToPartners+=debtToPartner[p];
+  });
+  var profit=income-expense;
+  var owed=totalOwedToPartners;
+  var toShare=Math.max(profit-owed,0);
+  return{
+    income:income, expense:expense,
+    invested:investedRaw,           // оставлено для совместимости (всего вложений в кассу)
+    returned:returnedRaw,
+    personal:personal,              // сумма долгов партнёров (совместимость)
+    profit:profit, owed:owed,
+    toShare:toShare, share:toShare/5,
+    cash:cash,
+    startCash:startCash, startCashDate:startCashDate,
+    // Новые поля v2
+    debtToCompany:debtToCompany,    // {Бекжан: 200000, Евгений: 152800, ...}
+    debtToPartner:debtToPartner,    // {Дмитрий: 2348035, ...}
+    advances:advances
+  };
+}
+function calcPar(name){
+  // === НОВАЯ МОДЕЛЬ v2 ===
+  // Использует данные из calcCo для согласованности
   var C=calcCo();
-  var personal, totalGet;
-  if(name==='Дмитрий'){
-    // Для Дмитрия — он вкладчик, по-старому
-    personal=S.entries.filter(function(e){return e.type==='personal'&&e.who===name;}).reduce(function(s,e){return s+e.amount;},0);
-    totalGet=(invested-returned)+(C.share-personal);
-  } else {
-    // Для остальных — долг = получил - потратил - сам вложил
-    personal=Math.max(0, received-spent-invested);
-    totalGet=C.share-personal-returned;
-  }
+  // Сколько партнёр вложил в кассу (тип invest where who===name)
+  var invested=0;
+  // Сколько партнёру выплачено (тип return/payout)
+  var returned=0;
+  // Сколько партнёр получил под отчёт (тип advance where to===name)
+  var received=0;
+  // Сколько партнёр выдал другим под отчёт (тип advance where from===name)
+  var advancedOut=0;
+  // Сколько партнёр потратил на компанию (своих и подотчётных)
+  var spent=0;
+  var spentFromOwn=0;
+  var spentFromAdvance=0;
+  (S.entries||[]).forEach(function(e){
+    if(e.type==='invest' && e.who===name) invested+=e.amount;
+    else if((e.type==='return'||e.type==='payout') && e.who===name) returned+=e.amount;
+    else if(e.type==='advance' && e.to===name) received+=e.amount;
+    else if(e.type==='advance' && e.from===name) advancedOut+=e.amount;
+    else if(e.type==='expense' && e.who===name){
+      spent+=e.amount;
+      var src=e.paySource||(e.source==='telegram'?'advance':e.source);
+      if(src==='own') spentFromOwn+=e.amount;
+      else if(src==='advance') spentFromAdvance+=e.amount;
+    }
+  });
+  var debtToCompany=(C.debtToCompany&&C.debtToCompany[name])||0;
+  var debtFromCompany=(C.debtToPartner&&C.debtToPartner[name])||0;
+  // personal = долг партнёра компании (для совместимости со старым UI)
+  var personal=Math.max(0, debtToCompany);
+  // totalGet = к получению из доли прибыли минус долг + что компания должна
+  var totalGet=C.share - personal + debtFromCompany - returned;
   var onHands=personal;
-  return{invested:invested,returned:returned,personal:personal,received:received,spent:spent,onHands:onHands,share:C.share,totalGet:totalGet};
+  return{
+    invested:invested+advancedOut, // "вклад" в широком смысле — деньги что от него ушли
+    returned:returned,
+    personal:personal,
+    received:received,
+    spent:spent,
+    onHands:onHands,
+    share:C.share,
+    totalGet:totalGet,
+    // Новые поля v2
+    investedCash:invested,
+    advancedOut:advancedOut,
+    spentFromOwn:spentFromOwn,
+    spentFromAdvance:spentFromAdvance,
+    debtToCompany:debtToCompany,
+    debtFromCompany:debtFromCompany
+  };
 }
 function calcBrig(b){var vols=S.entries.filter(function(e){return e.type==='vol'&&e.brigade===b.id;});var vol=vols.reduce(function(s,e){return s+(e.volume||0);},0);var earned=vols.reduce(function(s,e){return s+e.amount;},0);var paid=S.entries.filter(function(e){return e.type==='expense'&&e.brigade===b.id;}).reduce(function(s,e){return s+e.amount;},0);return{vol:vol,earned:earned,paid:paid,balance:earned-paid,vols:vols};}
 // План года из ПЛАН ДЕЙСТВИЙ LIONGATE. Прибыль и накоплено — в млн тг.
@@ -1842,7 +2095,22 @@ function _dat(name){
   var map={'Дмитрий':'Дмитрию','Бекжан':'Бекжану','Евгений':'Евгению','Нурсултан':'Нурсултану','Сергей':'Сергею'};
   return map[name]||name;
 }
-function desc(e){if(e.type==='income')return e.note||'Приход от заказчика';if(e.type==='invest'){var fp=e.forPartner?' → '+_dat(e.forPartner):'';return (e.who||'?')+fp+': '+(e.note||'');}if(e.type==='expense')return (e.note||'')+(e.cat?' ['+e.cat+']':'')+(e.brigade?' / '+bName(e.brigade):'');if(e.type==='personal')return e.who+' взял лично: '+(e.note||'');if(e.type==='return')return 'Возврат вложений: '+e.who;if(e.type==='vol')return bName(e.brigade)+': '+fmtD(e.volume||0)+' м³'+(e.struct?' / '+e.struct:'')+(e.zone?' / Пятно '+e.zone:'')+(e.floor?' / '+e.floor:'');return e.note||'';}
+function desc(e){
+  if(e.type==='income')return e.note||'Приход от заказчика';
+  if(e.type==='invest'){var fp=e.forPartner?' → '+_dat(e.forPartner):'';return (e.who||'?')+fp+': '+(e.note||'');}
+  if(e.type==='advance')return (e.from||'?')+' → '+_dat(e.to||'?')+': '+(e.note||'');
+  if(e.type==='expense'){
+    var src='';
+    if(e.paySource==='own')src=' [из своих]';
+    else if(e.paySource==='cash')src=' [из кассы]';
+    return (e.note||'')+(e.cat?' ['+e.cat+']':'')+(e.brigade?' / '+bName(e.brigade):'')+src;
+  }
+  if(e.type==='payout')return 'Выплата → '+e.who+': '+(e.note||'');
+  if(e.type==='personal')return e.who+' взял лично: '+(e.note||'');
+  if(e.type==='return')return 'Возврат вложений: '+e.who;
+  if(e.type==='vol')return bName(e.brigade)+': '+fmtD(e.volume||0)+' м³'+(e.struct?' / '+e.struct:'')+(e.zone?' / Пятно '+e.zone:'')+(e.floor?' / '+e.floor:'');
+  return e.note||'';
+}
 function opRow(e,showDel){
   var tc=TYPES[e.type]||{color:'var(--mut)'};
   var h='<div class="oprow" style="cursor:pointer" onclick="openEntryCard('+e.id+')">';
@@ -1878,6 +2146,7 @@ function openPLCard(focus){
     if(e.type==='income')mData[m].inc+=e.amount;
     else if(e.type==='expense')mData[m].exp+=e.amount;
     else if(e.type==='invest')mData[m].inv+=e.amount;
+    // personal/return — старые типы, после миграции их нет, но оставлю для совместимости
     else if(e.type==='personal')mData[m].pers+=e.amount;
   });
   var months=Object.keys(mData).sort();
@@ -1912,19 +2181,23 @@ function openPLCard(focus){
     h+='<div style="font-size:10px;color:var(--mut);letter-spacing:2px;margin-bottom:8px">ПО ПАРТНЁРАМ</div>';
     h+='<div style="background:var(--s2);border-radius:10px;padding:4px 14px;margin-bottom:12px">';
     PARTNERS.forEach(function(p,i){
-      var pInv=S.entries.filter(function(e){return e.type==='invest'&&e.who===p;}).reduce(function(s,e){return s+e.amount;},0);
+      var P=calcPar(p);
+      var pInv=P.investedCash+P.advancedOut+P.spentFromOwn;
       if(!pInv) return;
-      var pct=C.invested>0?Math.round(pInv/C.invested*100):0;
+      var totalCo=0;
+      PARTNERS.forEach(function(x){var Px=calcPar(x);totalCo+=Px.investedCash+Px.advancedOut+Px.spentFromOwn;});
+      var pct=totalCo>0?Math.round(pInv/totalCo*100):0;
       h+='<div style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05)">';
       h+='<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:11px;color:'+PC[i]+'">'+p+'</span><span style="font-size:11px;color:var(--blue);font-weight:700">'+fmt(pInv)+' ('+pct+'%)</span></div>';
       h+='<div style="height:4px;background:rgba(255,255,255,.06);border-radius:2px"><div style="height:100%;width:'+pct+'%;background:'+PC[i]+';border-radius:2px"></div></div></div>';
     });
     h+='</div>';
   } else if(focus==='personal'){
-    h+='<div style="font-size:10px;color:var(--mut);letter-spacing:2px;margin-bottom:8px">ПО ПАРТНЁРАМ</div>';
+    h+='<div style="font-size:10px;color:var(--mut);letter-spacing:2px;margin-bottom:8px">ДОЛГИ ПАРТНЁРОВ</div>';
     h+='<div style="background:var(--s2);border-radius:10px;padding:4px 14px;margin-bottom:12px">';
     PARTNERS.forEach(function(p,i){
-      var pP=S.entries.filter(function(e){return e.type==='personal'&&e.who===p;}).reduce(function(s,e){return s+e.amount;},0);
+      var P=calcPar(p);
+      var pP=P.debtToCompany;
       if(!pP) return;
       h+='<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05)"><span style="font-size:11px;color:'+PC[i]+'">'+p+'</span><span style="font-size:11px;color:var(--purple);font-weight:700">'+fmt(pP)+'</span></div>';
     });
@@ -2604,6 +2877,9 @@ function openEntryCard(id){
     {lbl:'Дата',val:e.date},
     {lbl:'Тип',val:tc.lbl,c:tc.color},
     e.who?{lbl:'Партнёр',val:e.who}:null,
+    e.from?{lbl:'От кого',val:e.from,c:'var(--teal)'}:null,
+    e.to?{lbl:'Кому',val:e.to,c:'var(--teal)'}:null,
+    (e.type==='expense'&&e.paySource)?{lbl:'Источник',val:(e.paySource==='cash'?'Из кассы':e.paySource==='own'?'Со своих':'Из подотчётных')}:null,
     e.cat?{lbl:'Категория',val:e.cat}:null,
     e.obj?{lbl:'Объект',val:e.obj.split(',')[0]}:null,
     brig?{lbl:'Бригада',val:brig.name}:null,
@@ -2647,42 +2923,70 @@ function openEditEntry(id){
   _editLock=true; // блокируем синхронизацию пока редактируется запись
   var e=S.entries.find(function(x){return x.id===id;});
   if(!e){_editLock=false;return;}
-  // Запись типа 'vol' (объёмы бригад) меняет тип нельзя — слишком много завязанных полей
-  var canChangeType=(e.type==='income'||e.type==='expense'||e.type==='invest'||e.type==='personal'||e.type==='return');
+  // Запись типа 'vol' (объёмы бригад) меняет тип нельзя
+  var canChangeType=(e.type==='income'||e.type==='expense'||e.type==='invest'||e.type==='advance'||e.type==='payout'||e.type==='personal'||e.type==='return');
   var T2=TYPES[e.type]||{lbl:e.type};
   var oo=S.objects.map(function(o){return '<option'+(e.obj===o?' selected':'')+'>'+o+'</option>';}).join('');
-  var po=PARTNERS.map(function(p){return '<option'+(e.who===p?' selected':'')+'>'+p+'</option>';}).join('');
-  var pfp=PARTNERS.map(function(p){return '<option'+(e.forPartner===p?' selected':'')+'>'+p+'</option>';}).join('');
+  // Партнёр: учтём все варианты where поле где хранится имя
+  var curWho=e.who||e.from||'';
+  var curTo=e.to||e.forPartner||'';
+  var poWho=PARTNERS.map(function(p){return '<option'+(curWho===p?' selected':'')+'>'+p+'</option>';}).join('');
+  var poTo=PARTNERS.map(function(p){return '<option'+(curTo===p?' selected':'')+'>'+p+'</option>';}).join('');
   var co=EXP_CATS.map(function(c){return '<option'+(e.cat===c?' selected':'')+'>'+c+'</option>';}).join('');
-  // Список типов для смены
+  var curSource=e.paySource||'advance';
+  // Список 5 новых типов для смены
   var typeOpts='';
-  ['income','invest','expense','personal','return'].forEach(function(tp){
-    var tt=TYPES[tp];
-    typeOpts+='<option value="'+tp+'"'+(e.type===tp?' selected':'')+'>'+tt.ico+' '+tt.lbl+'</option>';
+  [
+    {k:'income',ico:'💰',lbl:'Доход от заказчика'},
+    {k:'invest',ico:'💼',lbl:'Вложение в кассу'},
+    {k:'advance',ico:'🔄',lbl:'Передача под отчёт'},
+    {k:'expense',ico:'🧾',lbl:'Расход компании'},
+    {k:'payout',ico:'↩️',lbl:'Выплата партнёру'}
+  ].forEach(function(t){
+    typeOpts+='<option value="'+t.k+'"'+(e.type===t.k?' selected':'')+'>'+t.ico+' '+t.lbl+'</option>';
   });
+  // Источник расхода
+  var srcOpts=
+    '<option value="advance"'+(curSource==='advance'?' selected':'')+'>Из подотчётных (гасит долг)</option>'+
+    '<option value="own"'+(curSource==='own'?' selected':'')+'>Со своих (компания должна)</option>'+
+    '<option value="cash"'+(curSource==='cash'?' selected':'')+'>Из кассы</option>';
+  
   document.getElementById('mtit').textContent='РЕДАКТИРОВАТЬ';
   document.getElementById('mbody').innerHTML=
     '<div style="background:var(--s2);border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:11px;color:var(--mut)">'+badge(e.type)+' '+T2.lbl+' · '+e.date+'</div>'+
     (canChangeType?'<div class="fg"><label class="fl">Тип операции</label><select class="fi" id="ee-type">'+typeOpts+'</select><div style="font-size:9px;color:var(--mut);margin-top:4px;line-height:1.4">При смене типа — несовместимые поля очистятся</div></div>':'')+
     '<div class="fg"><label class="fl">Дата</label><input class="fi" id="ee-date" type="date" value="'+e.date+'"/></div>'+
     '<div class="fg"><label class="fl">Сумма, тг</label><input class="fi" id="ee-amt" type="number" value="'+(e.amount||0)+'" inputmode="numeric"/></div>'+
-    '<div class="fg"><label class="fl">Партнёр (кто)</label><select class="fi" id="ee-who"><option value="">— нет —</option>'+po+'</select></div>'+
-    '<div class="fg" id="ee-fp-wrap" style="background:rgba(255,179,32,.05);border:1px solid rgba(255,179,32,.2);border-radius:8px;padding:10px;display:'+(e.type==='invest'?'block':'none')+'"><label class="fl" style="color:var(--gold)">📋 Для партнёра (под отчёт)</label><select class="fi" id="ee-fp"><option value="">— общая касса —</option>'+pfp+'</select><div style="font-size:9px;color:var(--mut);margin-top:6px">Если деньги переданы партнёру под отчёт — выберите его</div></div>'+
+    // Поле "Кто" — для income/invest/expense/payout
+    '<div class="fg" id="ee-who-wrap" style="display:'+(e.type==='advance'?'none':'block')+'"><label class="fl" id="ee-who-lbl">'+(e.type==='advance'?'Кто дал':'Партнёр (кто)')+'</label><select class="fi" id="ee-who"><option value="">— нет —</option>'+poWho+'</select></div>'+
+    // Поле "От кого" — только для advance
+    '<div class="fg" id="ee-from-wrap" style="display:'+(e.type==='advance'?'block':'none')+'"><label class="fl">Кто дал (от кого)</label><select class="fi" id="ee-from"><option value="">— нет —</option>'+poWho+'</select></div>'+
+    // Поле "Кому" — для advance
+    '<div class="fg" id="ee-to-wrap" style="display:'+(e.type==='advance'?'block':'none')+'"><label class="fl">Кому дал</label><select class="fi" id="ee-to"><option value="">— нет —</option>'+poTo+'</select></div>'+
+    // Источник — только для expense
+    '<div class="fg" id="ee-source-wrap" style="display:'+(e.type==='expense'?'block':'none')+'"><label class="fl">Источник денег</label><select class="fi" id="ee-source">'+srcOpts+'</select><div style="font-size:9px;color:var(--mut);margin-top:4px;line-height:1.4">Из подотчётных — деньги были у партнёра под отчёт. Со своих — заплатил из своего кармана.</div></div>'+
+    // Категория — для expense
     '<div class="fg" id="ee-cat-wrap" style="display:'+(e.type==='expense'?'block':'none')+'"><label class="fl">Категория</label><select class="fi" id="ee-cat"><option value="">— нет —</option>'+co+'</select></div>'+
     '<div class="fg"><label class="fl">Объект</label><select class="fi" id="ee-obj">'+oo+'</select></div>'+
     '<div class="fg"><label class="fl">Примечание</label><input class="fi" id="ee-note" type="text" value="'+(e.note||'').replace(/"/g,'&quot;')+'"/></div>'+
     '<button class="fsave" id="ee-save">СОХРАНИТЬ ИЗМЕНЕНИЯ</button>'+
     '<button class="fcanc" onclick="_editLock=false;closeModal()">Отмена</button>';
   document.getElementById('modal').style.display='flex';
-  // Обработчик смены типа — переключаем видимость условных полей
+  // Обработчик смены типа — переключаем видимость полей
   var typeSel=document.getElementById('ee-type');
   if(typeSel){
     typeSel.addEventListener('change',function(){
       var nt=typeSel.value;
-      var fpw=document.getElementById('ee-fp-wrap');
-      var ctw=document.getElementById('ee-cat-wrap');
-      if(fpw)fpw.style.display=(nt==='invest')?'block':'none';
-      if(ctw)ctw.style.display=(nt==='expense')?'block':'none';
+      var whoWrap=document.getElementById('ee-who-wrap');
+      var fromWrap=document.getElementById('ee-from-wrap');
+      var toWrap=document.getElementById('ee-to-wrap');
+      var srcWrap=document.getElementById('ee-source-wrap');
+      var catWrap=document.getElementById('ee-cat-wrap');
+      if(whoWrap)whoWrap.style.display=(nt==='advance')?'none':'block';
+      if(fromWrap)fromWrap.style.display=(nt==='advance')?'block':'none';
+      if(toWrap)toWrap.style.display=(nt==='advance')?'block':'none';
+      if(srcWrap)srcWrap.style.display=(nt==='expense')?'block':'none';
+      if(catWrap)catWrap.style.display=(nt==='expense')?'block':'none';
     });
   }
   document.getElementById('ee-save').addEventListener('click',function(){
@@ -2692,19 +2996,30 @@ function openEditEntry(id){
     e.type=newType;
     e.date=document.getElementById('ee-date').value||e.date;
     e.amount=parseInt(document.getElementById('ee-amt').value)||e.amount;
-    var who=document.getElementById('ee-who');if(who)e.who=who.value;
-    // forPartner — только для invest, иначе чистим
-    if(newType==='invest'){
-      var fp=document.getElementById('ee-fp');
-      if(fp){if(fp.value)e.forPartner=fp.value;else delete e.forPartner;}
+    // Чистим все возможные поля партнёра — потом заполним нужные
+    delete e.who;
+    delete e.from;
+    delete e.to;
+    delete e.forPartner;
+    delete e.cat;
+    delete e.paySource;
+    if(newType==='advance'){
+      var fr=document.getElementById('ee-from');
+      var t=document.getElementById('ee-to');
+      if(fr&&fr.value)e.from=fr.value;
+      if(t&&t.value)e.to=t.value;
+      if(!e.from||!e.to){alert('Для передачи нужно выбрать кто и кому');_editLock=false;return;}
+      if(e.from===e.to){alert('Один и тот же партнёр в "кто" и "кому"');_editLock=false;return;}
     } else {
-      delete e.forPartner;
+      // income, invest, expense, payout — у всех есть who
+      var who=document.getElementById('ee-who');
+      if(who&&who.value)e.who=who.value;
     }
-    // cat — только для expense, иначе чистим
     if(newType==='expense'){
-      var cat=document.getElementById('ee-cat');if(cat)e.cat=cat.value;
-    } else {
-      delete e.cat;
+      var cat=document.getElementById('ee-cat');
+      if(cat&&cat.value)e.cat=cat.value;
+      var src=document.getElementById('ee-source');
+      if(src)e.paySource=src.value||'advance';
     }
     var obj=document.getElementById('ee-obj');if(obj)e.obj=obj.value;
     e.note=document.getElementById('ee-note').value;
@@ -3162,8 +3477,10 @@ if(wks.length>=2){var tW=parseFloat(wks[wks.length-1].fact)||0,pW=parseFloat(wks
 // === НА РУКАХ У ПАРТНЁРОВ (подотчёт) ===
 var partnersOnHands=[];
 PARTNERS.forEach(function(p,pi){
-  var rec=S.entries.filter(function(e){return e.type==='invest'&&e.forPartner===p;}).reduce(function(s,e){return s+e.amount;},0);
-  var spt=S.entries.filter(function(e){return e.type==='expense'&&e.who===p;}).reduce(function(s,e){return s+e.amount;},0);
+  var P=calcPar(p);
+  // Получил под отчёт - потратил из подотчётных = что висит на руках
+  var rec=P.received;
+  var spt=P.spentFromAdvance;
   var onH=rec-spt;
   if(onH!==0||rec>0) partnersOnHands.push({name:p,color:PC[pi],received:rec,spent:spt,onHands:onH});
 });
@@ -3209,20 +3526,19 @@ function dcMain(){
     if(e.type==='vol')return;
     var idx=days.indexOf(e.date);
     if(idx<0)return;
-    var sg=(e.type==='income'||e.type==='invest')?1:-1;
-    dayVals[idx]+=sg*e.amount;
+    dayVals[idx]+=cashEffect(e);
   });
   // Накопительный итог
   var cum=[];var run=0;
   // Стартуем с накопленного до периода
   var preStart=days[0];
-  S.entries.forEach(function(e){if(e.type!=='vol'&&e.date<preStart){var sg=(e.type==='income'||e.type==='invest')?1:-1;run+=sg*e.amount;}});
+  S.entries.forEach(function(e){if(e.type!=='vol'&&e.date<preStart){run+=cashEffect(e);}});
   dayVals.forEach(function(v){run+=v;cum.push(Math.round(run/1000));});
   var labels=days.map(function(d,i){return (i%7===0)?d.slice(5):'';});
   drawLine('ch-trend',labels,[{data:cum,color:'#f0a500',fill:'rgba(240,165,0,0.1)'}],80);
 })();
 var sorted=[].concat(S.entries).filter(function(e){return e.type!=='vol';}).sort(function(a,b){return a.date.localeCompare(b.date);});
-if(sorted.length>=2){var run=0,L=[],V=[];sorted.forEach(function(e,i){var sg=(e.type==='income'||e.type==='invest')?1:-1;run+=sg*e.amount;if(i===0||i===sorted.length-1||i%Math.ceil(sorted.length/7)===0){L.push(e.date.slice(5));V.push(Math.round(run/1000));}});drawLine('ch-cash',L,[{data:V,color:'#f0a500',fill:'rgba(240,165,0,0.1)'}],140);}
+if(sorted.length>=2){var run=0,L=[],V=[];sorted.forEach(function(e,i){run+=cashEffect(e);if(i===0||i===sorted.length-1||i%Math.ceil(sorted.length/7)===0){L.push(e.date.slice(5));V.push(Math.round(run/1000));}});drawLine('ch-cash',L,[{data:V,color:'#f0a500',fill:'rgba(240,165,0,0.1)'}],140);}
 // Volume analytics — grouped by period with filters + target line
 var vf=S.entries.filter(function(e){return e.type==='vol'&&(volObj==='all'||e.obj===volObj)&&(volBrig==='all'||e.brigade===volBrig);});
 if(vf.length>0){
@@ -3294,11 +3610,11 @@ function rMyPartnerCard(){
   var P=calcPar(name);
   var i=PARTNERS.indexOf(name);
   var color=PC[i]||'var(--gold)';
-  var ops=S.entries.filter(function(e){return e.who===name;}).sort(function(a,b){return b.date.localeCompare(a.date);});
-  var totalIn=ops.filter(function(e){return e.type==='invest';}).reduce(function(s,e){return s+e.amount;},0);
-  var totalOut=ops.filter(function(e){return e.type==='personal'||e.type==='return';}).reduce(function(s,e){return s+e.amount;},0);
+  var ops=S.entries.filter(function(e){return e.who===name||e.from===name||e.to===name;}).sort(function(a,b){return b.date.localeCompare(a.date);});
+  // === НОВАЯ МОДЕЛЬ ===
+  var totalContrib=P.investedCash+P.advancedOut+P.spentFromOwn;
   var shareVal=C.share||0;
-  var balance=totalIn+shareVal-totalOut;
+  var netBalance=P.debtFromCompany-P.debtToCompany;
 
   var h='<div style="text-align:center;padding:20px 0 16px">';
   h+='<div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,'+color+','+color+'88);display:inline-flex;align-items:center;justify-content:center;font-family:var(--fd);font-size:28px;color:#0d1117;margin-bottom:12px;box-shadow:0 4px 20px '+color+'55">'+name[0]+'</div>';
@@ -3308,15 +3624,15 @@ function rMyPartnerCard(){
 
   // Главные цифры
   h+='<div class="kgrid" style="grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">';
-  h+='<div class="kc" style="--cbar:var(--blue)"><div class="kc-l">💼 Вложил</div><div class="kc-v" style="color:var(--blue);font-size:18px">'+fmt(totalIn)+'</div><div class="kc-s">тг</div></div>';
+  h+='<div class="kc" style="--cbar:var(--blue)"><div class="kc-l">💼 Вложил всего</div><div class="kc-v" style="color:var(--blue);font-size:18px">'+fmt(totalContrib)+'</div><div class="kc-s">тг</div></div>';
   h+='<div class="kc" style="--cbar:var(--green)"><div class="kc-l">💰 Доля прибыли</div><div class="kc-v" style="color:var(--green);font-size:18px">'+fmt(shareVal)+'</div><div class="kc-s">тг</div></div>';
-  h+='<div class="kc" style="--cbar:var(--purple)"><div class="kc-l">🛍 Взял лично</div><div class="kc-v" style="color:var(--purple);font-size:18px">'+fmt(totalOut)+'</div><div class="kc-s">тг</div></div>';
-  h+='<div class="kc" style="--cbar:'+(balance>=0?'var(--gold)':'var(--red)')+'"><div class="kc-l">📊 '+(balance>=0?'К получению':'К возврату')+'</div><div class="kc-v" style="color:'+(balance>=0?'var(--gold)':'var(--red)')+';font-size:18px">'+fmt(Math.abs(balance))+'</div><div class="kc-s">тг</div></div>';
+  h+='<div class="kc" style="--cbar:var(--purple)"><div class="kc-l">📥 Получил под отчёт</div><div class="kc-v" style="color:var(--purple);font-size:18px">'+fmt(P.received)+'</div><div class="kc-s">тг</div></div>';
+  h+='<div class="kc" style="--cbar:'+(netBalance>=0?'var(--gold)':'var(--red)')+'"><div class="kc-l">📊 '+(netBalance>=0?'К получению':'Должен')+'</div><div class="kc-v" style="color:'+(netBalance>=0?'var(--gold)':'var(--red)')+';font-size:18px">'+fmt(Math.abs(netBalance))+'</div><div class="kc-s">тг</div></div>';
   h+='</div>';
 
   // Прогресс к цели года
   var goalShare=9200000/5; // 920 млн / 5 партнёров
-  var pct=Math.min(Math.round(shareVal/goalShare*100),100);
+  var pct=Math.min(Math.round(shareVal/goalShare*100),100)||0;
   h+='<div class="dcard" style="margin-bottom:14px">';
   h+='<div style="display:flex;justify-content:space-between;margin-bottom:8px"><span style="font-size:11px;color:var(--mut)">Прогресс к цели (доля 920 млн)</span><span style="font-size:11px;color:'+color+'">'+pct+'%</span></div>';
   h+='<div class="ptrack"><div class="pfill" style="width:'+pct+'%;background:linear-gradient(90deg,'+color+','+color+'88)"></div></div>';
@@ -3326,12 +3642,15 @@ function rMyPartnerCard(){
   // Детальный баланс
   h+='<div class="dcard" style="margin-bottom:14px">';
   h+='<div class="ctit">Детальный расчёт</div>';
-  h+='<div class="r2"><span class="lb">Вложено в компанию</span><span class="vl" style="color:var(--blue)">+'+fmt(totalIn)+' тг</span></div>';
-  if(P.invested-P.returned>0)h+='<div class="r2"><span class="lb">Возврат вложений</span><span class="vl" style="color:var(--blue)">+'+fmt(P.invested-P.returned)+' тг</span></div>';
-  h+='<div class="r2"><span class="lb">Доля прибыли компании</span><span class="vl" style="color:var(--green)">+'+fmt(shareVal)+' тг</span></div>';
-  if(totalOut>0)h+='<div class="r2"><span class="lb">Взято лично</span><span class="vl" style="color:var(--purple)">−'+fmt(totalOut)+' тг</span></div>';
+  if(P.investedCash>0)h+='<div class="r2"><span class="lb">Вложил в кассу</span><span class="vl" style="color:var(--blue)">+'+fmt(P.investedCash)+' тг</span></div>';
+  if(P.advancedOut>0)h+='<div class="r2"><span class="lb">Передал другим под отчёт</span><span class="vl" style="color:var(--teal)">+'+fmt(P.advancedOut)+' тг</span></div>';
+  if(P.spentFromOwn>0)h+='<div class="r2"><span class="lb">Заплатил из своих</span><span class="vl" style="color:var(--blue)">+'+fmt(P.spentFromOwn)+' тг</span></div>';
+  if(P.received>0)h+='<div class="r2"><span class="lb">Получил под отчёт</span><span class="vl" style="color:var(--purple)">−'+fmt(P.received)+' тг</span></div>';
+  if(P.spentFromAdvance>0)h+='<div class="r2"><span class="lb">Потратил из подотчёта</span><span class="vl" style="color:var(--green)">+'+fmt(P.spentFromAdvance)+' тг</span></div>';
+  if(P.returned>0)h+='<div class="r2"><span class="lb">Компания выплатила</span><span class="vl" style="color:var(--gold)">−'+fmt(P.returned)+' тг</span></div>';
+  h+='<div class="r2"><span class="lb">Доля прибыли (когда будет)</span><span class="vl" style="color:var(--green)">+'+fmt(shareVal)+' тг</span></div>';
   h+='<div class="divider"></div>';
-  h+='<div class="r2"><span class="lb" style="font-weight:700">'+(balance>=0?'ПРИЧИТАЕТСЯ':'К ВОЗВРАТУ')+'</span><span class="vl" style="color:'+(balance>=0?'var(--gold)':'var(--red)')+';font-size:16px">'+fmt(Math.abs(balance))+' тг</span></div>';
+  h+='<div class="r2"><span class="lb" style="font-weight:700">'+(netBalance>=0?'КОМПАНИЯ ДОЛЖНА':'ДОЛГ КОМПАНИИ')+'</span><span class="vl" style="color:'+(netBalance>=0?'var(--gold)':'var(--red)')+';font-size:16px">'+fmt(Math.abs(netBalance))+' тг</span></div>';
   h+='</div>';
 
   // История операций
@@ -3342,9 +3661,15 @@ function rMyPartnerCard(){
   } else {
     ops.slice(0,20).forEach(function(e){
       var T2=TYPES[e.type]||{color:'var(--mut)',ico:'·',lbl:e.type};
+      var subline=e.date;
+      if(e.type==='advance'){
+        if(e.from===name) subline += ' · → '+e.to;
+        else if(e.to===name) subline += ' · от '+e.from;
+      }
+      if(e.note) subline += ' · '+e.note.slice(0,30);
       h+='<div class="oprow"><div class="opbody">';
       h+='<div style="font-size:11px;font-weight:700;color:'+T2.color+'">'+T2.ico+' '+T2.lbl+'</div>';
-      h+='<div style="font-size:10px;color:var(--mut)">'+e.date+(e.note?' · '+e.note:'')+'</div>';
+      h+='<div style="font-size:10px;color:var(--mut)">'+subline+'</div>';
       h+='</div><div style="font-family:var(--fd);font-size:14px;color:'+T2.color+'">'+fmt(e.amount)+'</div></div>';
     });
     if(ops.length>20)h+='<div style="padding:8px;text-align:center;color:var(--mut);font-size:10px">+ещё '+(ops.length-20)+' операций</div>';
@@ -3360,73 +3685,50 @@ h+='<div class="kgrid"><div class="kc" style="--cbar:var(--green);cursor:pointer
 h+='<div class="dcard"><div class="ctit">Доли вложений партнёров</div><canvas id="ch-pie" style="height:130px"></canvas></div>';
 h+='<div class="dcard"><div class="ctit">Вложил vs взял лично (тыс тг)</div><canvas id="ch-par" style="height:160px"></canvas></div>';
 h+='<div class="sect">Расчёт по каждому</div>';
-PARTNERS.forEach(function(p,i){var P=calcPar(p);var fc=P.totalGet>=0?'var(--green)':'var(--red)';
-// Подотчётный остаток: личные минус расходы партнёра
-var pSpent=S.entries.filter(function(e){return e.type==='expense'&&e.who===p;}).reduce(function(s,e){return s+e.amount;},0);
-var pUnder=Math.max(0, P.personal - pSpent);
-h+='<div class="pcard" style="border-top:3px solid '+PC[i]+';cursor:pointer;transition:transform .15s" onclick="openPartnerCard(\''+p+'\')" ontouchstart="this.style.transform=\'scale(.98)\'" ontouchend="this.style.transform=\'scale(1)\'"><div class="phdr"><div><div class="pname" style="color:'+PC[i]+'">'+p+'</div>'+(P.invested>0?'<div style="font-size:9px;color:var(--blue)">Вложил: '+fmt(P.invested)+' тг</div>':'<div style="font-size:9px;color:var(--mut)">доля 1/5</div>')+'</div><div style="text-align:right"><div style="font-size:8px;color:var(--mut);text-transform:uppercase">Итого</div><div style="font-family:var(--fd);font-size:22px;color:'+fc+'">'+fmt(Math.abs(P.totalGet))+'</div></div></div><div class="pbody">';
-if(P.invested>0)h+='<div class="r2"><span class="lb">Возврат вложений</span><span class="vl" style="color:var(--blue)">+'+fmt(P.invested-P.returned)+' тг</span></div>';
-h+='<div class="r2"><span class="lb">Доля прибыли</span><span class="vl" style="color:var(--gold)">+'+fmt(C.share)+' тг</span></div>';
-if(P.personal>0)h+='<div class="r2"><span class="lb">Взял лично</span><span class="vl" style="color:var(--purple)">-'+fmt(P.personal)+' тг</span></div>';
-if(pUnder>0)h+='<div class="r2" style="background:rgba(255,179,32,.06);margin:4px -4px;padding:4px 10px;border-radius:6px"><span class="lb" style="color:var(--gold)">📋 Подотчёт остаток</span><span class="vl" style="color:var(--gold);font-weight:700">'+fmt(pUnder)+' тг</span></div>';
-h+='<div class="divider"></div><div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:11px;font-weight:700;color:'+fc+'">'+(P.totalGet>=0?T('toReceive'):T('toReturn'))+'</span><span style="font-family:var(--fd);font-size:20px;color:'+fc+'">'+fmt(Math.abs(P.totalGet))+' тг</span></div>';
-h+='<button onclick="openPartnerCard(\''+p+'\')" style="margin-top:10px;width:100%;background:linear-gradient(135deg,rgba('+( i===0?'240,165,0':i===1?'46,160,67':i===2?'56,139,253':i===3?'137,87,229':i===4?'218,54,51':'61,70,85' )+',0.15),transparent);border:1px solid '+PC[i]+';color:'+PC[i]+';border-radius:10px;padding:10px;font-size:12px;font-family:var(--fd);letter-spacing:1px;cursor:pointer">ПОДРОБНЕЕ →</button>';
-h+='</div></div>';});
+PARTNERS.forEach(function(p,i){
+  var P=calcPar(p);
+  var netBalance=P.debtFromCompany-P.debtToCompany; // + компания должна, - партнёр должен
+  var fc=netBalance>=0?'var(--green)':'var(--red)';
+  var totalContrib = P.investedCash + P.advancedOut + P.spentFromOwn;
+  var topLabel = totalContrib>0 
+    ? '<div style="font-size:9px;color:var(--blue)">Вложил: '+fmt(totalContrib)+' тг</div>' 
+    : '<div style="font-size:9px;color:var(--mut)">доля 1/5</div>';
+  h+='<div class="pcard" style="border-top:3px solid '+PC[i]+';cursor:pointer;transition:transform .15s" onclick="openPartnerCard(\''+p+'\')" ontouchstart="this.style.transform=\'scale(.98)\'" ontouchend="this.style.transform=\'scale(1)\'"><div class="phdr"><div><div class="pname" style="color:'+PC[i]+'">'+p+'</div>'+topLabel+'</div><div style="text-align:right"><div style="font-size:8px;color:var(--mut);text-transform:uppercase">'+(netBalance>=0?'К получению':'Должен')+'</div><div style="font-family:var(--fd);font-size:22px;color:'+fc+'">'+fmt(Math.abs(netBalance))+'</div></div></div><div class="pbody">';
+  if(totalContrib>0)h+='<div class="r2"><span class="lb">Вложил всего</span><span class="vl" style="color:var(--blue)">+'+fmt(totalContrib)+' тг</span></div>';
+  if(P.received>0)h+='<div class="r2"><span class="lb">Получил под отчёт</span><span class="vl" style="color:var(--purple)">+'+fmt(P.received)+' тг</span></div>';
+  if(P.spent>0)h+='<div class="r2"><span class="lb">Потратил на стройку</span><span class="vl" style="color:var(--red)">−'+fmt(P.spent)+' тг</span></div>';
+  if(P.returned>0)h+='<div class="r2"><span class="lb">Компания выплатила</span><span class="vl" style="color:var(--gold)">−'+fmt(P.returned)+' тг</span></div>';
+  h+='<div class="r2"><span class="lb">Доля прибыли</span><span class="vl" style="color:var(--gold)">+'+fmt(C.share)+' тг</span></div>';
+  h+='<div class="divider"></div><div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:11px;font-weight:700;color:'+fc+'">'+(netBalance>=0?'Компания должна':'Долг компании')+'</span><span style="font-family:var(--fd);font-size:20px;color:'+fc+'">'+fmt(Math.abs(netBalance))+' тг</span></div>';
+  h+='<button onclick="openPartnerCard(\''+p+'\')" style="margin-top:10px;width:100%;background:linear-gradient(135deg,rgba('+( i===0?'240,165,0':i===1?'46,160,67':i===2?'56,139,253':i===3?'137,87,229':i===4?'218,54,51':'61,70,85' )+',0.15),transparent);border:1px solid '+PC[i]+';color:'+PC[i]+';border-radius:10px;padding:10px;font-size:12px;font-family:var(--fd);letter-spacing:1px;cursor:pointer">ПОДРОБНЕЕ →</button>';
+  h+='</div></div>';
+});
 return h;}
 function openPartnerCard(name){
   var idx=PARTNERS.indexOf(name);
   var color=PC[idx]||'var(--gold)';
   var C=calcCo();
   var P=calcPar(name);
-  var ops=S.entries.filter(function(e){return e.who===name;}).sort(function(a,b){return b.date.localeCompare(a.date);});
+  // Все операции связанные с этим партнёром (по любому из полей)
+  var ops=S.entries.filter(function(e){
+    return e.who===name || e.from===name || e.to===name;
+  }).sort(function(a,b){return b.date.localeCompare(a.date);});
 
-  // Считаем детально
-  var invested=ops.filter(function(e){return e.type==='invest';}).reduce(function(s,e){return s+e.amount;},0);
-  var personalRaw=ops.filter(function(e){return e.type==='personal';}).reduce(function(s,e){return s+e.amount;},0);
-  var returned=ops.filter(function(e){return e.type==='return';}).reduce(function(s,e){return s+e.amount;},0);
-  // Подотчёт: расходы которые партнёр сделал из взятых лично денег
-  var spentForCo=ops.filter(function(e){return e.type==='expense';}).reduce(function(s,e){return s+e.amount;},0);
-  // Подотчётный остаток: взял лично − потратил на компанию (если положительное — деньги на руках)
-  var underReport=Math.max(0, personalRaw - spentForCo);
+  // === НОВАЯ МОДЕЛЬ ===
+  // P.investedCash — вложил в кассу
+  // P.advancedOut  — выдал другим под отчёт
+  // P.received     — получил под отчёт
+  // P.spent        — потратил (всего)
+  // P.spentFromOwn — из своих
+  // P.spentFromAdvance — из подотчётных
+  // P.debtToCompany — он должен компании
+  // P.debtFromCompany — компания должна ему
+  // P.returned     — компания выплатила
+
+  // Чистый баланс: положительное = компания должна, отрицательное = он должен
+  var netBalance = P.debtFromCompany - P.debtToCompany;
   var share=C.share||0;
   var goalShare=Math.round(920/5*10)/10; // 184 млн на партнёра
-
-  // === ПРАВИЛЬНЫЙ РАСЧЁТ ДОЛГА (как в Сверке) ===
-  // Получил - Потратил = Реальный долг партнёра
-  var nameFormsRu={
-    'Бекжан':['бекжан','бекжану','бек'],
-    'Евгений':['евгений','евгению','жен','жене','евген'],
-    'Нурсултан':['нурсултан','нурсултану','нурс'],
-    'Сергей':['сергей','сергею','серг'],
-    'Дмитрий':['дмитрий','дмитрию']
-  };
-  var keywords=nameFormsRu[name]||[name.toLowerCase()];
-  var receivedIdsTop={};
-  var realReceivedTop=0;
-  S.entries.forEach(function(e){
-    if(e.type!=='invest') return;
-    if(receivedIdsTop[e.id]) return;
-    var match=false;
-    if(e.forPartner===name) match=true;
-    if(!match && e.who==='Дмитрий' && e.note && !e.forPartner){
-      var noteLower=e.note.toLowerCase();
-      var isForBrigade=noteLower.indexOf('бригад')>=0;
-      if(!isForBrigade && keywords.some(function(k){return noteLower.indexOf(k)>=0;})) match=true;
-    }
-    // Партнёр сам себя записал как «вложил» БЕЗ forPartner — это его собственное вложение в кассу
-    // (если есть forPartner — деньги ушли другому, не считаем как его поступление)
-    if(!match && e.who===name && name!=='Дмитрий' && !e.forPartner) match=true;
-    if(match){
-      receivedIdsTop[e.id]=true;
-      realReceivedTop+=e.amount;
-    }
-  });
-  // Реальный долг = всё что прошло через руки - что потратил - что своих вложил
-  var personal=realReceivedTop-spentForCo-invested;
-  if(personal<0) personal=0; // если потратил больше чем получил — это компания должна ему
-  // К возврату/получению — для партнёра это означает сколько он должен или сколько ему должны
-  var toReceive=share-personal-returned;
-  if(name==='Дмитрий') toReceive=invested+share-personalRaw-returned; // для Дмитрия старая логика
 
   document.getElementById('mtit').textContent=name;
   var h='';
@@ -3439,10 +3741,14 @@ function openPartnerCard(name){
   h+='</div>';
 
   // 4 главные цифры
+  // "Вложил" = сумма всех денег которые партнёр положил В КАССУ + выдал ДРУГИМ под отчёт + потратил из СВОИХ
+  // Это всё то, что компания ему должна вернуть (без зачёта его собственного долга)
+  var totalContrib = P.investedCash + P.advancedOut + P.spentFromOwn;
+  
   h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">';
   h+='<div style="background:linear-gradient(145deg,rgba(88,166,255,.12),rgba(88,166,255,.06));border:1px solid rgba(88,166,255,.25);border-radius:12px;padding:12px;text-align:center">';
-  h+='<div style="font-size:9px;color:var(--mut);letter-spacing:1px;margin-bottom:4px">💼 ВЛОЖИЛ</div>';
-  h+='<div style="font-family:var(--fd);font-size:20px;color:var(--blue)">'+fmt(invested)+'</div>';
+  h+='<div style="font-size:9px;color:var(--mut);letter-spacing:1px;margin-bottom:4px">💼 ВЛОЖИЛ ВСЕГО</div>';
+  h+='<div style="font-family:var(--fd);font-size:20px;color:var(--blue)">'+fmt(totalContrib)+'</div>';
   h+='<div style="font-size:9px;color:var(--mut)">тг</div></div>';
 
   h+='<div style="background:linear-gradient(145deg,rgba(63,185,80,.12),rgba(63,185,80,.06));border:1px solid rgba(63,185,80,.25);border-radius:12px;padding:12px;text-align:center">';
@@ -3451,14 +3757,16 @@ function openPartnerCard(name){
   h+='<div style="font-size:9px;color:var(--mut)">тг</div></div>';
 
   h+='<div style="background:linear-gradient(145deg,rgba(163,113,247,.12),rgba(163,113,247,.06));border:1px solid rgba(163,113,247,.25);border-radius:12px;padding:12px;text-align:center">';
-  h+='<div style="font-size:9px;color:var(--mut);letter-spacing:1px;margin-bottom:4px">🛍 ВЗЯЛ ЛИЧНО</div>';
-  h+='<div style="font-family:var(--fd);font-size:20px;color:var(--purple)">'+fmt(personal)+'</div>';
+  h+='<div style="font-size:9px;color:var(--mut);letter-spacing:1px;margin-bottom:4px">📥 ПОЛУЧИЛ ПОД ОТЧЁТ</div>';
+  h+='<div style="font-family:var(--fd);font-size:20px;color:var(--purple)">'+fmt(P.received)+'</div>';
   h+='<div style="font-size:9px;color:var(--mut)">тг</div></div>';
 
-  var balColor=toReceive>=0?'var(--gold)':'var(--red)';
+  // К получению / К возврату — на основе чистого баланса
+  var balColor=netBalance>=0?'var(--gold)':'var(--red)';
+  var balLbl=netBalance>=0?'📊 КОМПАНИЯ ДОЛЖНА':'📊 ДОЛГ КОМПАНИИ';
   h+='<div style="background:linear-gradient(145deg,rgba(255,179,32,.15),rgba(255,179,32,.06));border:1px solid rgba(255,179,32,.3);border-radius:12px;padding:12px;text-align:center">';
-  h+='<div style="font-size:9px;color:var(--mut);letter-spacing:1px;margin-bottom:4px">'+(toReceive>=0?'📊 К ПОЛУЧЕНИЮ':'📊 К ВОЗВРАТУ')+'</div>';
-  h+='<div style="font-family:var(--fd);font-size:20px;color:'+balColor+'">'+fmt(Math.abs(toReceive))+'</div>';
+  h+='<div style="font-size:9px;color:var(--mut);letter-spacing:1px;margin-bottom:4px">'+balLbl+'</div>';
+  h+='<div style="font-family:var(--fd);font-size:20px;color:'+balColor+'">'+fmt(Math.abs(netBalance))+'</div>';
   h+='<div style="font-size:9px;color:var(--mut)">тг</div></div>';
   h+='</div>';
 
@@ -3473,132 +3781,113 @@ function openPartnerCard(name){
   h+='<div style="height:100%;width:'+goalPct+'%;background:linear-gradient(90deg,'+color+','+color+'88);border-radius:4px;transition:width .8s"></div>';
   h+='</div></div>';
 
-  // === 📋 СВЕРКА С ПАРТНЁРОМ (упрощённая формула) ===
-  // Получил − Потратил = ДОЛГ (главная цифра)
-  // Расшифровка: что признал + что не объяснено
+  // === 📋 СВЕРКА С ПАРТНЁРОМ ===
+  // По всем потокам денег: что пришло (получил под отчёт), что ушло (потратил/передал/вложил)
+  // Долг = пришло - ушло
+  
+  // Записи где партнёр ПОЛУЧИЛ что-то (advance to=name)
+  var receivedOps = S.entries.filter(function(e){return e.type==='advance' && e.to===name;}).sort(function(a,b){return a.date.localeCompare(b.date);});
+  // Записи где партнёр ПОТРАТИЛ из подотчётных (expense who=name paySource=advance)
+  // или потратил из своих/из кассы — это тоже "ушло из его рук"
+  var spentOps = S.entries.filter(function(e){return e.type==='expense' && e.who===name;}).sort(function(a,b){return a.date.localeCompare(b.date);});
+  // Записи где партнёр ОТДАЛ под отчёт другим (advance from=name)
+  var advancedOps = S.entries.filter(function(e){return e.type==='advance' && e.from===name;}).sort(function(a,b){return a.date.localeCompare(b.date);});
+  // Вложения в кассу (invest who=name)
+  var investOps = S.entries.filter(function(e){return e.type==='invest' && e.who===name;}).sort(function(a,b){return a.date.localeCompare(b.date);});
+  // Выплаты (payout who=name)
+  var payoutOps = S.entries.filter(function(e){return (e.type==='payout'||e.type==='return') && e.who===name;}).sort(function(a,b){return a.date.localeCompare(b.date);});
 
-  // Уникальные вложения которые попали к партнёру (без дубликатов по id)
-  var receivedIds={};
-  var receivedOps=[];
-  S.entries.forEach(function(e){
-    if(e.type!=='invest') return;
-    if(receivedIds[e.id]) return;
-    var match=false;
-    // Способ 1: явный forPartner
-    if(e.forPartner===name) match=true;
-    // Способ 2: упоминание имени в примечании (только если forPartner не указан)
-    if(!match && e.who==='Дмитрий' && e.note && !e.forPartner){
-      var noteLower=e.note.toLowerCase();
-      // Если в примечании есть "бригада" — это деньги для бригады, не для партнёра
-      // (даже если упомянуто имя — это бригадир)
-      var isForBrigade=noteLower.indexOf('бригад')>=0;
-      if(!isForBrigade){
-        if(keywords.some(function(k){return noteLower.indexOf(k)>=0;})) match=true;
-      }
-    }
-    // Способ 3: партнёр сам вложил В КАССУ (без forPartner — деньги в общую кассу)
-    // Если forPartner есть — деньги ушли другому, к этому партнёру они НЕ приходили
-    if(!match && e.who===name && name!=='Дмитрий' && !e.forPartner) match=true;
-    if(match){
-      receivedIds[e.id]=true;
-      receivedOps.push(e);
-    }
-  });
+  if(receivedOps.length>0 || spentOps.length>0 || advancedOps.length>0 || investOps.length>0){
+    h+='<div style="background:linear-gradient(145deg,rgba(255,179,32,.06),rgba(255,179,32,.02));border:1px solid rgba(255,179,32,.2);border-radius:12px;padding:14px;margin-bottom:14px">';
+    h+='<div style="font-size:11px;color:var(--gold);letter-spacing:2px;font-weight:700;margin-bottom:8px">📋 СВЕРКА</div>';
+    h+='<div style="font-size:10px;color:var(--mut);margin-bottom:14px;line-height:1.5">Все потоки денег партнёра. Положительные — пришли к нему, отрицательные — ушли от него.</div>';
 
-  receivedOps.sort(function(a,b){return a.date.localeCompare(b.date);});
-  var realReceived=receivedOps.reduce(function(s,e){return s+e.amount;},0);
-  var realSpent=ops.filter(function(e){return e.type==='expense';}).reduce(function(s,e){return s+e.amount;},0);
-  var realPersonal=personal;
-
-  // ГЛАВНАЯ ФОРМУЛА: получил - потратил - сам вложил = долг (с зачётом вложений)
-  var realDebt=realReceived-realSpent-invested;
-  // Расхождение: между реальным долгом и записанным личным
-  var unexplained=realDebt-realPersonal;
-
-  // Считаем заранее — нужны для проверки «показывать ли блок вообще»
-  var _spentForCheck=ops.filter(function(e){return e.type==='expense';}).reduce(function(s,e){return s+e.amount;},0);
-  var _transfersForCheck=S.entries.filter(function(e){return e.type==='invest'&&e.who===name&&e.forPartner&&e.forPartner!==name;}).reduce(function(s,e){return s+e.amount;},0);
-  var _investedToCashForCheck=S.entries.filter(function(e){return e.type==='invest'&&e.who===name&&!e.forPartner;}).reduce(function(s,e){return s+e.amount;},0);
-
-  if(realReceived>0 || realPersonal>0 || _spentForCheck>0 || _transfersForCheck>0 || _investedToCashForCheck>0){
-    h+='<div style="background:linear-gradient(145deg,rgba(248,81,73,.06),rgba(248,81,73,.02));border:1px solid rgba(248,81,73,.2);border-radius:12px;padding:14px;margin-bottom:14px">';
-    h+='<div style="font-size:11px;color:var(--red);letter-spacing:2px;font-weight:700;margin-bottom:8px">📋 СВЕРКА С '+name.toUpperCase()+'</div>';
-    h+='<div style="font-size:10px;color:var(--mut);margin-bottom:14px;line-height:1.5">Что прошло через руки партнёра. Разница между полученным и потраченным = долг.</div>';
-
-    // Хронология полученного
+    // Что получил под отчёт
     if(receivedOps.length>0){
-      h+='<div style="background:rgba(56,139,253,.06);border:1px solid rgba(56,139,253,.2);border-radius:8px;padding:10px;margin-bottom:10px">';
-      h+='<div style="font-size:10px;color:var(--blue);letter-spacing:1px;font-weight:700;margin-bottom:8px">📥 ЧТО ПОЛУЧИЛ</div>';
+      h+='<div style="background:rgba(163,113,247,.06);border:1px solid rgba(163,113,247,.2);border-radius:8px;padding:10px;margin-bottom:10px">';
+      h+='<div style="font-size:10px;color:var(--purple);letter-spacing:1px;font-weight:700;margin-bottom:8px">📥 ПОЛУЧИЛ ПОД ОТЧЁТ</div>';
       receivedOps.forEach(function(e){
+        h+='<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:10px;gap:8px;border-bottom:1px solid rgba(255,255,255,.04)">';
+        h+='<div style="color:var(--mut);flex:1"><b style="color:var(--text)">'+e.date+'</b> · от '+(e.from||'?')+(e.note?' · '+e.note.slice(0,40):'')+'</div>';
+        h+='<div style="color:var(--purple);font-family:var(--fd);white-space:nowrap">+'+fmt(e.amount)+'</div>';
+        h+='</div>';
+      });
+      h+='<div style="display:flex;justify-content:space-between;padding:8px 0 2px;font-size:11px;font-weight:700"><span style="color:var(--text)">ВСЕГО ПОЛУЧИЛ</span><span style="color:var(--purple);font-family:var(--fd)">+'+fmt(P.received)+'</span></div>';
+      h+='</div>';
+    }
+
+    // Что потратил (все расходы, с разбивкой по источнику)
+    if(spentOps.length>0){
+      h+='<div style="background:rgba(248,81,73,.06);border:1px solid rgba(248,81,73,.2);border-radius:8px;padding:10px;margin-bottom:10px">';
+      h+='<div style="font-size:10px;color:var(--red);letter-spacing:1px;font-weight:700;margin-bottom:8px">💸 ПОТРАТИЛ НА СТРОЙКУ</div>';
+      spentOps.slice(0,30).forEach(function(e){
+        var srcLbl='';
+        if(e.paySource==='own') srcLbl=' [из своих]';
+        else if(e.paySource==='cash') srcLbl=' [из кассы]';
+        else srcLbl=' [подотчёт]';
+        h+='<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:10px;gap:8px;border-bottom:1px solid rgba(255,255,255,.04)">';
+        h+='<div style="color:var(--mut);flex:1"><b style="color:var(--text)">'+e.date+'</b> · '+(e.cat||'')+(e.note?' · '+e.note.slice(0,30):'')+srcLbl+'</div>';
+        h+='<div style="color:var(--red);font-family:var(--fd);white-space:nowrap">−'+fmt(e.amount)+'</div>';
+        h+='</div>';
+      });
+      h+='<div style="display:flex;justify-content:space-between;padding:8px 0 2px;font-size:11px;font-weight:700"><span style="color:var(--text)">ВСЕГО ПОТРАТИЛ</span><span style="color:var(--red);font-family:var(--fd)">−'+fmt(P.spent)+'</span></div>';
+      h+='</div>';
+    }
+
+    // Что отдал под отчёт другим
+    if(advancedOps.length>0){
+      h+='<div style="background:rgba(57,211,187,.06);border:1px solid rgba(57,211,187,.2);border-radius:8px;padding:10px;margin-bottom:10px">';
+      h+='<div style="font-size:10px;color:var(--teal);letter-spacing:1px;font-weight:700;margin-bottom:8px">🔄 ОТДАЛ ДРУГИМ ПОД ОТЧЁТ</div>';
+      advancedOps.forEach(function(e){
+        h+='<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:10px;gap:8px;border-bottom:1px solid rgba(255,255,255,.04)">';
+        h+='<div style="color:var(--mut);flex:1"><b style="color:var(--text)">'+e.date+'</b> · → '+(e.to||'?')+(e.note?' · '+e.note.slice(0,40):'')+'</div>';
+        h+='<div style="color:var(--teal);font-family:var(--fd);white-space:nowrap">−'+fmt(e.amount)+'</div>';
+        h+='</div>';
+      });
+      h+='<div style="display:flex;justify-content:space-between;padding:8px 0 2px;font-size:11px;font-weight:700"><span style="color:var(--text)">ВСЕГО ОТДАЛ</span><span style="color:var(--teal);font-family:var(--fd)">−'+fmt(P.advancedOut)+'</span></div>';
+      h+='</div>';
+    }
+
+    // Что вложил в кассу
+    if(investOps.length>0){
+      h+='<div style="background:rgba(56,139,253,.06);border:1px solid rgba(56,139,253,.2);border-radius:8px;padding:10px;margin-bottom:10px">';
+      h+='<div style="font-size:10px;color:var(--blue);letter-spacing:1px;font-weight:700;margin-bottom:8px">💼 ВЛОЖИЛ В КАССУ</div>';
+      investOps.forEach(function(e){
         h+='<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:10px;gap:8px;border-bottom:1px solid rgba(255,255,255,.04)">';
         h+='<div style="color:var(--mut);flex:1"><b style="color:var(--text)">'+e.date+'</b> · '+(e.note||'').slice(0,50)+'</div>';
         h+='<div style="color:var(--blue);font-family:var(--fd);white-space:nowrap">+'+fmt(e.amount)+'</div>';
         h+='</div>';
       });
-      h+='<div style="display:flex;justify-content:space-between;padding:8px 0 2px;font-size:11px;font-weight:700"><span style="color:var(--text)">ВСЕГО ПОЛУЧИЛ</span><span style="color:var(--blue);font-family:var(--fd)">+'+fmt(realReceived)+'</span></div>';
+      h+='<div style="display:flex;justify-content:space-between;padding:8px 0 2px;font-size:11px;font-weight:700"><span style="color:var(--text)">ВСЕГО ВЛОЖИЛ В КАССУ</span><span style="color:var(--blue);font-family:var(--fd)">+'+fmt(P.investedCash)+'</span></div>';
       h+='</div>';
     }
 
-    // Расходы партнёра + его передачи другим партнёрам (это тоже деньги "ушедшие на стройку")
-    var spentOps=ops.filter(function(e){return e.type==='expense';});
-    // Добавляем записи где партнёр сам отдал другому партнёру (invest с forPartner)
-    var transferOps=S.entries.filter(function(e){return e.type==='invest'&&e.who===name&&e.forPartner&&e.forPartner!==name;});
-    var allOutOps=spentOps.concat(transferOps).sort(function(a,b){return a.date.localeCompare(b.date);});
-    var transferTotal=transferOps.reduce(function(s,e){return s+e.amount;},0);
-    var totalOut=realSpent+transferTotal; // всё что ушло из рук партнёра
-    if(allOutOps.length>0){
-      h+='<div style="background:rgba(63,185,80,.06);border:1px solid rgba(63,185,80,.2);border-radius:8px;padding:10px;margin-bottom:10px">';
-      h+='<div style="font-size:10px;color:var(--green);letter-spacing:1px;font-weight:700;margin-bottom:8px">💸 ЧТО ПОТРАТИЛ И ПЕРЕДАЛ</div>';
-      allOutOps.slice(0,20).forEach(function(e){
-        var label, isTransfer = (e.type==='invest');
-        if(isTransfer){
-          label='Передал → '+_dat(e.forPartner)+(e.note?' · '+e.note.slice(0,40):'');
-        } else {
-          label=(e.cat||'')+(e.note?' · '+e.note.slice(0,40):'');
-        }
-        h+='<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:10px;gap:8px;border-bottom:1px solid rgba(255,255,255,.04)">';
-        h+='<div style="color:var(--mut);flex:1"><b style="color:var(--text)">'+e.date+'</b> · '+label+'</div>';
-        h+='<div style="color:var(--green);font-family:var(--fd);white-space:nowrap">−'+fmt(e.amount)+'</div>';
-        h+='</div>';
-      });
-      h+='<div style="display:flex;justify-content:space-between;padding:8px 0 2px;font-size:11px;font-weight:700"><span style="color:var(--text)">ВСЕГО ПОТРАТИЛ И ПЕРЕДАЛ</span><span style="color:var(--green);font-family:var(--fd)">−'+fmt(totalOut)+'</span></div>';
-      h+='</div>';
+    // ИТОГ
+    h+='<div style="background:rgba(255,179,32,.12);border:2px solid rgba(255,179,32,.35);border-radius:10px;padding:14px;margin-top:12px">';
+    h+='<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0"><span style="color:var(--mut)">📥 Получил под отчёт</span><span style="color:var(--purple);font-family:var(--fd)">+'+fmt(P.received)+'</span></div>';
+    if(P.spentFromAdvance>0){
+      h+='<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0"><span style="color:var(--mut)">💸 Потратил из подотчётных</span><span style="color:var(--red);font-family:var(--fd)">−'+fmt(P.spentFromAdvance)+'</span></div>';
     }
-
-    // ГЛАВНАЯ ФОРМУЛА — крупно
-    var debtColor=realDebt>0?'var(--red)':realDebt<0?'var(--green)':'var(--text)';
-    var debtLabel=realDebt>0?'ДОЛГ КОМПАНИИ':realDebt<0?'КОМПАНИЯ ДОЛЖНА':'СОШЛОСЬ В НОЛЬ';
-    h+='<div style="background:rgba(248,81,73,.12);border:2px solid rgba(248,81,73,.35);border-radius:10px;padding:14px;margin-top:12px">';
-    h+='<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0"><span style="color:var(--mut)">📥 Получил</span><span style="color:var(--blue);font-family:var(--fd)">+'+fmt(realReceived)+'</span></div>';
-    h+='<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0"><span style="color:var(--mut)">💸 Потратил и передал</span><span style="color:var(--green);font-family:var(--fd)">−'+fmt(totalOut)+'</span></div>';
-    // Сам вложил В КАССУ (без forPartner) — это собственный взнос. Передачи другим уже учтены выше.
-    var investedToCash=S.entries.filter(function(e){return e.type==='invest'&&e.who===name&&!e.forPartner;}).reduce(function(s,e){return s+e.amount;},0);
-    if(investedToCash>0){
-      h+='<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0"><span style="color:var(--mut)">💼 Сам вложил в кассу</span><span style="color:var(--blue);font-family:var(--fd)">−'+fmt(investedToCash)+'</span></div>';
+    if(P.spentFromOwn>0){
+      h+='<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0"><span style="color:var(--mut)">💸 Потратил из своих</span><span style="color:var(--green);font-family:var(--fd)">+'+fmt(P.spentFromOwn)+'</span></div>';
+    }
+    if(P.investedCash>0){
+      h+='<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0"><span style="color:var(--mut)">💼 Вложил в кассу</span><span style="color:var(--green);font-family:var(--fd)">+'+fmt(P.investedCash)+'</span></div>';
+    }
+    if(P.advancedOut>0){
+      h+='<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0"><span style="color:var(--mut)">🔄 Отдал другим под отчёт</span><span style="color:var(--green);font-family:var(--fd)">+'+fmt(P.advancedOut)+'</span></div>';
+    }
+    if(P.returned>0){
+      h+='<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0"><span style="color:var(--mut)">↩️ Компания выплатила</span><span style="color:var(--gold);font-family:var(--fd)">−'+fmt(P.returned)+'</span></div>';
     }
     h+='<div style="height:1px;background:rgba(255,255,255,.15);margin:10px 0"></div>';
-    h+='<div style="display:flex;justify-content:space-between;font-size:16px;font-weight:700"><span style="color:var(--text)">💰 '+debtLabel+'</span><span style="color:'+debtColor+';font-family:var(--fd)">'+fmt(Math.abs(realDebt))+' тг</span></div>';
+    var resColor = netBalance>=0 ? 'var(--green)' : 'var(--red)';
+    var resLbl = netBalance>=0 ? '💚 КОМПАНИЯ ДОЛЖНА' : '⚠️ ДОЛГ КОМПАНИИ';
+    if(Math.abs(netBalance)<1) { resColor='var(--text)'; resLbl='✅ СОШЛОСЬ В НОЛЬ'; }
+    h+='<div style="display:flex;justify-content:space-between;font-size:16px;font-weight:700"><span style="color:var(--text)">'+resLbl+'</span><span style="color:'+resColor+';font-family:var(--fd)">'+fmt(Math.abs(netBalance))+' тг</span></div>';
     h+='</div>';
-
-    // Вопрос к партнёру — если есть долг
-    if(realDebt>1){
-      h+='<div style="font-size:11px;color:var(--text);margin-top:12px;line-height:1.6;padding:12px;background:rgba(255,179,32,.08);border-left:3px solid var(--gold);border-radius:6px">';
-      h+='<b style="color:var(--gold)">💬 ВОПРОС К '+name.toUpperCase()+':</b><br>';
-      h+='По журналу <b>'+fmt(realDebt)+' тг</b> прошли через твои руки, но не отчитаны. Где они?<br><br>';
-      h+='Варианты:<br>';
-      h+='• Купил что-то на стройку и забыл записать → добавим расход<br>';
-      h+='• Взял себе → запишем как личное<br>';
-      h+='• Вернул в кассу → запишем как возврат<br>';
-      h+='</div>';
-    } else if(realDebt<-1){
-      h+='<div style="font-size:11px;color:var(--green);margin-top:12px;text-align:center;padding:10px;background:rgba(63,185,80,.08);border-radius:6px">💚 Партнёр вложил из своих '+fmt(Math.abs(realDebt))+' тг. Компания должна вернуть.</div>';
-    } else {
-      h+='<div style="font-size:11px;color:var(--green);margin-top:12px;text-align:center;padding:10px;background:rgba(63,185,80,.08);border-radius:6px">✅ Всё сходится. Расхождений нет.</div>';
-    }
-
     h+='</div>';
   }
-
 
   // История операций
   h+='<div style="font-size:10px;color:var(--mut);letter-spacing:2px;margin-bottom:8px">ИСТОРИЯ ОПЕРАЦИЙ ('+ops.length+')</div>';
@@ -3608,9 +3897,20 @@ function openPartnerCard(name){
     h+='<div style="background:var(--s2);border-radius:12px;padding:0 14px">';
     ops.slice(0,30).forEach(function(e,ei){
       var T2=TYPES[e.type]||{color:'var(--mut)',ico:'·',lbl:e.type};
-      h+='<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;'+(ei<Math.min(ops.length,30)-1?'border-bottom:1px solid rgba(255,255,255,.05)':'')+'">';
+      // Подпись для операции
+      var labelBits=[];
+      if(e.type==='advance'){
+        if(e.from===name) labelBits.push('→ '+e.to);
+        else if(e.to===name) labelBits.push('от '+e.from);
+      }
+      if(e.cat) labelBits.push(e.cat);
+      if(e.paySource==='own') labelBits.push('из своих');
+      else if(e.paySource==='cash') labelBits.push('из кассы');
+      if(e.note) labelBits.push(e.note.slice(0,20));
+      var label = labelBits.join(' · ');
+      h+='<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;cursor:pointer;'+(ei<Math.min(ops.length,30)-1?'border-bottom:1px solid rgba(255,255,255,.05)':'')+'" onclick="closeModal();openEntryCard('+e.id+')">';
       h+='<div><div style="font-size:11px;color:'+T2.color+'">'+T2.ico+' '+T2.lbl+'</div>';
-      h+='<div style="font-size:9px;color:var(--mut);margin-top:2px">'+e.date+(e.cat?' · '+e.cat:'')+(e.note?' · '+e.note.slice(0,20):'')+'</div></div>';
+      h+='<div style="font-size:9px;color:var(--mut);margin-top:2px">'+e.date+(label?' · '+label:'')+'</div></div>';
       h+='<div style="font-family:var(--fd);font-size:14px;color:'+T2.color+'">'+fmt(e.amount||0)+'</div>';
       h+='</div>';
     });
@@ -3622,10 +3922,29 @@ function openPartnerCard(name){
   document.getElementById('mbody').innerHTML=h;
   document.getElementById('modal').style.display='flex';
 }
+
 // Оставляем для обратной совместимости
 function openPartnerHistory(name){openPartnerCard(name);}
 
-function dcPartners(){var pd=PARTNERS.map(function(p,i){return{label:p.slice(0,4),val:sumT('invest','who',p),color:PC[i]};}).filter(function(d){return d.val>0;});drawPie('ch-pie',pd);var L=PARTNERS.map(function(p){return p.slice(0,3);});var iv=PARTNERS.map(function(p){return Math.round(sumT('invest','who',p)/1000);});var pe=PARTNERS.map(function(p){return Math.round(sumT('personal','who',p)/1000);});drawBar('ch-par',L,[{data:iv,color:'#388bfd',label:'Вложил'},{data:pe,color:'#8957e5',label:'Лично'}],160,true);}
+function dcPartners(){
+  // Пирог: вклад каждого партнёра (вложил в кассу + отдал под отчёт + платил из своих)
+  var pd=PARTNERS.map(function(p,i){
+    var P=calcPar(p);
+    var total = P.investedCash + P.advancedOut + P.spentFromOwn;
+    return {label:p.slice(0,4), val:total, color:PC[i]};
+  }).filter(function(d){return d.val>0;});
+  drawPie('ch-pie',pd);
+  var L=PARTNERS.map(function(p){return p.slice(0,3);});
+  var iv=PARTNERS.map(function(p){
+    var P=calcPar(p);
+    return Math.round((P.investedCash + P.advancedOut + P.spentFromOwn)/1000);
+  });
+  var pe=PARTNERS.map(function(p){
+    var P=calcPar(p);
+    return Math.round(P.debtToCompany/1000);
+  });
+  drawBar('ch-par',L,[{data:iv,color:'#388bfd',label:'Вложил'},{data:pe,color:'#8957e5',label:'Должен'}],160,true);
+}
 function rBrigadierCabinet(b){
   // Кабинет бригадира — только его бригада
   var B=calcBrig(b);
@@ -3958,11 +4277,11 @@ function openModal(){if(role!=='editor')return;selType='expense';pendingPhoto=nu
 function closeModal(){document.getElementById('modal').style.display='none';pendingPhoto=null;}
 function buildModal(){var today=new Date().toISOString().slice(0,10);var po=PARTNERS.map(function(p){return '<option>'+p+'</option>';}).join('');var co=EXP_CATS.map(function(c){return '<option>'+c+'</option>';}).join('');var oo=S.objects.map(function(o){return '<option>'+o+'</option>';}).join('');var bo=S.brigades.map(function(b){return '<option value="'+b.id+'">'+b.name+'</option>';}).join('');
 var tp=[
-  {k:'income',  c:'tc-income',  i:'💰',t:'Доход',     d:'Заказчик заплатил'},
-  {k:'invest',  c:'tc-invest',  i:'📥',t:'Вложение',  d:'Дмитрий внёс / дал партнёру'},
-  {k:'expense', c:'tc-expense', i:'💸',t:'Расход',    d:'Купили для стройки'},
-  {k:'personal',c:'tc-personal',i:'🛍',t:'Лично',     d:'Партнёр взял себе домой'},
-  {k:'return',  c:'tc-return',  i:'🔄',t:'Возврат',   d:'Партнёру вернули вложение'}
+  {k:'income',  c:'tc-income',  i:'💰',t:'Доход',          d:'Заказчик заплатил'},
+  {k:'invest',  c:'tc-invest',  i:'💼',t:'Вложение в кассу',d:'Партнёр положил деньги в кассу'},
+  {k:'advance', c:'tc-advance', i:'🔄',t:'Передача',        d:'Партнёр дал партнёру под отчёт'},
+  {k:'expense', c:'tc-expense', i:'🧾',t:'Расход',          d:'Купили для стройки / на еду'},
+  {k:'payout',  c:'tc-payout',  i:'↩️',t:'Выплата',         d:'Компания вернула партнёру'}
 ];
 var tc=tp.map(function(t){return '<div class="tcard '+t.c+(selType===t.k?' sel':'')+'" data-type="'+t.k+'"><div class="tic">'+t.i+'</div><div class="ttit" style="color:'+(TYPES[t.k]?TYPES[t.k].color:'var(--mut)')+'">'+t.t+'</div><div class="tdsc">'+t.d+'</div></div>';}).join('');
 var fl='';
@@ -3978,39 +4297,46 @@ if(selType==='income'){
 }
 else if(selType==='invest')fl=
   '<div style="background:rgba(56,139,253,.05);border:1px solid rgba(56,139,253,.2);border-radius:8px;padding:10px;margin-bottom:12px;font-size:11px;color:var(--blue)">'+
-  '💡 Используйте этот тип когда:<br>'+
-  '• Дмитрий принёс свои деньги в кассу<br>'+
-  '• Дмитрий передал партнёру деньги под отчёт'+
+  '💡 Партнёр <b>положил свои деньги в кассу</b> (наличными, на счёт компании). Касса увеличится, компания будет должна вернуть.<br><br>'+
+  '<b>Не используйте если:</b> партнёр отдал деньги другому партнёру нал — для этого тип «Передача».'+
   '</div>'+
-  '<div class="fg"><label class="fl">Кто вложил</label><select class="fi" id="f-who">'+po+'</select>'+hint('Обычно Дмитрий — тот кто принёс деньги')+'</div>'+
-  '<div class="fg" style="background:rgba(255,179,32,.05);border:1px solid rgba(255,179,32,.25);border-radius:8px;padding:10px">'+
-  '<label class="fl" style="color:var(--gold)">📋 Кому передал (под отчёт)</label>'+
-  '<select class="fi" id="f-fp"><option value="">— никому, в общую кассу —</option>'+po+'</select>'+
-  '<div style="font-size:9px;color:var(--mut);margin-top:6px;line-height:1.4">Если деньги идут партнёру под отчёт — выберите его. Через 30 сек что не отчитается расходом → станет долгом партнёра.</div>'+
-  '</div>'+
+  '<div class="fg"><label class="fl">Кто вложил в кассу</label><select class="fi" id="f-who">'+po+'</select>'+hint('Тот кто реально принёс деньги в общий котёл')+'</div>'+
   '<div class="fg"><label class="fl">Объект</label><select class="fi" id="f-obj">'+oo+'</select></div>'+
-  '<div class="fg"><label class="fl">Примечание</label><input class="fi" id="f-note" type="text" placeholder="На расходы Бекжану..."/></div>';
+  '<div class="fg"><label class="fl">Примечание</label><input class="fi" id="f-note" type="text" placeholder="На счёт компании, на страховку..."/></div>';
+else if(selType==='advance')fl=
+  '<div style="background:rgba(57,211,187,.05);border:1px solid rgba(57,211,187,.2);border-radius:8px;padding:10px;margin-bottom:12px;font-size:11px;color:var(--teal)">'+
+  '💡 Один партнёр <b>дал наличку другому под отчёт</b> (не клал в кассу).<br>'+
+  '• У отправителя — компания будет ему должна<br>'+
+  '• У получателя — он будет должен компании<br>'+
+  '• Касса не меняется'+
+  '</div>'+
+  '<div class="fg"><label class="fl">Кто дал (от кого)</label><select class="fi" id="f-from"><option value="">— выберите —</option>'+po+'</select>'+hint('Тот кто отдал свои деньги')+'</div>'+
+  '<div class="fg"><label class="fl">Кому дал (под отчёт)</label><select class="fi" id="f-to"><option value="">— выберите —</option>'+po+'</select>'+hint('Тот кто получил деньги под отчёт')+'</div>'+
+  '<div class="fg"><label class="fl">Объект</label><select class="fi" id="f-obj">'+oo+'</select></div>'+
+  '<div class="fg"><label class="fl">Примечание</label><input class="fi" id="f-note" type="text" placeholder="На расходы, на барана..."/></div>';
 else if(selType==='expense')fl=
   '<div style="background:rgba(248,81,73,.04);border:1px solid rgba(248,81,73,.2);border-radius:8px;padding:10px;margin-bottom:12px;font-size:11px;color:var(--mut)">'+
-  '💡 Если партнёр купил из подотчётных — расход автоматом гасит его подотчёт. Если уже долг — гасит долг.'+
+  '💡 Компания потратила деньги. <b>Выберите откуда взяли:</b><br>'+
+  '• <b>Из кассы</b> — со счёта компании / общих наличных<br>'+
+  '• <b>Из подотчётных</b> — партнёр потратил из тех денег что ему дали под отчёт (гасит его долг)<br>'+
+  '• <b>Со своих</b> — партнёр заплатил из своего кармана (компания будет ему должна)'+
   '</div>'+
-  '<div class="fg"><label class="fl">Кто оплатил</label><select class="fi" id="f-who">'+po+'</select>'+hint('Кто из партнёров заплатил из своего кармана / подотчёта')+'</div>'+
+  '<div class="fg"><label class="fl">Кто оплатил</label><select class="fi" id="f-who">'+po+'</select>'+hint('Партнёр который физически отдал деньги поставщику')+'</div>'+
+  '<div class="fg"><label class="fl">Откуда взяли деньги (источник)</label><select class="fi" id="f-source">'+
+    '<option value="advance">Из подотчётных (гасит долг)</option>'+
+    '<option value="own">Со своих (компания будет должна)</option>'+
+    '<option value="cash">Из кассы (Дмитрий со счёта)</option>'+
+  '</select>'+hint('Обычно: Бекжан/Евгений — из подотчётных, Дмитрий — со своих или из кассы')+'</div>'+
   '<div class="fg"><label class="fl">Статья расхода</label><select class="fi" id="f-cat">'+co+'</select>'+hint('Обеды с заказчиками = Представительские')+'</div>'+
   '<div class="fg"><label class="fl">Что куплено</label><input class="fi" id="f-note" type="text" placeholder="Арматура 12мм, 2 тонны..."/>'+hint('Подробно — название, количество')+'</div>'+
   '<div class="fg"><label class="fl">Бригада (если аванс)</label><select class="fi" id="f-brig"><option value="">— не относится к бригаде —</option>'+bo+'</select>'+hint('Только если это аванс/зарплата бригаде')+'</div>'+
   '<div class="fg"><label class="fl">Объект</label><select class="fi" id="f-obj">'+oo+'</select></div>'+
   '<div class="fg"><label class="fl">Фото чека</label><label style="display:block;cursor:pointer"><div class="photo-area" id="photo-ph">Камера / Галерея / Файл</div><img id="photo-prev" class="photo-prev"/><input type="file" id="f-photo" accept="image/*" style="display:none"/></label></div>';
-else if(selType==='personal')fl=
-  '<div style="background:rgba(163,113,247,.04);border:1px solid rgba(163,113,247,.2);border-radius:8px;padding:10px;margin-bottom:12px;font-size:11px;color:var(--purple)">'+
-  '⚠️ Это <b>личный долг</b> партнёра — он взял деньги себе домой (не на стройку). Уменьшит его долю прибыли.'+
+else if(selType==='payout')fl=
+  '<div style="background:rgba(240,165,0,.04);border:1px solid rgba(240,165,0,.2);border-radius:8px;padding:10px;margin-bottom:12px;font-size:11px;color:var(--gold)">'+
+  '💡 Компания возвращает партнёру его вложения деньгами (из кассы). Уменьшит долг компании перед партнёром.'+
   '</div>'+
-  '<div class="fg"><label class="fl">Кто взял лично</label><select class="fi" id="f-who">'+po+'</select>'+hint('Партнёр который забрал деньги себе')+'</div>'+
-  '<div class="fg"><label class="fl">На что (примечание)</label><input class="fi" id="f-note" type="text" placeholder="Семейные расходы, квартира..."/>'+hint('Куда пошли деньги (опционально)')+'</div>';
-else if(selType==='return')fl=
-  '<div style="background:rgba(46,160,67,.04);border:1px solid rgba(46,160,67,.2);border-radius:8px;padding:10px;margin-bottom:12px;font-size:11px;color:var(--green)">'+
-  '💡 Когда компания возвращает партнёру его вложения деньгами обратно.'+
-  '</div>'+
-  '<div class="fg"><label class="fl">Кому возврат</label><select class="fi" id="f-who">'+po+'</select>'+hint('Партнёр которому возвращаем')+'</div>'+
+  '<div class="fg"><label class="fl">Кому выплата</label><select class="fi" id="f-who">'+po+'</select>'+hint('Партнёр которому возвращаем')+'</div>'+
   '<div class="fg"><label class="fl">Примечание</label><input class="fi" id="f-note" type="text" placeholder="Возврат вложения..."/></div>';
 document.getElementById('mtit').textContent='НОВАЯ ЗАПИСЬ';
 document.getElementById('mbody').innerHTML='<div class="tgrid">'+tc+'</div><div class="frow"><div class="fg"><label class="fl">Дата</label><input class="fi" id="f-date" type="date" value="'+today+'"/></div><div class="fg"><label class="fl">Сумма тг</label><input class="fi" id="f-amount" type="number" placeholder="0" inputmode="numeric"/></div></div>'+fl+'<button class="fsave" id="btn-sv">СОХРАНИТЬ</button><button class="fcanc" id="btn-cn">Отмена</button>';
@@ -4018,7 +4344,48 @@ document.querySelectorAll('.tcard').forEach(function(c){c.addEventListener('clic
 var pi=document.getElementById('f-photo');if(pi)pi.addEventListener('change',function(){if(!this.files||!this.files[0])return;compressPhoto(this.files[0],function(d){pendingPhoto=d;var pv=document.getElementById('photo-prev'),ph=document.getElementById('photo-ph');if(pv){pv.src=d;pv.style.display='block';}if(ph)ph.style.display='none';});});
 document.getElementById('btn-sv').addEventListener('click',saveEntry);
 document.getElementById('btn-cn').addEventListener('click',closeModal);}
-function saveEntry(){var a=parseFloat(g('f-amount'));if(!a||isNaN(a)){alert('Введите сумму');return;}var e={id:Date.now(),date:g('f-date')||new Date().toISOString().slice(0,10),type:selType,amount:a,note:g('f-note')||''};if(selType==='income'){e.obj=g('f-obj')||S.objects[0];e.from=g('f-from')||'';}if(selType==='invest'){e.who=g('f-who')||'';e.obj=g('f-obj')||S.objects[0];var fp=g('f-fp');if(fp)e.forPartner=fp;}if(selType==='expense'){e.obj=g('f-obj')||S.objects[0];e.cat=g('f-cat')||'';e.who=g('f-who')||'';var bv=g('f-brig');if(bv)e.brigade=bv;if(pendingPhoto)e.photo=pendingPhoto;}if(selType==='personal'){e.who=g('f-who')||'';e.obj='-';}if(selType==='return'){e.who=g('f-who')||'';e.obj='-';}S.entries.push(e);if(!S.history)S.history=[];S.history.push({action:'add',by:role,at:new Date().toISOString(),type:e.type,amount:e.amount});save();closeModal();render();}
+function saveEntry(){
+  var a=parseFloat(g('f-amount'));
+  if(!a||isNaN(a)){alert('Введите сумму');return;}
+  var e={id:Date.now(),date:g('f-date')||new Date().toISOString().slice(0,10),type:selType,amount:a,note:g('f-note')||''};
+  if(selType==='income'){
+    e.obj=g('f-obj')||S.objects[0];
+    e.from=g('f-from')||'';
+  }
+  if(selType==='invest'){
+    e.who=g('f-who')||'';
+    if(!e.who){alert('Выберите кто вложил');return;}
+    e.obj=g('f-obj')||S.objects[0];
+  }
+  if(selType==='advance'){
+    e.from=g('f-from')||'';
+    e.to=g('f-to')||'';
+    if(!e.from||!e.to){alert('Выберите кто и кому');return;}
+    if(e.from===e.to){alert('Один и тот же партнёр в "кто" и "кому" — это бессмысленно');return;}
+    e.obj=g('f-obj')||S.objects[0];
+  }
+  if(selType==='expense'){
+    e.obj=g('f-obj')||S.objects[0];
+    e.cat=g('f-cat')||'';
+    e.who=g('f-who')||'';
+    if(!e.who){alert('Выберите кто оплатил');return;}
+    e.paySource=g('f-source')||'advance';
+    var bv=g('f-brig');
+    if(bv)e.brigade=bv;
+    if(pendingPhoto)e.photo=pendingPhoto;
+  }
+  if(selType==='payout'){
+    e.who=g('f-who')||'';
+    if(!e.who){alert('Выберите кому выплата');return;}
+    e.obj='-';
+  }
+  S.entries.push(e);
+  if(!S.history)S.history=[];
+  S.history.push({action:'add',by:role,at:new Date().toISOString(),type:e.type,amount:e.amount});
+  save();
+  closeModal();
+  render();
+}
 function delEntry(id){if(role!=='editor')return;if(!confirm(T('confirmDel')))return;var d=S.entries.find(function(e){return e.id==id;});S.entries=S.entries.filter(function(e){return e.id!=id;});if(!S.history)S.history=[];if(d)S.history.push({action:'delete',by:role,at:new Date().toISOString(),type:d.type,amount:d.amount});save();render();}
 function openNewWeek(){var today=new Date().toISOString().slice(0,10);var lt=(S.weeks||[]).slice().sort(function(a,b){return b.date.localeCompare(a.date);})[0];document.getElementById('mtit').textContent='ПЛАНЁРКА';document.getElementById('mbody').innerHTML='<div style="background:var(--bllt);border:1px solid var(--blue);border-radius:8px;padding:10px;margin-bottom:14px;font-size:10px;color:var(--blue)">ТПСИ: твёрдые цифры план/факт, полный анализ, сравнение, договорённости письменно.</div><div class="fg"><label class="fl">Дата планёрки</label><input class="fi" id="w-date" type="date" value="'+today+'"/></div><div class="frow"><div class="fg"><label class="fl">ПЛАН м³</label><input class="fi" id="w-plan" type="number" step="0.1" inputmode="decimal" value="'+(lt&&lt.nextPlan?lt.nextPlan:'')+'"/></div><div class="fg"><label class="fl">ФАКТ м³</label><input class="fi" id="w-fact" type="number" step="0.1" inputmode="decimal"/></div></div><div class="fg"><label class="fl">Анализ - почему (ТПСИ)</label><textarea class="fi" id="w-why" rows="2" placeholder="С цифрами: было 5 рабочих вместо 8..."></textarea></div><div class="fg"><label class="fl">Решение</label><textarea class="fi" id="w-sol" rows="2" placeholder="Что делаем..."></textarea></div><div class="fg"><label class="fl">Договорённости (кто что обязался)</label><textarea class="fi" id="w-deals" rows="3" placeholder="Бекжан - нанять 2 рабочих до пт&#10;Сергей - проверить смету..."></textarea></div><div class="fg"><label class="fl">Действия на неделю</label><textarea class="fi" id="w-act" rows="2" placeholder="1. ...&#10;2. ..."></textarea></div><div class="fg"><label class="fl">ПЛАН на след. неделю м³</label><input class="fi" id="w-next" type="number" step="0.1" inputmode="decimal"/></div><button class="fsave" id="btn-sv-w">СОХРАНИТЬ</button><button class="fcanc" id="btn-cn-w">Отмена</button>';document.getElementById('modal').style.display='flex';document.getElementById('btn-sv-w').addEventListener('click',saveWeek);document.getElementById('btn-cn-w').addEventListener('click',closeModal);}
 function saveWeek(){var p=parseFloat(g('w-plan')),f=parseFloat(g('w-fact'));if(isNaN(p)||isNaN(f)){alert('Введите план и факт');return;}var w={id:Date.now(),date:g('w-date')||new Date().toISOString().slice(0,10),plan:p,fact:f,why:g('w-why')||'',solution:g('w-sol')||'',deals:g('w-deals')||'',actions:g('w-act')||'',nextPlan:parseFloat(g('w-next'))||0};if(!S.weeks)S.weeks=[];S.weeks.push(w);save();closeModal();setTab('plan');}
@@ -4719,7 +5086,84 @@ window.delObjRate=function(o,c){
 };
 window.delObj=function(i){S.objects.splice(i,1);save();var el=document.getElementById('ol');if(el)el.innerHTML=S.objects.map(function(o,j){return '<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--brd)"><span style="font-size:12px">'+o+'</span>'+(S.objects.length>1?'<button onclick="delObj('+j+')" class="delbtn">X</button>':' ')+'</div>';}).join('');};
 
-function showReport(){var C=calcCo();var date=new Date().toLocaleDateString('ru-RU');var cm={};S.entries.filter(function(e){return e.type==='expense';}).forEach(function(e){cm[e.cat]=(cm[e.cat]||0)+e.amount;});function th(c){return '<tr>'+c.map(function(x){return '<th>'+x+'</th>';}).join('')+'</tr>';}function tr(c){return '<tr>'+c.map(function(x){return '<td>'+(x===null||x===undefined?'-':x)+'</td>';}).join('')+'</tr>';}var h='<div style="background:#1a1f2e;color:#f0a500;padding:14px 16px;margin-bottom:14px;border-radius:4px"><div style="font-size:22px;font-weight:700;letter-spacing:2px">LIONGATE</div><div style="font-size:10px;color:#aaa;margin-top:3px">LionGate Construction / ЖК Алгабас / Sensata Group / '+date+'</div></div>';var k=[[T('revenues'),fmt(C.income),'#2ea043'],[T('expenses'),fmt(C.expense),'#da3633'],[T('profit'),fmtS(C.profit),C.profit>=0?'#2ea043':'#da3633'],[T('cash'),fmt(C.cash),C.cash>=0?'#f0a500':'#da3633'],['Вложено',fmt(C.invested),'#388bfd'],['Доля 1/5',fmt(C.share),'#f0a500']];h+='<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px">';k.forEach(function(x){h+='<div style="background:#f8f9fa;border-left:4px solid '+x[2]+';padding:8px 12px;border-radius:4px;min-width:120px;flex:1"><div style="font-size:9px;color:#888;text-transform:uppercase">'+x[0]+'</div><div style="font-size:15px;font-weight:700;color:'+x[2]+'">'+x[1]+' тг</div></div>';});h+='</div>';var vd=totalVolDone(),tv=getTotalVol(),dl=daysLeft();h+='<h2>Прогресс объекта</h2><table>'+th(['Показатель','Значение'])+tr(['Выполнено',fmtD(vd)+' м³'])+tr(['По договору',tv.toLocaleString('ru')+' м³'])+tr(['Процент',Math.round(vd/tv*100)+'%'])+tr(['Осталось',fmtD(tv-vd)+' м³'])+(dl!==null?tr(['До дедлайна',dl+' дней']):'')+'</table>';h+='<h2>Расходы по статьям</h2><table>'+th(['Статья','Сумма','%']);Object.entries(cm).sort(function(a,b){return b[1]-a[1];}).forEach(function(cv){h+=tr([cv[0],fmt(cv[1]),C.expense?Math.round(cv[1]/C.expense*100)+'%':'-']);});h+=tr([T('total2'),fmt(C.expense),'100%'])+'</table>';h+='<h2>Партнёры</h2><table>'+th(['Партнёр','Вложил','Лично','Доля','Итого']);PARTNERS.forEach(function(p,i){var P=calcPar(p);h+='<tr><td style="color:'+PC[i]+';font-weight:700">'+p+'</td><td>'+fmt(P.invested)+'</td><td>'+fmt(P.personal)+'</td><td>'+fmt(C.share)+'</td><td style="color:'+(P.totalGet>=0?'green':'red')+';font-weight:700">'+fmt(Math.abs(P.totalGet))+'</td></tr>';});h+='</table>';h+='<h2>Бригады</h2><table>'+th(['Бригада','Рабочих',T('volume'),T('earned'),T('paid2'),'Остаток']);S.brigades.forEach(function(b){var B=calcBrig(b);h+=tr([b.name,b.workers||'-',fmtD(B.vol)+' м³',fmt(B.earned),fmt(B.paid),fmt(B.balance)]);});h+='</table>';if((S.weeks||[]).length){h+='<h2>Планёрки ТПСИ</h2><table>'+th(['Дата','План','Факт','%','Решение']);S.weeks.slice().sort(function(a,b){return b.date.localeCompare(a.date);}).forEach(function(w){var p=parseFloat(w.plan)||0,f=parseFloat(w.fact)||0;h+=tr([w.date,fmtD(p),fmtD(f),(p>0?Math.round(f/p*100):0)+'%',w.solution||'-']);});h+='</table>';}if((S.kfu||[]).length){h+='<h2>КФУ</h2><table>'+th(['Фактор','Ответственный','Цель','Статус']);S.kfu.forEach(function(x){var li=x.light===undefined?1:x.light;h+=tr([x.name,x.owner,x.target||'-',li===2?'OK':li===1?'средне':'риск']);});h+='</table>';}var av=[].concat(S.entries).filter(function(e){return e.type==='vol';}).sort(function(a,b){return a.date.localeCompare(b.date);});if(av.length){h+='<h2>'+T('pouringJournal')+'</h2><table>'+th(['Дата','Бригада','Конструкция','Пятно','Этаж','м³']);av.forEach(function(e){h+=tr([e.date,bName(e.brigade),e.struct||'-',e.zone||'-',e.floor||'-',fmtD(e.volume||0)]);});h+=tr(['','','','',T('total2'),fmtD(vd)])+'</table>';}h+='<h2>Все расходы</h2><table>'+th(['Дата','Статья','Кто','Сумма','Примечание']);[].concat(S.entries).filter(function(e){return e.type==='expense';}).sort(function(a,b){return a.date.localeCompare(b.date);}).forEach(function(e){h+=tr([e.date,e.cat||'-',e.who||'-',fmt(e.amount),e.note||'-']);});h+=tr(['','',T('total2'),fmt(C.expense),''])+'</table>';h+='<h2>Вложения</h2><table>'+th(['Дата','Партнёр','Сумма','Примечание']);[].concat(S.entries).filter(function(e){return e.type==='invest';}).sort(function(a,b){return a.date.localeCompare(b.date);}).forEach(function(e){h+=tr([e.date,e.who,fmt(e.amount),e.note||'-']);});h+=tr(['',T('total2'),fmt(C.invested),''])+'</table>';h+='<p style="text-align:center;color:#aaa;font-size:10px;margin-top:20px">LIONGATE / '+date+' / Конфиденциально</p>';document.getElementById('rpt-body').innerHTML=h;document.getElementById('rpt').style.display='block';document.getElementById('rpt').scrollTop=0;}
+function showReport(){
+  var C=calcCo();
+  var date=new Date().toLocaleDateString('ru-RU');
+  var cm={};
+  S.entries.filter(function(e){return e.type==='expense';}).forEach(function(e){cm[e.cat]=(cm[e.cat]||0)+e.amount;});
+  function th(c){return '<tr>'+c.map(function(x){return '<th>'+x+'</th>';}).join('')+'</tr>';}
+  function tr(c){return '<tr>'+c.map(function(x){return '<td>'+(x===null||x===undefined?'-':x)+'</td>';}).join('')+'</tr>';}
+  var h='<div style="background:#1a1f2e;color:#f0a500;padding:14px 16px;margin-bottom:14px;border-radius:4px"><div style="font-size:22px;font-weight:700;letter-spacing:2px">LIONGATE</div><div style="font-size:10px;color:#aaa;margin-top:3px">LionGate Construction / ЖК Алгабас / Sensata Group / '+date+'</div></div>';
+  var k=[[T('revenues'),fmt(C.income),'#2ea043'],[T('expenses'),fmt(C.expense),'#da3633'],[T('profit'),fmtS(C.profit),C.profit>=0?'#2ea043':'#da3633'],[T('cash'),fmt(C.cash),C.cash>=0?'#f0a500':'#da3633'],['Вложено',fmt(C.invested),'#388bfd'],['Доля 1/5',fmt(C.share),'#f0a500']];
+  h+='<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px">';
+  k.forEach(function(x){h+='<div style="background:#f8f9fa;border-left:4px solid '+x[2]+';padding:8px 12px;border-radius:4px;min-width:120px;flex:1"><div style="font-size:9px;color:#888;text-transform:uppercase">'+x[0]+'</div><div style="font-size:15px;font-weight:700;color:'+x[2]+'">'+x[1]+' тг</div></div>';});
+  h+='</div>';
+  var vd=totalVolDone(),tv=getTotalVol(),dl=daysLeft();
+  h+='<h2>Прогресс объекта</h2><table>'+th(['Показатель','Значение'])+tr(['Выполнено',fmtD(vd)+' м³'])+tr(['По договору',tv.toLocaleString('ru')+' м³'])+tr(['Процент',Math.round(vd/tv*100)+'%'])+tr(['Осталось',fmtD(tv-vd)+' м³'])+(dl!==null?tr(['До дедлайна',dl+' дней']):'')+'</table>';
+  h+='<h2>Расходы по статьям</h2><table>'+th(['Статья','Сумма','%']);
+  Object.entries(cm).sort(function(a,b){return b[1]-a[1];}).forEach(function(cv){h+=tr([cv[0],fmt(cv[1]),C.expense?Math.round(cv[1]/C.expense*100)+'%':'-']);});
+  h+=tr([T('total2'),fmt(C.expense),'100%'])+'</table>';
+  // === Партнёры — новая модель ===
+  h+='<h2>Партнёры</h2><table>'+th(['Партнёр','Вложил','Получил под отчёт','Потратил','Должен / К получению']);
+  PARTNERS.forEach(function(p,i){
+    var P=calcPar(p);
+    var net=P.debtFromCompany-P.debtToCompany;
+    var totalContrib=P.investedCash+P.advancedOut+P.spentFromOwn;
+    var netLbl = net>=0 ? ('+'+fmt(net)+' (компания должна)') : ('−'+fmt(-net)+' (должен)');
+    h+='<tr><td style="color:'+PC[i]+';font-weight:700">'+p+'</td><td>'+fmt(totalContrib)+'</td><td>'+fmt(P.received)+'</td><td>'+fmt(P.spent)+'</td><td style="color:'+(net>=0?'green':'red')+';font-weight:700">'+netLbl+'</td></tr>';
+  });
+  h+='</table>';
+  h+='<h2>Бригады</h2><table>'+th(['Бригада','Рабочих',T('volume'),T('earned'),T('paid2'),'Остаток']);
+  S.brigades.forEach(function(b){var B=calcBrig(b);h+=tr([b.name,b.workers||'-',fmtD(B.vol)+' м³',fmt(B.earned),fmt(B.paid),fmt(B.balance)]);});
+  h+='</table>';
+  if((S.weeks||[]).length){
+    h+='<h2>Планёрки ТПСИ</h2><table>'+th(['Дата','План','Факт','%','Решение']);
+    S.weeks.slice().sort(function(a,b){return b.date.localeCompare(a.date);}).forEach(function(w){var p=parseFloat(w.plan)||0,f=parseFloat(w.fact)||0;h+=tr([w.date,fmtD(p),fmtD(f),(p>0?Math.round(f/p*100):0)+'%',w.solution||'-']);});
+    h+='</table>';
+  }
+  if((S.kfu||[]).length){
+    h+='<h2>КФУ</h2><table>'+th(['Фактор','Ответственный','Цель','Статус']);
+    S.kfu.forEach(function(x){var li=x.light===undefined?1:x.light;h+=tr([x.name,x.owner,x.target||'-',li===2?'OK':li===1?'средне':'риск']);});
+    h+='</table>';
+  }
+  var av=[].concat(S.entries).filter(function(e){return e.type==='vol';}).sort(function(a,b){return a.date.localeCompare(b.date);});
+  if(av.length){
+    h+='<h2>'+T('pouringJournal')+'</h2><table>'+th(['Дата','Бригада','Конструкция','Пятно','Этаж','м³']);
+    av.forEach(function(e){h+=tr([e.date,bName(e.brigade),e.struct||'-',e.zone||'-',e.floor||'-',fmtD(e.volume||0)]);});
+    h+=tr(['','','','',T('total2'),fmtD(vd)])+'</table>';
+  }
+  h+='<h2>Все расходы</h2><table>'+th(['Дата','Статья','Кто','Источник','Сумма','Примечание']);
+  [].concat(S.entries).filter(function(e){return e.type==='expense';}).sort(function(a,b){return a.date.localeCompare(b.date);}).forEach(function(e){
+    var srcLbl=e.paySource==='own'?'из своих':(e.paySource==='cash'?'из кассы':'подотчёт');
+    h+=tr([e.date,e.cat||'-',e.who||'-',srcLbl,fmt(e.amount),e.note||'-']);
+  });
+  h+=tr(['','','',T('total2'),fmt(C.expense),''])+'</table>';
+  // === Передачи под отчёт ===
+  var advRows=[].concat(S.entries).filter(function(e){return e.type==='advance';}).sort(function(a,b){return a.date.localeCompare(b.date);});
+  if(advRows.length>0){
+    h+='<h2>Передачи под отчёт</h2><table>'+th(['Дата','От кого','Кому','Сумма','Примечание']);
+    advRows.forEach(function(e){h+=tr([e.date,e.from||'-',e.to||'-',fmt(e.amount),e.note||'-']);});
+    h+='</table>';
+  }
+  // === Вложения в кассу ===
+  var invRows=[].concat(S.entries).filter(function(e){return e.type==='invest';}).sort(function(a,b){return a.date.localeCompare(b.date);});
+  if(invRows.length>0){
+    h+='<h2>Вложения в кассу</h2><table>'+th(['Дата','Партнёр','Сумма','Примечание']);
+    invRows.forEach(function(e){h+=tr([e.date,e.who,fmt(e.amount),e.note||'-']);});
+    h+=tr(['',T('total2'),fmt(C.invested),''])+'</table>';
+  }
+  // === Выплаты ===
+  var payRows=[].concat(S.entries).filter(function(e){return e.type==='payout'||e.type==='return';}).sort(function(a,b){return a.date.localeCompare(b.date);});
+  if(payRows.length>0){
+    h+='<h2>Выплаты партнёрам</h2><table>'+th(['Дата','Партнёр','Сумма','Примечание']);
+    payRows.forEach(function(e){h+=tr([e.date,e.who,fmt(e.amount),e.note||'-']);});
+    h+='</table>';
+  }
+  h+='<p style="text-align:center;color:#aaa;font-size:10px;margin-top:20px">LIONGATE / '+date+' / Конфиденциально</p>';
+  document.getElementById('rpt-body').innerHTML=h;
+  document.getElementById('rpt').style.display='block';
+  document.getElementById('rpt').scrollTop=0;
+}
 function shareReport(){var c=document.getElementById('rpt-body').innerHTML;var d=new Date().toLocaleDateString('ru-RU');var f='<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>LIONGATE '+d+'</title><style>body{font-family:Arial,sans-serif;font-size:11px;color:#222;padding:16px}table{width:100%;border-collapse:collapse;margin-bottom:12px}th{background:#1a1f2e;color:#f0a500;padding:6px 8px;text-align:left;font-size:10px}td{padding:5px 8px;border-bottom:1px solid #eee;font-size:10px}h2{font-size:13px;color:#1a1f2e;margin:16px 0 6px;padding-bottom:4px;border-bottom:3px solid #f0a500}@media print{*{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body>'+c+'</body></html>';var b=new Blob([f],{type:'text/html;charset=utf-8'});var fn='LIONGATE_'+d.replace(/\./g,'-')+'.html';if(navigator.share&&navigator.canShare){var fl=new File([b],fn,{type:'text/html'});if(navigator.canShare({files:[fl]})){navigator.share({files:[fl],title:'LIONGATE '+d}).catch(function(){printReport();});return;}}printReport();}
 function printReport(){var c=document.getElementById('rpt-body').innerHTML;var d=new Date().toLocaleDateString('ru-RU');var pw=window.open('','_blank');if(!pw){alert('Разрешите всплывающие окна');return;}pw.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>LIONGATE '+d+'</title><style>body{font-family:Arial,sans-serif;font-size:11px;color:#222;padding:16px}table{width:100%;border-collapse:collapse;margin-bottom:12px}th{background:#1a1f2e;color:#f0a500;padding:6px 8px;text-align:left;font-size:10px}td{padding:5px 8px;border-bottom:1px solid #eee;font-size:10px}h2{font-size:13px;color:#1a1f2e;margin:16px 0 6px;padding-bottom:4px;border-bottom:3px solid #f0a500}@media print{*{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body>'+c+'<scr'+'ipt>window.onload=function(){window.print();}<\/scr'+'ipt></body></html>');pw.document.close();}
 function tryLogin(){
@@ -4737,109 +5181,23 @@ function doLogout(){
 }
 // Закрытие невозвращённых подотчётов вручную
 function closeUnreported(){
-  if(!isEditor())return;
-  if(!confirm('Закрыть все подотчётные остатки → перевести в личное соответствующих партнёров?'))return;
-  var closed=[];
-  PARTNERS.forEach(function(p){
-    var rec=S.entries.filter(function(e){return e.type==='invest'&&e.forPartner===p;}).reduce(function(s,e){return s+e.amount;},0);
-    var spt=S.entries.filter(function(e){return e.type==='expense'&&e.who===p;}).reduce(function(s,e){return s+e.amount;},0);
-    var onH=rec-spt;
-    if(onH>0){
-      var today=new Date().toISOString().slice(0,10);
-      S.entries.push({
-        id:Date.now()+Math.random(),
-        date:today,
-        type:'personal',
-        who:p,
-        obj:'-',
-        amount:onH,
-        note:'Авто-закрытие подотчёта (остаток не отчитан)'
-      });
-      closed.push(p+': '+fmt(onH)+' тг');
-    }
-  });
-  if(closed.length){
-    save();
-    alert('Закрыто:\n'+closed.join('\n'));
-    render();
-  } else {
-    alert('Нечего закрывать — у всех партнёров подотчёт 0');
-  }
+  // В новой модели v2 закрывать "подотчётные остатки" в "личное" больше не нужно.
+  // Долг партнёра компании автоматически отображается через advance + expense.
+  alert('В новой модели учёта эта функция больше не нужна.\n\nДолг партнёра компании автоматически считается:\nПередано под отчёт − Потратил на стройку = Долг');
 }
 
-// Автоматическое закрытие подотчётов старше 24 часов
+// Автоматическое закрытие подотчётов — отключено в новой модели
 function autoCloseUnreported(){
-  if(!isEditor())return;
-  var now=Date.now();
-  var thirtySec=30*1000; // 30 секунд
-  var changed=false;
-  PARTNERS.forEach(function(p){
-    // Берём invest с forPartner=p СОЗДАННЫЕ более 30 секунд назад
-    var invs=S.entries.filter(function(e){
-      if(e.type!=='invest'||e.forPartner!==p) return false;
-      // id это timestamp создания (Date.now() при создании)
-      var createdAt=typeof e.id==='number'?e.id:new Date(e.date).getTime();
-      return (now-createdAt)>thirtySec;
-    });
-    if(invs.length===0)return;
-    // Сумма того что выдано более 30 сек назад
-    var rec=invs.reduce(function(s,e){return s+e.amount;},0);
-    // Расходы партнёра (они гасят подотчёт)
-    var spt=S.entries.filter(function(e){return e.type==='expense'&&e.who===p;}).reduce(function(s,e){return s+e.amount;},0);
-    // Уже закрытое в личное по этому подотчёту
-    var alreadyClosed=S.entries.filter(function(e){
-      return e.type==='personal'&&e.who===p&&e.note&&e.note.indexOf('Авто-закрытие подотчёта')>=0;
-    }).reduce(function(s,e){return s+e.amount;},0);
-    // Остаток для закрытия = выдано - потрачено - уже закрыто
-    var onH=rec-spt-alreadyClosed;
-    if(onH<=0)return;
-    var today=new Date().toISOString().slice(0,10);
-    S.entries.push({
-      id:Date.now()+Math.random(),
-      date:today,
-      type:'personal',
-      who:p,
-      obj:'-',
-      amount:onH,
-      note:'Авто-закрытие подотчёта (через 30 сек)'
-    });
-    changed=true;
-  });
-  if(changed){save();render();}
+  // no-op в новой модели
 }
 
 // === АВТО-ПОГАШЕНИЕ ДОЛГА РАСХОДОМ ===
 // Если у партнёра есть долг (personal) и пришёл новый расход — расход уменьшает долг
 // Делается через создание корректирующей записи personal с минусом (или прямое уменьшение)
 function autoReduceDebt(){
-  if(!isEditor())return;
-  var changed=false;
-  PARTNERS.forEach(function(p){
-    // Текущий долг (personal) партнёра
-    var debt=S.entries.filter(function(e){return e.type==='personal'&&e.who===p;}).reduce(function(s,e){return s+e.amount;},0);
-    if(debt<=0)return;
-    // Расходы партнёра БЕЗ покрытия подотчётом
-    var rec=S.entries.filter(function(e){return e.type==='invest'&&e.forPartner===p;}).reduce(function(s,e){return s+e.amount;},0);
-    var spt=S.entries.filter(function(e){return e.type==='expense'&&e.who===p;}).reduce(function(s,e){return s+e.amount;},0);
-    // Сколько расходов "висит без покрытия" = расходы - подотчёт
-    var uncovered=spt-rec;
-    if(uncovered<=0)return;
-    // Списываем из долга минимум из (долг, непокрытое)
-    var writeOff=Math.min(debt,uncovered);
-    if(writeOff<=0)return;
-    // Создаём корректирующую запись с отрицательной суммой (уменьшаем долг)
-    S.entries.push({
-      id:Date.now()+Math.random(),
-      date:new Date().toISOString().slice(0,10),
-      type:'personal',
-      who:p,
-      obj:'-',
-      amount:-writeOff,
-      note:'Авто-погашение долга расходом на стройку'
-    });
-    changed=true;
-  });
-  if(changed){save();render();}
+  // В новой модели v2 авто-погашение долга не нужно:
+  // expense с paySource='advance' автоматически уменьшает долг партнёра в calcCo
+  // expense с paySource='own' автоматически уменьшает долг партнёра компании
 }
 
 function startApp(){
