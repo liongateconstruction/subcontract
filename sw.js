@@ -1,5 +1,5 @@
 const CACHE = 'liongate-v90';
-const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
+const ASSETS = ['./', './index.html', './manifest.json', './icon192.png', './icon512.png'];
 
 self.addEventListener('install', function(e) {
   e.waitUntil(
@@ -26,7 +26,6 @@ self.addEventListener('fetch', function(e) {
                (e.request.headers.get('accept')||'').indexOf('text/html') !== -1;
 
   if (isHTML) {
-    // NETWORK-FIRST для HTML: всегда свежий код, fallback на кэш если нет интернета
     e.respondWith(
       fetch(e.request, {cache: 'no-store'}).then(function(res) {
         if (res.ok) {
@@ -39,7 +38,6 @@ self.addEventListener('fetch', function(e) {
       })
     );
   } else {
-    // CACHE-FIRST для статики (иконки, манифест)
     e.respondWith(
       caches.match(e.request).then(function(cached) {
         return cached || fetch(e.request).then(function(res) {
@@ -54,7 +52,6 @@ self.addEventListener('fetch', function(e) {
   }
 });
 
-// Слушаем сообщение от страницы — принудительный сброс кэша
 self.addEventListener('message', function(e) {
   if (e.data === 'SKIP_WAITING') self.skipWaiting();
   if (e.data === 'CLEAR_CACHE') {

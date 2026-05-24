@@ -7,7 +7,13 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="LIONGATE"/>
-<link rel="apple-touch-icon" href="./icon-192.png"/>
+<link rel="apple-touch-icon" sizes="180x180" href="./icon192.png"/>
+<link rel="apple-touch-icon" sizes="167x167" href="./icon192.png"/>
+<link rel="apple-touch-icon" sizes="152x152" href="./icon192.png"/>
+<link rel="apple-touch-icon" sizes="120x120" href="./icon192.png"/>
+<link rel="apple-touch-icon" href="./icon192.png"/>
+<link rel="icon" type="image/png" sizes="192x192" href="./icon192.png"/>
+<link rel="icon" type="image/png" sizes="512x512" href="./icon512.png"/>
 <link rel="manifest" href="./manifest.json"/>
 <title>LIONGATE</title>
 <style>
@@ -5933,8 +5939,8 @@ function sendPush(title,body,icon){
   try{
     new Notification(title,{
       body:body,
-      icon:icon||'./icon-192.png',
-      badge:'./icon-192.png',
+      icon:icon||'./icon192.png',
+      badge:'./icon192.png',
       tag:'liongate-alert'
     });
   }catch(e){}
