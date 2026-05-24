@@ -5905,12 +5905,12 @@ function shareReport(){var c=document.getElementById('rpt-body').innerHTML;var d
 function printReport(){var c=document.getElementById('rpt-body').innerHTML;var d=new Date().toLocaleDateString('ru-RU');var pw=window.open('','_blank');if(!pw){alert('Разрешите всплывающие окна');return;}pw.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>LIONGATE '+d+'</title><style>body{font-family:Arial,sans-serif;font-size:11px;color:#222;padding:16px}table{width:100%;border-collapse:collapse;margin-bottom:12px}th{background:#1a1f2e;color:#f0a500;padding:6px 8px;text-align:left;font-size:10px}td{padding:5px 8px;border-bottom:1px solid #eee;font-size:10px}h2{font-size:13px;color:#1a1f2e;margin:16px 0 6px;padding-bottom:4px;border-bottom:3px solid #f0a500}@media print{*{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body>'+c+'<scr'+'ipt>window.onload=function(){window.print();}<\/scr'+'ipt></body></html>');pw.document.close();}
 function tryLogin(){
   var p=document.getElementById('lpass').value.trim();
-  if(PWD[p]){role=PWD[p];sessionStorage.setItem('role',role);startApp();}
+  if(PWD[p]){role=PWD[p];sessionStorage.setItem('role',role);sessionStorage.setItem('loginPwd',p);startApp();}
   else{document.getElementById('lerr').textContent='Неверный пароль';document.getElementById('lpass').value='';}
 }
 function viewOnly(){role='viewer';sessionStorage.setItem('role','viewer');startApp();}
 function doLogout(){
-  sessionStorage.removeItem('role');role=null;
+  sessionStorage.removeItem('role');sessionStorage.removeItem('loginPwd');role=null;
   document.getElementById('app').style.display='none';
   document.getElementById('ls').style.display='flex';
   document.getElementById('lpass').value='';
@@ -5940,6 +5940,12 @@ function autoReduceDebt(){
 function startApp(){
   document.getElementById('ls').style.display='none';
   document.getElementById('app').style.display='flex';
+  // Кнопка "Обновить" (↻) — только для пароля Intek2026
+  var brf=document.getElementById('btn-refresh');
+  if(brf){
+    var pwd=sessionStorage.getItem('loginPwd');
+    brf.style.display = (pwd==='Intek2026') ? '' : 'none';
+  }
   var rp=document.getElementById('rpill'),fab=document.getElementById('fab'),bo=document.getElementById('btn-obj');
   if(isEditor()){
     rp.textContent='Редактор';rp.className='rpill re';
