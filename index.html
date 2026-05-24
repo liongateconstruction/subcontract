@@ -1133,7 +1133,65 @@ function getTypeLbl(type){
 }
 var PARTNERS=['Дмитрий','Бекжан','Евгений','Нурсултан','Сергей'];
 var PC=['#f0a500','#2ea043','#388bfd','#8957e5','#da3633'];
-var WORK_TYPES=['Армирование','Опалубка','Бетонирование','Комплекс'];
+// === БАЗОВЫЕ ВИДЫ РАБОТ ===
+// Монолитные (основные на стройке ЛИОНГЕЙТ)
+var WORK_TYPES_MONOLITHIC = [
+  'Армирование',
+  'Опалубка',
+  'Бетонирование',
+  'Демонтаж опалубки',
+  'Комплекс монолит'
+];
+// Отделочные (для будущих работ когда дойдёт до отделки)
+var WORK_TYPES_FINISHING = [
+  'Штукатурка',
+  'Стяжка пола',
+  'Шпаклёвка',
+  'Покраска',
+  'Кладка кирпича',
+  'Кладка блоков',
+  'Гипсокартон',
+  'Плитка',
+  'Гидроизоляция',
+  'Утепление фасада',
+  'Электромонтаж',
+  'Сантехника',
+  'Сварочные работы',
+  'Кровельные работы'
+];
+// Общие
+var WORK_TYPES_OTHER = ['Разнорабочие','Уборка','Демонтаж','Комплекс'];
+
+// Полный список
+var WORK_TYPES = WORK_TYPES_MONOLITHIC.concat(WORK_TYPES_FINISHING).concat(WORK_TYPES_OTHER);
+
+// Подсказка по типичной единице измерения для каждого вида работ
+var DEFAULT_UNIT_FOR_WT = {
+  'Армирование':'м³',
+  'Опалубка':'м²',
+  'Бетонирование':'м³',
+  'Демонтаж опалубки':'м²',
+  'Комплекс монолит':'м³',
+  'Штукатурка':'м²',
+  'Стяжка пола':'м²',
+  'Шпаклёвка':'м²',
+  'Покраска':'м²',
+  'Кладка кирпича':'м³',
+  'Кладка блоков':'м³',
+  'Гипсокартон':'м²',
+  'Плитка':'м²',
+  'Гидроизоляция':'м²',
+  'Утепление фасада':'м²',
+  'Электромонтаж':'шт',
+  'Сантехника':'шт',
+  'Сварочные работы':'м/п',
+  'Кровельные работы':'м²',
+  'Разнорабочие':'шт',
+  'Уборка':'м²',
+  'Демонтаж':'м³',
+  'Комплекс':'м³'
+};
+function defaultUnitFor(wtype){return DEFAULT_UNIT_FOR_WT[wtype]||'м³';}
 var CONSTR=['Подбетонка','Фундамент / плита','Стена','Перекрытие','Колонна','Лестница','Парапет','Лифтовая шахта','Балкон / лоджия','Ригель / балка','Прочее'];
 var EXP_CATS=['Аванс / зарплата рабочим','Материалы','Аренда техники','Транспорт','Инструменты и инвентарь','Мобильная связь','Страхование','Представительские','Административные','Прочее'];
 
@@ -1201,7 +1259,7 @@ function pushCloud(){
       body:JSON.stringify(snap)
     }).catch(function(){});
   }
-  fetch(BURL,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':AK,'X-Bin-Versioning':'false'},body:JSON.stringify({_modified:S._modified,_schema:S._schema||3,entries:S.entries,brigades:S.brigades,objects:S.objects,history:S.history,weeks:S.weeks,kfu:S.kfu,settings:S.settings,goalsDone:S.goalsDone,kzDict:S.kzDict||{}})}).then(function(){ss('OK',false);}).catch(function(){ss('!',true);});
+  fetch(BURL,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':AK,'X-Bin-Versioning':'false'},body:JSON.stringify({_modified:S._modified,_schema:S._schema||3,entries:S.entries,brigades:S.brigades,objects:S.objects,history:S.history,weeks:S.weeks,kfu:S.kfu,settings:S.settings,goalsDone:S.goalsDone,kzDict:S.kzDict||{},workTypes:S.workTypes||[]})}).then(function(){ss('OK',false);}).catch(function(){ss('!',true);});
 }
 var _editLock=false; // блокировка синхронизации во время редактирования
 function pullCloud(cb){
@@ -1244,6 +1302,7 @@ function pullCloud(cb){
       if(r.settings){S.settings=r.settings;if(!S.settings.norms)S.settings.norms=defState().settings.norms;}
       if(r.goalsDone)S.goalsDone=r.goalsDone;
       if(r.kzDict)S.kzDict=r.kzDict;
+      if(r.workTypes&&r.workTypes.length>0)S.workTypes=r.workTypes;
       S._schema=r._schema||2;
       S._modified=remoteTime;persist();ss('OK',false);
     }else if(S.entries.length>0){pushCloud();}
@@ -1259,10 +1318,10 @@ function defState(){return{
  objMeta:{'ЖК «Алгабас», Мкр. Нуркент':{customer:'Sensata Group',rates:{}}},
  settings:{deadline:'2026-12-31',totalVol:48000,norms:{'Армирование':0.5,'Опалубка':0.75,'Бетонирование':3.0,'Комплекс':0.9},startCash:0,startCashDate:''},
  brigades:[
-  {id:'b1',name:'Бригада Шынгыс',spec:'Арматурщики',obj:'ЖК «Алгабас», Мкр. Нуркент',workers:15,prices:{},people:[],attendance:{}},
-  {id:'b2',name:'Бригада Нурсултан',spec:'Опалубщики',obj:'ЖК «Алгабас», Мкр. Нуркент',workers:8,prices:{},people:[],attendance:{}}
+  {id:'b1',name:'Бригада Шынгыс',obj:'ЖК «Алгабас», Мкр. Нуркент',workers:15,prices:{},people:[],attendance:{}},
+  {id:'b2',name:'Бригада Нурсултан',obj:'ЖК «Алгабас», Мкр. Нуркент',workers:8,prices:{},people:[],attendance:{}}
  ],
- history:[],weeks:[],goalsDone:{},ks2:[],kzDict:{},
+ history:[],weeks:[],goalsDone:{},ks2:[],kzDict:{},workTypes:WORK_TYPES.slice(),
  kfu:[
   {id:1,name:'Темп заливки',owner:'Бекжан',target:'150 м³/нед',auto:'temp',light:1,hist:[]},
   {id:2,name:'Деньги от заказчика',owner:'Евгений',target:'оплата КС-2 ≤15 дней',auto:'money',light:1,hist:[]},
@@ -1538,6 +1597,34 @@ function getSelCustom(id){var nv=g(id+'_new');if(nv&&nv.trim())return nv.trim();
 function objMeta(obj){if(!S.objMeta)S.objMeta={};if(!S.objMeta[obj])S.objMeta[obj]={customer:'',rates:{}};return S.objMeta[obj];}
 function custRate(obj,constr){var m=objMeta(obj);return (m.rates&&m.rates[constr])||0;}
 function brigPrice(b,wtype){return (b.prices&&b.prices[wtype])||0;}
+
+// === Новый формат расценок (с единицей измерения) ===
+// b.prices может быть в 2 форматах:
+// СТАРЫЙ: { 'Армирование': 5000, 'Опалубка': 4500 }
+// НОВЫЙ: [ {wtype:'Армирование', unit:'тн', rate:5000}, {wtype:'Армирование', unit:'м³', rate:3000} ]
+function brigPricesList(b){
+  // Возвращает массив {wtype, unit, rate} в любом случае
+  if(!b||!b.prices) return [];
+  if(Array.isArray(b.prices)) return b.prices.filter(function(p){return p&&p.rate>0;});
+  // Старый формат — конвертим как м³ по умолчанию
+  var out=[];
+  Object.keys(b.prices).forEach(function(wt){
+    var r=b.prices[wt];
+    if(typeof r==='number' && r>0) out.push({wtype:wt,unit:'м³',rate:r});
+  });
+  return out;
+}
+function brigPriceFor(b,wtype,unit){
+  // Поиск конкретной расценки для (вид работ + единица)
+  var list=brigPricesList(b);
+  // Точное совпадение
+  var exact=list.find(function(p){return p.wtype===wtype && p.unit===unit;});
+  if(exact) return exact.rate;
+  // По виду работ — первая
+  var byWt=list.find(function(p){return p.wtype===wtype;});
+  if(byWt) return byWt.rate;
+  return 0;
+}
 var BRIG_SPECS=['Арматурщики','Опалубщики','Бетонщики','Универсальная','Комплексная','Разнорабочие'];
 function SPEC_OPTS(cur){var o='<option value="">— выберите —</option>';BRIG_SPECS.forEach(function(sp){o+='<option'+(cur===sp?' selected':'')+'>'+sp+'</option>';});if(cur&&BRIG_SPECS.indexOf(cur)<0)o+='<option selected>'+cur+'</option>';return o;}
 function workNorm(wtype){var n=(S.settings&&S.settings.norms)||{};return n[wtype]||0.7;}
@@ -2436,7 +2523,7 @@ function openMonthCard(focus){
     h+='<div style="background:var(--s2);border-radius:10px;padding:0 14px;margin-bottom:12px">';
     S.brigades.forEach(function(b,i){
       h+='<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;'+(i<S.brigades.length-1?'border-bottom:1px solid rgba(255,255,255,.05)':'')+'">';
-      h+='<div><div style="font-size:12px">'+b.name+'</div><div style="font-size:9px;color:var(--mut)">'+b.spec+'</div></div>';
+      h+='<div><div style="font-size:12px">'+b.name+'</div><div style="font-size:9px;color:var(--mut)">'+(b.workers?b.workers+' чел':'без людей')+'</div></div>';
       h+='<div style="text-align:right"><div style="font-family:var(--fd);font-size:18px;color:var(--blue)">'+(b.workers||0)+'</div><div style="font-size:9px;color:var(--mut)">чел</div></div>';
       h+='</div>';
     });
@@ -2748,7 +2835,7 @@ function openWorkersCard(){
     h+='<span style="font-family:var(--fd);font-size:18px;color:var(--blue)">'+(b.workers||0)+'<span style="font-size:11px;color:var(--mut)"> чел</span></span>';
     h+='</div>';
     if(b.people&&b.people.length>0){
-      h+='<div style="font-size:10px;color:var(--mut);margin-bottom:4px">'+b.spec+' · Сумма ставок: '+fmt(b.people.reduce(function(s,p){return s+(p.rate||0);},0))+' тг/день</div>';
+      h+='<div style="font-size:10px;color:var(--mut);margin-bottom:4px">Сумма ставок: '+fmt(b.people.reduce(function(s,p){return s+(p.rate||0);},0))+' тг/день</div>';
     }
     h+='<div style="height:5px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden">';
     h+='<div style="height:100%;width:'+Math.min(pct,100)+'%;background:var(--blue);border-radius:3px"></div>';
@@ -3958,7 +4045,7 @@ function rBrigadierCabinet(b){
   var B=calcBrig(b);
   var h='<div style="text-align:center;padding:16px 0">';
   h+='<div style="font-family:var(--fd);font-size:24px;color:var(--teal);letter-spacing:2px">'+b.name+'</div>';
-  h+='<div style="font-size:10px;color:var(--mut);letter-spacing:2px;margin-top:4px">'+b.spec+'</div>';
+  h+='<div style="font-size:10px;color:var(--mut);letter-spacing:2px;margin-top:4px">'+(b.workers?b.workers+' ЧЕЛ':'')+'</div>';
   h+='</div>';
   // KPI
   var workers=b.workers||0;
@@ -4016,7 +4103,7 @@ function rBrigades(){
 h+='<div class="dcard" style="border-color:var(--teal);cursor:pointer" onclick="openVolAnalytics()"><div class="dtop"><div><div class="bn-label">Общий прогресс</div><div class="dbig" style="color:var(--teal)">'+fmtD(vd)+' <span style="font-size:16px">м³</span></div></div><div style="text-align:right"><div class="dpct">'+vp+'%</div><div style="font-size:9px;color:var(--mut)">из '+tv.toLocaleString('ru')+'</div></div></div><div class="ptrack"><div class="pfill" style="width:'+vp+'%;background:linear-gradient(90deg,#2dd4bf,#2ea043)"></div></div></div>';
 h+='<div class="dcard"><div class="ctit">'+T('volByBrig')+'</div><canvas id="ch-brig" style="height:150px"></canvas></div>';
 S.brigades.forEach(function(b){var B=calcBrig(b);var bc=B.balance>0?'var(--red)':B.balance<0?'var(--green)':'var(--mut)';var pct=B.earned?Math.min(Math.round(B.paid/B.earned*100),100):0;var workers=b.workers||0;var prodH='';if(workers>0&&B.vol>0){var days=new Set(B.vols.map(function(e){return e.date;})).size||1;prodH='<div class="r2" style="font-size:10px"><span class="lb">Рабочих: '+workers+' чел</span><span class="vl" style="color:var(--teal)">'+fmtD(B.vol/workers/days)+' м³/чел/день</span></div>';}
- h+='<div class="bcard" style="cursor:pointer;transition:transform .15s" onclick="openBrigCard(\''+b.id+'\')"><div class="bhdr"><div><div class="bname">'+b.name+'</div><div style="font-size:10px;color:var(--mut)">'+b.spec+(workers?' / '+workers+' чел':'')+'</div></div>'+(canEdit()?'<button class="fedit" onclick="event.stopPropagation();openEditBrig(\''+b.id+'\')">ред</button>':'')+'</div><div class="bbody">';
+ h+='<div class="bcard" style="cursor:pointer;transition:transform .15s" onclick="openBrigCard(\''+b.id+'\')"><div class="bhdr"><div><div class="bname">'+b.name+'</div><div style="font-size:10px;color:var(--mut)">'+(workers?workers+' чел':'без людей')+'</div></div>'+(canEdit()?'<button class="fedit" onclick="event.stopPropagation();openEditBrig(\''+b.id+'\')">ред</button>':'')+'</div><div class="bbody">';
  h+='<div class="kg3"><div class="kpi" style="border-color:var(--teal);padding:8px"><div class="klbl">Объём</div><div class="kval" style="font-size:16px;color:var(--teal)">'+fmtD(B.vol)+'</div><div class="ksub">м³</div></div><div class="kpi" style="border-color:var(--gold);padding:8px"><div class="klbl">Начислено</div><div class="kval" style="font-size:16px;color:var(--gold)">'+fmt(B.earned)+'</div><div class="ksub">тг</div></div><div class="kpi" style="border-color:var(--green);padding:8px"><div class="klbl">Выплачено</div><div class="kval" style="font-size:16px;color:var(--green)">'+fmt(B.paid)+'</div><div class="ksub">тг</div></div></div>';
  h+='<div class="bar" style="height:7px;margin-bottom:4px"><div class="barfill" style="width:'+pct+'%;background:var(--teal)"></div></div><div style="display:flex;justify-content:space-between;font-size:9px;margin-bottom:'+(prodH?'6':'10')+'px"><span style="color:var(--mut)">выплачено '+pct+'%</span><span style="color:'+bc+';font-weight:700">'+(B.balance>0?T('debt')+' '+fmt(B.balance):B.balance<0?T('overpaid')+' '+fmt(Math.abs(B.balance)):T('closed'))+'</span></div>';
  if(prodH)h+=prodH;
@@ -4547,40 +4634,118 @@ function openVol(bId){
   var oo=S.objects.map(function(o){return '<option'+(o===b.obj?' selected':'')+'>'+o+'</option>';}).join('');
   var zones=uniqVals('zone');
   var floors=uniqVals('floor');
-  var wtOpts=WORK_TYPES.map(function(w){return '<option value="'+w+'"'+(b.spec&&w.indexOf(b.spec.slice(0,4))>=0?' selected':'')+'>'+w+'</option>';}).join('');
+  // Виды работ: уникальные wtype из расценок бригады + базовые + глобальные
+  var brigPrices = brigPricesList(b); // [{wtype,unit,rate}]
+  var brigWts={};
+  brigPrices.forEach(function(p){brigWts[p.wtype]=true;});
+  var allWts={};
+  Object.keys(brigWts).forEach(function(w){allWts[w]=true;});
+  WORK_TYPES.forEach(function(w){allWts[w]=true;});
+  (S.workTypes||[]).forEach(function(w){allWts[w]=true;});
+  var wtList=Object.keys(allWts);
+  // Сортируем — сначала те что в прайсе бригады
+  wtList.sort(function(a,bb){
+    var aHas=brigWts[a];
+    var bHas=brigWts[bb];
+    if(aHas&&!bHas)return -1;
+    if(!aHas&&bHas)return 1;
+    return 0;
+  });
+  // В каждом option показываем все доступные расценки этого wtype: "Армирование (тн: 5000, м³: 3000)"
+  var wtOpts=wtList.map(function(w){
+    var ratesForWt=brigPrices.filter(function(p){return p.wtype===w;});
+    var rateInfo='';
+    if(ratesForWt.length>0){
+      rateInfo=' ('+ratesForWt.map(function(p){return p.unit+': '+fmt(p.rate);}).join(', ')+')';
+    }
+    return '<option value="'+w+'">'+w+rateInfo+'</option>';
+  }).join('');
   var structOpts=CONSTR.map(function(c){return '<option>'+c+'</option>';}).join('');
-  document.getElementById('mtit').textContent='ФАКТ ЗАЛИВКИ';
+  // Единицы измерения
+  var unitOpts=['м³','м²','тн','шт','м/п','кг'].map(function(u){return '<option value="'+u+'"'+(u==='м³'?' selected':'')+'>'+u+'</option>';}).join('');
+  
+  document.getElementById('mtit').textContent='ФАКТ ВЫПОЛНЕНИЯ';
   document.getElementById('mbody').innerHTML=
-    '<div style="background:var(--tlt);border:1px solid var(--teal);border-radius:8px;padding:10px;margin-bottom:14px;font-size:11px;color:var(--teal)"><b>'+b.name+'</b> / '+b.spec+'</div>'+
-    '<div class="fg"><label class="fl">Объект</label><select class="fi" id="f-obj">'+oo+'</select>'+hint('Объект где была заливка')+'</div>'+
+    '<div style="background:var(--tlt);border:1px solid var(--teal);border-radius:8px;padding:10px;margin-bottom:14px;font-size:11px;color:var(--teal)"><b>'+b.name+'</b>'+(b.workers?' · '+b.workers+' чел':'')+'</div>'+
+    '<div class="fg"><label class="fl">Объект</label><select class="fi" id="f-obj">'+oo+'</select>'+hint('Объект где работали')+'</div>'+
+    '<div class="fg"><label class="fl">Дата</label><input class="fi" id="f-date" type="date" value="'+today+'"/>'+hint('Когда выполнили')+'</div>'+
     '<div class="frow">'+
-      '<div class="fg"><label class="fl">Дата заливки</label><input class="fi" id="f-date" type="date" value="'+today+'"/>'+hint('Когда фактически залили')+'</div>'+
-      '<div class="fg"><label class="fl">Объём м³</label><input class="fi" id="f-vol" type="number" placeholder="0.00" step="0.01" inputmode="decimal"/>'+hint('Сколько кубов залито')+'</div>'+
+      '<div class="fg"><label class="fl">Объём</label><input class="fi" id="f-vol" type="number" placeholder="0.00" step="0.01" inputmode="decimal"/>'+hint('Сколько')+'</div>'+
+      '<div class="fg"><label class="fl">Ед.</label><select class="fi" id="f-unit">'+unitOpts+'</select>'+hint('Единица')+'</div>'+
     '</div>'+
-    '<div class="fg"><label class="fl">Вид работ (что делала бригада)</label><select class="fi" id="f-wtype" onchange="var b=S.brigades.find(function(x){return x.id===\''+bId+'\';});var p=(b.prices&&b.prices[this.value])||0;var ri=document.getElementById(\'f-rate\');if(ri&&p)ri.value=p;">'+wtOpts+'</select>'+hint('Армирование / Опалубка / Бетонирование / Комплекс. От этого зависит расценка и норма')+'</div>'+
-    '<div class="fg"><label class="fl">Расценка бригаде ₸/м³</label><input class="fi" id="f-rate" type="number" placeholder="из прайса бригады" inputmode="numeric"/>'+hint('Подставится из прайса бригады по виду работ. Можно изменить под это пятно')+'</div>'+
+    '<div class="fg"><label class="fl">Вид работ</label><select class="fi" id="f-wtype">'+wtOpts+'<option value="__custom__">+ свой вид работ</option></select>'+hint('Выберите из списка или добавьте свой')+'</div>'+
+    '<div class="fg" id="f-custom-wt-wrap" style="display:none"><label class="fl">Свой вид работ</label><input class="fi" id="f-custom-wt" type="text" placeholder="напр. Штукатурка, Демонтаж..."/></div>'+
+    '<div class="fg"><label class="fl">Расценка за единицу, тг</label><input class="fi" id="f-rate" type="number" placeholder="из прайса бригады" inputmode="numeric"/>'+hint('Подставится из прайса по виду работ + единице. Можно изменить — старые записи не пересчитаются')+'</div>'+
     '<div class="fg"><label class="fl">Пятно №</label>'+selWithCustom('f-zone',zones,'','Новое пятно')+hint('Захватка по стройплану')+'</div>'+
-    '<div class="fg"><label class="fl">Отметка / Этаж</label>'+selWithCustom('f-floor',floors,'','Новый этаж')+hint('Этаж или отметка, напр. «Этаж 2»')+'</div>'+
-    '<div class="fg"><label class="fl">Конструкция</label><select class="fi" id="f-struct"><option value="">— выберите —</option>'+structOpts+'</select>'+hint('Что залили — от этого цена заказчика')+'</div>'+
+    '<div class="fg"><label class="fl">Отметка / Этаж</label>'+selWithCustom('f-floor',floors,'','Новый этаж')+hint('Этаж или отметка')+'</div>'+
+    '<div class="fg"><label class="fl">Конструкция</label><select class="fi" id="f-struct"><option value="">— выберите —</option>'+structOpts+'</select>'+hint('Что выполнено')+'</div>'+
     '<div style="background:var(--rlt);border:1px solid var(--red);border-radius:8px;padding:10px;margin-bottom:12px">'+
-      '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px"><input type="checkbox" id="f-redo" style="width:18px;height:18px"/> ⚠️ Была переделка этой конструкции</label>'+
-      hint('Отметьте если переделывали из-за брака. Влияет на КФУ Качество')+
+      '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px"><input type="checkbox" id="f-redo" style="width:18px;height:18px"/> ⚠️ Была переделка</label>'+
+      hint('Отметьте если переделывали из-за брака')+
     '</div>'+
     '<div style="background:var(--grlt);border:1px solid var(--green);border-radius:8px;padding:10px;margin-bottom:12px">'+
-      '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px"><input type="checkbox" id="f-closes" onchange="document.getElementById(\'closes-wrap\').style.display=this.checked?\'block\':\'none\'" style="width:18px;height:18px"/> ✅ Этим закрыт конструктив (готов для КС-2)</label>'+
-      hint('Отметьте если это ПОСЛЕДНЯЯ заливка элемента. Влияет на КФУ Закрытие КС-2')+
+      '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px"><input type="checkbox" id="f-closes" onchange="document.getElementById(\'closes-wrap\').style.display=this.checked?\'block\':\'none\'" style="width:18px;height:18px"/> ✅ Этим закрыт конструктив</label>'+
+      hint('Влияет на КФУ Закрытие КС-2')+
       '<div id="closes-wrap" style="display:none;margin-top:10px">'+
         '<label class="fl">Что закрыто</label><select class="fi" id="f-closed" style="margin-bottom:6px"><option value="">— из списка —</option><option>Фундамент полностью</option><option>Все стены этажа</option><option>Перекрытие этажа</option><option>Лестница / ядро этажа</option><option>Колонны этажа</option><option>Этаж полностью</option></select>'+
         '<input class="fi" id="f-closed_new" type="text" placeholder="или впишите своё"/>'+
       '</div>'+
     '</div>'+
-    '<div class="fg"><label class="fl">Примечание</label><input class="fi" id="f-note" type="text" placeholder="необязательно"/>'+hint('Любая доп. информация')+'</div>'+
-    '<button class="fsave" style="background:var(--teal)" id="bsv">СОХРАНИТЬ ЗАЛИВКУ</button>'+
+    '<div class="fg"><label class="fl">Примечание</label><input class="fi" id="f-note" type="text" placeholder="необязательно"/></div>'+
+    '<button class="fsave" style="background:var(--teal)" id="bsv">СОХРАНИТЬ</button>'+
     '<button class="fcanc" id="bcv">Отмена</button>';
   document.getElementById('modal').style.display='flex';
-  // preset rate from brigade price for default wtype
+  
+  // Авто-подстановка расценки при изменении wtype ИЛИ unit
+  function updateRate(){
+    var wt=document.getElementById('f-wtype').value;
+    var unit=document.getElementById('f-unit').value;
+    if(wt==='__custom__') return; // не лезем в кастомный
+    // Если расценка не найдена для текущей единицы, проверяем что у бригады есть для этого wtype
+    var rate=brigPriceFor(b, wt, unit);
+    var ri=document.getElementById('f-rate');
+    if(ri)ri.value=rate||'';
+  }
+  // Авто-подстановка единицы при изменении вида работ
+  function autoUnitOnWtype(){
+    var wt=document.getElementById('f-wtype').value;
+    if(wt==='__custom__') return;
+    var unitEl=document.getElementById('f-unit');
+    if(!unitEl) return;
+    // Приоритет 1: если у бригады есть расценка для wt — берём её единицу
+    var brigList=brigPricesList(b).filter(function(p){return p.wtype===wt;});
+    if(brigList.length>0){
+      var brigUnit=brigList[0].unit;
+      // проверим что в селекторе есть такой option
+      var hasOpt=Array.from(unitEl.options).find(function(o){return o.value===brigUnit;});
+      if(hasOpt){
+        unitEl.value=brigUnit;
+        return;
+      }
+    }
+    // Приоритет 2: подставляем дефолтную единицу для этого вида работ
+    var defUnit=defaultUnitFor(wt);
+    var hasOpt2=Array.from(unitEl.options).find(function(o){return o.value===defUnit;});
+    if(hasOpt2) unitEl.value=defUnit;
+  }
+  
   var wtSel=document.getElementById('f-wtype');
-  if(wtSel){var p0=(b.prices&&b.prices[wtSel.value])||0;if(p0)document.getElementById('f-rate').value=p0;}
+  var unitSel=document.getElementById('f-unit');
+  if(wtSel){
+    wtSel.addEventListener('change',function(){
+      var cw=document.getElementById('f-custom-wt-wrap');
+      if(cw)cw.style.display=(wtSel.value==='__custom__')?'block':'none';
+      autoUnitOnWtype(); // сначала единица
+      updateRate();      // потом цена
+    });
+  }
+  if(unitSel){
+    unitSel.addEventListener('change',updateRate);
+  }
+  // При открытии — сразу подставить
+  autoUnitOnWtype();
+  updateRate();
+  
   document.getElementById('bsv').addEventListener('click',function(){
     var v=parseFloat(g('f-vol')),st=g('f-struct');
     if(!v||isNaN(v)){alert('Введите объём');return;}
@@ -4590,8 +4755,15 @@ function openVol(bId){
     var closed=getSelCustom('f-closed');
     if(closes&&!closed){alert('Выберите что закрыто');return;}
     var wt=g('f-wtype')||'Комплекс';
-    var rt=parseFloat(g('f-rate'))||brigPrice(b,wt);
-    var e={id:Date.now(),date:g('f-date')||new Date().toISOString().slice(0,10),type:'vol',brigade:bId,volume:v,wtype:wt,rateOverride:rt,rate:rt,amount:Math.round(v*rt),zone:getSelCustom('f-zone'),floor:getSelCustom('f-floor'),struct:st,note:g('f-note')||'',obj:g('f-obj')||S.objects[0]};
+    if(wt==='__custom__'){
+      wt=g('f-custom-wt').trim();
+      if(!wt){alert('Введите название вида работ');return;}
+      if(!S.workTypes)S.workTypes=WORK_TYPES.slice();
+      if(S.workTypes.indexOf(wt)<0) S.workTypes.push(wt);
+    }
+    var unit=g('f-unit')||'м³';
+    var rt=parseFloat(g('f-rate'))||brigPriceFor(b,wt,unit);
+    var e={id:Date.now(),date:g('f-date')||new Date().toISOString().slice(0,10),type:'vol',brigade:bId,volume:v,unit:unit,wtype:wt,rateOverride:rt,rate:rt,amount:Math.round(v*rt),zone:getSelCustom('f-zone'),floor:getSelCustom('f-floor'),struct:st,note:g('f-note')||'',obj:g('f-obj')||S.objects[0]};
     if(redo)e.redo=true;
     if(closes){e.closes=true;e.closed=closed;}
     S.entries.push(e);
@@ -4683,152 +4855,353 @@ function openBrigCard(bId){
   var B=calcBrig(b);
   var workers=b.workers||0;
   var people=b.people||[];
-  var att=b.attendance||{};
 
-  // Продуктивность
-  var days=new Set(B.vols.map(function(e){return e.date;})).size||1;
-  var productivity=workers>0&&B.vol>0?fmtD(B.vol/workers/days):'-';
+  // Все объёмы этой бригады
+  var vols=[].concat(S.entries).filter(function(e){return e.type==='vol'&&e.brigade===bId;}).sort(function(a,b){return b.date.localeCompare(a.date);});
+  // Все выплаты этой бригаде
+  var pays=[].concat(S.entries).filter(function(e){return e.type==='expense'&&e.brigade===bId;}).sort(function(a,b){return b.date.localeCompare(a.date);});
 
-  // Посещаемость за 14 дней
-  var today=new Date();
-  var last14=[];
-  for(var i=13;i>=0;i--){var d=new Date(today);d.setDate(today.getDate()-i);last14.push(d.toISOString().slice(0,10));}
-  var totalAttDays=0;
-  people.forEach(function(p){
-    last14.forEach(function(dt){if(att[dt]&&att[dt][p.id])totalAttDays++;});
+  // Группировка объёмов по виду работ + единице (чтобы Армирование тн и Армирование м³ не сливались)
+  var byWorkType={};
+  vols.forEach(function(v){
+    var wt=v.wtype||'Без типа';
+    var unit=v.unit||'м³';
+    var key=wt+'/'+unit; // составной ключ
+    if(!byWorkType[key]) byWorkType[key]={wtype:wt,volume:0,amount:0,unit:unit,entries:[]};
+    byWorkType[key].volume+=(v.volume||0);
+    byWorkType[key].amount+=(v.amount||0);
+    byWorkType[key].entries.push(v);
   });
-  var avgAttendance=people.length>0?Math.round(totalAttDays/14):0;
-
-  // Прогноз зарплаты
-  var payForecast=people.reduce(function(s,p){return s+(p.rate||0);},0)*30;
-
+  
   document.getElementById('mtit').textContent=b.name;
   var h='';
 
   // Шапка
-  h+='<div style="text-align:center;padding:8px 0 16px;border-bottom:1px solid rgba(57,211,187,.2);margin-bottom:16px">';
+  h+='<div style="text-align:center;padding:8px 0 14px;border-bottom:1px solid rgba(57,211,187,.2);margin-bottom:16px">';
   h+='<div style="font-family:var(--fd);font-size:22px;color:var(--teal);letter-spacing:2px">'+b.name+'</div>';
-  h+='<div style="font-size:10px;color:var(--mut);margin-top:4px">'+b.spec+(b.obj?' · '+b.obj.split(',')[0]:'')+'</div>';
+  h+='<div style="font-size:10px;color:var(--mut);margin-top:4px">'+(workers?workers+' чел':'без людей')+(b.obj?' · '+b.obj.split(',')[0]:'')+'</div>';
   h+='</div>';
 
-  // 6 KPI
-  h+='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">';
-  var kpis=[
-    {lbl:'Объём',val:fmtD(B.vol),unit:'м³',c:'var(--teal)'},
-    {lbl:'Начислено',val:fmt(B.earned),unit:'тг',c:'var(--gold)'},
-    {lbl:'Выплачено',val:fmt(B.paid),unit:'тг',c:'var(--green)'},
-    {lbl:'Рабочих',val:workers,unit:'чел',c:'var(--blue)'},
-    {lbl:'Продукт.',val:productivity,unit:'м³/чел/д',c:'var(--purple)'},
-    {lbl:'Долг',val:B.balance>0?fmt(B.balance):'0',unit:B.balance>0?'тг':'закрыт',c:B.balance>0?'var(--red)':'var(--green)'},
-  ];
-  kpis.forEach(function(k){
-    h+='<div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:10px;text-align:center">';
-    h+='<div style="font-size:9px;color:var(--mut);margin-bottom:3px">'+k.lbl+'</div>';
-    h+='<div style="font-family:var(--fd);font-size:16px;color:'+k.c+'">'+k.val+'</div>';
-    h+='<div style="font-size:9px;color:var(--mut)">'+k.unit+'</div></div>';
-  });
+  // 4 главных KPI
+  h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">';
+  
+  h+='<div style="background:linear-gradient(145deg,rgba(57,211,187,.12),rgba(57,211,187,.05));border:1px solid rgba(57,211,187,.3);border-radius:12px;padding:12px;text-align:center">';
+  h+='<div style="font-size:9px;color:var(--mut);letter-spacing:1px;margin-bottom:4px">📐 ОБЪЁМ</div>';
+  h+='<div style="font-family:var(--fd);font-size:20px;color:var(--teal)">'+fmtD(B.vol)+'</div>';
+  h+='<div style="font-size:9px;color:var(--mut)">м³ (всего)</div></div>';
+  
+  h+='<div style="background:linear-gradient(145deg,rgba(255,179,32,.12),rgba(255,179,32,.05));border:1px solid rgba(255,179,32,.3);border-radius:12px;padding:12px;text-align:center">';
+  h+='<div style="font-size:9px;color:var(--mut);letter-spacing:1px;margin-bottom:4px">💰 НАЧИСЛЕНО</div>';
+  h+='<div style="font-family:var(--fd);font-size:20px;color:var(--gold)">'+fmt(B.earned)+'</div>';
+  h+='<div style="font-size:9px;color:var(--mut)">тг</div></div>';
+  
+  h+='<div style="background:linear-gradient(145deg,rgba(63,185,80,.12),rgba(63,185,80,.05));border:1px solid rgba(63,185,80,.3);border-radius:12px;padding:12px;text-align:center">';
+  h+='<div style="font-size:9px;color:var(--mut);letter-spacing:1px;margin-bottom:4px">✅ ВЫПЛАЧЕНО</div>';
+  h+='<div style="font-family:var(--fd);font-size:20px;color:var(--green)">'+fmt(B.paid)+'</div>';
+  h+='<div style="font-size:9px;color:var(--mut)">тг</div></div>';
+
+  var balColor=B.balance>0?'var(--red)':(B.balance<0?'var(--gold)':'var(--green)');
+  var balLbl=B.balance>0?'К ВЫПЛАТЕ':(B.balance<0?'ПЕРЕПЛАТА':'СОШЛОСЬ');
+  h+='<div style="background:linear-gradient(145deg,rgba(248,81,73,.10),rgba(248,81,73,.05));border:1px solid '+balColor.replace('var(--','rgba(').replace(')',',.4)')+';border-radius:12px;padding:12px;text-align:center">';
+  h+='<div style="font-size:9px;color:var(--mut);letter-spacing:1px;margin-bottom:4px">📊 '+balLbl+'</div>';
+  h+='<div style="font-family:var(--fd);font-size:20px;color:'+balColor+'">'+fmt(Math.abs(B.balance))+'</div>';
+  h+='<div style="font-size:9px;color:var(--mut)">тг</div></div>';
   h+='</div>';
 
-  // Прогноз зарплаты
-  if(people.length>0){
-    h+='<div style="background:rgba(63,185,80,.08);border:1px solid rgba(63,185,80,.2);border-radius:10px;padding:10px 14px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">';
-    h+='<div><div style="font-size:10px;color:var(--mut)">Прогноз зарплаты / месяц</div><div style="font-size:9px;color:var(--mut);margin-top:2px">при посещаемости ~'+avgAttendance+' чел/день</div></div>';
-    h+='<div style="font-family:var(--fd);font-size:18px;color:var(--green)">'+fmt(payForecast)+'</div>';
-    h+='</div>';
-  }
-
-  // Люди
-  if(people.length>0){
-    h+='<div style="font-size:10px;color:var(--mut);letter-spacing:2px;margin-bottom:8px">СОСТАВ ('+people.length+' чел)</div>';
-    h+='<div style="background:var(--s2);border-radius:10px;padding:0 14px;margin-bottom:12px">';
-    people.forEach(function(p,i){
-      var daysWorked=last14.filter(function(dt){return att[dt]&&att[dt][p.id];}).length;
-      h+='<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;'+(i<people.length-1?'border-bottom:1px solid rgba(255,255,255,.05)':'')+'">';
-      h+='<div><div style="font-size:12px;color:var(--text)">'+p.name+'</div>';
-      h+='<div style="font-size:9px;color:var(--mut)">'+p.spec+' · '+fmt(p.rate||0)+' тг/день</div></div>';
-      h+='<div style="text-align:right"><div style="font-size:11px;color:var(--green)">'+fmt(daysWorked*(p.rate||0))+' тг</div>';
-      h+='<div style="font-size:9px;color:var(--mut)">'+daysWorked+' дн из 14</div></div>';
-      h+='</div>';
-    });
-    h+='</div>';
-  }
-
-  // История заливок
-  var vols=[].concat(S.entries).filter(function(e){return e.type==='vol'&&e.brigade===bId;}).sort(function(a,b){return b.date.localeCompare(a.date);});
-  if(vols.length>0){
-    h+='<div style="font-size:10px;color:var(--mut);letter-spacing:2px;margin-bottom:8px">ИСТОРИЯ ЗАЛИВОК ('+vols.length+')</div>';
-    h+='<div style="background:var(--s2);border-radius:10px;padding:0 14px;margin-bottom:12px">';
-    vols.slice(0,8).forEach(function(v,i){
-      h+='<div style="display:flex;justify-content:space-between;padding:7px 0;'+(i<Math.min(vols.length,8)-1?'border-bottom:1px solid rgba(255,255,255,.05)':'')+';font-size:11px">';
-      h+='<span style="color:var(--mut)">'+v.date.slice(5)+(v.struct?' · '+v.struct:'')+'</span>';
-      h+='<span style="color:var(--teal);font-weight:700">'+fmtD(v.volume||0)+' м³</span>';
-      h+='</div>';
-    });
-    h+='</div>';
-  }
-
-  // 4 кнопки действий
+  // 4 кнопки действий (сверху, под главными цифрами)
   if(canEdit()){
-    h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">';
-    h+='<button onclick="closeModal();setTimeout(function(){openVol(\''+bId+'\');},100)" style="background:linear-gradient(135deg,rgba(57,211,187,.15),rgba(57,211,187,.08));border:1px solid rgba(57,211,187,.4);color:var(--teal);border-radius:10px;padding:11px;font-size:11px;cursor:pointer;font-family:var(--fm)">📐 Объём</button>';
-    h+='<button onclick="closeModal();setTimeout(function(){openPay(\''+bId+'\');},100)" style="background:linear-gradient(135deg,rgba(63,185,80,.15),rgba(63,185,80,.08));border:1px solid rgba(63,185,80,.4);color:var(--green);border-radius:10px;padding:11px;font-size:11px;cursor:pointer;font-family:var(--fm)">💸 Выплатить</button>';
+    h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">';
+    h+='<button onclick="closeModal();setTimeout(function(){openVol(\''+bId+'\');},100)" style="background:linear-gradient(135deg,rgba(57,211,187,.15),rgba(57,211,187,.08));border:1px solid rgba(57,211,187,.4);color:var(--teal);border-radius:10px;padding:12px;font-size:12px;cursor:pointer;font-family:var(--fm);letter-spacing:1px">📐 ОБЪЁМ</button>';
+    h+='<button onclick="closeModal();setTimeout(function(){openPay(\''+bId+'\');},100)" style="background:linear-gradient(135deg,rgba(63,185,80,.15),rgba(63,185,80,.08));border:1px solid rgba(63,185,80,.4);color:var(--green);border-radius:10px;padding:12px;font-size:12px;cursor:pointer;font-family:var(--fm);letter-spacing:1px">💸 ВЫПЛАТИТЬ</button>';
     h+='<button onclick="closeModal();setTimeout(function(){openPeople(\''+bId+'\');},100)" style="background:linear-gradient(135deg,rgba(88,166,255,.15),rgba(88,166,255,.08));border:1px solid rgba(88,166,255,.4);color:var(--blue);border-radius:10px;padding:11px;font-size:11px;cursor:pointer;font-family:var(--fm)">👥 Люди ('+people.length+')</button>';
     h+='<button onclick="closeModal();setTimeout(function(){openAttendance(\''+bId+'\');},100)" style="background:linear-gradient(135deg,rgba(163,113,247,.15),rgba(163,113,247,.08));border:1px solid rgba(163,113,247,.4);color:var(--purple);border-radius:10px;padding:11px;font-size:11px;cursor:pointer;font-family:var(--fm)">📅 Табель</button>';
     h+='</div>';
   }
-  h+='<button class="fcanc" onclick="closeModal()" style="margin-top:10px">Закрыть</button>';
 
+  // === ПО ВИДАМ РАБОТ ===
+  var wtKeys=Object.keys(byWorkType);
+  if(wtKeys.length>0){
+    h+='<div style="font-size:10px;color:var(--mut);letter-spacing:2px;margin-bottom:8px">ПО ВИДАМ РАБОТ</div>';
+    h+='<div style="margin-bottom:14px">';
+    wtKeys.sort(function(a,b){return byWorkType[b].amount-byWorkType[a].amount;}).forEach(function(key){
+      var w=byWorkType[key];
+      var wt=w.wtype; // настоящее имя вида работ
+      var curRate=brigPriceFor(b, wt, w.unit);
+      var pct=B.earned>0?Math.round(w.amount/B.earned*100):0;
+      // Иконка по типу
+      var icon='🔧';
+      if(wt.indexOf('палубк')>=0)icon='📦';
+      else if(wt.indexOf('етон')>=0)icon='🧱';
+      else if(wt.indexOf('омплекс')>=0)icon='⚙️';
+      else if(wt.indexOf('емонтаж')>=0)icon='🔨';
+      else if(wt.indexOf('тукатур')>=0)icon='🎨';
+      else if(wt.indexOf('ладк')>=0)icon='🧱';
+      else if(wt.indexOf('варк')>=0)icon='⚡';
+      h+='<div style="background:var(--s2);border-radius:10px;padding:12px;margin-bottom:8px">';
+      h+='<div style="display:flex;justify-content:space-between;margin-bottom:6px"><div style="font-size:12px;color:var(--text);font-weight:600">'+icon+' '+wt+' <span style="color:var(--mut);font-weight:400">('+w.unit+')</span></div><div style="font-size:11px;color:var(--gold);font-weight:700">'+fmt(w.amount)+' тг</div></div>';
+      h+='<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--mut);margin-bottom:6px">';
+      h+='<span>'+fmtD(w.volume)+' '+w.unit+(curRate>0?' × '+fmt(curRate)+' тг/'+w.unit+' (тек.)':'')+'</span>';
+      h+='<span>'+pct+'% от объёма</span>';
+      h+='</div>';
+      h+='<div style="height:4px;background:rgba(255,255,255,.06);border-radius:2px"><div style="height:100%;width:'+pct+'%;background:linear-gradient(90deg,var(--teal),var(--gold));border-radius:2px"></div></div>';
+      h+='</div>';
+    });
+    h+='</div>';
+  }
+
+  // === ИСТОРИЯ ОПЕРАЦИЙ (объёмы + выплаты) ===
+  var allOps=[].concat(vols).concat(pays).sort(function(a,b){return b.date.localeCompare(a.date);});
+  if(allOps.length>0){
+    h+='<div style="font-size:10px;color:var(--mut);letter-spacing:2px;margin-bottom:8px">ИСТОРИЯ ('+allOps.length+')</div>';
+    h+='<div style="background:var(--s2);border-radius:10px;padding:0 14px;margin-bottom:12px">';
+    allOps.slice(0,12).forEach(function(e,i){
+      var isLast=i===Math.min(allOps.length,12)-1;
+      h+='<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;cursor:pointer;'+(isLast?'':'border-bottom:1px solid rgba(255,255,255,.05)')+'" onclick="closeModal();setTimeout(function(){openEntryCard('+e.id+');},100)">';
+      if(e.type==='vol'){
+        h+='<div style="flex:1"><div style="font-size:11px;color:var(--teal)">📐 '+(e.wtype||'Объём')+'</div>';
+        h+='<div style="font-size:9px;color:var(--mut);margin-top:2px">'+e.date+' · '+fmtD(e.volume||0)+' '+(e.unit||'м³')+(e.struct?' · '+e.struct:'')+(e.zone?' · П'+e.zone:'')+(e.floor?' · '+e.floor:'')+'</div></div>';
+        h+='<div style="font-family:var(--fd);font-size:13px;color:var(--gold)">+'+fmt(e.amount||0)+'</div>';
+      } else {
+        var srcLbl=e.paySource==='own'?' [своих]':(e.paySource==='cash'?' [кассы]':' [подотчёт]');
+        h+='<div style="flex:1"><div style="font-size:11px;color:var(--red)">💸 Выплата'+srcLbl+'</div>';
+        h+='<div style="font-size:9px;color:var(--mut);margin-top:2px">'+e.date+' · '+(e.who||'?')+(e.note?' · '+e.note.slice(0,30):'')+'</div></div>';
+        h+='<div style="font-family:var(--fd);font-size:13px;color:var(--red)">−'+fmt(e.amount||0)+'</div>';
+      }
+      h+='</div>';
+    });
+    if(allOps.length>12) h+='<div style="padding:8px;text-align:center;color:var(--mut);font-size:10px">ещё '+(allOps.length-12)+' в Журнале</div>';
+    h+='</div>';
+  }
+
+  h+='<button class="fcanc" onclick="closeModal()" style="margin-top:10px">Закрыть</button>';
   document.getElementById('mbody').innerHTML=h;
   document.getElementById('modal').style.display='flex';
 }
 
 function openEditBrig(bId){
+  _editLock=true;
   var b=S.brigades.find(function(x){return x.id===bId;});
+  if(!b){_editLock=false;return;}
   var oo=S.objects.map(function(o){return '<option'+(o===b.obj?' selected':'')+'>'+o+'</option>';}).join('');
+  // Сольём WORK_TYPES + S.workTypes + кастомные из текущих расценок
+  var allWorkTypes = WORK_TYPES.slice();
+  (S.workTypes||[]).forEach(function(w){if(allWorkTypes.indexOf(w)<0)allWorkTypes.push(w);});
+  var currentPrices = brigPricesList(b); // [{wtype,unit,rate}, ...]
+  currentPrices.forEach(function(p){
+    if(allWorkTypes.indexOf(p.wtype)<0) allWorkTypes.push(p.wtype);
+  });
+  var UNITS=['м³','м²','тн','шт','м/п','кг'];
   document.getElementById('mtit').textContent='БРИГАДА';
-  var priceRows=WORK_TYPES.map(function(w){
-    var v=(b.prices&&b.prices[w])||'';
-    return '<div class="frow" style="align-items:center;margin-bottom:6px"><div style="font-size:11px;color:var(--mut)">'+w+'</div><input class="fi" data-wt="'+w+'" type="number" value="'+v+'" placeholder="0 ₸/м³" inputmode="numeric" style="font-size:13px"/></div>';
-  }).join('');
+  
+  // Функция: HTML для одной строки расценки
+  function priceRowHTML(rowIdx, wtype, unit, rate){
+    // Группируем виды работ: Монолит / Отделка / Прочее / Кастомные
+    function makeOpts(list){
+      return list.map(function(w){
+        if(allWorkTypes.indexOf(w)<0) return ''; // только из доступных
+        return '<option value="'+w+'"'+(w===wtype?' selected':'')+'>'+w+'</option>';
+      }).filter(Boolean).join('');
+    }
+    var monoOpts=makeOpts(WORK_TYPES_MONOLITHIC);
+    var finOpts=makeOpts(WORK_TYPES_FINISHING);
+    var otherOpts=makeOpts(WORK_TYPES_OTHER);
+    // Кастомные (то что есть в allWorkTypes но нет в базовых)
+    var allBase=WORK_TYPES_MONOLITHIC.concat(WORK_TYPES_FINISHING).concat(WORK_TYPES_OTHER);
+    var customWts=allWorkTypes.filter(function(w){return allBase.indexOf(w)<0;});
+    var customOpts=customWts.map(function(w){return '<option value="'+w+'"'+(w===wtype?' selected':'')+'>'+w+'</option>';}).join('');
+    
+    var wtOpts='<option value="">— выберите —</option>'+
+      (monoOpts?'<optgroup label="🏗 Монолит">'+monoOpts+'</optgroup>':'')+
+      (finOpts?'<optgroup label="🎨 Отделка">'+finOpts+'</optgroup>':'')+
+      (otherOpts?'<optgroup label="🔧 Прочее">'+otherOpts+'</optgroup>':'')+
+      (customOpts?'<optgroup label="⭐ Свои виды">'+customOpts+'</optgroup>':'')+
+      '<option value="__custom__">+ свой вид...</option>';
+    var unitOpts=UNITS.map(function(u){return '<option value="'+u+'"'+(u===unit?' selected':'')+'>'+u+'</option>';}).join('');
+    return '<div class="price-row" data-row="'+rowIdx+'" style="display:grid;grid-template-columns:1fr 70px 100px 30px;gap:6px;align-items:center;margin-bottom:6px">'+
+      '<select class="fi prc-wt" style="font-size:12px;padding:6px 8px">'+wtOpts+'</select>'+
+      '<select class="fi prc-unit" style="font-size:12px;padding:6px 4px;text-align:center">'+unitOpts+'</select>'+
+      '<input class="fi prc-rate" type="number" value="'+(rate||'')+'" placeholder="0" inputmode="numeric" style="font-size:13px;padding:6px 8px"/>'+
+      '<button class="prc-del" style="background:transparent;border:1px solid var(--mut);color:var(--mut);border-radius:4px;padding:6px 0;font-size:11px;cursor:pointer">✗</button>'+
+    '</div>';
+  }
+  
+  var rowsHTML='';
+  if(currentPrices.length===0){
+    // Подставляем базовые виды работ: монолит (для текущего объекта) + ключевые отделочные
+    // Сотруднице нужно только заполнить цены и убрать ненужное
+    var defaultWts = [
+      // Монолит (то что бригады делают сейчас)
+      'Армирование',
+      'Опалубка',
+      'Бетонирование',
+      'Демонтаж опалубки',
+      // Самые частые отделочные (на будущее)
+      'Штукатурка',
+      'Стяжка пола',
+      'Кладка блоков'
+    ];
+    defaultWts.forEach(function(wt,i){
+      rowsHTML+=priceRowHTML(i,wt,defaultUnitFor(wt),'');
+    });
+  } else {
+    currentPrices.forEach(function(p,i){
+      rowsHTML+=priceRowHTML(i,p.wtype,p.unit||'м³',p.rate);
+    });
+  }
+  
   document.getElementById('mbody').innerHTML=
     '<div class="fg"><label class="fl">Название</label><input class="fi" id="fb-n" type="text" value="'+b.name+'"/>'+hint('Название бригады')+'</div>'+
-    '<div class="fg"><label class="fl">Специализация</label><select class="fi" id="fb-s">'+SPEC_OPTS(b.spec)+'</select>'+hint('Выберите специализацию бригады')+'</div>'+
-    '<div class="frow"><div class="fg"><label class="fl">Кол-во рабочих</label><input class="fi" id="fb-w" type="number" value="'+(b.workers||0)+'" inputmode="numeric"/>'+hint('Сколько человек. От этого цель')+'</div>'+
-    '<div class="fg"><label class="fl">Объект</label><select class="fi" id="fb-o">'+oo+'</select>'+hint('Где работает')+'</div></div>'+
-    '<div class="sect" style="margin:14px 0 8px">Прайс бригады ₸/м³ по видам работ</div>'+
-    hint('Сколько платите ЭТОЙ бригаде за м³ каждого вида. Заполняйте только то что бригада делает. Можно менять когда бригада сменит вид работ')+
-    '<div style="margin-top:10px">'+priceRows+'</div>'+
+    '<div class="frow">'+
+      '<div class="fg"><label class="fl">Кол-во людей</label><input class="fi" id="fb-w" type="number" value="'+(b.workers||0)+'" inputmode="numeric"/>'+hint('Сколько человек в бригаде')+'</div>'+
+      '<div class="fg"><label class="fl">Объект</label><select class="fi" id="fb-o">'+oo+'</select>'+hint('Где работает')+'</div>'+
+    '</div>'+
+    '<div class="sect" style="margin:14px 0 8px">Расценки</div>'+
+    '<div style="background:rgba(57,211,187,.05);border:1px solid rgba(57,211,187,.2);border-radius:8px;padding:10px;margin-bottom:10px;font-size:10px;color:var(--mut);line-height:1.5">'+
+      '💡 Каждая строка = вид работ + единица + цена. Можно добавить одинаковый вид работ с разными единицами:<br>'+
+      'напр. <b>Армирование тн 5000</b> и <b>Армирование м³ 3000</b>.<br>'+
+      'Изменение расценки не влияет на старые записи.'+
+    '</div>'+
+    '<div style="display:grid;grid-template-columns:1fr 70px 100px 30px;gap:6px;font-size:9px;color:var(--mut);margin-bottom:4px;padding:0 4px">'+
+      '<div>ВИД РАБОТ</div><div style="text-align:center">ЕД.</div><div>ЦЕНА, ₸</div><div></div>'+
+    '</div>'+
+    '<div id="prices-list" style="margin-bottom:10px">'+rowsHTML+'</div>'+
+    '<button id="add-row-btn" style="width:100%;background:rgba(57,211,187,.1);border:1px dashed var(--teal);color:var(--teal);border-radius:8px;padding:9px;font-size:12px;cursor:pointer;margin-bottom:14px">+ ДОБАВИТЬ РАСЦЕНКУ</button>'+
     '<button class="fsave" style="background:var(--teal)" id="bsb">СОХРАНИТЬ</button>'+
     '<button class="fcanc" style="color:var(--red);border-color:var(--red)" id="bdb">Удалить бригаду</button>'+
     '<button class="fcanc" id="bcb">Отмена</button>';
   document.getElementById('modal').style.display='flex';
-  document.getElementById('bsb').addEventListener('click',function(){
-    b.name=g('fb-n').trim()||b.name;b.spec=g('fb-s')||b.spec;b.obj=g('fb-o')||b.obj;b.workers=parseInt(g('fb-w'))||0;
-    if(!b.prices)b.prices={};
-    document.querySelectorAll('[data-wt]').forEach(function(inp){var w=inp.getAttribute('data-wt');var v=parseFloat(inp.value)||0;if(v>0)b.prices[w]=v;else delete b.prices[w];});
-    save();closeModal();render();
+  
+  // Обработчик: добавить пустую строку
+  var rowCounter=currentPrices.length||1;
+  function bindRowHandlers(){
+    document.querySelectorAll('.prc-del').forEach(function(btn){
+      if(btn._bound) return;
+      btn._bound=true;
+      btn.addEventListener('click',function(){
+        var row=this.closest('.price-row');
+        if(row && document.querySelectorAll('.price-row').length>1){
+          row.parentNode.removeChild(row);
+        } else {
+          // Если последняя — просто очищаем
+          if(row){
+            row.querySelector('.prc-wt').value='';
+            row.querySelector('.prc-rate').value='';
+          }
+        }
+      });
+    });
+    document.querySelectorAll('.prc-wt').forEach(function(sel){
+      if(sel._bound) return;
+      sel._bound=true;
+      sel.addEventListener('change',function(){
+        var row=this.closest('.price-row');
+        if(this.value==='__custom__'){
+          var custom=prompt('Название нового вида работ:');
+          if(custom && custom.trim()){
+            custom=custom.trim();
+            // Добавляем option во все селекты
+            document.querySelectorAll('.prc-wt').forEach(function(s){
+              var exists=Array.from(s.options).find(function(o){return o.value===custom;});
+              if(!exists){
+                var opt=document.createElement('option');
+                opt.value=custom;
+                opt.textContent=custom;
+                s.insertBefore(opt, s.querySelector('option[value="__custom__"]'));
+              }
+            });
+            this.value=custom;
+            // В глобальный список
+            if(!S.workTypes)S.workTypes=WORK_TYPES.slice();
+            if(S.workTypes.indexOf(custom)<0)S.workTypes.push(custom);
+          } else {
+            this.value='';
+            return;
+          }
+        }
+        // Авто-подстановка единицы под выбранный вид работ
+        if(row && this.value){
+          var unitSel=row.querySelector('.prc-unit');
+          var defUnit=defaultUnitFor(this.value);
+          if(unitSel && defUnit){
+            var hasOpt=Array.from(unitSel.options).find(function(o){return o.value===defUnit;});
+            if(hasOpt) unitSel.value=defUnit;
+          }
+        }
+      });
+    });
+  }
+  bindRowHandlers();
+  
+  document.getElementById('add-row-btn').addEventListener('click',function(){
+    var html=priceRowHTML(rowCounter++,'','м³','');
+    document.getElementById('prices-list').insertAdjacentHTML('beforeend',html);
+    bindRowHandlers();
   });
-  document.getElementById('bdb').addEventListener('click',function(){if(!confirm(T('confirmBrigDel')))return;S.brigades=S.brigades.filter(function(x){return x.id!==bId;});save();closeModal();render();});
-  document.getElementById('bcb').addEventListener('click',closeModal);
+  
+  document.getElementById('bsb').addEventListener('click',function(){
+    b.name=g('fb-n').trim()||b.name;
+    delete b.spec;
+    b.obj=g('fb-o')||b.obj;
+    b.workers=parseInt(g('fb-w'))||0;
+    // Собираем расценки из строк
+    var newPrices=[];
+    document.querySelectorAll('.price-row').forEach(function(row){
+      var wt=row.querySelector('.prc-wt').value;
+      var unit=row.querySelector('.prc-unit').value||'м³';
+      var rate=parseFloat(row.querySelector('.prc-rate').value)||0;
+      if(wt && wt!=='__custom__' && rate>0){
+        newPrices.push({wtype:wt,unit:unit,rate:rate});
+      }
+    });
+    b.prices=newPrices;
+    // Добавляем виды работ в S.workTypes
+    if(!S.workTypes)S.workTypes=WORK_TYPES.slice();
+    newPrices.forEach(function(p){
+      if(S.workTypes.indexOf(p.wtype)<0) S.workTypes.push(p.wtype);
+    });
+    S._modified=Date.now();
+    save();
+    setTimeout(function(){pushCloud();},100);
+    setTimeout(function(){pushCloud();_editLock=false;},2500);
+    closeModal();render();
+  });
+  document.getElementById('bdb').addEventListener('click',function(){
+    if(!confirm(T('confirmBrigDel')))return;
+    S.brigades=S.brigades.filter(function(x){return x.id!==bId;});
+    S._modified=Date.now();
+    save();
+    setTimeout(function(){pushCloud();},100);
+    setTimeout(function(){pushCloud();_editLock=false;},2500);
+    closeModal();render();
+  });
+  document.getElementById('bcb').addEventListener('click',function(){_editLock=false;closeModal();});
 }
 function openAddBrig(){
+  _editLock=true;
   var oo=S.objects.map(function(o){return '<option>'+o+'</option>';}).join('');
   document.getElementById('mtit').textContent='НОВАЯ БРИГАДА';
   document.getElementById('mbody').innerHTML=
-    '<div class="fg"><label class="fl">Название</label><input class="fi" id="fb-n" type="text" placeholder="Бригада Асан..."/>'+hint('Имя бригадира или номер')+'</div>'+
-    '<div class="fg"><label class="fl">Специализация</label><select class="fi" id="fb-s">'+SPEC_OPTS('')+'</select>'+hint('Выберите специализацию')+'</div>'+
-    '<div class="frow"><div class="fg"><label class="fl">Кол-во рабочих</label><input class="fi" id="fb-w" type="number" placeholder="0" inputmode="numeric"/>'+hint('Сколько человек')+'</div>'+
-    '<div class="fg"><label class="fl">Объект</label><select class="fi" id="fb-o">'+oo+'</select></div></div>'+
-    hint('Прайс по видам работ зададите после создания — нажмите «ред» на карточке бригады')+
-    '<button class="fsave" style="background:var(--teal)" id="bsb">ДОБАВИТЬ</button>'+
+    '<div class="fg"><label class="fl">Название</label><input class="fi" id="fb-n" type="text" placeholder="Бригада Асан / Разнорабочие / Сварщики..."/>'+hint('Любое название')+'</div>'+
+    '<div class="frow">'+
+      '<div class="fg"><label class="fl">Кол-во людей</label><input class="fi" id="fb-w" type="number" placeholder="0" inputmode="numeric"/>'+hint('Сколько человек')+'</div>'+
+      '<div class="fg"><label class="fl">Объект</label><select class="fi" id="fb-o">'+oo+'</select></div>'+
+    '</div>'+
+    '<div style="background:rgba(57,211,187,.05);border:1px solid rgba(57,211,187,.2);border-radius:8px;padding:10px;margin-top:10px;font-size:10px;color:var(--mut);line-height:1.5">'+
+      '💡 После создания нажмите «ред» на карточке — там зададите расценки по видам работ.'+
+    '</div>'+
+    '<button class="fsave" style="background:var(--teal);margin-top:12px" id="bsb">ДОБАВИТЬ</button>'+
     '<button class="fcanc" id="bcb">Отмена</button>';
   document.getElementById('modal').style.display='flex';
   document.getElementById('bsb').addEventListener('click',function(){
     var n=g('fb-n').trim();if(!n){alert('Введите название');return;}
-    S.brigades.push({id:'b'+Date.now(),name:n,spec:g('fb-s')||'',obj:g('fb-o')||S.objects[0],workers:parseInt(g('fb-w'))||0,prices:{}});
-    save();closeModal();render();
+    S.brigades.push({id:'b'+Date.now(),name:n,obj:g('fb-o')||S.objects[0],workers:parseInt(g('fb-w'))||0,prices:{},people:[],attendance:{}});
+    S._modified=Date.now();
+    save();
+    setTimeout(function(){pushCloud();},100);
+    setTimeout(function(){pushCloud();_editLock=false;},2500);
+    closeModal();render();
   });
-  document.getElementById('bcb').addEventListener('click',closeModal);
+  document.getElementById('bcb').addEventListener('click',function(){_editLock=false;closeModal();});
 }
 
 // ============ ЛЮДИ В БРИГАДЕ ============
