@@ -1279,17 +1279,6 @@ function auditLog(title, body){
     }).catch(function(){});
   }catch(e){}
 }
-// Отправка уведомления в рабочую группу (для доходов и объёмов работ)
-function notifyWorking(text){
-  if(!AI_WORKER_URL||!AI_SHARED_TOKEN) return;
-  try{
-    fetch(AI_WORKER_URL.replace(/\/$/,'')+'/api/notify-working',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','X-LG-Token':AI_SHARED_TOKEN},
-      body:JSON.stringify({text:text})
-    }).catch(function(){});
-  }catch(e){}
-}
 var _editLock=false; // блокировка синхронизации во время редактирования
 function pullCloud(cb){
   if(_editLock){if(cb)cb();return;} // не синхронизируем во время правки
@@ -1574,7 +1563,79 @@ function resetToCleanV3(state){
   return state;
 }
 
-var S = resetToCleanV3(migrateToSchemaV2(loadLocal()));
+// Миграция: добавляет структуру пятен Qaharman в объект Алгабас (если ещё не добавлено)
+function ensureSpotsStructure(state){
+  if(!state || !state.objects || state.objects.length===0) return state;
+  if(!state.objMeta) state.objMeta = {};
+  
+  var algabasName = 'ЖК «Алгабас», Мкр. Нуркент';
+  // Найдём как реально называется объект в данных (может Algabas, может другое)
+  var realName = state.objects.find(function(o){ return o.indexOf('Алгабас')>=0; }) || state.objects[0];
+  if(!realName) return state;
+  
+  if(!state.objMeta[realName]) state.objMeta[realName] = {customer:'Sensata Group', rates:{}, custRates:[]};
+  var meta = state.objMeta[realName];
+  
+  // Добавляем расценки заказчика (если их ещё нет)
+  if(!meta.custRates || meta.custRates.length===0){
+    meta.custRates = [
+      {wtype:'Устройство стен',unit:'м³',rate:38437.76},
+      {wtype:'Устройство лестничного марша',unit:'м³',rate:38437.76},
+      {wtype:'Устройство плиты перекрытия и ригеля',unit:'м³',rate:38437.76},
+      {wtype:'Устройство парапета',unit:'м³',rate:38437.76}
+    ];
+  }
+  
+  // Добавляем пятна (если ещё не добавлены)
+  if(!meta.spots || meta.spots.length===0){
+    meta.spots = [
+      {
+        id:'spot_b48',
+        name:'Блок 48',
+        deadline:'2026-10-31',
+        started:'2026-05-20',
+        completed:null,
+        constructions:[
+          {wtype:'Устройство стен',unit:'м³',volume:1027.4,heights:'-0,100 ÷ +42,850'},
+          {wtype:'Устройство лестничного марша',unit:'м³',volume:28.6,heights:'-0,100 ÷ +40,550'},
+          {wtype:'Устройство плиты перекрытия и ригеля',unit:'м³',volume:868.8,heights:'+4,150 ÷ +40,550'},
+          {wtype:'Устройство парапета',unit:'м³',volume:14.1,heights:'+41,650 ÷ +43,950'}
+        ]
+      },
+      {
+        id:'spot_b49',
+        name:'Блок 49',
+        deadline:'2026-11-30',
+        started:'2026-05-25',
+        completed:null,
+        constructions:[
+          {wtype:'Устройство стен',unit:'м³',volume:707.5,heights:'-0,100 ÷ +32,950'},
+          {wtype:'Устройство лестничного марша',unit:'м³',volume:20.8,heights:'-0,100 ÷ +30,650'},
+          {wtype:'Устройство плиты перекрытия и ригеля',unit:'м³',volume:619.1,heights:'+4,150 ÷ +33,150'},
+          {wtype:'Устройство парапета',unit:'м³',volume:13.6,heights:'+31,750 ÷ +34,050'}
+        ]
+      }
+    ];
+    state._modified = Date.now(); // помечаем что данные изменились → залить в облако
+  }
+  
+  // Добавляем расценки бригадам (если их ещё нет)
+  if(state.brigades && state.brigades.length>0){
+    state.brigades.forEach(function(b){
+      if(!b.prices || Object.keys(b.prices).length===0){
+        b.prices = {
+          'Армирование':14000,
+          'Опалубка+бетон':12000
+        };
+        state._modified = Date.now();
+      }
+    });
+  }
+  
+  return state;
+}
+
+var S = ensureSpotsStructure(resetToCleanV3(migrateToSchemaV2(loadLocal())));
 // Если был ресет/миграция — пометим как изменённое СЕЙЧАС,
 // чтобы pullCloud не перезаписал свежие данные старыми из облака.
 if((S._resetAt || S._migratedAt) && (!S._modified || S._modified < Date.now() - 1000)){
@@ -3310,6 +3371,114 @@ if(draftsCount>0){
   h+='<div style="font-size:22px;color:#0d1117">→</div>';
   h+='</div>';
 }
+// === 🎯 ЭТА НЕДЕЛЯ + 🏗 ПЯТНА (приоритет ближайшее) ===
+(function(){
+  var now = new Date();
+  var dayOfWeek = now.getDay() || 7;
+  var monday = new Date(now);
+  monday.setDate(now.getDate() - dayOfWeek + 1);
+  monday.setHours(0,0,0,0);
+  var sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  
+  var weekVolDone = 0;
+  S.entries.forEach(function(e){
+    if(e.type !== 'vol' || !e.date) return;
+    var d = new Date(e.date);
+    if(d >= monday && d <= sunday) weekVolDone += (Number(e.volume) || 0);
+  });
+  
+  var weekTarget = 0;
+  try {
+    if(typeof YEAR_PLAN !== 'undefined' && YEAR_PLAN){
+      var monthIdx = now.getMonth();
+      var monthData = YEAR_PLAN[monthIdx];
+      if(monthData && monthData.volWeek) weekTarget = monthData.volWeek;
+    }
+  } catch(e){}
+  if(!weekTarget) weekTarget = 160;
+  
+  var weekPct = weekTarget > 0 ? Math.round(weekVolDone / weekTarget * 100) : 0;
+  var daysLeftWeek = 7 - dayOfWeek + 1;
+  var daysPassed = dayOfWeek;
+  var weekRemain = Math.max(0, weekTarget - weekVolDone);
+  var dailyNeed = daysLeftWeek > 0 ? Math.ceil(weekRemain / daysLeftWeek) : 0;
+  var dailyActual = daysPassed > 0 ? Math.round(weekVolDone / daysPassed) : 0;
+  
+  var wColor, wStatus;
+  if(weekPct >= 100){ wColor='var(--green)'; wStatus='✅ Цель выполнена!'; }
+  else if(dailyActual >= dailyNeed*0.95){ wColor='var(--green)'; wStatus='🟢 Идём в темпе'; }
+  else if(dailyActual >= dailyNeed*0.6){ wColor='var(--orange)'; wStatus='🟡 Чуть отстаём — догоняем'; }
+  else { wColor='var(--red)'; wStatus='🔴 Отстаём, нужно ускоряться'; }
+  
+  h+='<div class="sect" style="color:var(--gold)">🎯 Эта неделя</div>';
+  h+='<div class="dcard" style="border:2px solid '+wColor+';background:linear-gradient(135deg,rgba(240,165,0,.05),rgba(0,0,0,0));margin-bottom:14px">';
+  h+='<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">';
+  h+='<div><div style="font-size:10px;color:var(--mut);letter-spacing:1px;text-transform:uppercase">Залить за неделю</div>';
+  h+='<div style="font-family:var(--fd);font-size:32px;line-height:1;margin-top:4px;color:'+wColor+'">'+weekVolDone+' <span style="font-size:14px;color:var(--mut)">/ '+weekTarget+' м³</span></div></div>';
+  h+='<div style="text-align:right"><div style="font-family:var(--fd);font-size:24px;color:'+wColor+'">'+weekPct+'%</div><div style="font-size:9px;color:var(--mut)">прогресс</div></div>';
+  h+='</div>';
+  h+='<div class="ptrack"><div class="pfill" style="width:'+Math.min(weekPct,100)+'%;background:'+wColor+'"></div></div>';
+  h+='<div class="plabels" style="margin-top:6px"><span>0</span><span style="color:'+wColor+';font-weight:700">'+wStatus+'</span><span>'+weekTarget+'</span></div>';
+  h+='<div class="dmini" style="margin-top:12px">';
+  h+='<div class="dmini-i"><div class="dmini-v" style="color:var(--text);font-size:18px">'+dailyActual+'</div><div class="dmini-l">м³/день факт</div></div>';
+  h+='<div class="dmini-i"><div class="dmini-v" style="color:var(--gold);font-size:18px">'+dailyNeed+'</div><div class="dmini-l">м³/день нужно</div></div>';
+  h+='<div class="dmini-i"><div class="dmini-v" style="color:var(--text);font-size:18px">'+daysLeftWeek+'</div><div class="dmini-l">дней до вс</div></div>';
+  h+='</div>';
+  h+='</div>';
+  
+  // === ПЯТНА (показываются только если есть в данных) ===
+  var objName = (S.objects && S.objects[0]) || '';
+  var meta = (S.objMeta && S.objMeta[objName]) || {};
+  var spots = meta.spots || [];
+  
+  if(spots.length > 0){
+    h+='<div class="sect" style="color:var(--teal)">🏗 Пятна — '+objName.split(',')[0]+'</div>';
+    spots.forEach(function(spot){
+      var spotName = spot.name || '';
+      var spotShortNum = spotName.replace(/\D/g,'');
+      var spotVolDone = 0;
+      S.entries.forEach(function(e){
+        if(e.type !== 'vol') return;
+        if(e.spotId && e.spotId === spot.id){ spotVolDone += (Number(e.volume) || 0); return; }
+        var matchText = (e.zone || '') + ' ' + (e.note || '');
+        if(spotShortNum && matchText.indexOf(spotShortNum) >= 0){
+          spotVolDone += (Number(e.volume) || 0);
+        }
+      });
+      var spotTotalVol = (spot.constructions || []).reduce(function(s,c){return s+(c.volume||0);}, 0);
+      var spotPct = spotTotalVol > 0 ? Math.round(spotVolDone / spotTotalVol * 100) : 0;
+      var spotDdl = spot.deadline ? new Date(spot.deadline) : null;
+      var daysToDdl = spotDdl ? Math.ceil((spotDdl - now) / 86400000) : null;
+      var workDaysToDdl = daysToDdl ? Math.round(daysToDdl * 5/7) : null;
+      var spotRemain = Math.max(0, spotTotalVol - spotVolDone);
+      var spotNeedDaily = workDaysToDdl && workDaysToDdl > 0 ? Math.ceil(spotRemain / workDaysToDdl) : 0;
+      var sColor, sStatus;
+      if(spotVolDone === 0){ sColor = 'var(--mut)'; sStatus = '⚪ Не начат'; }
+      else if(spotPct >= 100){ sColor = 'var(--green)'; sStatus = '✅ Завершено'; }
+      else if(daysToDdl !== null && daysToDdl < 14 && spotPct < 70){ sColor = 'var(--red)'; sStatus = '🔴 Срочно — горим'; }
+      else { sColor = 'var(--green)'; sStatus = '🟢 В работе'; }
+      h+='<div class="dcard" style="border-left:4px solid '+sColor+';margin-bottom:10px;padding:14px">';
+      h+='<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">';
+      h+='<div><div style="font-size:13px;font-weight:700;color:var(--text)">'+spotName+'</div>';
+      h+='<div style="font-size:9px;color:var(--mut);margin-top:2px">'+spotVolDone+' / '+spotTotalVol+' м³';
+      if(spot.deadline) h+=' · до '+spot.deadline;
+      h+='</div></div>';
+      h+='<div style="text-align:right"><div style="font-family:var(--fd);font-size:18px;color:'+sColor+'">'+spotPct+'%</div></div>';
+      h+='</div>';
+      h+='<div style="height:6px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden;margin-bottom:8px">';
+      h+='<div style="height:100%;width:'+Math.min(spotPct,100)+'%;background:'+sColor+';border-radius:3px;transition:width .3s"></div></div>';
+      h+='<div style="display:flex;justify-content:space-between;font-size:10px">';
+      h+='<span style="color:'+sColor+';font-weight:600">'+sStatus+'</span>';
+      if(daysToDdl !== null && daysToDdl > 0 && spotPct < 100 && spotNeedDaily > 0){
+        h+='<span style="color:var(--mut)">нужно '+spotNeedDaily+' м³/день · '+daysToDdl+' дн</span>';
+      }
+      h+='</div>';
+      h+='</div>';
+    });
+  }
+})();
+
 // === ЦЕЛЬ ГОДА — 920 млн ===
 var G=calcGoal();
 var forecastColor=G.forecast>=GOAL_TOTAL*0.9?'var(--green)':G.forecast>=GOAL_TOTAL*0.7?'var(--orange)':'var(--red)';
@@ -3738,44 +3907,7 @@ var KA=kfuAuto();
 // Week compare// Week compare
 if(wks.length>=2){var tW=parseFloat(wks[wks.length-1].fact)||0,pW=parseFloat(wks[wks.length-2].fact)||0;var diff=tW-pW;var dc2=diff>=0?'var(--green)':'var(--red)';var dbg=diff>=0?'var(--grlt)':'var(--rlt)';
  h+='<div class="sect">Сравнение недель</div><div class="wkcmp"><div class="wkcols"><div class="wkc"><div class="wkl">Прошлая</div><div class="wkv" style="color:var(--mut)">'+fmtD(pW)+'</div><div class="wks">м³ факт</div></div><div style="color:var(--mut)">to</div><div class="wkc"><div class="wkl">Эта неделя</div><div class="wkv" style="color:var(--teal)">'+fmtD(tW)+'</div><div class="wks">м³ факт</div></div></div><div class="wkd" style="background:'+dbg+';border:1px solid '+dc2+'"><div style="font-family:var(--fd);font-size:18px;color:'+dc2+'">'+(diff>=0?'+':'')+fmtD(diff)+' м³ '+(diff>=0?'▲':'▼')+'</div><div style="font-size:9px;color:var(--mut)">'+(pW>0?(diff>=0?'рост':'спад')+' '+Math.abs(Math.round(diff/pW*100))+'%':'первое сравнение')+'</div></div></div>';}
-// === НА РУКАХ У ПАРТНЁРОВ (подотчёт) ===
-var partnersOnHands=[];
-PARTNERS.forEach(function(p,pi){
-  var P=calcPar(p);
-  // Получил под отчёт - потратил из подотчётных = что висит на руках
-  var rec=P.received;
-  var spt=P.spentFromAdvance;
-  var onH=rec-spt;
-  if(onH!==0||rec>0) partnersOnHands.push({name:p,color:PC[pi],received:rec,spent:spt,onHands:onH});
-});
-var totalOnHands=partnersOnHands.reduce(function(s,p){return s+Math.max(0,p.onHands);},0);
-if(partnersOnHands.length>0){
-  h+='<div class="dcard" style="background:linear-gradient(135deg,rgba(255,179,32,.08),rgba(255,179,32,.02));border:1px solid rgba(255,179,32,.25);margin-top:14px">';
-  h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">';
-  h+='<div><div style="font-size:11px;color:var(--gold);letter-spacing:2px;font-weight:700">📋 НА РУКАХ У ПАРТНЁРОВ</div>';
-  h+='<div style="font-size:9px;color:var(--mut);margin-top:3px">подотчётные деньги</div></div>';
-  h+='<div style="text-align:right"><div style="font-family:var(--fd);font-size:22px;color:var(--gold)">'+fmt(totalOnHands)+'</div><div style="font-size:9px;color:var(--mut)">тг ⏳</div></div>';
-  h+='</div>';
-  partnersOnHands.forEach(function(p){
-    var pct=p.received>0?Math.round(p.spent/p.received*100):0;
-    var status=p.onHands===0?'✅':p.onHands<p.received*0.3?'⚡':'⏳';
-    var stColor=p.onHands===0?'var(--green)':p.onHands<p.received*0.3?'var(--orange)':'var(--gold)';
-    h+='<div style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05)">';
-    h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">';
-    h+='<span style="font-size:11px;color:'+p.color+';font-weight:700">'+p.name+'</span>';
-    h+='<span style="font-family:var(--fd);font-size:14px;color:'+stColor+'">'+fmt(p.onHands)+' '+status+'</span>';
-    h+='</div>';
-    h+='<div style="display:flex;justify-content:space-between;font-size:9px;color:var(--mut);margin-bottom:4px">';
-    h+='<span>получил '+fmt(p.received)+' · отчитался '+fmt(p.spent)+'</span><span>'+pct+'%</span></div>';
-    h+='<div style="height:4px;background:rgba(255,255,255,.06);border-radius:2px"><div style="height:100%;width:'+pct+'%;background:'+p.color+';border-radius:2px"></div></div>';
-    h+='</div>';
-  });
-  if(isEditor()&&totalOnHands>0){
-    h+='<button onclick="closeUnreported()" style="width:100%;background:linear-gradient(135deg,var(--gold),var(--orange));border:none;color:#0d1117;border-radius:10px;padding:12px;font-weight:700;font-family:var(--fm);letter-spacing:1px;cursor:pointer;margin-top:10px;font-size:12px">🔄 ЗАКРЫТЬ ОСТАТКИ → ЛИЧНОЕ</button>';
-    h+='<div style="font-size:9px;color:var(--mut);text-align:center;margin-top:6px">автоматическое закрытие через 24 часа</div>';
-  }
-  h+='</div>';
-}
+// === БЛОК 'НА РУКАХ У ПАРТНЁРОВ' УБРАН ИЗ СВОДКИ ===
 // Recent
 var rec=[].concat(S.entries).sort(function(a,b){return b.date.localeCompare(a.date);}).slice(0,5);
 h+='<div class="sect">Последние записи</div><div class="recc">'+rec.map(function(e){var tc=TYPES[e.type]||{color:'var(--mut)'};var val=e.type==='vol'?fmtD(e.volume||0)+' м³':fmt(e.amount)+' тг';return '<div class="reci"><div><div class="recb" style="background:'+(tc.bg||'var(--s2)')+';color:'+tc.color+'">'+badge(e.type).replace(/<[^>]+>/g,'')+'</div><div class="recd">'+desc(e).slice(0,42)+'</div></div><div><div class="reca" style="color:'+tc.color+'">'+val+'</div><div class="rect">'+e.date.slice(5)+'</div></div></div>';}).join('')+'</div>';
@@ -7079,56 +7211,6 @@ function confirmDraftGroup(linkedKey){
         'Записей: '+confirmedLines.length+'\n\n'+
         confirmedLines.join('\n\n'));
     }
-    
-    // Уведомление в РАБОЧУЮ группу для важных событий: доходы и объёмы работ
-    addedEntryIds.forEach(function(eid){
-      var e=S.entries.find(function(x){return x.id===eid;});
-      if(!e) return;
-      
-      // Доход — деньги поступили
-      if(e.type==='income'){
-        var co=calcCo();
-        var text='💰 <b>ПОДТВЕРЖДЁН ДОХОД</b>\n' +
-          '━━━━━━━━━━━━━━\n' +
-          'Сумма: <b>'+fmt(e.amount)+' тг</b>\n' +
-          (e.who?'Принял: '+e.who+'\n':'') +
-          'Дата: '+(e.date||'')+'\n' +
-          (e.obj?'Объект: '+e.obj+'\n':'') +
-          (e.note?'Примечание: '+e.note+'\n':'') +
-          '\n📊 Касса теперь: <b>'+fmt(co.cash)+' тг</b>';
-        notifyWorking(text);
-      }
-      
-      // Объём — выполненные работы
-      if(e.type==='vol'){
-        // Прогресс по объекту
-        var totalVol=0;
-        S.entries.forEach(function(x){if(x.type==='vol')totalVol+=(Number(x.volume)||0);});
-        var planVol=(S.settings&&S.settings.norms&&S.settings.norms.totalVolume)||48000;
-        var pct=planVol>0?(totalVol/planVol*100):0;
-        var remain=Math.max(0,planVol-totalVol);
-        
-        // Найдём название бригады
-        var brigName='';
-        if(e.brigade){
-          var br=S.brigades.find(function(b){return b.id===e.brigade;});
-          if(br) brigName=br.name;
-        }
-        
-        var text='🏗 <b>ПОДТВЕРЖДЕН ОБЪЁМ РАБОТ</b>\n' +
-          '━━━━━━━━━━━━━━━━\n' +
-          (brigName?'Бригада: '+brigName+'\n':'') +
-          'Объём: <b>'+e.volume+' '+(e.unit||'м³')+'</b>\n' +
-          (e.wtype?'Вид работ: '+e.wtype+'\n':'') +
-          'Дата: '+(e.date||'')+'\n' +
-          (e.obj?'Объект: '+e.obj+'\n':'') +
-          (e.amount?'Начислено: <b>'+fmt(e.amount)+' тг</b>\n':'') +
-          (e.note?'Примечание: '+e.note+'\n':'') +
-          '\n📊 Всего выполнено: <b>'+fmt(totalVol)+' '+(e.unit||'м³')+'</b> из '+fmt(planVol)+' ('+pct.toFixed(1)+'%)\n' +
-          'Осталось: '+fmt(remain)+' '+(e.unit||'м³');
-        notifyWorking(text);
-      }
-    });
   }
   
   showUndoToast('✓ Добавлено: '+added,function(){
