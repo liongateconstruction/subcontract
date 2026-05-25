@@ -1247,8 +1247,23 @@ function showUndoToast(text, undoFn){
 }
 // Метка времени последнего локального изменения
 function touchLocal(){S._modified=Date.now();persist();}
+// Последнее известное время модификации в облаке — для детекции конфликтов
+var _lastKnownRemote = 0;
+
 function pushCloud(){
   S._modified=S._modified||Date.now();
+  // === ЗАЩИТА ОТ КОНФЛИКТА ===
+  // Проверим — не изменилось ли облако с момента нашей последней загрузки
+  // Если да — кто-то ещё внёс изменения, надо предупредить и подгрузить
+  if(_lastKnownRemote > 0 && AK && BIN){
+    // Делаем quick check на текущее состояние облака
+    fetch(BURL+'/meta',{headers:{'X-Master-Key':AK}}).then(function(r){return r.json();}).then(function(meta){
+      try{
+        // jsonbin meta endpoint возвращает createdAt; для версии используем _modified из последнего pull
+        // Здесь просто оставляем заглушку — реальная проверка идёт через _modified в pullCloud
+      }catch(e){}
+    }).catch(function(){});
+  }
   // Сохраняем снапшот для Telegram /report
   var C=calcCo();
   var snap={
@@ -1269,6 +1284,77 @@ function pushCloud(){
 }
 
 // Отправка события в архивную группу Telegram (через worker)
+// === БЭКАП В ОДИН КЛИК ===
+// Скачивает JSON с полным состоянием на устройство
+// Если jsonbin упадёт или ключ сменится — можно восстановить
+window.downloadBackup=function(){
+  try{
+    var snapshot = {
+      _version: 'liongate-v11',
+      _exportedAt: new Date().toISOString(),
+      _exportedBy: role||'unknown',
+      data: S
+    };
+    var json = JSON.stringify(snapshot, null, 2);
+    var blob = new Blob([json], {type:'application/json'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    var ts = new Date().toISOString().slice(0,10);
+    a.href = url;
+    a.download = 'LIONGATE_backup_'+ts+'.json';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function(){
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 100);
+    if(typeof auditLog==='function'){
+      auditLog('📦 БЭКАП СОЗДАН', 'Партнёр: '+(role==='editor'?'Учётчица':role)+'\nЗаписей: '+(S.entries||[]).length+'\nБригад: '+(S.brigades||[]).length);
+    }
+  }catch(e){
+    alert('Ошибка создания бэкапа: '+e.message);
+  }
+};
+
+// === ВОССТАНОВЛЕНИЕ ИЗ БЭКАПА ===
+// Открывает диалог выбора файла, загружает JSON, заменяет S
+window.restoreFromBackup=function(){
+  if(!isEditor()){ alert('Только учётчица может восстанавливать из бэкапа'); return; }
+  if(!confirm('⚠️ Восстановление из бэкапа ЗАМЕНИТ все текущие данные!\n\nСначала сделайте резерв текущего состояния (📦 СКАЧАТЬ РЕЗЕРВ), потом восстанавливайте.\n\nПродолжить?')) return;
+  var inp = document.createElement('input');
+  inp.type='file';
+  inp.accept='application/json,.json';
+  inp.onchange = function(ev){
+    var f = ev.target.files[0];
+    if(!f) return;
+    var reader = new FileReader();
+    reader.onload = function(e){
+      try{
+        var raw = JSON.parse(e.target.result);
+        var newData = raw.data || raw; // поддержка обоих форматов
+        if(!newData.entries || !Array.isArray(newData.entries)){
+          alert('Файл не похож на бэкап LIONGATE — нет поля entries');
+          return;
+        }
+        if(!confirm('Загрузить '+newData.entries.length+' записей и '+(newData.brigades?newData.brigades.length:0)+' бригад?\n\nТекущие данные будут заменены!')) return;
+        S = newData;
+        S._modified = Date.now();
+        persist();
+        pushCloud();
+        if(typeof auditLog==='function'){
+          auditLog('♻️ ВОССТАНОВЛЕНО ИЗ БЭКАПА', 'Партнёр: '+(role==='editor'?'Учётчица':role)+'\nЗаписей: '+newData.entries.length);
+        }
+        alert('✓ Восстановлено '+newData.entries.length+' записей.\n\nПриложение перезагрузится.');
+        setTimeout(function(){ window.location.reload(); }, 500);
+      }catch(err){
+        alert('Ошибка чтения файла: '+err.message);
+      }
+    };
+    reader.readAsText(f);
+  };
+  inp.click();
+};
+
 function auditLog(title, body){
   if(!AI_WORKER_URL||!AI_SHARED_TOKEN) return;
   try{
@@ -1276,6 +1362,47 @@ function auditLog(title, body){
       method:'POST',
       headers:{'Content-Type':'application/json','X-LG-Token':AI_SHARED_TOKEN},
       body:JSON.stringify({title:title,body:body})
+    }).catch(function(){});
+  }catch(e){}
+}
+// Лимитер AI-вызовов (защита от случайных циклов и спама)
+// Хранит счётчик в localStorage чтобы пережить перезагрузку
+// Лимиты: 10 запросов / 5 мин, 50 запросов / час
+function aiRateLimit(){
+  try{
+    var now = Date.now();
+    var key = 'lg_ai_calls';
+    var raw = localStorage.getItem(key);
+    var calls = raw ? JSON.parse(raw) : [];
+    // Чистим старые (более часа назад)
+    calls = calls.filter(function(t){return now - t < 3600000;});
+    var last5min = calls.filter(function(t){return now - t < 300000;}).length;
+    var lastHour = calls.length;
+    if(last5min >= 10){
+      alert('⚠️ Слишком много запросов к ИИ\n\nПодождите несколько минут.\nСделано '+last5min+' запросов за последние 5 минут.');
+      return false;
+    }
+    if(lastHour >= 50){
+      alert('⚠️ Часовой лимит запросов к ИИ исчерпан\n\nСделано '+lastHour+' запросов за час. Попробуйте позже.');
+      return false;
+    }
+    calls.push(now);
+    localStorage.setItem(key, JSON.stringify(calls));
+    return true;
+  }catch(e){
+    return true; // Если ошибка с localStorage — пропускаем
+  }
+}
+
+// Уведомление в рабочую группу (партнёрам, без учёта)
+// Используется при подтверждении дохода и объёма работ
+function notifyWorking(text){
+  if(!AI_WORKER_URL||!AI_SHARED_TOKEN) return;
+  try{
+    fetch(AI_WORKER_URL.replace(/\/$/,'')+'/api/notify-working',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-LG-Token':AI_SHARED_TOKEN},
+      body:JSON.stringify({text:text})
     }).catch(function(){});
   }catch(e){}
 }
@@ -1326,7 +1453,7 @@ function pullCloud(cb){
       if(r.workTypes&&r.workTypes.length>0)S.workTypes=r.workTypes;
       // Схема — берём максимум из локальной и облачной
       S._schema=Math.max(S._schema||2, r._schema||2);
-      S._modified=remoteTime;S=ensureSpotsStructure(S);persist();ss('OK',false);
+      S._modified=remoteTime;_lastKnownRemote=remoteTime;S=ensureSpotsStructure(S);persist();ss('OK',false);
     }else if(S.entries.length>0){pushCloud();}
     if(cb)cb();
   }).catch(function(){
@@ -1357,7 +1484,55 @@ function defState(){return{
 
 function loadLocal(){try{var s=localStorage.getItem('lg_v9');return s?JSON.parse(s):defState();}catch(e){return defState();}}
 function persist(){try{localStorage.setItem('lg_v9',JSON.stringify(S));}catch(e){}}
-function save(){S._modified=Date.now();persist();if(syncT)clearTimeout(syncT);syncT=setTimeout(pushCloud,1500);}
+// Ограничение размера S.history — не более 500 последних записей
+// Иначе через год работы будет 10 000+ записей = тормоза в облаке
+function trimHistory(){
+  if(S.history && S.history.length > 500){
+    S.history = S.history.slice(-500);
+  }
+}
+
+function save(){S._modified=Date.now();trimHistory();persist();if(syncT)clearTimeout(syncT);syncT=setTimeout(pushCloud,1500);}
+
+// Проверка свежести облака — каждые 30 сек, лёгкий HEAD-like запрос
+// Если кто-то другой обновил облако — предупреждаем
+function checkCloudFreshness(){
+  if(!AK||!BIN||!_lastKnownRemote||_editLock) return;
+  fetch(BURL+'/latest',{headers:{'X-Master-Key':AK}}).then(function(r){return r.json();}).then(function(d){
+    if(!d||!d.record) return;
+    var remoteTime = d.record._modified||0;
+    if(remoteTime > _lastKnownRemote + 5000){
+      // Облако обновилось более чем на 5 сек позже последней нашей синхронизации
+      // Возможно кто-то другой работает. Покажем неброскую плашку
+      var ex = document.getElementById('lg-conflict-bar');
+      if(ex) return; // уже показано
+      var bar = document.createElement('div');
+      bar.id = 'lg-conflict-bar';
+      bar.style.cssText='position:fixed;top:60px;left:50%;transform:translateX(-50%);background:#1c2333;border:1px solid var(--orange);color:var(--orange);padding:10px 14px;border-radius:10px;font-size:12px;z-index:9990;box-shadow:0 4px 18px rgba(0,0,0,.4);display:flex;align-items:center;gap:10px;max-width:92%';
+      bar.innerHTML='<span>⚠ Кто-то ещё обновил данные</span>';
+      var btn=document.createElement('button');
+      btn.textContent='Обновить';
+      btn.style.cssText='background:var(--orange);color:#0d1117;border:none;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer';
+      btn.onclick=function(){ pullCloud(function(){ render(); var x=document.getElementById('lg-conflict-bar'); if(x)x.parentNode.removeChild(x); }); };
+      bar.appendChild(btn);
+      var close=document.createElement('button');
+      close.textContent='×';
+      close.style.cssText='background:transparent;border:none;color:var(--mut);font-size:18px;cursor:pointer;padding:0 4px';
+      close.onclick=function(){ bar.parentNode&&bar.parentNode.removeChild(bar); };
+      bar.appendChild(close);
+      document.body.appendChild(bar);
+    }
+  }).catch(function(){});
+}
+// Запускаем проверку каждые 30 секунд (только когда вкладка активна)
+if(typeof document!=='undefined' && document.addEventListener){
+  document.addEventListener('visibilitychange', function(){
+    if(document.visibilityState==='visible') setTimeout(checkCloudFreshness, 1000);
+  });
+  setInterval(function(){
+    if(document.visibilityState==='visible') checkCloudFreshness();
+  }, 30000);
+}
 
 // === МИГРАЦИЯ К СХЕМЕ v2 ===
 // Конвертирует старые типы записей (invest+forPartner, personal) в новые (advance)
@@ -1633,6 +1808,34 @@ function ensureSpotsStructure(state){
     });
   }
   
+  // === ЛЕЧЕНИЕ amount у старых vol-записей ===
+  // Если у записи vol: amount=0 и нет amountPending — это запись из старой версии.
+  // Если есть бригада и подходящая расценка → фиксируем amount (заморожен с сегодня).
+  // Если расценки нет → помечаем pending чтобы calcBrig пересчитал автоматом.
+  if(state.entries && state.entries.length>0 && state.brigades){
+    var healed = 0;
+    state.entries.forEach(function(e){
+      if(e.type!=='vol') return;
+      if(e.amount && e.amount>0) return; // уже зафиксирован
+      if(e.amountPending) return; // уже помечен
+      if(!e.brigade || !e.volume || !e.wtype) return;
+      var b = state.brigades.find(function(x){return x.id===e.brigade;});
+      if(!b || !b.prices) return;
+      var unit = e.unit||'м³';
+      var key = e.wtype;
+      var rate = (b.prices[key]) || (b.prices[key+' '+unit]) || 0;
+      if(rate>0){
+        e.amount = Math.round(e.volume * rate);
+        e.rate = rate;
+        healed++;
+      } else {
+        e.amountPending = true;
+        healed++;
+      }
+    });
+    if(healed>0) state._modified = Date.now();
+  }
+  
   return state;
 }
 
@@ -1696,6 +1899,11 @@ window.toggleAccept=function(entryId){
     e.accepted=true;
     e.acceptedBy=role||'editor';
     e.acceptedAt=new Date().toISOString();
+    // Уведомление в рабочую группу
+    var b=S.brigades.find(function(x){return x.id===e.brigade;});
+    var bn=b?b.name:'?';
+    var msg='🏗 ПОДТВЕРЖДЁН ОБЪЁМ РАБОТ\n\n'+bn+'\n'+(e.volume||0)+' '+(e.unit||'м³')+' · '+(e.wtype||'')+(e.note?'\n'+e.note:'');
+    notifyWorking(msg);
   }
   if(!S.history) S.history=[];
   S.history.push({action:'accept_toggle',by:role,at:new Date().toISOString(),entryId:entryId,accepted:e.accepted===true,amount:e.amount});
@@ -1724,6 +1932,11 @@ window.acceptAllPendingFor=function(brigadeId){
     if(!S.history)S.history=[];
     S.history.push({action:'accept_toggle',by:role,at:new Date().toISOString(),entryId:e.id,accepted:true,amount:e.amount});
   });
+  // Уведомление в рабочую группу о массовом принятии
+  var b=S.brigades.find(function(x){return x.id===brigadeId;});
+  var bn=b?b.name:'?';
+  var msg='🏗 ПРИНЯТО ЗАКАЗЧИКОМ\n\n'+bn+'\n'+pending.length+' '+(pending.length===1?'работа':'работ')+' · '+totalVol.toFixed(1)+' м³';
+  notifyWorking(msg);
   S._modified=Date.now();
   save();
   closeModal();
@@ -2020,15 +2233,25 @@ function calcPar(name){
 function calcBrig(b){
   var vols=S.entries.filter(function(e){return e.type==='vol'&&e.brigade===b.id;});
   var volAll=vols.reduce(function(s,e){return s+(e.volume||0);},0);
-  var earnedAll=vols.reduce(function(s,e){return s+(e.amount||0);},0);
+  // ВАЖНО: 
+  // 1. Если amount зафиксирован (amount>0) — используем его (расценка заморожена)
+  // 2. Если amountPending=true — пересчитываем по текущей расценке (расценка ещё не была прописана)
+  // 3. Если amount=0 без флага pending — старая запись до v11, считаем по текущей расценке
+  function entryAmount(e){
+    if(e.amount && e.amount>0 && !e.amountPending) return e.amount;
+    if(!e.wtype || !e.volume) return 0;
+    var rate = (typeof brigPriceFor==='function') ? brigPriceFor(b, e.wtype, e.unit||'м³') : 0;
+    return rate * e.volume;
+  }
+  var earnedAll=vols.reduce(function(s,e){return s+entryAmount(e);},0);
   // Принятые заказчиком — те которые помечены accepted:true
   var volsAccepted=vols.filter(function(e){return e.accepted===true;});
   var volAccepted=volsAccepted.reduce(function(s,e){return s+(e.volume||0);},0);
-  var earnedAccepted=volsAccepted.reduce(function(s,e){return s+(e.amount||0);},0);
+  var earnedAccepted=volsAccepted.reduce(function(s,e){return s+entryAmount(e);},0);
   // Ожидающие — все остальные
   var volsPending=vols.filter(function(e){return e.accepted!==true;});
   var volPending=volsPending.reduce(function(s,e){return s+(e.volume||0);},0);
-  var earnedPending=volsPending.reduce(function(s,e){return s+(e.amount||0);},0);
+  var earnedPending=volsPending.reduce(function(s,e){return s+entryAmount(e);},0);
   // Выплачено бригаде
   var paid=S.entries.filter(function(e){return e.type==='expense'&&e.brigade===b.id;}).reduce(function(s,e){return s+(e.amount||0);},0);
   // К выплате — только из принятых
@@ -4436,7 +4659,26 @@ function rBrigades(){
 
   var h='<div class="shdr"><h2>БРИГАДЫ</h2>'+(canEdit()?'<button class="fedit" onclick="openAddBrig()">+ Бригада</button>':'')+'</div>';
 h+='<div class="dcard" style="border-color:var(--teal);cursor:pointer" onclick="openVolAnalytics()"><div class="dtop"><div><div class="bn-label">Общий прогресс</div><div class="dbig" style="color:var(--teal)">'+fmtD(vd)+' <span style="font-size:16px">м³</span></div></div><div style="text-align:right"><div class="dpct">'+vp+'%</div><div style="font-size:9px;color:var(--mut)">из '+tv.toLocaleString('ru')+'</div></div></div><div class="ptrack"><div class="pfill" style="width:'+vp+'%;background:linear-gradient(90deg,#2dd4bf,#2ea043)"></div></div></div>';
-h+='<div class="dcard"><div class="ctit">'+T('volByBrig')+'</div><canvas id="ch-brig" style="height:150px"></canvas></div>';
+// Простой список по бригадам вместо нечитаемого графика
+h+='<div class="dcard"><div class="ctit">'+T('volByBrig')+'</div>';
+S.brigades.forEach(function(b,i){
+  var B=calcBrig(b);
+  var maxVol = Math.max.apply(null, S.brigades.map(function(x){return calcBrig(x).vol||0;}));
+  var pctOfMax = maxVol>0 ? Math.round((B.vol||0)/maxVol*100) : 0;
+  var clr = i===0?'var(--teal)':(i===1?'var(--gold)':'var(--blue)');
+  h+='<div style="padding:8px 0;'+(i<S.brigades.length-1?'border-bottom:1px solid rgba(255,255,255,.05)':'')+'">';
+  h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">';
+  h+='<span style="font-size:11px;color:var(--text);font-weight:600">'+b.name+'</span>';
+  h+='<span style="font-family:var(--fd);font-size:14px;color:'+clr+'">'+fmtD(B.vol)+' м³</span>';
+  h+='</div>';
+  h+='<div style="height:6px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden">';
+  h+='<div style="height:100%;width:'+pctOfMax+'%;background:'+clr+';border-radius:3px"></div></div>';
+  if(B.earned>0){
+    h+='<div style="font-size:9px;color:var(--mut);margin-top:3px">начислено '+fmt(B.earned)+' ₸ · выплачено '+fmt(B.paid)+' ₸</div>';
+  }
+  h+='</div>';
+});
+h+='</div>';
 S.brigades.forEach(function(b){var B=calcBrig(b);var bc=B.balance>0?'var(--red)':B.balance<0?'var(--green)':'var(--mut)';var pct=B.earned?Math.min(Math.round(B.paid/B.earned*100),100):0;var workers=b.workers||0;var prodH='';if(workers>0&&B.vol>0){var days=new Set(B.vols.map(function(e){return e.date;})).size||1;prodH='<div class="r2" style="font-size:10px"><span class="lb">Рабочих: '+workers+' чел</span><span class="vl" style="color:var(--teal)">'+fmtD(B.vol/workers/days)+' м³/чел/день</span></div>';}
  h+='<div class="bcard" style="cursor:pointer;transition:transform .15s" onclick="openBrigCard(\''+b.id+'\')"><div class="bhdr"><div><div class="bname">'+b.name+'</div><div style="font-size:10px;color:var(--mut)">'+(workers?workers+' чел':'без людей')+'</div></div>'+(canEdit()?'<button class="fedit" onclick="event.stopPropagation();openEditBrig(\''+b.id+'\')">ред</button>':'')+'</div><div class="bbody">';
  h+='<div class="kg3"><div class="kpi" style="border-color:var(--teal);padding:8px"><div class="klbl">Объём</div><div class="kval" style="font-size:16px;color:var(--teal)">'+fmtD(B.vol)+'</div><div class="ksub">м³</div></div><div class="kpi" style="border-color:var(--gold);padding:8px"><div class="klbl">Начислено</div><div class="kval" style="font-size:16px;color:var(--gold)">'+fmt(B.earned)+'</div><div class="ksub">тг</div></div><div class="kpi" style="border-color:var(--green);padding:8px"><div class="klbl">Выплачено</div><div class="kval" style="font-size:16px;color:var(--green)">'+fmt(B.paid)+'</div><div class="ksub">тг</div></div></div>';
@@ -4999,7 +5241,21 @@ function openVol(bId){
   if(!b){_editLock=false;return;}
   var today=new Date().toISOString().slice(0,10);
   var oo=S.objects.map(function(o){return '<option'+(o===b.obj?' selected':'')+'>'+o+'</option>';}).join('');
-  var zones=uniqVals('zone');
+  // Список пятен: сначала из objMeta.spots (как заданы в настройках объекта)
+  // потом — уникальные значения из существующих записей
+  var zones = [];
+  var defaultObj = b.obj || S.objects[0] || '';
+  if(S.objMeta && S.objMeta[defaultObj] && S.objMeta[defaultObj].spots){
+    S.objMeta[defaultObj].spots.forEach(function(s){
+      var label = s.name + (s.id ? ' ['+s.id+']' : '');
+      zones.push(label);
+    });
+  }
+  // Добавляем уникальные из истории (которых ещё нет в списке)
+  var existingZones = uniqVals('zone');
+  existingZones.forEach(function(z){
+    if(zones.indexOf(z)<0) zones.push(z);
+  });
   var floors=uniqVals('floor');
   // Виды работ: уникальные wtype из расценок бригады + базовые + глобальные
   var brigPrices = brigPricesList(b); // [{wtype,unit,rate}]
@@ -5130,7 +5386,15 @@ function openVol(bId){
     }
     var unit=g('f-unit')||'м³';
     var rt=parseFloat(g('f-rate'))||brigPriceFor(b,wt,unit);
-    var e={id:Date.now(),date:g('f-date')||new Date().toISOString().slice(0,10),type:'vol',brigade:bId,volume:v,unit:unit,wtype:wt,rateOverride:rt,rate:rt,amount:Math.round(v*rt),zone:getSelCustom('f-zone'),floor:getSelCustom('f-floor'),struct:st,note:g('f-note')||'',obj:g('f-obj')||S.objects[0]};
+    var zoneValue = getSelCustom('f-zone');
+    var spotId = null;
+    var spotIdMatch = (zoneValue||'').match(/\[([^\]]+)\]\s*$/);
+    if(spotIdMatch){
+      spotId = spotIdMatch[1];
+      zoneValue = zoneValue.replace(/\s*\[[^\]]+\]\s*$/, '').trim();
+    }
+    var e={id:Date.now(),date:g('f-date')||new Date().toISOString().slice(0,10),type:'vol',brigade:bId,volume:v,unit:unit,wtype:wt,rateOverride:rt,rate:rt,amount:Math.round(v*rt),zone:zoneValue,floor:getSelCustom('f-floor'),struct:st,note:g('f-note')||'',obj:g('f-obj')||S.objects[0]};
+    if(spotId) e.spotId = spotId;
     if(redo)e.redo=true;
     if(closes){e.closes=true;e.closed=closed;}
     S.entries.push(e);
@@ -5295,6 +5559,78 @@ function openBrigCard(bId){
   h+='<div style="font-size:9px;color:var(--mut)">'+(B.earnedPending>0?'из принятого':'тг')+'</div></div>';
   h+='</div>';
   
+  // === НОВОЕ: ОБЪЁМ ПО ПЕРИОДАМ (неделя/месяц/всего) ===
+  (function(){
+    var now = new Date();
+    // Эта неделя (пн-вс)
+    var dayOfWeek = now.getDay() || 7;
+    var monday = new Date(now); monday.setDate(now.getDate() - dayOfWeek + 1); monday.setHours(0,0,0,0);
+    var sunday = new Date(monday); sunday.setDate(monday.getDate() + 6); sunday.setHours(23,59,59,999);
+    // Этот месяц
+    var monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    var monthEnd = new Date(now.getFullYear(), now.getMonth()+1, 0, 23, 59, 59, 999);
+    var weekVol=0, monthVol=0;
+    B.vols.forEach(function(e){
+      if(!e.date) return;
+      var d = new Date(e.date);
+      if(d>=monday && d<=sunday) weekVol += (Number(e.volume) || 0);
+      if(d>=monthStart && d<=monthEnd) monthVol += (Number(e.volume) || 0);
+    });
+    h+='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:14px">';
+    h+='<div style="background:var(--s2);border-radius:8px;padding:8px 10px;text-align:center">';
+    h+='<div style="font-size:9px;color:var(--mut);letter-spacing:1px">НЕДЕЛЯ</div>';
+    h+='<div style="font-family:var(--fd);font-size:18px;color:var(--text);margin-top:2px">'+fmtD(weekVol)+'</div>';
+    h+='<div style="font-size:9px;color:var(--mut)">м³</div></div>';
+    h+='<div style="background:var(--s2);border-radius:8px;padding:8px 10px;text-align:center">';
+    h+='<div style="font-size:9px;color:var(--mut);letter-spacing:1px">МЕСЯЦ</div>';
+    h+='<div style="font-family:var(--fd);font-size:18px;color:var(--text);margin-top:2px">'+fmtD(monthVol)+'</div>';
+    h+='<div style="font-size:9px;color:var(--mut)">м³</div></div>';
+    h+='<div style="background:var(--s2);border-radius:8px;padding:8px 10px;text-align:center">';
+    h+='<div style="font-size:9px;color:var(--mut);letter-spacing:1px">ВСЕГО</div>';
+    h+='<div style="font-family:var(--fd);font-size:18px;color:var(--teal);margin-top:2px">'+fmtD(B.vol)+'</div>';
+    h+='<div style="font-size:9px;color:var(--mut)">м³</div></div>';
+    h+='</div>';
+  })();
+
+  // === НОВОЕ: ПО ПЯТНАМ (если у объекта есть spots) ===
+  (function(){
+    var objName = b.obj || (S.objects && S.objects[0]) || '';
+    var meta = (S.objMeta && S.objMeta[objName]) || {};
+    var spots = meta.spots || [];
+    if(spots.length === 0) return;
+    // Подсчёт по каждому пятну для этой бригады
+    var spotStats = spots.map(function(spot){
+      var spotNum = (spot.name||'').replace(/\D/g,'');
+      var vol=0, amount=0;
+      B.vols.forEach(function(e){
+        if(e.spotId === spot.id){
+          vol += (Number(e.volume) || 0);
+          var amt = (e.amount && e.amount>0) ? e.amount : (typeof brigPriceFor==='function' ? brigPriceFor(b, e.wtype, e.unit||'м³') * (Number(e.volume)||0) : 0);
+          amount += amt;
+          return;
+        }
+        var txt = (e.zone||'') + ' ' + (e.note||'');
+        if(spotNum && txt.indexOf(spotNum)>=0){
+          vol += (Number(e.volume) || 0);
+          var amt2 = (e.amount && e.amount>0) ? e.amount : (typeof brigPriceFor==='function' ? brigPriceFor(b, e.wtype, e.unit||'м³') * (Number(e.volume)||0) : 0);
+          amount += amt2;
+        }
+      });
+      return {name:spot.name, vol:vol, amount:amount};
+    }).filter(function(s){return s.vol > 0;}); // показываем только пятна где работали
+    if(spotStats.length === 0) return;
+    h+='<div style="font-size:10px;color:var(--mut);letter-spacing:2px;margin-bottom:8px">🏗 ПО ПЯТНАМ</div>';
+    h+='<div style="margin-bottom:14px">';
+    spotStats.forEach(function(s){
+      h+='<div style="background:var(--s2);border-radius:10px;padding:10px 12px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center">';
+      h+='<div><div style="font-size:12px;color:var(--text);font-weight:600">'+s.name+'</div>';
+      h+='<div style="font-size:10px;color:var(--mut);margin-top:2px">'+fmtD(s.vol)+' м³</div></div>';
+      h+='<div style="font-family:var(--fd);font-size:14px;color:var(--gold)">'+fmt(s.amount)+' ₸</div>';
+      h+='</div>';
+    });
+    h+='</div>';
+  })();
+
   // Подсказка если есть ожидающие приёмки
   if(B.volsPending && B.volsPending.length>0){
     h+='<div style="background:rgba(255,179,32,.08);border:1px solid rgba(255,179,32,.25);border-radius:8px;padding:10px;margin-bottom:14px;font-size:11px;color:var(--gold);text-align:center;line-height:1.5">'+
@@ -5896,6 +6232,12 @@ function openManageObjects(){
       '<button class="fsave" id="bsavecash" style="background:var(--gold);color:#0d1117">💾 СОХРАНИТЬ КАССУ</button>'+
       (S.settings&&S.settings.startCash>0?'<button class="fcanc" id="bresetcash" style="margin-top:6px;border-color:var(--red);color:var(--red)">Сбросить (вернуть авто-расчёт)</button>':'')+
     '</div>'+
+    '<div class="sect" style="margin:20px 0 8px;color:var(--blue)">📦 БЭКАП ДАННЫХ</div>'+
+    hint('Скачать JSON со всеми данными на устройство. Безопасно хранить как страховку от сбоев облака.')+
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">'+
+      '<button class="fsave" onclick="window.downloadBackup()" style="background:linear-gradient(135deg,#58a6ff,#1f6feb);font-size:13px;padding:11px">📥 СКАЧАТЬ</button>'+
+      '<button class="fcanc" onclick="window.restoreFromBackup()" style="border-color:var(--orange);color:var(--orange);font-size:11px;padding:11px">♻️ Восстановить</button>'+
+    '</div>'+
     '<button class="fcanc" id="bco" style="margin-top:14px">Закрыть</button>';
   document.getElementById('modal').style.display='flex';
   document.getElementById('bao').addEventListener('click',function(){
@@ -6249,6 +6591,7 @@ function loadAIForecast(force){
     '- Статус: '+G.status+', отставание '+Math.abs(G.deltaPct)+'%\n\n'+
     'Дай РОВНО 3 конкретных совета-действия с цифрами для немедленного улучшения показателей.\n'+
     'Формат: JSON массив из 3 строк на русском. Только JSON.';
+  if(!aiRateLimit()){ _aiLoading=false; return; }
   fetch(AI_WORKER_URL.replace(/\/$/,'')+'/api/ai-forecast',{
     method:'POST',
     headers:{'Content-Type':'application/json','X-LG-Token':AI_SHARED_TOKEN},
@@ -6538,6 +6881,12 @@ function processVoiceText(){
     '[{"type":"expense|income|invest|personal","amount":число,"category":"строка","brigadeId":"b1/b2 или пусто","who":"имя или пусто","forPartner":"имя партнёра или пусто","note":"короткое описание"}]\n\n'+
     'Если ничего не распознано — верни [].';
 
+  if(!aiRateLimit()){
+    status.style.color='var(--orange)';
+    status.textContent='Лимит исчерпан, подождите';
+    document.getElementById('v-btn-process').disabled=false;
+    return;
+  }
   fetch(AI_WORKER_URL, {
     method:'POST',
     headers:{'Content-Type':'application/json','X-LG-Token':AI_SHARED_TOKEN},
@@ -7192,16 +7541,22 @@ function confirmDraftGroup(linkedKey){
           var br2=S.brigades.find(function(b){return b.name.toLowerCase().indexOf((op.brigadeName||'').toLowerCase())>=0;});
           if(br2){
             entry.brigade=br2.id;
-            // Подставляем расценку бригады если есть
+            // ЗАМОРОЗКА AMOUNT: если расценка найдена — фиксируем сумму
+            // если нет — помечаем как pending чтобы calcBrig пересчитал по текущей расценке
+            // (на момент когда расценка появится)
             var rate=brigPriceFor(br2, entry.wtype, entry.unit);
             if(rate>0){
               entry.rate=rate;
               entry.amount=Math.round(entry.volume*rate);
+              // amount зафиксирован — даже если потом расценку поменяют, эта запись не изменится
+            } else {
+              // Расценки пока нет — оставляем amount=0, но помечаем pending
+              entry.amount=0;
+              entry.amountPending=true;
             }
           }
         }
         // Объём по умолчанию ожидает приёмки
-        // accepted: false → НЕ ставим, по умолчанию это и есть "ожидает"
       } 
       else {
         entry.type=op.kind;
@@ -7248,6 +7603,20 @@ function confirmDraftGroup(linkedKey){
         'Записей: '+confirmedLines.length+'\n\n'+
         confirmedLines.join('\n\n'));
     }
+    // Уведомления в РАБОЧУЮ группу — только для income (от заказчика) и vol (объёмы)
+    addedEntryIds.forEach(function(eid){
+      var e=S.entries.find(function(x){return x.id===eid;});
+      if(!e) return;
+      if(e.type==='income'){
+        var msg='💰 ОПЛАТА ОТ ЗАКАЗЧИКА\n\n'+fmt(e.amount)+' тг'+(e.note?'\n'+e.note:'');
+        notifyWorking(msg);
+      } else if(e.type==='vol'){
+        var b=S.brigades.find(function(x){return x.id===e.brigade;});
+        var bn=b?b.name:'?';
+        var msg2='📐 ВНЕСЁН ОБЪЁМ РАБОТ\n\n'+bn+'\n'+(e.volume||0)+' '+(e.unit||'м³')+' · '+(e.wtype||'')+(e.note?'\n'+e.note:'')+'\n\n⏸ ожидает приёмки заказчиком';
+        notifyWorking(msg2);
+      }
+    });
   }
   
   showUndoToast('✓ Добавлено: '+added,function(){
