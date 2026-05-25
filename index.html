@@ -1265,7 +1265,7 @@ function pushCloud(){
       body:JSON.stringify(snap)
     }).catch(function(){});
   }
-  fetch(BURL,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':AK,'X-Bin-Versioning':'false'},body:JSON.stringify({_modified:S._modified,_schema:S._schema||3,entries:S.entries,brigades:S.brigades,objects:S.objects,history:S.history,weeks:S.weeks,kfu:S.kfu,settings:S.settings,goalsDone:S.goalsDone,kzDict:S.kzDict||{},workTypes:S.workTypes||[]})}).then(function(){ss('OK',false);}).catch(function(){ss('!',true);});
+  fetch(BURL,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':AK,'X-Bin-Versioning':'false'},body:JSON.stringify({_modified:S._modified,_schema:S._schema||3,entries:S.entries,brigades:S.brigades,objects:S.objects,objMeta:S.objMeta||{},history:S.history,weeks:S.weeks,kfu:S.kfu,settings:S.settings,goalsDone:S.goalsDone,kzDict:S.kzDict||{},workTypes:S.workTypes||[]})}).then(function(){ss('OK',false);}).catch(function(){ss('!',true);});
 }
 
 // Отправка события в архивную группу Telegram (через worker)
@@ -1322,10 +1322,11 @@ function pullCloud(cb){
       if(r.settings){S.settings=r.settings;if(!S.settings.norms)S.settings.norms=defState().settings.norms;}
       if(r.goalsDone)S.goalsDone=r.goalsDone;
       if(r.kzDict)S.kzDict=r.kzDict;
+      if(r.objMeta)S.objMeta=r.objMeta;
       if(r.workTypes&&r.workTypes.length>0)S.workTypes=r.workTypes;
       // Схема — берём максимум из локальной и облачной
       S._schema=Math.max(S._schema||2, r._schema||2);
-      S._modified=remoteTime;persist();ss('OK',false);
+      S._modified=remoteTime;S=ensureSpotsStructure(S);persist();ss('OK',false);
     }else if(S.entries.length>0){pushCloud();}
     if(cb)cb();
   }).catch(function(){
@@ -1703,6 +1704,39 @@ window.toggleAccept=function(entryId){
   setTimeout(function(){pushCloud();},100);
   setTimeout(function(){pushCloud();},2500);
   render();
+};
+
+// Принять ВСЕ ожидающие работы бригады разом — для удобства учётчицы
+window.acceptAllPendingFor=function(brigadeId){
+  var pending=S.entries.filter(function(e){
+    return e.type==='vol' && e.brigade===brigadeId && e.accepted!==true;
+  });
+  if(pending.length===0){
+    alert('Нет ожидающих работ для этой бригады');
+    return;
+  }
+  var totalVol=pending.reduce(function(s,e){return s+(Number(e.volume)||0);},0);
+  if(!confirm('Принять '+pending.length+' '+(pending.length===1?'работу':'работ')+' на '+totalVol.toFixed(1)+' м³?\n\nЭто отметит работу как принятую заказчиком — после этого её можно будет оплатить бригаде.'))return;
+  pending.forEach(function(e){
+    e.accepted=true;
+    e.acceptedBy=role||'editor';
+    e.acceptedAt=new Date().toISOString();
+    if(!S.history)S.history=[];
+    S.history.push({action:'accept_toggle',by:role,at:new Date().toISOString(),entryId:e.id,accepted:true,amount:e.amount});
+  });
+  S._modified=Date.now();
+  save();
+  closeModal();
+  render();
+  showUndoToast('✓ Принято '+pending.length+' '+(pending.length===1?'работа':'работ'),function(){
+    // undo — снимаем приёмку
+    pending.forEach(function(e){
+      delete e.accepted;
+      delete e.acceptedBy;
+      delete e.acceptedAt;
+    });
+    save();render();
+  });
 };
 
 // === РАСЧЁТ МАРЖИ КОМПАНИИ ПО БРИГАДЕ ===
@@ -5265,8 +5299,11 @@ function openBrigCard(bId){
   if(B.volsPending && B.volsPending.length>0){
     h+='<div style="background:rgba(255,179,32,.08);border:1px solid rgba(255,179,32,.25);border-radius:8px;padding:10px;margin-bottom:14px;font-size:11px;color:var(--gold);text-align:center;line-height:1.5">'+
       '⏸ <b>'+B.volsPending.length+' '+(B.volsPending.length===1?'работа ожидает':(B.volsPending.length<5?'работы ожидают':'работ ожидают'))+' приёмки заказчиком</b><br>'+
-      '<span style="color:var(--mut);font-size:9px">'+fmtD(B.volPending)+' м³ на '+fmt(B.earnedPending)+' тг — не оплачивается до приёмки</span>'+
-    '</div>';
+      '<span style="color:var(--mut);font-size:9px">'+fmtD(B.volPending)+' м³ на '+fmt(B.earnedPending)+' тг — не оплачивается до приёмки</span>';
+    if(canEdit()){
+      h+='<br><button onclick="acceptAllPendingFor(\''+bId+'\')" style="margin-top:8px;background:linear-gradient(135deg,rgba(63,185,80,.2),rgba(63,185,80,.1));border:1px solid rgba(63,185,80,.5);color:var(--green);border-radius:6px;padding:8px 16px;font-size:11px;cursor:pointer;font-family:var(--fm);font-weight:700;letter-spacing:1px">✓ ПРИНЯТЬ ВСЕ ЗАКАЗЧИКОМ</button>';
+    }
+    h+='</div>';
   }
 
   // 4 кнопки действий (сверху, под главными цифрами)
@@ -6273,7 +6310,7 @@ document.getElementById('btn-refresh').addEventListener('click',function(){
   try{localStorage.setItem('lg_v9',JSON.stringify(S));}catch(e){}
   // 2. Отправить в облако и ПОДОЖДАТЬ подтверждения перед очисткой
   ss('↑ Отправка в облако...',false);
-  fetch(BURL,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':AK,'X-Bin-Versioning':'false'},body:JSON.stringify({_modified:S._modified,_schema:S._schema||3,entries:S.entries,brigades:S.brigades,objects:S.objects,history:S.history,weeks:S.weeks,kfu:S.kfu,settings:S.settings,goalsDone:S.goalsDone,kzDict:S.kzDict||{},workTypes:S.workTypes||[]})}).then(function(res){
+  fetch(BURL,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':AK,'X-Bin-Versioning':'false'},body:JSON.stringify({_modified:S._modified,_schema:S._schema||3,entries:S.entries,brigades:S.brigades,objects:S.objects,objMeta:S.objMeta||{},history:S.history,weeks:S.weeks,kfu:S.kfu,settings:S.settings,goalsDone:S.goalsDone,kzDict:S.kzDict||{},workTypes:S.workTypes||[]})}).then(function(res){
     if(!res.ok){
       alert('❌ Не удалось сохранить в облако! Обновление отменено чтобы не потерять данные.\n\nПроверьте интернет и попробуйте снова.');
       ss('!',true);
