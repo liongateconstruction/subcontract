@@ -1279,6 +1279,17 @@ function auditLog(title, body){
     }).catch(function(){});
   }catch(e){}
 }
+// Отправка уведомления в рабочую группу (для доходов и объёмов работ)
+function notifyWorking(text){
+  if(!AI_WORKER_URL||!AI_SHARED_TOKEN) return;
+  try{
+    fetch(AI_WORKER_URL.replace(/\/$/,'')+'/api/notify-working',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-LG-Token':AI_SHARED_TOKEN},
+      body:JSON.stringify({text:text})
+    }).catch(function(){});
+  }catch(e){}
+}
 var _editLock=false; // блокировка синхронизации во время редактирования
 function pullCloud(cb){
   if(_editLock){if(cb)cb();return;} // не синхронизируем во время правки
@@ -7068,6 +7079,56 @@ function confirmDraftGroup(linkedKey){
         'Записей: '+confirmedLines.length+'\n\n'+
         confirmedLines.join('\n\n'));
     }
+    
+    // Уведомление в РАБОЧУЮ группу для важных событий: доходы и объёмы работ
+    addedEntryIds.forEach(function(eid){
+      var e=S.entries.find(function(x){return x.id===eid;});
+      if(!e) return;
+      
+      // Доход — деньги поступили
+      if(e.type==='income'){
+        var co=calcCo();
+        var text='💰 <b>ПОДТВЕРЖДЁН ДОХОД</b>\n' +
+          '━━━━━━━━━━━━━━\n' +
+          'Сумма: <b>'+fmt(e.amount)+' тг</b>\n' +
+          (e.who?'Принял: '+e.who+'\n':'') +
+          'Дата: '+(e.date||'')+'\n' +
+          (e.obj?'Объект: '+e.obj+'\n':'') +
+          (e.note?'Примечание: '+e.note+'\n':'') +
+          '\n📊 Касса теперь: <b>'+fmt(co.cash)+' тг</b>';
+        notifyWorking(text);
+      }
+      
+      // Объём — выполненные работы
+      if(e.type==='vol'){
+        // Прогресс по объекту
+        var totalVol=0;
+        S.entries.forEach(function(x){if(x.type==='vol')totalVol+=(Number(x.volume)||0);});
+        var planVol=(S.settings&&S.settings.norms&&S.settings.norms.totalVolume)||48000;
+        var pct=planVol>0?(totalVol/planVol*100):0;
+        var remain=Math.max(0,planVol-totalVol);
+        
+        // Найдём название бригады
+        var brigName='';
+        if(e.brigade){
+          var br=S.brigades.find(function(b){return b.id===e.brigade;});
+          if(br) brigName=br.name;
+        }
+        
+        var text='🏗 <b>ПОДТВЕРЖДЕН ОБЪЁМ РАБОТ</b>\n' +
+          '━━━━━━━━━━━━━━━━\n' +
+          (brigName?'Бригада: '+brigName+'\n':'') +
+          'Объём: <b>'+e.volume+' '+(e.unit||'м³')+'</b>\n' +
+          (e.wtype?'Вид работ: '+e.wtype+'\n':'') +
+          'Дата: '+(e.date||'')+'\n' +
+          (e.obj?'Объект: '+e.obj+'\n':'') +
+          (e.amount?'Начислено: <b>'+fmt(e.amount)+' тг</b>\n':'') +
+          (e.note?'Примечание: '+e.note+'\n':'') +
+          '\n📊 Всего выполнено: <b>'+fmt(totalVol)+' '+(e.unit||'м³')+'</b> из '+fmt(planVol)+' ('+pct.toFixed(1)+'%)\n' +
+          'Осталось: '+fmt(remain)+' '+(e.unit||'м³');
+        notifyWorking(text);
+      }
+    });
   }
   
   showUndoToast('✓ Добавлено: '+added,function(){
