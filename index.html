@@ -65,7 +65,7 @@ header{background:linear-gradient(180deg,rgba(22,27,34,0.98) 0%,rgba(13,17,23,0.
 .hbtn{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.12);color:var(--mut);font-size:10px;padding:5px 10px;border-radius:8px;cursor:pointer;font-family:var(--fm);transition:all .2s;backdrop-filter:blur(4px)}
 .hbtn:active{transform:scale(.94);background:rgba(255,255,255,0.08)}
 .hbtn:hover{border-color:var(--gold);color:var(--gold)}
-.content{flex:1;overflow-y:auto;padding:12px 14px 90px}
+.content{flex:1;overflow-y:auto;padding:12px 14px 90px;transform:translate3d(0,0,0);-webkit-transform:translate3d(0,0,0);backface-visibility:hidden;-webkit-backface-visibility:hidden;-webkit-overflow-scrolling:touch}
 .content::-webkit-scrollbar{width:3px}.content::-webkit-scrollbar-thumb{background:var(--brd);border-radius:2px}
 nav{position:fixed;bottom:0;left:0;right:0;background:rgba(22,27,34,0.97);border-top:1px solid rgba(255,179,32,0.2);display:flex;z-index:90;padding-bottom:env(safe-area-inset-bottom);backdrop-filter:blur(12px);box-shadow:0 -4px 20px rgba(0,0,0,.3)}
 .nb{flex:1;display:flex;flex-direction:column;align-items:center;padding:10px 2px 8px;cursor:pointer;border:none;background:transparent;color:var(--mut);font-family:var(--fm);font-size:9px;letter-spacing:.3px;text-transform:uppercase;gap:3px;min-height:56px;transition:all .2s;position:relative}
@@ -3959,19 +3959,42 @@ function miniBars(arr,color){if(!arr.length)return '';var mx=Math.max.apply(null
 var curTab='main',searchQ='',fType='all',fObj='all',fWho='all',fSource='all',fAccept='all',fDateFrom='',fDateTo='',goalExp=false,subExp=false,fyExp=false,ipoExp=false;
 var volPeriod='day',volObj='all',volBrig='all';
 function setTab(t){curTab=t;document.querySelectorAll('.nb').forEach(function(b){b.classList.remove('active');});var el=document.getElementById('tab-'+t);if(el)el.classList.add('active');render();}
+// Защита от моргания — храним последний рендер и не обновляем DOM если HTML не изменился
+window._lastRenderTab = null;
+window._lastRenderHTML = null;
+
 function render(){
   var el=document.getElementById('content');
   if(!el)return;
   var map={main:rMain,pl:rPL,partners:rPartners,brigades:rBrigades,plan:rPlan,journal:rJournal,history:rHistory};
   if(map[curTab]){
     try{
-      el.innerHTML=map[curTab]();
+      var newHTML = map[curTab]();
+      
+      // АНТИ-МОРГАНИЕ: если HTML точно такой же — не трогаем DOM
+      // Это убирает 100% морганий при автообновлении когда ничего не изменилось
+      if(window._lastRenderTab === curTab && window._lastRenderHTML === newHTML){
+        return; // ничего не делаем
+      }
+      
+      el.innerHTML = newHTML;
+      window._lastRenderTab = curTab;
+      window._lastRenderHTML = newHTML;
     }catch(e){
       el.innerHTML='<div style="padding:20px;text-align:center;color:var(--red);font-size:12px">⚠️ Ошибка рендера<br><br><span style="color:var(--mut);font-size:10px">'+e.message+'</span><br><br><button onclick="location.reload()" style="background:var(--gold);color:#0d1117;border:none;border-radius:8px;padding:10px 20px;cursor:pointer;font-weight:700;margin-top:10px">Перезагрузить</button></div>';
+      window._lastRenderHTML = null;
     }
   }
-  setTimeout(drawCharts,60);
-  if(LANG==='kz')setTimeout(function(){applyTranslation();},80);
+  // Графики рисуются только когда меняется HTML
+  if(typeof requestAnimationFrame === 'function'){
+    requestAnimationFrame(function(){
+      if(typeof drawCharts === 'function') drawCharts();
+      if(LANG==='kz' && typeof applyTranslation === 'function') applyTranslation();
+    });
+  } else {
+    setTimeout(drawCharts, 60);
+    if(LANG==='kz') setTimeout(function(){applyTranslation();}, 80);
+  }
 }
 function drawCharts(){try{if(curTab==='main')dcMain();if(curTab==='pl')dcPL();if(curTab==='partners')dcPartners();if(curTab==='brigades')dcBrig();if(curTab==='plan')dcPlan();}catch(e){}}
 function badge(t){var x=TYPES[t]||{ico:'.',lbl:t,color:'var(--mut)',bg:'var(--s2)'};return '<span class="badge" style="color:'+x.color+';background:'+x.bg+'">'+x.ico+' '+x.lbl+'</span>';}
