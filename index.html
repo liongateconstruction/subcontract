@@ -10,6 +10,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="LIONGATE"/>
 <link rel="apple-touch-icon" sizes="180x180" href="./icon192.png"/>
+<link rel="apple-touch-icon-precomposed" sizes="180x180" href="./icon192.png"/>
+<link rel="apple-touch-icon-precomposed" href="./icon192.png"/>
 <link rel="apple-touch-icon" sizes="167x167" href="./icon192.png"/>
 <link rel="apple-touch-icon" sizes="152x152" href="./icon192.png"/>
 <link rel="apple-touch-icon" sizes="120x120" href="./icon192.png"/>
@@ -469,7 +471,7 @@ canvas{display:block;width:100%;border-radius:8px}
       <button id="btn-lang" class="hbtn" style="border-color:var(--purple);color:var(--purple);min-width:42px;font-weight:700">RU</button>
       
       <!-- ⋯ Меню (заменяет 4 старые кнопки) -->
-      <button class="hbtn" id="btn-menu" onclick="openMainMenu()" style="border-color:var(--gold);color:var(--gold);font-weight:700;font-size:18px;line-height:1;min-width:42px" title="Меню">⋯</button>
+      <button class="hbtn" id="btn-menu" onclick="openMainMenu()" style="border-color:var(--gold);color:var(--gold);font-weight:700;font-size:18px;line-height:1;min-width:42px;position:relative" title="Меню (новые функции!)"><span style="position:absolute;top:-4px;right:-4px;width:10px;height:10px;background:#ff7b72;border-radius:50%;animation:pulse 2s infinite"></span>⋯</button>
       
       <!-- Скрытые служебные кнопки -->
       <div id="gt-widget" style="display:none"></div>
@@ -4275,6 +4277,40 @@ window.startVoiceInput = function(){
 };
 
 // Главное меню (⋯) — современный bottom sheet
+// Принудительное обновление приложения (сброс кеша)
+window.forceRefresh = function(){
+  if(typeof haptic === 'function') haptic('heavy');
+  
+  // Подтверждение через alert (confirm в PWA не всегда работает)
+  alert('Сейчас приложение перезагрузится и сбросит весь кеш.\n\nВаши данные не пострадают — они в облаке и в локальном хранилище.\n\nПосле перезагрузки увидите все новые функции.');
+  
+  // Снимаем флаг "уже видел новинки" чтобы плашка снова показалась
+  try { localStorage.removeItem('lg_seen_features_v2'); } catch(e){}
+  
+  // Очищаем Service Worker кеш
+  if('caches' in window){
+    caches.keys().then(function(keys){
+      return Promise.all(keys.map(function(k){return caches.delete(k);}));
+    }).then(function(){
+      // Отправляем сообщение SW для пересоздания кеша
+      if(navigator.serviceWorker && navigator.serviceWorker.controller){
+        navigator.serviceWorker.controller.postMessage('CLEAR_CACHE');
+      }
+      // Hard reload
+      setTimeout(function(){
+        if(window.location && window.location.reload){
+          window.location.reload(true);
+        }
+      }, 300);
+    }).catch(function(){
+      // Если не сработало — просто reload
+      window.location.reload();
+    });
+  } else {
+    window.location.reload();
+  }
+};
+
 window.openMainMenu = function(){
   if(typeof haptic === 'function') haptic('light');
   
@@ -4342,8 +4378,15 @@ window.openMainMenu = function(){
     h += '</button>';
   }
   
+  // Принудительное обновление
+  h += '<div style="font-size:11px;color:#8b949e;letter-spacing:1.5px;font-weight:700;margin-top:16px;margin-bottom:10px;padding-left:6px">ОБСЛУЖИВАНИЕ</div>';
+  h += '<button onclick="closeMainMenu();forceRefresh()" style="width:100%;display:flex;align-items:center;gap:14px;padding:14px 14px;background:rgba(255,179,32,.08);border:1px solid rgba(255,179,32,.25);border-radius:14px;color:#ffd166;font-size:15px;font-weight:600;cursor:pointer;margin-bottom:8px;text-align:left;font-family:-apple-system,system-ui,sans-serif">';
+  h += '<span style="font-size:22px">🔄</span>';
+  h += '<div style="flex:1"><div>Обновить приложение</div><div style="font-size:11px;color:#8b949e;font-weight:500;margin-top:2px">Если новые функции не видны</div></div>';
+  h += '<span style="color:#8b949e;font-size:18px">›</span>';
+  h += '</button>';
+  
   // Выйти
-  h += '<div style="font-size:11px;color:#8b949e;letter-spacing:1.5px;font-weight:700;margin-top:16px;margin-bottom:10px;padding-left:6px">АККАУНТ</div>';
   h += '<button onclick="closeMainMenu();doLogout()" style="width:100%;display:flex;align-items:center;gap:14px;padding:14px 14px;background:rgba(248,81,73,.08);border:1px solid rgba(248,81,73,.25);border-radius:14px;color:#ff7b72;font-size:15px;font-weight:600;cursor:pointer;text-align:left;font-family:-apple-system,system-ui,sans-serif">';
   h += '<span style="font-size:22px">🚪</span>';
   h += '<div style="flex:1"><div>Выйти из приложения</div><div style="font-size:11px;color:#8b949e;font-weight:500;margin-top:2px">Вернуться к экрану входа</div></div>';
@@ -6099,6 +6142,24 @@ function openEditEntry(id){
 }
 
 function rMain(){
+  // === ПЛАШКА НОВИНОК (показывается до первого тапа) ===
+  var seenFeatures = localStorage.getItem('lg_seen_features_v2');
+  var newFeaturesBanner = '';
+  if(!seenFeatures){
+    newFeaturesBanner = '<div onclick="window.openMoreFeatures();localStorage.setItem(\'lg_seen_features_v2\',\'1\');" style="background:linear-gradient(135deg,#FFD93D,#FFA500);border-radius:18px;padding:16px;margin-bottom:16px;cursor:pointer;box-shadow:0 4px 20px rgba(255,165,0,.4);font-family:-apple-system,system-ui,sans-serif;position:relative;overflow:hidden">' +
+      '<div style="position:absolute;top:-30px;right:-30px;width:100px;height:100px;background:rgba(255,255,255,.15);border-radius:50%"></div>' +
+      '<div style="position:relative;display:flex;align-items:center;gap:14px">' +
+        '<div style="font-size:36px;flex-shrink:0">✨</div>' +
+        '<div style="flex:1">' +
+          '<div style="font-size:16px;color:#0d1117;font-weight:800;margin-bottom:4px">10 НОВЫХ ФУНКЦИЙ!</div>' +
+          '<div style="font-size:12px;color:#0d1117;font-weight:600;line-height:1.4">Прогноз · Погода · KPI · Календарь · Курс USD · Поиск · Импорт банка · Фото чека и др.</div>' +
+        '</div>' +
+        '<div style="font-size:22px;color:#0d1117;font-weight:800">›</div>' +
+      '</div>' +
+    '</div>';
+  }
+  
+
   // ============================================================
   // НОВЫЙ ГЛАВНЫЙ ЭКРАН — ПУЛЬС (СИСТЕМА ЯНКОВСКОГО)
   // Полная переделка по концепту: большая карточка + 4 пульса + светофор
