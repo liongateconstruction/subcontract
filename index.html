@@ -448,7 +448,7 @@ canvas{display:block;width:100%;border-radius:8px}
       <button class="hbtn" id="btn-refresh" style="display:none;border-color:var(--gold);color:var(--gold)" title="Обновить приложение">↻</button>
       <button class="hbtn" id="btn-obj" style="display:none;border-color:var(--teal);color:var(--teal)">Об</button>
       <button class="hbtn" id="btn-rpt" style="display:none;border-color:var(--green);color:var(--green)">Отчёт</button>
-      <button class="hbtn" id="btn-out" style="display:none">Выйти</button>
+      <button class="hbtn" id="btn-out" onclick="doLogout()" style="border-color:var(--red);color:var(--red);font-weight:700" title="Выйти из приложения">Выйти</button>
     </div>
   </header>
   <div class="content" id="content"></div>
@@ -8510,12 +8510,40 @@ function tryLogin(){
 }
 function viewOnly(){role='viewer';sessionStorage.setItem('role','viewer');startApp();}
 function doLogout(){
-  sessionStorage.removeItem('role');sessionStorage.removeItem('loginPwd');role=null;
-  document.getElementById('app').style.display='none';
-  document.getElementById('ls').style.display='flex';
-  document.getElementById('lpass').value='';
-  document.getElementById('lerr').textContent='';
+  // БЕЗ confirm — iOS PWA блокирует
+  try {
+    if(typeof haptic === 'function') haptic('medium');
+    
+    // Очищаем сессию
+    try { sessionStorage.removeItem('role'); } catch(e){}
+    try { sessionStorage.removeItem('loginPwd'); } catch(e){}
+    try { sessionStorage.clear(); } catch(e){}
+    
+    role = null;
+    
+    // Скрываем приложение, показываем экран входа
+    var app = document.getElementById('app');
+    var ls = document.getElementById('ls');
+    var lpass = document.getElementById('lpass');
+    var lerr = document.getElementById('lerr');
+    
+    if(app) app.style.display = 'none';
+    if(ls){
+      ls.style.display = 'flex';
+      // На случай если стиль flex не подхватился
+      ls.style.alignItems = 'center';
+      ls.style.justifyContent = 'center';
+    }
+    if(lpass) lpass.value = '';
+    if(lerr) lerr.textContent = '';
+  } catch(e) {
+    // Fallback: жёсткая перезагрузка
+    try { sessionStorage.clear(); } catch(ex){}
+    location.reload();
+  }
 }
+// Делаем функцию глобально доступной
+window.doLogout = doLogout;
 // Закрытие невозвращённых подотчётов вручную
 function closeUnreported(){
   // В новой модели v2 закрывать "подотчётные остатки" в "личное" больше не нужно.
@@ -8542,7 +8570,7 @@ function startApp(){
   document.getElementById('app').style.display='flex';
   
   // === ВСЕ КНОПКИ В ШАПКЕ ВСЕГДА СКРЫТЫ — переехали на вкладку Об ===
-  ['btn-refresh','btn-obj','btn-rpt','btn-out','fab','fab-mic'].forEach(function(id){
+  ['btn-refresh','btn-obj','btn-rpt','fab','fab-mic'].forEach(function(id){
     var el = document.getElementById(id);
     if(el) el.style.display = 'none';
   });
@@ -8819,7 +8847,7 @@ document.getElementById('modal').addEventListener('click',function(e){if(e.targe
 ['main','plan','pl','partners','history'].forEach(function(t){var el=document.getElementById('tab-'+t);if(el)el.addEventListener('click',function(){setTab(t);});});
 
 // === AI CHAT (Claude API через Worker) ===
-function openAIChat(){
+window.openAIChat = function(){
   haptic('medium');
   
   // Готовим контекст для AI
@@ -8889,14 +8917,18 @@ function openAIChat(){
   document.getElementById('drillModal').style.display='flex';
 }
 
-function askAI(question){
+window.askAI = function(question){
   haptic('heavy');
   var answerEl = document.getElementById('aiAnswer');
   if(!answerEl) return;
   
-  answerEl.innerHTML = '<div style="text-align:center;padding:30px;color:var(--gold)"><div style="font-size:24px;animation:ptr-spin 1s linear infinite;display:inline-block">⟳</div><div style="font-size:11px;margin-top:8px;color:var(--mut)">Claude думает...</div></div>';
+  // Шаг 1: Сразу показываем ЛОКАЛЬНЫЙ совет (работает всегда, без интернета)
+  var localAdvice = generateLocalAdvice(question);
+  answerEl.innerHTML = renderAIAnswer('💡 АНАЛИЗ ПО ДАННЫМ', localAdvice, '#ffd166');
   
-  // Готовим данные
+  // Шаг 2: Параллельно пробуем достучаться до Claude через Worker
+  if(!AI_WORKER_URL) return;
+  
   var goal = calcGoalProgress();
   var C = calcCo();
   var workers = (S.brigades||[]).reduce(function(s,b){return s+(b.workers||0);},0);
@@ -8911,32 +8943,199 @@ function askAI(question){
     workers: workers,
     target: 820000000,
     perPartnerTarget: 164000000,
-    monthsLeft: 7,
+    monthsLeft: 12 - new Date().getMonth(),
     question: question
   };
   
-  if(!AI_WORKER_URL){
-    answerEl.innerHTML = '<div style="padding:14px;background:rgba(248,81,73,.08);border:1px solid rgba(248,81,73,.2);border-radius:10px;color:var(--red);font-size:12px;font-family:-apple-system,system-ui,sans-serif">AI Worker не настроен. Обратитесь к разработчику.</div>';
-    return;
-  }
+  // Добавляем loading индикатор внизу
+  var loadingId = 'ai-loading-'+Date.now();
+  answerEl.innerHTML += '<div id="'+loadingId+'" style="margin-top:12px;padding:10px;text-align:center;color:var(--mut);font-size:11px;font-family:-apple-system,system-ui,sans-serif"><span style="animation:ptr-spin 1s linear infinite;display:inline-block">⟳</span> Спрашиваю Claude...</div>';
   
+  // Попытка через AI Worker (если работает)
   fetch(AI_WORKER_URL.replace(/\/$/, '')+'/api/ask', {
     method:'POST',
     headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({
-      question: question,
-      context: snapshot
-    })
-  }).then(function(r){return r.json();}).then(function(data){
-    var answer = data.answer || data.text || data.response || 'Нет ответа';
-    answerEl.innerHTML = '<div style="padding:16px;background:linear-gradient(160deg,rgba(212,167,58,.05),var(--sur));border:1px solid rgba(212,167,58,.2);border-radius:14px;color:var(--text);font-size:13px;line-height:1.6;font-family:-apple-system,system-ui,sans-serif"><div style="font-size:10px;color:var(--gold);letter-spacing:2px;font-weight:700;margin-bottom:10px">🤖 ОТВЕТ CLAUDE</div>'+answer.replace(/\n/g,'<br>')+'</div>';
+    body: JSON.stringify({question: question, context: snapshot})
+  }).then(function(r){
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    return r.json();
+  }).then(function(data){
+    var answer = data.answer || data.text || data.response;
+    var loadingEl = document.getElementById(loadingId);
+    if(loadingEl) loadingEl.remove();
+    
+    if(answer && answer.length > 20){
+      // Дополнительный блок от Claude
+      answerEl.innerHTML += renderAIAnswer('🤖 ДОПОЛНИТЕЛЬНО ОТ CLAUDE', answer.replace(/\n/g,'<br>'), '#d4a73a');
+    }
     haptic('medium');
   }).catch(function(err){
-    answerEl.innerHTML = '<div style="padding:14px;background:rgba(248,81,73,.08);border:1px solid rgba(248,81,73,.2);border-radius:10px;color:var(--red);font-size:12px;font-family:-apple-system,system-ui,sans-serif">Ошибка: '+err.message+'. AI Worker может быть недоступен.</div>';
+    // Тихо — локальный совет уже показан
+    var loadingEl = document.getElementById(loadingId);
+    if(loadingEl) loadingEl.innerHTML = '<div style="color:var(--mut);font-size:10px">Claude API недоступен. Показан локальный анализ.</div>';
   });
 }
 
-function askAICustom(){
+// Унифицированный рендер блока ответа
+window.renderAIAnswer = function(title, text, color){
+  return '<div style="padding:16px;background:linear-gradient(160deg,rgba(212,167,58,.05),#0d1117);border:1px solid '+color+'33;border-radius:14px;color:#e6edf3;font-size:14px;line-height:1.6;font-family:-apple-system,system-ui,sans-serif;margin-top:12px">'+
+    '<div style="font-size:11px;color:'+color+';letter-spacing:2px;font-weight:800;margin-bottom:10px">'+title+'</div>'+
+    text+
+  '</div>';
+}
+
+// === ЛОКАЛЬНЫЙ АНАЛИЗ — работает без интернета, на основе ваших данных ===
+window.generateLocalAdvice = function(question){
+  var goal = calcGoalProgress();
+  var C = calcCo();
+  var workers = (S.brigades||[]).reduce(function(s,b){return s+(b.workers||0);},0);
+  var debt = goal.earned - goal.received;
+  var pending = goal.earnedPending;
+  
+  var custRate = 38437.76;
+  var meta = (S.objMeta && S.objects && S.objects[0] && S.objMeta[S.objects[0]]) || {};
+  if(meta.custRates && meta.custRates.length > 0){
+    var sumR=0, cntR=0;
+    meta.custRates.forEach(function(r){if(r.rate){sumR+=r.rate;cntR++;}});
+    custRate = cntR > 0 ? sumR/cntR : 38437.76;
+  }
+  
+  // Маржа labor-only: 9 937 ₸/м³ из 38 437
+  var marginPerM3 = 9937;
+  var monthsLeft = 12 - new Date().getMonth();
+  var profit820 = 820000000;
+  var profit2026Done = goal.current;
+  var profit2026Need = profit820 - profit2026Done;
+  var m3Need = Math.ceil(profit2026Need / marginPerM3);
+  
+  var q = question.toLowerCase();
+  
+  // === Вопрос про 820 млн ===
+  if(q.indexOf('820') >= 0 || q.indexOf('конца года') >= 0 || q.indexOf('реально') >= 0 || q.indexOf('успеем') >= 0){
+    var monthlyNeed = profit2026Need / Math.max(1, monthsLeft);
+    var m3PerMonth = Math.ceil(monthlyNeed / marginPerM3);
+    var workersNeed = Math.ceil(m3PerMonth / 35); // ~35 м³/чел/мес
+    
+    var answer = '<b>📊 МАТЕМАТИКА ЦЕЛИ 820 МЛН ₸:</b><br><br>';
+    answer += '• Прибыль сейчас: ' + (profit2026Done>=0?'+':'') + fmt(Math.round(profit2026Done/1000000)) + ' млн<br>';
+    answer += '• Осталось до 820: ' + fmt(Math.round(profit2026Need/1000000)) + ' млн<br>';
+    answer += '• Месяцев до 31.12: ' + monthsLeft + '<br>';
+    answer += '• Нужно делать: <b style="color:#ffd166">' + fmt(Math.round(monthlyNeed/1000000)) + ' млн/мес</b><br>';
+    answer += '• В м³: <b style="color:#7ee787">' + fmt(m3PerMonth) + ' м³/мес</b> (' + fmt(Math.round(m3PerMonth/30)) + ' м³/день)<br>';
+    answer += '• Рабочих нужно: <b style="color:#58a6ff">~' + workersNeed + ' чел</b><br><br>';
+    
+    if(workers >= workersNeed * 0.8){
+      answer += '✅ <b style="color:#7ee787">Реально</b> — рабочих хватает. Главное — стабильный темп.';
+    } else if(workers >= workersNeed * 0.4){
+      answer += '⚠️ <b style="color:#ffa657">Сложно но возможно</b> — нужно набрать ещё ' + (workersNeed - workers) + ' рабочих в ближайшие 1-2 месяца.';
+    } else {
+      answer += '🔴 <b style="color:#ff7b72">Маловероятно</b> при текущей бригаде. Нужно: либо набрать рабочих в 2-3 раза больше, либо снизить цель до ' + fmt(Math.round(workers * 35 * marginPerM3 * monthsLeft / 1000000)) + ' млн ₸.';
+    }
+    return answer;
+  }
+  
+  // === Вопрос про рабочих ===
+  if(q.indexOf('рабоч') >= 0 || q.indexOf('бригад') >= 0 || q.indexOf('взять') >= 0){
+    var addWorkers = 25; // парсить число можно, но 25 — частый сценарий
+    var matchN = q.match(/(\d+)\s*раб/);
+    if(matchN) addWorkers = parseInt(matchN[1], 10);
+    
+    var extraM3 = addWorkers * 35; // м³/мес/чел
+    var extraProfit = extraM3 * marginPerM3;
+    var extraSalary = addWorkers * 250000; // ~250к/мес зарплата
+    var netGain = extraProfit - extraSalary;
+    
+    var answer = '<b>👷 РАСЧЁТ ДЛЯ ' + addWorkers + ' РАБОЧИХ:</b><br><br>';
+    answer += '• Доп. объём в месяц: <b style="color:#7ee787">' + fmt(extraM3) + ' м³</b><br>';
+    answer += '• Доп. выручка: ' + fmt(Math.round(extraM3 * custRate / 1000000)) + ' млн ₸<br>';
+    answer += '• Доп. прибыль (маржа 26%): <b style="color:#7ee787">+' + fmt(Math.round(extraProfit/1000000)) + ' млн ₸/мес</b><br>';
+    answer += '• Зарплата им: ~' + fmt(Math.round(extraSalary/1000000)) + ' млн ₸/мес<br>';
+    answer += '• <b style="color:#ffd166">Чистая выгода: +' + fmt(Math.round(netGain/1000000)) + ' млн ₸/мес</b><br><br>';
+    
+    if(C.cash < extraSalary * 0.5){
+      answer += '⚠️ <b style="color:#ffa657">Внимание:</b> касса (' + fmt(C.cash) + ' ₸) не покроет первый месяц зарплат. Сначала нужно подписать КС-2 и получить оплату от Sensata.';
+    } else {
+      answer += '✅ <b style="color:#7ee787">Имеет смысл</b> — если есть фронт работ для них.';
+    }
+    return answer;
+  }
+  
+  // === Вопрос про кредит ===
+  if(q.indexOf('кредит') >= 0 || q.indexOf('заём') >= 0 || q.indexOf('займ') >= 0){
+    var monthlyExpenses = workers * 250000 + 500000; // зарплаты + админ
+    var optimalCredit = monthlyExpenses * 2; // покрыть 2 месяца с запасом
+    
+    var answer = '<b>💳 КРЕДИТНЫЙ АНАЛИЗ:</b><br><br>';
+    answer += '• Месячные расходы: ~' + fmt(Math.round(monthlyExpenses/1000000)) + ' млн ₸<br>';
+    answer += '• Дебиторка от Sensata: ' + fmt(Math.round(debt/1000000)) + ' млн ₸<br>';
+    answer += '• На сверке (ждёт КС-2): ' + fmt(Math.round(pending/1000000)) + ' млн ₸<br>';
+    answer += '• Касса сейчас: ' + fmt(C.cash) + ' ₸<br><br>';
+    
+    if(C.cash < monthlyExpenses && (debt + pending) > monthlyExpenses){
+      answer += '💡 <b style="color:#ffd166">РЕКОМЕНДАЦИЯ:</b><br>';
+      answer += '• Кредит: <b>' + fmt(Math.round(optimalCredit/1000000)) + ' млн ₸</b> в Halyk Bank<br>';
+      answer += '• Овердрафт под дебиторку (под подписанные КС-2)<br>';
+      answer += '• Ставка ~22% годовых на 3-6 мес<br>';
+      answer += '• Закрыть когда придут деньги от Sensata<br><br>';
+      answer += '⚠️ Лучшая альтернатива: <b>ускорить подписание КС-2</b> — это бесплатно.';
+    } else if(C.cash > monthlyExpenses) {
+      answer += '✅ <b style="color:#7ee787">Кредит не нужен сейчас.</b> Кассы хватает на текущие расходы.';
+    } else {
+      answer += '🔴 <b style="color:#ff7b72">Срочно:</b> ' + fmt(Math.round(monthlyExpenses/1000000)) + ' млн ₸ под дебиторку или беспроцентный займ от партнёров.';
+    }
+    return answer;
+  }
+  
+  // === Вопрос про риски ===
+  if(q.indexOf('риск') >= 0 || q.indexOf('опасн') >= 0 || q.indexOf('угроз') >= 0){
+    var risks = [];
+    if(C.cash < 2000000) risks.push('🔴 <b>Кассовый разрыв</b> — менее 2 млн ₸, не хватит на зарплаты');
+    if(pending > 0 && debt === 0) risks.push('🟡 <b>КС-2 не подписан</b> — ' + fmt(Math.round(pending/1000000)) + ' млн ₸ зависло');
+    if(debt > 5000000) risks.push('🟡 <b>Большая дебиторка</b> — ' + fmt(Math.round(debt/1000000)) + ' млн ₸ должны');
+    if(workers < 50 && monthsLeft <= 7) risks.push('🟡 <b>Мало рабочих</b> — ' + workers + ' чел не хватит для 820 млн');
+    
+    var deadlineOpalubka = new Date('2026-06-30');
+    var daysToOpalubka = Math.ceil((deadlineOpalubka - new Date()) / (24*3600*1000));
+    if(daysToOpalubka > 0 && daysToOpalubka < 40) risks.push('🟡 <b>Опалубка</b> — дедлайн через ' + daysToOpalubka + ' дней, ещё не закуплена');
+    
+    var answer = '<b>⚠️ АКТИВНЫЕ РИСКИ:</b><br><br>';
+    if(risks.length === 0){
+      answer += '✅ Критических рисков сейчас не вижу.';
+    } else {
+      answer += risks.join('<br>') + '<br><br>';
+      answer += '<b>Что делать в первую очередь:</b><br>';
+      answer += '1. Подписать КС-2 у Sensata<br>';
+      answer += '2. Согласовать кредитную линию<br>';
+      answer += '3. Зафиксировать график выплат бригадам';
+    }
+    return answer;
+  }
+  
+  // === Вопрос про прибыль 100 млн ===
+  if(q.indexOf('100 млн') >= 0 || q.indexOf('100млн') >= 0){
+    var need100 = 100000000 - profit2026Done;
+    var m3For100 = Math.ceil(need100 / marginPerM3);
+    var answer = '<b>📈 ДО 100 МЛН ПРИБЫЛИ:</b><br><br>';
+    answer += '• Сейчас: ' + fmt(Math.round(profit2026Done/1000000)) + ' млн<br>';
+    answer += '• Осталось: <b>' + fmt(Math.round(need100/1000000)) + ' млн</b><br>';
+    answer += '• В м³: <b style="color:#7ee787">' + fmt(m3For100) + ' м³</b><br>';
+    answer += '• При темпе ' + fmt(Math.ceil(m3For100/2)) + ' м³/мес — выйдете за 2 месяца<br>';
+    answer += '• Дедлайн в плане: 31.07.2026';
+    return answer;
+  }
+  
+  // === Общий ответ — сводка ===
+  var answer = '<b>📊 ТЕКУЩЕЕ СОСТОЯНИЕ:</b><br><br>';
+  answer += '• Прибыль: ' + (profit2026Done>=0?'+':'−') + fmt(Math.abs(Math.round(profit2026Done/1000000))) + ' млн ₸<br>';
+  answer += '• Касса: ' + fmt(C.cash) + ' ₸<br>';
+  answer += '• Рабочих: ' + workers + '<br>';
+  answer += '• На сверке: ' + fmt(Math.round(pending/1000000)) + ' млн<br>';
+  answer += '• Дебиторка: ' + fmt(Math.round(debt/1000000)) + ' млн<br><br>';
+  answer += '<i style="color:var(--mut);font-size:12px">Задайте более конкретный вопрос: про 820 млн, про рабочих, про кредит или про риски.</i>';
+  return answer;
+}
+
+window.askAICustom = function(){
   var q = document.getElementById('aiQuestion');
   if(!q || !q.value.trim()){
     alert('Введите вопрос');
