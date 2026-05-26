@@ -19,6 +19,10 @@
 <link rel="manifest" href="./manifest.json"/>
 <title>LIONGATE</title>
 <style>
+/* === Анимации меню === */
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
 /* === Android оптимизация (отзывчивые тачи) === */
 *, *::before, *::after { -webkit-tap-highlight-color: transparent; }
 button, .nb, .hbtn, .fab, .yk-mini, .yk-big, .yk-alert { touch-action: manipulation; user-select: none; -webkit-user-select: none; }
@@ -450,24 +454,31 @@ canvas{display:block;width:100%;border-radius:8px}
 <div id="app" style="display:none">
   <header>
     <div>
-      <div class="hlog">LIONGATE</div>
-      <div style="font-size:9px;color:var(--gold);letter-spacing:3px;margin-top:3px;font-weight:700">1 МЛРД $ · 2030</div>
+      <div class="hlog" style="font-size:22px;line-height:1">LIONGATE</div>
+      <div id="hdr-role" style="font-size:9px;color:var(--gold);letter-spacing:2.5px;margin-top:3px;font-weight:700;opacity:.6">2030 · 1 МЛРД $</div>
     </div>
-    <div class="hrgt">
-      <div style="display:flex;flex-direction:column;align-items:flex-end;line-height:1.1">
-        <span id="sync-st" style="font-size:14px;color:var(--green);line-height:1">●</span>
-        <span id="syncTime" class="sync-time">только что</span>
-      </div>
-      <span class="rpill" id="rpill"></span>
-      <button id="btn-lang" class="hbtn" style="border-color:var(--purple);color:var(--purple);min-width:36px;font-weight:700">RU</button>
-      <div id="gt-widget" style="display:inline-block;vertical-align:middle"></div>
+    <div class="hrgt" style="gap:8px">
+      <!-- Индикатор синхронизации -->
+      <span id="sync-st" style="font-size:16px;color:var(--green);line-height:1" title="Статус синхронизации">●</span>
+      <span id="syncTime" class="sync-time" style="display:none">только что</span>
       
-      <!-- Кнопки Об/Отчёт/Выйти/↻ скрыты — перенесены на вкладку Об -->
-      <button class="hbtn" id="btn-refresh" style="display:none;border-color:var(--gold);color:var(--gold)" title="Обновить приложение">↻</button>
-      <button class="hbtn" id="btn-obj" style="display:none;border-color:var(--teal);color:var(--teal)">Об</button>
-      <button class="hbtn" id="btn-rpt" style="display:none;border-color:var(--green);color:var(--green)">Отчёт</button>
-      <button class="hbtn" id="btn-brigs" onclick="goToBrigades()" style="border-color:var(--teal);color:var(--teal);font-weight:700" title="Бригады">👷 Бригады</button>
-      <button class="hbtn" id="btn-out" onclick="doLogout()" style="border-color:var(--red);color:var(--red);font-weight:700" title="Выйти из приложения">Выйти</button>
+      <!-- Скрытые роли (показываются в меню) -->
+      <span class="rpill" id="rpill" style="display:none"></span>
+      
+      <!-- Язык -->
+      <button id="btn-lang" class="hbtn" style="border-color:var(--purple);color:var(--purple);min-width:42px;font-weight:700">RU</button>
+      
+      <!-- ⋯ Меню (заменяет 4 старые кнопки) -->
+      <button class="hbtn" id="btn-menu" onclick="openMainMenu()" style="border-color:var(--gold);color:var(--gold);font-weight:700;font-size:18px;line-height:1;min-width:42px" title="Меню">⋯</button>
+      
+      <!-- Скрытые служебные кнопки -->
+      <div id="gt-widget" style="display:none"></div>
+      <button class="hbtn" id="btn-refresh" style="display:none">↻</button>
+      <button class="hbtn" id="btn-obj" style="display:none">Об</button>
+      <button class="hbtn" id="btn-rpt" style="display:none">Отчёт</button>
+      <button class="hbtn" id="btn-journal" onclick="goToJournal()" style="display:none">📋</button>
+      <button class="hbtn" id="btn-brigs" onclick="goToBrigades()" style="display:none">👷</button>
+      <button class="hbtn" id="btn-out" onclick="doLogout()" style="display:none">Выйти</button>
     </div>
   </header>
   <div class="content" id="content"></div>
@@ -1958,27 +1969,30 @@ function defState(){return{
 // PRELOADED от 2026-05-25
 var PRELOADED_DATA = {"objects": ["ЖК «Алгабас», Мкр. Нуркент"], "objMeta": {"ЖК «Алгабас», Мкр. Нуркент": {"customer": "Sensata Group", "rates": {}, "custRates": [{"wtype": "Устройство стен", "unit": "м³", "rate": 38437.76}, {"wtype": "Устройство лестничного марша", "unit": "м³", "rate": 38437.76}, {"wtype": "Устройство плиты перекрытия и ригеля", "unit": "м³", "rate": 38437.76}, {"wtype": "Устройство парапета", "unit": "м³", "rate": 38437.76}], "spots": [{"id": "spot_b48", "name": "Блок 48", "deadline": "2026-10-31", "started": "2026-05-20", "completed": null, "constructions": [{"wtype": "Устройство стен", "unit": "м³", "volume": 1027.4, "heights": "-0,100 ÷ +42,850"}, {"wtype": "Устройство лестничного марша", "unit": "м³", "volume": 28.6, "heights": "-0,100 ÷ +40,550"}, {"wtype": "Устройство плиты перекрытия и ригеля", "unit": "м³", "volume": 868.8, "heights": "+4,150 ÷ +40,550"}, {"wtype": "Устройство парапета", "unit": "м³", "volume": 14.1, "heights": "+41,650 ÷ +43,950"}]}, {"id": "spot_b49", "name": "Блок 49", "deadline": "2026-11-30", "started": "2026-05-25", "completed": null, "constructions": [{"wtype": "Устройство стен", "unit": "м³", "volume": 707.5, "heights": "-0,100 ÷ +32,950"}, {"wtype": "Устройство лестничного марша", "unit": "м³", "volume": 20.8, "heights": "-0,100 ÷ +30,650"}, {"wtype": "Устройство плиты перекрытия и ригеля", "unit": "м³", "volume": 619.1, "heights": "+4,150 ÷ +33,150"}, {"wtype": "Устройство парапета", "unit": "м³", "volume": 13.6, "heights": "+31,750 ÷ +34,050"}]}]}}, "settings": {"deadline": "2026-12-31", "totalVol": 48000, "norms": {"Армирование": 0.5, "Опалубка": 0.75, "Бетонирование": 3, "Комплекс": 0.9}, "startCash": 0, "startCashDate": ""}, "brigades": [{"id": "b1", "name": "Бригада Шынгыс", "obj": "ЖК «Алгабас», Мкр. Нуркент", "workers": 15, "prices": {"Армирование": 14000, "Опалубка+бетон": 12000}, "people": [], "attendance": {}}, {"id": "b2", "name": "Бригада Нурсултан", "obj": "ЖК «Алгабас», Мкр. Нуркент", "workers": 8, "prices": {"Армирование": 14000, "Опалубка+бетон": 12000}, "people": [], "attendance": {}}, {"id": "b1779712091656", "name": "Штатная", "obj": "ЖК «Алгабас», Мкр. Нуркент", "workers": 1, "prices": {"Армирование": 14000, "Опалубка+бетон": 12000}, "people": [], "attendance": {}}], "history": [{"action": "reset_to_clean_v3", "at": "2026-05-25T12:10:29.027Z", "entries": 45}, {"action": "add", "by": "editor", "at": "2026-05-25T12:15:55.747Z", "type": "advance", "amount": 100000}, {"action": "add", "by": "editor", "at": "2026-05-25T12:17:40.539Z", "type": "expense", "amount": 80000}, {"action": "add", "by": "editor", "at": "2026-05-25T12:25:33.313Z", "type": "advance", "amount": 840000, "source": "tg-confirmed"}, {"action": "add", "by": "editor", "at": "2026-05-25T12:25:33.314Z", "type": "vol", "amount": 0, "source": "tg-confirmed"}, {"action": "add", "by": "editor", "at": "2026-05-25T12:27:27.323Z", "type": "advance", "amount": 200000, "source": "tg-confirmed"}, {"action": "add", "by": "editor", "at": "2026-05-25T13:16:19.606Z", "type": "expense", "amount": 840000}, {"action": "edit", "by": "editor", "at": "2026-05-25T13:31:17.807Z", "type": "advance", "amount": 840000}], "weeks": [], "goalsDone": {}, "ks2": [], "kzDict": {}, "workTypes": ["Армирование", "Опалубка", "Бетонирование", "Демонтаж опалубки", "Комплекс монолит", "Штукатурка", "Стяжка пола", "Шпаклёвка", "Покраска", "Кладка кирпича", "Кладка блоков", "Гипсокартон", "Плитка", "Гидроизоляция", "Утепление фасада", "Электромонтаж", "Сантехника", "Сварочные работы", "Кровельные работы", "Разнорабочие", "Уборка", "Демонтаж", "Комплекс"], "kfu": [{"id": 1, "name": "Темп заливки", "owner": "Бекжан", "target": "150 м³/нед", "auto": "temp", "light": 1, "hist": []}, {"id": 2, "name": "Деньги от заказчика", "owner": "Евгений", "target": "оплата КС-2 ≤15 дней", "auto": "money", "light": 1, "hist": []}, {"id": 3, "name": "Качество", "owner": "Нурсултан", "target": "0 переделок", "auto": "quality", "light": 1, "hist": []}, {"id": 4, "name": "Закрытие КС-2", "owner": "Евгений", "target": "акт помесячно", "auto": "ks", "light": 1, "hist": []}, {"id": 5, "name": "Безопасность", "owner": "Бекжан", "target": "0 происшествий, все в СИЗ", "light": 2, "hist": []}], "entries": [{"id": 1001, "date": "2026-05-14", "type": "advance", "amount": 400000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "Выдал Бекжану наличными на расходы"}, {"id": 1002, "date": "2026-05-15", "type": "expense", "amount": 5000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Связь", "note": "Мобильный Бекжана — оплатил Дмитрий напрямую"}, {"id": 1003, "date": "2026-05-16", "type": "expense", "amount": 53100, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Административные", "note": "Смартфон и номер для финансовых операций"}, {"id": 1004, "date": "2026-05-16", "type": "expense", "amount": 150000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Аванс / зарплата рабочим", "brigade": "b1", "note": "Аванс Бригада Шынгыс — перевод"}, {"id": 1005, "date": "2026-05-16", "type": "expense", "amount": 100000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Аванс / зарплата рабочим", "brigade": "b1", "note": "Аванс Бригада Шынгыс — наличные"}, {"id": 1006, "date": "2026-05-16", "type": "expense", "amount": 20000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Транспорт", "note": "Такси Бригада Нурсултан до объекта"}, {"id": 1007, "date": "2026-05-16", "type": "advance", "amount": 20000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Евгений", "note": "Дал Евгению (личное)"}, {"id": 1008, "date": "2026-05-17", "type": "expense", "amount": 70000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Инструменты и инвентарь", "note": "Каски, жилеты, перчатки, диски, молоток, бур"}, {"id": 1009, "date": "2026-05-17", "type": "advance", "amount": 150000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "Выдал Бекжану наличными на расходы"}, {"id": 1010, "date": "2026-05-17", "type": "advance", "amount": 110000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "Проценты за Альфард — личный расход Бекжана"}, {"id": 1012, "date": "2026-05-18", "type": "expense", "amount": 20000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Аванс / зарплата рабочим", "brigade": "b1", "note": "Аванс бригада Шынгыс"}, {"id": 1013, "date": "2026-05-18", "type": "expense", "amount": 54000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Инструменты и инвентарь", "note": "Рации 3 шт × 18 000"}, {"id": 1014, "date": "2026-05-18", "type": "invest", "amount": 170000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "note": "Закинул на счёт компании для оплаты страховки"}, {"id": 1015, "date": "2026-05-18", "type": "expense", "amount": 158100, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "cash", "cat": "Административные", "note": "Страховка компании"}, {"id": 1016, "date": "2026-05-18", "type": "expense", "amount": 4500, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "cash", "cat": "Административные", "note": "Комиссия банка — Оплата К2"}, {"id": 1017, "date": "2026-05-18", "type": "expense", "amount": 1000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "cash", "cat": "Административные", "note": "Комиссия банка — ведение счёта"}, {"id": 1018, "date": "2026-05-18", "type": "expense", "amount": 1000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "cash", "cat": "Административные", "note": "Комиссия банка — Внешний перевод"}, {"id": 1019, "date": "2026-05-19", "type": "expense", "amount": 500000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Аванс / зарплата рабочим", "brigade": "b1", "note": "Аванс наличными бригада Шынгыс"}, {"id": 1020, "date": "2026-05-19", "type": "expense", "amount": 400000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Аванс / зарплата рабочим", "brigade": "b2", "note": "Аванс наличными бригада Нурсултан"}, {"id": 1021, "date": "2026-05-19", "type": "expense", "amount": 25135, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Административные", "note": "Обед с заказчиками"}, {"id": 1022, "date": "2026-05-19", "type": "expense", "amount": 2000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Административные", "note": "Напитки заказчики на объекте"}, {"id": 1023, "date": "2026-05-19", "type": "expense", "amount": 7000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "own", "cat": "Инструменты и инвентарь", "note": "Перчатки 2 пачки, молотки 2 шт"}, {"id": 1024, "date": "2026-05-19", "type": "advance", "amount": 198000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Евгений", "note": "Дал Евгению (личное)"}, {"id": 1025, "date": "2026-05-20", "type": "expense", "amount": 80000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Инструменты и инвентарь", "note": "Пояс монтажный 8 шт"}, {"id": 1026, "date": "2026-05-20", "type": "advance", "amount": 100000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "На расходы Бекжан"}, {"id": 1027, "date": "2026-05-21", "type": "expense", "amount": 65000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Инструменты и инвентарь", "note": "Перчатка, перфоратор, бензин"}, {"id": 1028, "date": "2026-05-21", "type": "advance", "amount": 100000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "Бекжану на расходы"}, {"id": 1029, "date": "2026-05-22", "type": "expense", "amount": 45000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Инструменты и инвентарь", "note": "Вибратор"}, {"id": 1030, "date": "2026-05-22", "type": "expense", "amount": 10000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Материалы", "note": "Дождевик 5 шт"}, {"id": 1031, "date": "2026-05-22", "type": "expense", "amount": 8000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Топливо", "note": "Заправка бензина"}, {"id": 1032, "date": "2026-05-22", "type": "advance", "amount": 10000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Нурсултан", "note": "Нурсултану на личные"}, {"id": 1033, "date": "2026-05-22", "type": "advance", "amount": 75000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "Бекжану на расход отправил"}, {"id": 1034, "date": "2026-05-23", "type": "expense", "amount": 15200, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Евгений", "paySource": "own", "cat": "Административные", "note": "Бургеры, кола, картофель фри"}, {"id": 1035, "date": "2026-05-23", "type": "advance", "amount": 100000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "На барана"}, {"id": 1036, "date": "2026-05-23", "type": "advance", "amount": 50000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Евгений", "to": "Бекжан", "note": "На барана, салаты, напитки"}, {"id": 1037, "date": "2026-05-23", "type": "advance", "amount": 60000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "На расход Шынгыс"}, {"id": 1038, "date": "2026-05-23", "type": "advance", "amount": 30000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "На расход разнорабочий"}, {"id": 1039, "date": "2026-05-23", "type": "expense", "amount": 10000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Топливо", "note": "Бензин"}, {"id": 1040, "date": "2026-05-23", "type": "advance", "amount": 25000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "На напитки"}, {"id": 1041, "date": "2026-05-23", "type": "expense", "amount": 26000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Питание", "note": "Картошка, яблоки, бананы, помидоры, огурцы"}, {"id": 1042, "date": "2026-05-23", "type": "expense", "amount": 105000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Питание", "note": "Баран"}, {"id": 1043, "date": "2026-05-23", "type": "expense", "amount": 3000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Транспорт", "note": "Такси"}, {"id": 1044, "date": "2026-05-23", "type": "expense", "amount": 34000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Питание", "note": "Напитки, пирожное, пирожки"}, {"id": 1045, "date": "2026-05-23", "type": "expense", "amount": 60000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Аванс / зарплата рабочим", "brigade": "b1", "note": "Аванс"}, {"id": 1046, "date": "2026-05-23", "type": "expense", "amount": 30000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Аванс / зарплата рабочим", "note": "Аванс разнорабочий"}, {"id": 1779711355747, "date": "2026-05-25", "type": "advance", "amount": 100000, "note": "Дал Бекжану аванс 100000 бригада Нурсултан", "from": "Дмитрий", "to": "Бекжан", "obj": "ЖК «Алгабас», Мкр. Нуркент"}, {"id": 1779711460539, "date": "2026-05-25", "type": "expense", "amount": 80000, "note": "Аванс", "obj": "ЖК «Алгабас», Мкр. Нуркент", "cat": "Аванс / зарплата рабочим", "who": "Бекжан", "paySource": "advance", "brigade": "b2"}, {"id": 1779711941102, "date": "2026-05-25", "amount": 840000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "note": "з/п за Блок 48 третий этаж отметка 7.550 стена Бригада Нурсултан", "source": "telegram", "tgAuthor": "Дмитрий Хегай", "type": "advance", "linkedId": "tg_lk1779711680923", "from": "Дмитрий", "to": "Бекжан"}, {"id": 1779711941097, "date": "2026-05-25", "amount": 0, "obj": "ЖК «Алгабас», Мкр. Нуркент", "note": "Залили 114,5 куб бетон", "source": "telegram", "tgAuthor": "Дмитрий Хегай", "type": "vol", "volume": 114.5, "unit": "м³", "wtype": "Бетонирование", "brigade": "b2", "amountPending": true, "linkedId": "tg_lk1779711680923"}, {"id": 1779712051286, "date": "2026-05-25", "amount": 200000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "note": "лично", "source": "telegram", "tgAuthor": "Дмитрий Хегай", "type": "advance", "from": "Дмитрий", "to": "Бекжан"}, {"id": 1779714979606, "date": "2026-05-25", "type": "expense", "amount": 840000, "note": "840000 нал Бекжану дал з/п за Блок 48 третий этаж отметка  7.550 стена Бригада Нурсултан залили 114,5 куб бетон остаток долга «54000» обьем больше получился 114,5 м3", "obj": "ЖК «Алгабас», Мкр. Нуркент", "cat": "Аванс / зарплата рабочим", "who": "Бекжан", "paySource": "advance", "brigade": "b2"}], "_schema": 3, "_resetAt": "2026-05-25T12:10:29.027Z", "_modified": 1779730299929, "_preloaded": true};
 
-// loadLocal с поддержкой preloaded данных
-// Если localStorage пустой ИЛИ его _modified старше встроенных данных — берём встроенные
+// loadLocal — БЕЗОПАСНАЯ загрузка
+// ПРАВИЛО: локальные данные ВСЕГДА главнее встроенных в файл
+// Встроенные используются ТОЛЬКО если в браузере вообще ничего нет
+// Это гарантирует что обновление файла НЕ затрёт ваши изменения
 function loadLocal(){
   try{
     var s = localStorage.getItem('lg_v9');
-    if(!s){
-      // Первый запуск или после сброса — берём встроенные данные
-      console.log('[loadLocal] Используем встроенные данные (preloaded)');
+    if(!s || s === 'null' || s === '{}'){
+      // Только если localStorage пустой — берём встроенные данные
+      console.log('[loadLocal] localStorage пустой → используем встроенные данные');
       return PRELOADED_DATA;
     }
     var local = JSON.parse(s);
-    var localMod = local._modified || 0;
-    var preloadMod = PRELOADED_DATA._modified || 0;
-    // Если локальные старше встроенных — значит мы обновили приложение и нужно взять свежие встроенные
-    if(localMod < preloadMod && PRELOADED_DATA._preloaded){
-      // Локальные старше — заменяем на встроенные. Это происходит только при первой загрузке новой версии файла.
-      console.log('[loadLocal] Встроенные данные свежее локальных, используем встроенные');
+    if(!local || !local.entries){
+      // Битые данные в localStorage — берём встроенные
+      console.log('[loadLocal] Битые данные в localStorage → используем встроенные');
       return PRELOADED_DATA;
     }
+    // ЛОКАЛЬНЫЕ ДАННЫЕ ВСЕГДА В ПРИОРИТЕТЕ. Встроенные данные больше НЕ затирают локальные.
+    // Свежие данные подтянутся из облака через pullCloud, если они там есть.
+    console.log('[loadLocal] Используем локальные данные ('+local.entries.length+' записей, '+(local.brigades||[]).length+' бригад)');
     return local;
   }catch(e){
+    console.log('[loadLocal] Ошибка чтения localStorage:', e.message);
     return (typeof PRELOADED_DATA !== 'undefined') ? PRELOADED_DATA : defState();
   }
 }
@@ -3107,6 +3121,133 @@ function renderDrillEntryRow(e, metric, custRate){
 // АНАЛИТИКА ПО ЯНКОВСКОМУ — Факт + Анализ + Решение + Действие
 // Автоматически генерирует инсайты на основе текущих данных
 // ============================================================
+// =============================================================
+// ЗАДАЧИ НА СЕГОДНЯ — конкретные действия партнёрам
+// На основе данных + Янковский подход
+// =============================================================
+function generateTodayTasks(){
+  var tasks = [];
+  var goal = calcGoalProgress();
+  var C = calcCo();
+  var workers = (S.brigades||[]).reduce(function(s,b){return s+(b.workers||0);},0);
+  var now = new Date();
+  var dayOfWeek = now.getDay(); // 0=вс, 1=пн ... 6=сб
+  
+  // === Критичные задачи ===
+  // Касса критически низкая → нужно срочно
+  if(C.cash < 1000000){
+    tasks.push({
+      pri: 'critical',
+      icon: '💸',
+      title: 'СРОЧНО: пополнить кассу',
+      who: 'Дмитрий',
+      what: 'Касса ' + fmt(C.cash) + ' ₸. Нужно: подписать КС-2 у Sensata или взять кредит.',
+      time: 'Сегодня до 18:00'
+    });
+  }
+  
+  // КС-2 не подписан > 5 дней
+  if(goal.earnedPending > 0){
+    var oldestPending = null;
+    S.entries.forEach(function(e){
+      if(e.type === 'vol' && !e.accepted && e.date){
+        var d = new Date(e.date);
+        if(!oldestPending || d < oldestPending) oldestPending = d;
+      }
+    });
+    var daysOld = oldestPending ? Math.floor((now - oldestPending)/(24*3600*1000)) : 0;
+    if(daysOld >= 3){
+      tasks.push({
+        pri: 'critical',
+        icon: '⏰',
+        title: 'Подписать КС-2 у Sensata',
+        who: 'Евгений',
+        what: fmt(Math.round(goal.earnedPending/1000000))+' млн ₸ ждут подписи '+daysOld+' дней',
+        time: 'Завтра до 12:00'
+      });
+    }
+  }
+  
+  // === Регулярные задачи по дням недели ===
+  // Понедельник — планёрка
+  if(dayOfWeek === 1){
+    tasks.push({
+      pri: 'normal',
+      icon: '👥',
+      title: 'Еженедельная планёрка',
+      who: 'Все партнёры',
+      what: 'Обсудить итоги недели, план на следующую',
+      time: '9:00'
+    });
+  }
+  
+  // 15 и 30 числа — зарплата бригадам
+  var dom = now.getDate();
+  if(dom === 15 || dom === 30 || dom === 31){
+    tasks.push({
+      pri: 'normal',
+      icon: '💰',
+      title: 'Выдать зарплату бригадам',
+      who: 'Бекжан',
+      what: 'День выплаты по графику. Согласовать суммы.',
+      time: 'До конца дня'
+    });
+  }
+  
+  // === Опалубка дедлайн ===
+  var opalDeadline = new Date('2026-06-30');
+  var daysToOpal = Math.ceil((opalDeadline - now)/(24*3600*1000));
+  if(daysToOpal > 0 && daysToOpal <= 30){
+    tasks.push({
+      pri: daysToOpal <= 14 ? 'critical' : 'normal',
+      icon: '⬢',
+      title: 'Договор на опалубку (Москва)',
+      who: 'Дмитрий + Сергей',
+      what: '2000 м² × 15 000 ₸ = 30 млн ₸. Сейчас цена ниже на 40%.',
+      time: 'До 10.06'
+    });
+  }
+  
+  // === Производство ===
+  // Если объём за неделю отстаёт
+  var weekStart = new Date(now); weekStart.setDate(now.getDate() - (now.getDay()||7) + 1);
+  weekStart.setHours(0,0,0,0);
+  var weekVol = 0;
+  S.entries.forEach(function(e){
+    if(e.type === 'vol' && e.date && new Date(e.date) >= weekStart){
+      weekVol += (e.volume||0);
+    }
+  });
+  if(workers > 0 && weekVol > 0 && weekVol < 100){
+    tasks.push({
+      pri: 'normal',
+      icon: '📈',
+      title: 'Увеличить темп заливки',
+      who: 'Бекжан',
+      what: 'Эта неделя: '+Math.round(weekVol)+' м³. Цель: 150 м³/нед.',
+      time: 'До конца недели'
+    });
+  }
+  
+  // === Качество ===
+  // Каждую среду — обход с Нурсултаном
+  if(dayOfWeek === 3){
+    tasks.push({
+      pri: 'low',
+      icon: '✅',
+      title: 'Контроль качества — обход',
+      who: 'Нурсултан',
+      what: 'Проверить армирование, опалубку, бетон',
+      time: 'После обеда'
+    });
+  }
+  
+  return tasks;
+}
+
+window.generateTodayTasks = generateTodayTasks;
+
+
 function generateInsights(){
   var insights = [];
   var goal = calcGoalProgress();
@@ -3275,6 +3416,978 @@ function isInsightDone(metric){
 }
 
 // Надёжный переход на вкладку Бригады — работает всегда
+// Надёжный переход на Журнал
+// =============================================================
+// 📈 ФУНКЦИЯ 3: ПРОГНОЗ AI НА 30 ДНЕЙ
+// =============================================================
+window.calcForecast30 = function(){
+  var now = new Date();
+  var month30 = new Date(now.getTime() + 30*24*3600*1000);
+  
+  // Текущая скорость (за последние 14 дней)
+  var d14 = new Date(now.getTime() - 14*24*3600*1000);
+  var earned14 = 0, expense14 = 0, vol14 = 0;
+  
+  var custRate = 38437.76;
+  var meta = (S.objMeta && S.objects && S.objects[0] && S.objMeta[S.objects[0]]) || {};
+  if(meta.custRates){
+    var sumR=0,cntR=0;
+    meta.custRates.forEach(function(r){if(r.rate){sumR+=r.rate;cntR++;}});
+    custRate = cntR > 0 ? sumR/cntR : 38437.76;
+  }
+  
+  S.entries.forEach(function(e){
+    if(!e.date) return;
+    var d = new Date(e.date);
+    if(d < d14) return;
+    if(e.type === 'vol'){
+      vol14 += (e.volume||0);
+      if(e.accepted) earned14 += (e.volume||0) * custRate;
+    }
+    if(e.type === 'expense') expense14 += (e.amount||0);
+  });
+  
+  // Дневные средние
+  var dailyEarn = earned14 / 14;
+  var dailyExp = expense14 / 14;
+  var dailyVol = vol14 / 14;
+  
+  var C = calcCo();
+  
+  // Прогноз через 30 дней
+  var forecast = {
+    cash30: C.cash + (dailyEarn - dailyExp) * 30,
+    earn30: earned14 / 14 * 30,
+    exp30: dailyExp * 30,
+    vol30: dailyVol * 30,
+    profit30: (dailyEarn - dailyExp) * 30,
+    dailyEarn: dailyEarn,
+    dailyExp: dailyExp,
+    dailyVol: dailyVol,
+    runwayDays: dailyExp > 0 ? Math.floor(Math.max(0,C.cash) / dailyExp) : 999,
+    riskLevel: 'low'
+  };
+  
+  // Уровень риска
+  if(forecast.cash30 < 0) forecast.riskLevel = 'critical';
+  else if(forecast.cash30 < 2000000) forecast.riskLevel = 'warning';
+  else forecast.riskLevel = 'good';
+  
+  return forecast;
+};
+
+// =============================================================
+// 💱 ФУНКЦИЯ 4: КУРС USD/KZT
+// =============================================================
+window.fetchExchangeRate = function(callback){
+  // Open Exchange Rates через бесплатный публичный API
+  if(window._exchangeRate && (Date.now() - window._exchangeRateTime) < 3600000){
+    // Кэш на час
+    if(callback) callback(window._exchangeRate);
+    return;
+  }
+  
+  fetch('https://open.er-api.com/v6/latest/USD').then(function(r){return r.json();}).then(function(d){
+    if(d && d.rates && d.rates.KZT){
+      window._exchangeRate = d.rates.KZT;
+      window._exchangeRateTime = Date.now();
+      if(callback) callback(d.rates.KZT);
+      var el = document.getElementById('exch-rate');
+      if(el) el.textContent = '1$ = ' + Math.round(d.rates.KZT) + '₸';
+    } else if(callback) callback(540); // fallback
+  }).catch(function(){
+    if(callback) callback(540); // приблизительно
+  });
+};
+
+// =============================================================
+// ⛅ ФУНКЦИЯ 5: ПОГОДА АЛМАТЫ (Open-Meteo, без ключа)
+// =============================================================
+window.fetchWeather = function(callback){
+  if(window._weather && (Date.now() - window._weatherTime) < 1800000){
+    // Кэш на 30 минут
+    if(callback) callback(window._weather);
+    return;
+  }
+  // Алматы: 43.25°N, 76.95°E
+  fetch('https://api.open-meteo.com/v1/forecast?latitude=43.25&longitude=76.95&current=temperature_2m,precipitation,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=Asia%2FAlmaty&forecast_days=3').then(function(r){return r.json();}).then(function(d){
+    if(d && d.current){
+      var w = {
+        tempNow: Math.round(d.current.temperature_2m),
+        rainNow: d.current.precipitation > 0,
+        codeNow: d.current.weather_code,
+        days: []
+      };
+      if(d.daily){
+        for(var i = 0; i < 3; i++){
+          w.days.push({
+            max: Math.round(d.daily.temperature_2m_max[i]),
+            min: Math.round(d.daily.temperature_2m_min[i]),
+            rain: d.daily.precipitation_sum[i] > 1,
+            code: d.daily.weather_code[i]
+          });
+        }
+      }
+      window._weather = w;
+      window._weatherTime = Date.now();
+      if(callback) callback(w);
+    }
+  }).catch(function(){});
+};
+
+function weatherIcon(code){
+  if(code === undefined || code === null) return '☁️';
+  if(code === 0) return '☀️';
+  if(code <= 3) return '⛅';
+  if(code <= 48) return '🌫';
+  if(code <= 67) return '🌧';
+  if(code <= 77) return '❄️';
+  if(code <= 82) return '🌦';
+  if(code <= 99) return '⛈';
+  return '☁️';
+}
+window.weatherIcon = weatherIcon;
+
+// =============================================================
+// 📅 ФУНКЦИЯ 6: КАЛЕНДАРЬ СОБЫТИЙ
+// =============================================================
+window.generateCalendar = function(){
+  var events = [];
+  var now = new Date();
+  
+  // 15 и 30 каждого месяца — зарплата
+  for(var i = 0; i < 60; i++){
+    var d = new Date(now.getTime() + i*24*3600*1000);
+    if(d.getDate() === 15 || d.getDate() === 30){
+      events.push({
+        date: new Date(d),
+        icon: '💰',
+        title: 'Зарплата бригадам',
+        type: 'salary',
+        who: 'Бекжан',
+        color: '#7ee787'
+      });
+    }
+    if(d.getDate() === 1){
+      events.push({
+        date: new Date(d),
+        icon: '📊',
+        title: 'Подписание КС-2 за месяц',
+        type: 'ks2',
+        who: 'Евгений',
+        color: '#ffd166'
+      });
+    }
+    // Понедельник — планёрка
+    if(d.getDay() === 1){
+      events.push({
+        date: new Date(d),
+        icon: '👥',
+        title: 'Еженедельная планёрка',
+        type: 'meeting',
+        who: 'Все партнёры',
+        color: '#58a6ff'
+      });
+    }
+  }
+  
+  // Дедлайны
+  events.push({
+    date: new Date('2026-06-30'),
+    icon: '⬢',
+    title: 'Опалубка 2000 м² — дедлайн',
+    type: 'deadline',
+    who: 'Дмитрий',
+    color: '#ff7b72'
+  });
+  events.push({
+    date: new Date('2026-07-31'),
+    icon: '🎯',
+    title: '100 млн прибыли — цель',
+    type: 'goal',
+    who: 'Все',
+    color: '#ffd166'
+  });
+  events.push({
+    date: new Date('2026-10-31'),
+    icon: '🏗',
+    title: 'Блок 48 — сдача',
+    type: 'deadline',
+    who: 'Бекжан',
+    color: '#ff7b72'
+  });
+  events.push({
+    date: new Date('2026-11-30'),
+    icon: '🏗',
+    title: 'Блок 49 — сдача',
+    type: 'deadline',
+    who: 'Бекжан',
+    color: '#ff7b72'
+  });
+  events.push({
+    date: new Date('2026-12-31'),
+    icon: '🏆',
+    title: '820 млн прибыли — цель года',
+    type: 'goal',
+    who: 'Все партнёры',
+    color: '#ffd166'
+  });
+  
+  // Сортировка по дате, фильтр только будущие
+  events = events.filter(function(e){return e.date >= now;});
+  events.sort(function(a,b){return a.date - b.date;});
+  
+  return events.slice(0, 15);
+};
+
+// =============================================================
+// 🎯 ФУНКЦИЯ 8: KPI ДАШБОРД
+// =============================================================
+window.calcKPI = function(){
+  var goal = calcGoalProgress();
+  var C = calcCo();
+  var workers = (S.brigades||[]).reduce(function(s,b){return s+(b.workers||0);},0);
+  
+  // Объём за месяц
+  var now = new Date();
+  var monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  var volMonth = 0, expMonth = 0, earnMonth = 0;
+  S.entries.forEach(function(e){
+    if(!e.date) return;
+    var d = new Date(e.date);
+    if(d < monthStart) return;
+    if(e.type === 'vol') volMonth += (e.volume||0);
+    if(e.type === 'expense') expMonth += (e.amount||0);
+  });
+  
+  // Месячная маржа (если есть КС-2 в этом месяце)
+  var marginPct = 0;
+  if(goal.earned > 0){
+    marginPct = Math.round((goal.current / goal.earned) * 100);
+  }
+  
+  return {
+    velocity: volMonth, // м³/мес
+    workers: workers,
+    productivity: workers > 0 ? Math.round(volMonth / workers * 10) / 10 : 0, // м³/чел
+    margin: marginPct,
+    cashRunway: expMonth > 0 ? Math.floor(C.cash / (expMonth/now.getDate())) : 999,
+    progressToYear: goal.pct || 0
+  };
+};
+
+// =============================================================
+// 🔍 ФУНКЦИЯ 9: УЛУЧШЕННЫЙ ПОИСК
+// =============================================================
+window.openQuickSearch = function(){
+  if(typeof haptic === 'function') haptic('light');
+  
+  var titleEl = document.getElementById('drillTitle');
+  var bodyEl = document.getElementById('drillBody');
+  if(titleEl) titleEl.textContent = '🔍 ПОИСК';
+  
+  var html = '<div class="drill-h"><button class="drill-back" onclick="closeDrill()">✕</button></div>';
+  html += '<div style="margin-bottom:14px"><input type="text" id="qs-input" placeholder="Введите сумму, имя, или текст..." oninput="runQuickSearch()" style="width:100%;background:#0d1117;border:1.5px solid var(--gold);color:#e6edf3;border-radius:12px;padding:14px;font-size:15px;font-family:-apple-system,system-ui,sans-serif" autofocus></div>';
+  html += '<div id="qs-results" style="font-family:-apple-system,system-ui,sans-serif">';
+  html += '<div style="text-align:center;padding:30px;color:#8b949e;font-size:13px">Начните вводить — поиск работает мгновенно</div>';
+  html += '</div>';
+  
+  if(bodyEl) bodyEl.innerHTML = html;
+  document.getElementById('drillModal').style.display='flex';
+  setTimeout(function(){
+    var inp = document.getElementById('qs-input');
+    if(inp) inp.focus();
+  }, 100);
+};
+
+window.runQuickSearch = function(){
+  var q = (document.getElementById('qs-input')||{}).value || '';
+  q = q.trim().toLowerCase();
+  var resEl = document.getElementById('qs-results');
+  if(!resEl) return;
+  
+  if(q.length < 2){
+    resEl.innerHTML = '<div style="text-align:center;padding:30px;color:#8b949e;font-size:13px">Минимум 2 символа</div>';
+    return;
+  }
+  
+  var results = [];
+  // Поиск по записям
+  S.entries.forEach(function(e){
+    var hay = (e.note||'') + ' ' + (e.cat||'') + ' ' + (e.who||'') + ' ' + (e.to||'') + ' ' + (e.from||'') + ' ' + (e.amount||'') + ' ' + (e.date||'');
+    hay = hay.toLowerCase();
+    if(hay.indexOf(q) >= 0){
+      results.push(e);
+    }
+  });
+  
+  if(results.length === 0){
+    resEl.innerHTML = '<div style="text-align:center;padding:30px;color:#ff7b72;font-size:13px">Ничего не найдено</div>';
+    return;
+  }
+  
+  var html = '<div style="font-size:11px;color:#8b949e;letter-spacing:1.5px;font-weight:700;margin-bottom:10px">НАЙДЕНО: '+results.length+'</div>';
+  results.slice(0, 30).forEach(function(e){
+    var typeIcon = {expense:'💸',advance:'💼',vol:'🏗',income:'💵',invest:'💎'}[e.type] || '?';
+    var typeName = {expense:'Расход',advance:'Аванс',vol:'Объём',income:'Поступление',invest:'Вложение'}[e.type] || e.type;
+    var amtStr = e.type === 'vol' ? (e.volume + ' м³') : fmt(e.amount) + ' ₸';
+    
+    html += '<div onclick="openDrillEntry('+e.id+')" style="background:#161b22;border:1px solid #30363d;border-radius:10px;padding:12px;margin-bottom:8px;cursor:pointer;font-family:-apple-system,system-ui,sans-serif">';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">';
+    html += '<div style="font-size:13px;color:#e6edf3;font-weight:700">'+typeIcon+' '+typeName+'</div>';
+    html += '<div style="font-size:14px;color:#ffd166;font-weight:800">'+amtStr+'</div>';
+    html += '</div>';
+    html += '<div style="font-size:11px;color:#8b949e;margin-bottom:4px">'+(e.date||'—')+(e.who ? ' · '+e.who : '')+(e.to ? ' → '+e.to : '')+'</div>';
+    if(e.note){
+      html += '<div style="font-size:12px;color:#b9c3d0;line-height:1.4">'+e.note.substring(0,100)+'</div>';
+    }
+    html += '</div>';
+  });
+  
+  if(results.length > 30){
+    html += '<div style="text-align:center;padding:14px;color:#8b949e;font-size:11px">Показано первых 30 из '+results.length+'</div>';
+  }
+  
+  resEl.innerHTML = html;
+};
+
+// =============================================================
+// 📊 ФУНКЦИЯ 10: СРАВНЕНИЕ С ПРОШЛЫМ МЕСЯЦЕМ
+// =============================================================
+window.compareLastMonth = function(){
+  var now = new Date();
+  var thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  var lastMonthStart = new Date(now.getFullYear(), now.getMonth()-1, 1);
+  var lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+  
+  function sumPeriod(start, end){
+    var earn = 0, exp = 0, vol = 0, count = 0;
+    S.entries.forEach(function(e){
+      if(!e.date) return;
+      var d = new Date(e.date);
+      if(d < start || d > end) return;
+      count++;
+      if(e.type === 'vol') vol += (e.volume||0);
+      if(e.type === 'expense') exp += (e.amount||0);
+    });
+    return {earn:earn, exp:exp, vol:vol, count:count};
+  }
+  
+  var thisM = sumPeriod(thisMonthStart, now);
+  var lastM = sumPeriod(lastMonthStart, lastMonthEnd);
+  
+  return {
+    thisMonth: thisM,
+    lastMonth: lastM,
+    expDelta: lastM.exp > 0 ? Math.round((thisM.exp - lastM.exp) / lastM.exp * 100) : 0,
+    volDelta: lastM.vol > 0 ? Math.round((thisM.vol - lastM.vol) / lastM.vol * 100) : 0,
+    countDelta: thisM.count - lastM.count
+  };
+};
+
+// =============================================================
+// 📷 ФУНКЦИЯ 2: ФОТО ЧЕКА (открывает камеру для добавления)
+// =============================================================
+window.captureReceipt = function(){
+  if(typeof haptic === 'function') haptic('medium');
+  // Создаём скрытый input file с capture=camera
+  var input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.capture = 'environment'; // задняя камера
+  input.style.display = 'none';
+  
+  input.onchange = function(e){
+    var file = e.target.files[0];
+    if(!file) return;
+    
+    var reader = new FileReader();
+    reader.onload = function(ev){
+      var dataUrl = ev.target.result;
+      // Сохраним фото и откроем форму расхода с фото
+      window._capturedReceipt = dataUrl;
+      window._capturedReceiptSize = file.size;
+      
+      // Покажем превью + кнопку "Создать расход"
+      showReceiptPreview(dataUrl, file.size);
+    };
+    reader.readAsDataURL(file);
+  };
+  
+  document.body.appendChild(input);
+  input.click();
+  setTimeout(function(){ input.remove(); }, 1000);
+};
+
+function showReceiptPreview(dataUrl, size){
+  var sizeKb = Math.round(size/1024);
+  var ex = document.getElementById('lg-receipt-modal');
+  if(ex) ex.remove();
+  
+  var modal = document.createElement('div');
+  modal.id = 'lg-receipt-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px';
+  modal.innerHTML = 
+    '<div style="background:#161b22;border:1.5px solid var(--gold);border-radius:20px;padding:20px;max-width:90%;max-height:90%;overflow-y:auto;font-family:-apple-system,system-ui,sans-serif">' +
+      '<div style="font-size:12px;color:#ffd166;letter-spacing:2px;font-weight:800;margin-bottom:12px;text-align:center">📷 ФОТО ЧЕКА</div>' +
+      '<img src="' + dataUrl + '" style="width:100%;max-height:300px;object-fit:contain;border-radius:12px;background:#0d1117;margin-bottom:14px"/>' +
+      '<div style="font-size:11px;color:#8b949e;text-align:center;margin-bottom:14px">Размер: ' + sizeKb + ' КБ</div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' +
+        '<button onclick="closeReceiptPreview()" style="padding:14px;background:transparent;border:1px solid #30363d;color:#8b949e;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:-apple-system,system-ui,sans-serif">Отмена</button>' +
+        '<button onclick="createExpenseFromReceipt()" style="padding:14px;background:linear-gradient(135deg,var(--gold),var(--orange));border:none;color:#000;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:-apple-system,system-ui,sans-serif">Создать расход</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(modal);
+}
+window.showReceiptPreview = showReceiptPreview;
+
+window.closeReceiptPreview = function(){
+  var m = document.getElementById('lg-receipt-modal');
+  if(m) m.remove();
+  window._capturedReceipt = null;
+};
+
+window.createExpenseFromReceipt = function(){
+  closeReceiptPreview();
+  // Открываем форму расхода — типа функция openAddExp должна быть в коде
+  if(typeof openModal === 'function'){
+    // Просто инструкция пока — полная интеграция требует доработки addEntry
+    alert('📷 Чек сфотографирован!\n\nТеперь добавьте детали расхода вручную через кнопку "+".\nВ будущей версии фото автоматически прикрепится.');
+  }
+};
+
+// =============================================================
+// 🏦 ФУНКЦИЯ 7: ИМПОРТ БАНКОВСКОЙ ВЫПИСКИ (CSV из Каспи)
+// =============================================================
+window.importBankStatement = function(){
+  if(typeof haptic === 'function') haptic('medium');
+  var input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.csv,text/csv,.xls,.xlsx';
+  input.style.display = 'none';
+  
+  input.onchange = function(e){
+    var file = e.target.files[0];
+    if(!file) return;
+    
+    var reader = new FileReader();
+    reader.onload = function(ev){
+      try {
+        var text = ev.target.result;
+        parseBankCsv(text, file.name);
+      } catch(err) {
+        alert('Ошибка чтения файла: ' + err.message);
+      }
+    };
+    reader.readAsText(file, 'UTF-8');
+  };
+  
+  document.body.appendChild(input);
+  input.click();
+  setTimeout(function(){input.remove();}, 1000);
+};
+
+function parseBankCsv(text, filename){
+  // Каспи формат: дата,категория,сумма,описание
+  var lines = text.split(/\r?\n/).filter(function(l){return l.trim();});
+  if(lines.length < 2){
+    alert('Файл пустой или некорректный');
+    return;
+  }
+  
+  var found = [];
+  // Пропускаем заголовок
+  for(var i = 1; i < Math.min(lines.length, 50); i++){
+    var line = lines[i];
+    // Простой парсинг — ищем дату и сумму в строке
+    var dateMatch = line.match(/(\d{4}[-./]\d{2}[-./]\d{2}|\d{2}[-./]\d{2}[-./]\d{4})/);
+    var amountMatch = line.match(/([+-]?\s*[\d\s]{2,}[.,]?\d*)\s*[₸тг]/i);
+    if(!amountMatch) amountMatch = line.match(/([-]?\d[\d\s]{2,}[.,]?\d{0,2})/);
+    
+    if(dateMatch && amountMatch){
+      var amt = parseFloat(amountMatch[1].replace(/[\s,]/g,'').replace(',','.'));
+      if(!isNaN(amt) && Math.abs(amt) > 100){
+        found.push({date: dateMatch[1], amount: amt, raw: line});
+      }
+    }
+  }
+  
+  if(found.length === 0){
+    alert('Не удалось распознать транзакции в файле.\n\nКаспи: экспорт CSV → "Категории и расходы".');
+    return;
+  }
+  
+  // Покажем превью
+  showImportPreview(found, filename);
+}
+
+function showImportPreview(transactions, filename){
+  var ex = document.getElementById('lg-import-modal');
+  if(ex) ex.remove();
+  
+  var modal = document.createElement('div');
+  modal.id = 'lg-import-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:99999;display:flex;align-items:flex-end;justify-content:center';
+  
+  var html = '<div onclick="event.stopPropagation()" style="width:100%;max-width:480px;background:#161b22;border-top:1.5px solid var(--gold);border-radius:24px 24px 0 0;padding:20px 16px calc(20px + env(safe-area-inset-bottom));max-height:80vh;overflow-y:auto;font-family:-apple-system,system-ui,sans-serif">';
+  html += '<div style="width:40px;height:5px;background:#30363d;border-radius:3px;margin:0 auto 18px"></div>';
+  html += '<div style="font-size:12px;color:#ffd166;letter-spacing:2px;font-weight:800;margin-bottom:6px;text-align:center">🏦 ИМПОРТ ВЫПИСКИ</div>';
+  html += '<div style="font-size:13px;color:#b9c3d0;text-align:center;margin-bottom:18px">'+filename+' · Найдено: '+transactions.length+'</div>';
+  
+  transactions.slice(0, 20).forEach(function(t, i){
+    var amtColor = t.amount > 0 ? '#7ee787' : '#ff7b72';
+    html += '<div style="background:#0d1117;border:1px solid #30363d;border-radius:10px;padding:12px;margin-bottom:8px">';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">';
+    html += '<div style="font-size:12px;color:#8b949e">'+t.date+'</div>';
+    html += '<div style="font-size:15px;color:'+amtColor+';font-weight:800">'+(t.amount>0?'+':'')+fmt(t.amount)+' ₸</div>';
+    html += '</div>';
+    html += '<div style="font-size:11px;color:#b9c3d0;line-height:1.4">'+t.raw.substring(0,80)+'</div>';
+    html += '</div>';
+  });
+  
+  if(transactions.length > 20){
+    html += '<div style="text-align:center;color:#8b949e;font-size:11px;margin-bottom:14px">+'+(transactions.length-20)+' ещё транзакций</div>';
+  }
+  
+  html += '<div style="background:rgba(255,179,32,.10);border:1px solid rgba(255,179,32,.3);border-radius:10px;padding:12px;margin:14px 0;font-size:12px;color:#ffd166;line-height:1.4">⚠ Это превью. Автоматический импорт в записи будет добавлен в следующей версии. Сейчас можно использовать как контрольный список.</div>';
+  html += '<button onclick="closeImportPreview()" style="width:100%;padding:14px;background:transparent;border:1px solid #30363d;color:#8b949e;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:-apple-system,system-ui,sans-serif">Закрыть</button>';
+  html += '</div>';
+  
+  modal.innerHTML = html;
+  modal.onclick = function(e){ if(e.target === modal) modal.remove(); };
+  document.body.appendChild(modal);
+}
+
+window.closeImportPreview = function(){
+  var m = document.getElementById('lg-import-modal');
+  if(m) m.remove();
+};
+
+// =============================================================
+// 🎯 ОБЪЕДИНЁННЫЙ ЭКРАН "БОЛЬШЕ" — все новые функции
+// =============================================================
+window.openMoreFeatures = function(){
+  if(typeof haptic === 'function') haptic('medium');
+  
+  var titleEl = document.getElementById('drillTitle');
+  var bodyEl = document.getElementById('drillBody');
+  if(titleEl) titleEl.textContent = '✨ ВОЗМОЖНОСТИ';
+  
+  var html = '<div class="drill-h"><button class="drill-back" onclick="closeDrill()">✕</button></div>';
+  
+  var features = [
+    {icon:'📈', title:'Прогноз на 30 дней', desc:'Касса, прибыль, объём', color:'#7ee787', fn:'showForecast'},
+    {icon:'🎯', title:'KPI дашборд', desc:'Темп, маржа, runway', color:'#ffd166', fn:'showKPI'},
+    {icon:'📅', title:'Календарь событий', desc:'Зарплаты, дедлайны, КС-2', color:'#58a6ff', fn:'showCalendar'},
+    {icon:'📊', title:'Сравнение с прошлым месяцем', desc:'Динамика расходов', color:'#39d3bb', fn:'showCompare'},
+    {icon:'🔍', title:'Быстрый поиск', desc:'По всем записям', color:'#ffa657', fn:'openQuickSearch'},
+    {icon:'💱', title:'Курс USD/KZT', desc:'Сколько ваш план в долларах', color:'#7ee787', fn:'showCurrency'},
+    {icon:'⛅', title:'Погода на объекте', desc:'Алматы, 3 дня вперёд', color:'#58a6ff', fn:'showWeather'},
+    {icon:'📷', title:'Фото чека → расход', desc:'Камера + запись', color:'#ffd166', fn:'captureReceipt'},
+    {icon:'🏦', title:'Импорт банк. выписки', desc:'CSV из Каспи', color:'#ff7b72', fn:'importBankStatement'},
+    {icon:'🎤', title:'Голосовой ввод', desc:'Скажите расход — добавится', color:'#a371f7', fn:'startVoiceInput'}
+  ];
+  
+  features.forEach(function(f){
+    html += '<div onclick="closeDrill();setTimeout(function(){'+f.fn+'();},250)" style="display:flex;align-items:center;gap:14px;padding:16px;background:linear-gradient(135deg,'+f.color+'10,#0d1117);border:1.5px solid '+f.color+'33;border-radius:14px;margin-bottom:10px;cursor:pointer;font-family:-apple-system,system-ui,sans-serif">';
+    html += '<div style="font-size:32px;flex-shrink:0">'+f.icon+'</div>';
+    html += '<div style="flex:1;min-width:0">';
+    html += '<div style="font-size:15px;color:'+f.color+';font-weight:700;margin-bottom:3px">'+f.title+'</div>';
+    html += '<div style="font-size:12px;color:#8b949e;line-height:1.3">'+f.desc+'</div>';
+    html += '</div>';
+    html += '<div style="font-size:18px;color:#8b949e">›</div>';
+    html += '</div>';
+  });
+  
+  if(bodyEl) bodyEl.innerHTML = html;
+  document.getElementById('drillModal').style.display='flex';
+};
+
+// =============================================================
+// ОТОБРАЖЕНИЕ КАЖДОЙ ФУНКЦИИ В МОДАЛКЕ
+// =============================================================
+function genericModal(title, contentHtml){
+  var titleEl = document.getElementById('drillTitle');
+  var bodyEl = document.getElementById('drillBody');
+  if(titleEl) titleEl.textContent = title;
+  var html = '<div class="drill-h"><button class="drill-back" onclick="closeDrill()">✕</button></div>';
+  html += contentHtml;
+  if(bodyEl) bodyEl.innerHTML = html;
+  document.getElementById('drillModal').style.display='flex';
+}
+
+window.showForecast = function(){
+  var f = calcForecast30();
+  var color = f.riskLevel === 'critical' ? '#ff7b72' : (f.riskLevel === 'warning' ? '#ffa657' : '#7ee787');
+  var label = f.riskLevel === 'critical' ? '🔴 КРИТИЧЕСКИ' : (f.riskLevel === 'warning' ? '🟡 ВНИМАНИЕ' : '🟢 ВСЁ НОРМАЛЬНО');
+  
+  var html = '<div style="background:linear-gradient(160deg,'+color+'15,#0d1117);border:1.5px solid '+color+'50;border-radius:18px;padding:20px;margin-bottom:16px;font-family:-apple-system,system-ui,sans-serif">';
+  html += '<div style="font-size:11px;color:'+color+';letter-spacing:2px;font-weight:800;margin-bottom:6px">📈 ПРОГНОЗ НА 30 ДНЕЙ</div>';
+  html += '<div style="font-size:14px;color:'+color+';font-weight:700;margin-bottom:18px">'+label+'</div>';
+  
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">';
+  
+  // Касса через 30 дней
+  var cashColor = f.cash30 > 0 ? '#7ee787' : '#ff7b72';
+  html += '<div style="background:#0d1117;border:1px solid '+cashColor+'40;border-radius:12px;padding:14px">';
+  html += '<div style="font-size:11px;color:'+cashColor+';letter-spacing:1.5px;font-weight:700">КАССА ЧЕРЕЗ МЕС</div>';
+  html += '<div style="font-size:24px;color:'+cashColor+';font-weight:800;margin-top:6px">'+(f.cash30>0?'+':'')+fmt(Math.round(f.cash30/1000))+' K</div>';
+  html += '</div>';
+  
+  // Прибыль за 30 дней
+  var profColor = f.profit30 > 0 ? '#7ee787' : '#ff7b72';
+  html += '<div style="background:#0d1117;border:1px solid '+profColor+'40;border-radius:12px;padding:14px">';
+  html += '<div style="font-size:11px;color:'+profColor+';letter-spacing:1.5px;font-weight:700">ПРИБЫЛЬ 30 ДН</div>';
+  html += '<div style="font-size:24px;color:'+profColor+';font-weight:800;margin-top:6px">'+(f.profit30>0?'+':'')+fmt(Math.round(f.profit30/1000000))+' M</div>';
+  html += '</div>';
+  
+  // Объём
+  html += '<div style="background:#0d1117;border:1px solid rgba(57,211,187,.4);border-radius:12px;padding:14px">';
+  html += '<div style="font-size:11px;color:#39d3bb;letter-spacing:1.5px;font-weight:700">ОБЪЁМ 30 ДН</div>';
+  html += '<div style="font-size:24px;color:#39d3bb;font-weight:800;margin-top:6px">'+Math.round(f.vol30)+' м³</div>';
+  html += '</div>';
+  
+  // Runway
+  var rwColor = f.runwayDays < 10 ? '#ff7b72' : (f.runwayDays < 30 ? '#ffa657' : '#7ee787');
+  html += '<div style="background:#0d1117;border:1px solid '+rwColor+'40;border-radius:12px;padding:14px">';
+  html += '<div style="font-size:11px;color:'+rwColor+';letter-spacing:1.5px;font-weight:700">RUNWAY</div>';
+  html += '<div style="font-size:24px;color:'+rwColor+';font-weight:800;margin-top:6px">'+f.runwayDays+' дн</div>';
+  html += '</div>';
+  
+  html += '</div>';
+  
+  // Дневные средние
+  html += '<div style="margin-top:18px;padding-top:18px;border-top:1px solid #30363d">';
+  html += '<div style="font-size:11px;color:#8b949e;letter-spacing:1.5px;font-weight:700;margin-bottom:10px">ДНЕВНЫЕ СРЕДНИЕ (за последние 14 дней)</div>';
+  html += '<div style="font-size:13px;color:#b9c3d0;line-height:1.8">';
+  html += '• Зарабатываем: <b style="color:#7ee787">'+fmt(Math.round(f.dailyEarn))+' ₸/день</b><br>';
+  html += '• Тратим: <b style="color:#ff7b72">'+fmt(Math.round(f.dailyExp))+' ₸/день</b><br>';
+  html += '• Заливаем: <b style="color:#39d3bb">'+Math.round(f.dailyVol*10)/10+' м³/день</b>';
+  html += '</div>';
+  html += '</div>';
+  
+  html += '</div>';
+  
+  genericModal('📈 ПРОГНОЗ', html);
+};
+
+window.showKPI = function(){
+  var k = calcKPI();
+  var html = '<div style="font-family:-apple-system,system-ui,sans-serif">';
+  
+  var kpis = [
+    {label:'ТЕМП', val: k.velocity + ' м³', sub:'за этот месяц', color:'#39d3bb'},
+    {label:'РАБОЧИХ', val: k.workers + ' чел', sub:'всего на объекте', color:'#58a6ff'},
+    {label:'ПРОИЗВОДИТЕЛЬНОСТЬ', val: k.productivity + ' м³', sub:'на 1 человека', color:'#ffd166'},
+    {label:'МАРЖА', val: k.margin + '%', sub:'прибыль / выручка', color: k.margin > 0 ? '#7ee787' : '#ff7b72'},
+    {label:'RUNWAY КАССЫ', val: k.cashRunway + ' дн', sub:'хватит при текущих расходах', color: k.cashRunway < 10 ? '#ff7b72' : '#7ee787'},
+    {label:'ГОДОВОЙ ПЛАН', val: k.progressToYear + '%', sub:'из 820 млн ₸', color:'#ffd166'}
+  ];
+  
+  kpis.forEach(function(k){
+    html += '<div style="background:linear-gradient(135deg,'+k.color+'15,#0d1117);border:1.5px solid '+k.color+'40;border-radius:14px;padding:16px;margin-bottom:10px">';
+    html += '<div style="font-size:11px;color:'+k.color+';letter-spacing:1.5px;font-weight:800;margin-bottom:6px">'+k.label+'</div>';
+    html += '<div style="font-size:32px;color:'+k.color+';font-weight:800;line-height:1">'+k.val+'</div>';
+    html += '<div style="font-size:12px;color:#8b949e;margin-top:6px">'+k.sub+'</div>';
+    html += '</div>';
+  });
+  
+  html += '</div>';
+  genericModal('🎯 KPI', html);
+};
+
+window.showCalendar = function(){
+  var events = generateCalendar();
+  var html = '<div style="font-family:-apple-system,system-ui,sans-serif">';
+  
+  if(events.length === 0){
+    html += '<div style="text-align:center;padding:30px;color:#8b949e">Нет запланированных событий</div>';
+  } else {
+    var lastMonth = null;
+    events.forEach(function(e){
+      var d = e.date;
+      var monthLbl = ['Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек'][d.getMonth()];
+      
+      if(monthLbl !== lastMonth){
+        html += '<div style="font-size:11px;color:#8b949e;letter-spacing:2px;font-weight:800;margin:18px 0 10px;padding-left:8px">'+monthLbl+' '+d.getFullYear()+'</div>';
+        lastMonth = monthLbl;
+      }
+      
+      var daysFromNow = Math.ceil((d - new Date())/(24*3600*1000));
+      var dayLbl = ['вс','пн','вт','ср','чт','пт','сб'][d.getDay()];
+      
+      html += '<div style="display:flex;gap:12px;padding:12px;background:linear-gradient(135deg,'+e.color+'10,#0d1117);border:1px solid '+e.color+'33;border-radius:12px;margin-bottom:8px;align-items:center">';
+      html += '<div style="flex-shrink:0;text-align:center;min-width:48px">';
+      html += '<div style="font-size:22px;font-weight:800;color:'+e.color+';line-height:1">'+d.getDate()+'</div>';
+      html += '<div style="font-size:10px;color:#8b949e;text-transform:uppercase;margin-top:2px">'+dayLbl+'</div>';
+      html += '</div>';
+      html += '<div style="flex:1;min-width:0">';
+      html += '<div style="font-size:14px;color:#e6edf3;font-weight:600;margin-bottom:2px">'+e.icon+' '+e.title+'</div>';
+      html += '<div style="font-size:11px;color:#8b949e">👤 '+e.who+' · через '+daysFromNow+' дн</div>';
+      html += '</div>';
+      html += '</div>';
+    });
+  }
+  
+  html += '</div>';
+  genericModal('📅 КАЛЕНДАРЬ', html);
+};
+
+window.showCompare = function(){
+  var c = compareLastMonth();
+  var html = '<div style="font-family:-apple-system,system-ui,sans-serif">';
+  
+  html += '<div style="background:#161b22;border:1px solid #30363d;border-radius:14px;padding:16px;margin-bottom:14px">';
+  html += '<div style="font-size:11px;color:#8b949e;letter-spacing:1.5px;font-weight:700;margin-bottom:14px">ЭТОТ МЕСЯЦ vs ПРОШЛЫЙ</div>';
+  
+  // Расходы
+  var expDeltaColor = c.expDelta > 10 ? '#ff7b72' : (c.expDelta < -10 ? '#7ee787' : '#ffd166');
+  html += '<div style="margin-bottom:14px">';
+  html += '<div style="font-size:12px;color:#b9c3d0;margin-bottom:4px">💸 Расходы</div>';
+  html += '<div style="display:flex;align-items:baseline;gap:10px">';
+  html += '<div style="font-size:22px;color:#e6edf3;font-weight:800">'+fmt(Math.round(c.thisMonth.exp/1000))+' K ₸</div>';
+  html += '<div style="font-size:13px;color:#8b949e">vs '+fmt(Math.round(c.lastMonth.exp/1000))+' K в прошлом</div>';
+  html += '</div>';
+  html += '<div style="font-size:14px;color:'+expDeltaColor+';font-weight:700;margin-top:4px">'+(c.expDelta>0?'↑ +':(c.expDelta<0?'↓ ':''))+c.expDelta+'%</div>';
+  html += '</div>';
+  
+  // Объём
+  var volDeltaColor = c.volDelta > 10 ? '#7ee787' : (c.volDelta < -10 ? '#ff7b72' : '#ffd166');
+  html += '<div style="margin-bottom:14px">';
+  html += '<div style="font-size:12px;color:#b9c3d0;margin-bottom:4px">🏗 Объём (м³)</div>';
+  html += '<div style="display:flex;align-items:baseline;gap:10px">';
+  html += '<div style="font-size:22px;color:#e6edf3;font-weight:800">'+Math.round(c.thisMonth.vol)+' м³</div>';
+  html += '<div style="font-size:13px;color:#8b949e">vs '+Math.round(c.lastMonth.vol)+' м³ в прошлом</div>';
+  html += '</div>';
+  html += '<div style="font-size:14px;color:'+volDeltaColor+';font-weight:700;margin-top:4px">'+(c.volDelta>0?'↑ +':(c.volDelta<0?'↓ ':''))+c.volDelta+'%</div>';
+  html += '</div>';
+  
+  // Количество записей
+  html += '<div>';
+  html += '<div style="font-size:12px;color:#b9c3d0;margin-bottom:4px">📊 Активность (записей)</div>';
+  html += '<div style="display:flex;align-items:baseline;gap:10px">';
+  html += '<div style="font-size:22px;color:#e6edf3;font-weight:800">'+c.thisMonth.count+'</div>';
+  html += '<div style="font-size:13px;color:#8b949e">vs '+c.lastMonth.count+' в прошлом</div>';
+  html += '</div>';
+  html += '<div style="font-size:14px;color:#8b949e;font-weight:700;margin-top:4px">'+(c.countDelta>0?'+'+c.countDelta:c.countDelta)+' записей</div>';
+  html += '</div>';
+  
+  html += '</div>';
+  html += '</div>';
+  
+  genericModal('📊 СРАВНЕНИЕ', html);
+};
+
+window.showCurrency = function(){
+  var html = '<div style="font-family:-apple-system,system-ui,sans-serif">';
+  html += '<div id="curr-loading" style="text-align:center;padding:40px;color:#8b949e">Загрузка курса...</div>';
+  html += '</div>';
+  
+  genericModal('💱 КУРС USD/KZT', html);
+  
+  fetchExchangeRate(function(rate){
+    var bodyEl = document.getElementById('drillBody');
+    if(!bodyEl) return;
+    
+    var goal820 = 820000000;
+    var goalBln = 1000000000; // 1 МЛРД $
+    var rateNum = rate || 540;
+    
+    var html2 = '<div class="drill-h"><button class="drill-back" onclick="closeDrill()">✕</button></div>';
+    html2 += '<div style="font-family:-apple-system,system-ui,sans-serif">';
+    
+    // Курс
+    html2 += '<div style="background:linear-gradient(135deg,rgba(63,185,80,.10),#0d1117);border:1.5px solid rgba(63,185,80,.4);border-radius:18px;padding:20px;margin-bottom:14px;text-align:center">';
+    html2 += '<div style="font-size:11px;color:#7ee787;letter-spacing:2px;font-weight:800;margin-bottom:8px">КУРС НА СЕГОДНЯ</div>';
+    html2 += '<div style="font-size:42px;color:#7ee787;font-weight:800">1$ = '+Math.round(rateNum)+'₸</div>';
+    html2 += '</div>';
+    
+    // 820 млн = сколько $
+    var dol820 = Math.round(goal820 / rateNum);
+    html2 += '<div style="background:#161b22;border:1px solid #30363d;border-radius:14px;padding:16px;margin-bottom:10px">';
+    html2 += '<div style="font-size:11px;color:#ffd166;letter-spacing:1.5px;font-weight:700">ЦЕЛЬ 820 МЛН ₸</div>';
+    html2 += '<div style="font-size:26px;color:#e6edf3;font-weight:800;margin-top:6px">≈ $'+fmt(dol820)+'</div>';
+    html2 += '<div style="font-size:12px;color:#8b949e;margin-top:4px">прибыли 2026 года</div>';
+    html2 += '</div>';
+    
+    // 1 МЛРД $ = сколько ₸
+    var blnKzt = Math.round(goalBln * rateNum);
+    html2 += '<div style="background:#161b22;border:1px solid #30363d;border-radius:14px;padding:16px;margin-bottom:10px">';
+    html2 += '<div style="font-size:11px;color:#ffd166;letter-spacing:1.5px;font-weight:700">1 МЛРД $ (КАПИТАЛИЗАЦИЯ 2030)</div>';
+    html2 += '<div style="font-size:26px;color:#e6edf3;font-weight:800;margin-top:6px">≈ '+fmt(Math.round(blnKzt/1000000000))+' МЛРД ₸</div>';
+    html2 += '<div style="font-size:12px;color:#8b949e;margin-top:4px">'+fmt(Math.round(blnKzt/1000000000000))+' трлн тенге</div>';
+    html2 += '</div>';
+    
+    html2 += '</div>';
+    
+    bodyEl.innerHTML = html2;
+  });
+};
+
+window.showWeather = function(){
+  var html = '<div style="font-family:-apple-system,system-ui,sans-serif">';
+  html += '<div id="weather-loading" style="text-align:center;padding:40px;color:#8b949e">Загрузка погоды...</div>';
+  html += '</div>';
+  
+  genericModal('⛅ ПОГОДА', html);
+  
+  fetchWeather(function(w){
+    var bodyEl = document.getElementById('drillBody');
+    if(!bodyEl || !w) return;
+    
+    var html2 = '<div class="drill-h"><button class="drill-back" onclick="closeDrill()">✕</button></div>';
+    html2 += '<div style="font-family:-apple-system,system-ui,sans-serif">';
+    
+    // Сейчас
+    html2 += '<div style="background:linear-gradient(135deg,rgba(88,166,255,.10),#0d1117);border:1.5px solid rgba(88,166,255,.4);border-radius:18px;padding:24px;margin-bottom:14px;text-align:center">';
+    html2 += '<div style="font-size:11px;color:#58a6ff;letter-spacing:2px;font-weight:800;margin-bottom:8px">АЛМАТЫ · СЕЙЧАС</div>';
+    html2 += '<div style="font-size:64px;line-height:1">'+weatherIcon(w.codeNow)+'</div>';
+    html2 += '<div style="font-size:48px;color:#58a6ff;font-weight:800;margin-top:8px">'+w.tempNow+'°</div>';
+    if(w.rainNow){
+      html2 += '<div style="font-size:13px;color:#ff7b72;margin-top:8px;font-weight:600">🌧 Сейчас идёт дождь</div>';
+    }
+    html2 += '</div>';
+    
+    // 3 дня
+    if(w.days && w.days.length){
+      var dayLabels = ['Сегодня','Завтра','Послезавтра'];
+      html2 += '<div style="font-size:11px;color:#8b949e;letter-spacing:2px;font-weight:800;margin:18px 0 10px">ПРОГНОЗ</div>';
+      w.days.forEach(function(d, i){
+        var rainWarn = d.rain ? '<span style="color:#ff7b72;font-size:12px;margin-left:6px">🌧 НЕ ЛЕЙТЕ БЕТОН</span>' : '';
+        html2 += '<div style="background:#161b22;border:1px solid '+(d.rain?'rgba(248,81,73,.4)':'#30363d')+';border-radius:12px;padding:14px;margin-bottom:8px;display:flex;align-items:center;gap:14px">';
+        html2 += '<div style="font-size:36px">'+weatherIcon(d.code)+'</div>';
+        html2 += '<div style="flex:1">';
+        html2 += '<div style="font-size:14px;color:#e6edf3;font-weight:700">'+dayLabels[i]+rainWarn+'</div>';
+        html2 += '<div style="font-size:12px;color:#8b949e;margin-top:2px">от '+d.min+'° до '+d.max+'°</div>';
+        html2 += '</div>';
+        html2 += '<div style="font-size:22px;color:#e6edf3;font-weight:800">'+d.max+'°</div>';
+        html2 += '</div>';
+      });
+    }
+    
+    html2 += '</div>';
+    bodyEl.innerHTML = html2;
+  });
+};
+
+window.startVoiceInput = function(){
+  alert('🎤 Голосовой ввод\n\nФункция доступна на iOS Safari через диктовку клавиатуры:\n\n1. Откройте форму добавления записи\n2. Тапните на поле ввода\n3. Тапните 🎤 на клавиатуре\n4. Говорите\n\nЭто работает в любом текстовом поле!');
+};
+
+// Главное меню (⋯) — современный bottom sheet
+window.openMainMenu = function(){
+  if(typeof haptic === 'function') haptic('light');
+  
+  // Определяем роль пользователя для подписи
+  var roleLabel = 'Пользователь';
+  var roleColor = '#8b949e';
+  if(typeof role !== 'undefined' && role){
+    if(role === 'editor'){ roleLabel = 'Учётчица / Редактор'; roleColor = '#ffd166'; }
+    else if(role.indexOf('partner_') === 0){ roleLabel = 'Партнёр: '+role.replace('partner_',''); roleColor = '#58a6ff'; }
+    else if(role.indexOf('brigadier_') === 0){ roleLabel = 'Бригадир'; roleColor = '#39d3bb'; }
+    else if(role === 'viewer'){ roleLabel = 'Просмотр'; roleColor = '#8b949e'; }
+  }
+  
+  var h = '<div id="lg-menu-bg" onclick="closeMainMenu(event)" style="position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);z-index:9998;animation:fadeIn .2s">';
+  h += '<div onclick="event.stopPropagation()" style="position:absolute;bottom:0;left:0;right:0;background:#161b22;border-top:1.5px solid var(--gold);border-radius:24px 24px 0 0;padding:20px 16px calc(20px + env(safe-area-inset-bottom));box-shadow:0 -8px 32px rgba(0,0,0,.5);animation:slideUp .25s ease;font-family:-apple-system,system-ui,sans-serif">';
+  
+  // Полоска-хэндл
+  h += '<div style="width:40px;height:5px;background:#30363d;border-radius:3px;margin:0 auto 18px"></div>';
+  
+  // Шапка меню — роль + статус
+  h += '<div style="text-align:center;margin-bottom:20px;padding-bottom:18px;border-bottom:1px solid #30363d">';
+  h += '<div style="font-size:11px;color:#8b949e;letter-spacing:2px;font-weight:700;margin-bottom:6px">МЕНЮ</div>';
+  h += '<div style="font-size:16px;color:'+roleColor+';font-weight:700">'+roleLabel+'</div>';
+  h += '</div>';
+  
+  // Группа: Навигация
+  h += '<div style="font-size:11px;color:#8b949e;letter-spacing:1.5px;font-weight:700;margin-bottom:10px;padding-left:6px">НАВИГАЦИЯ</div>';
+  
+  // Журнал
+  h += '<button onclick="closeMainMenu();goToJournal()" style="width:100%;display:flex;align-items:center;gap:14px;padding:14px 14px;background:rgba(88,166,255,.08);border:1px solid rgba(88,166,255,.25);border-radius:14px;color:#58a6ff;font-size:15px;font-weight:600;cursor:pointer;margin-bottom:8px;text-align:left;font-family:-apple-system,system-ui,sans-serif">';
+  h += '<span style="font-size:22px">📋</span>';
+  h += '<div style="flex:1"><div>Журнал операций</div><div style="font-size:11px;color:#8b949e;font-weight:500;margin-top:2px">Все записи с фильтрами</div></div>';
+  h += '<span style="color:#8b949e;font-size:18px">›</span>';
+  h += '</button>';
+  
+  // Бригады
+  h += '<button onclick="closeMainMenu();goToBrigades()" style="width:100%;display:flex;align-items:center;gap:14px;padding:14px 14px;background:rgba(57,211,187,.08);border:1px solid rgba(57,211,187,.25);border-radius:14px;color:#39d3bb;font-size:15px;font-weight:600;cursor:pointer;margin-bottom:8px;text-align:left;font-family:-apple-system,system-ui,sans-serif">';
+  h += '<span style="font-size:22px">👷</span>';
+  h += '<div style="flex:1"><div>Бригады</div><div style="font-size:11px;color:#8b949e;font-weight:500;margin-top:2px">Шынгыс, Нурсултан и др.</div></div>';
+  h += '<span style="color:#8b949e;font-size:18px">›</span>';
+  h += '</button>';
+  
+  // AI-CFO (если есть)
+  if(typeof openAIChat === "function"){
+    h += '<button onclick="closeMainMenu();openAIChat()" style="width:100%;display:flex;align-items:center;gap:14px;padding:14px 14px;background:rgba(212,167,58,.08);border:1px solid rgba(212,167,58,.25);border-radius:14px;color:#ffd166;font-size:15px;font-weight:600;cursor:pointer;margin-bottom:8px;text-align:left;font-family:-apple-system,system-ui,sans-serif">';
+    h += '<span style="font-size:22px">🤖</span>';
+    h += '<div style="flex:1"><div>AI-CFO советник</div><div style="font-size:11px;color:#8b949e;font-weight:500;margin-top:2px">Анализ и рекомендации</div></div>';
+    h += '<span style="color:#8b949e;font-size:18px">›</span>';
+    h += '</button>';
+  }
+  
+  // Возможности (10 фичей)
+  h += '<button onclick="closeMainMenu();openMoreFeatures()" style="width:100%;display:flex;align-items:center;gap:14px;padding:14px 14px;background:rgba(163,113,247,.08);border:1px solid rgba(163,113,247,.25);border-radius:14px;color:#a371f7;font-size:15px;font-weight:600;cursor:pointer;margin-bottom:8px;text-align:left;font-family:-apple-system,system-ui,sans-serif">';
+  h += '<span style="font-size:22px">✨</span>';
+  h += '<div style="flex:1"><div>Возможности</div><div style="font-size:11px;color:#8b949e;font-weight:500;margin-top:2px">Прогноз · Погода · KPI · Импорт банка</div></div>';
+  h += '<span style="color:#8b949e;font-size:18px">›</span>';
+  h += '</button>';
+  
+  // Поделиться
+  if(typeof shareDailySummary === "function"){
+    h += '<button onclick="closeMainMenu();shareDailySummary()" style="width:100%;display:flex;align-items:center;gap:14px;padding:14px 14px;background:rgba(63,185,80,.08);border:1px solid rgba(63,185,80,.25);border-radius:14px;color:#7ee787;font-size:15px;font-weight:600;cursor:pointer;margin-bottom:8px;text-align:left;font-family:-apple-system,system-ui,sans-serif">';
+    h += '<span style="font-size:22px">📤</span>';
+    h += '<div style="flex:1"><div>Поделиться сводкой</div><div style="font-size:11px;color:#8b949e;font-weight:500;margin-top:2px">В Telegram, WhatsApp</div></div>';
+    h += '<span style="color:#8b949e;font-size:18px">›</span>';
+    h += '</button>';
+  }
+  
+  // Выйти
+  h += '<div style="font-size:11px;color:#8b949e;letter-spacing:1.5px;font-weight:700;margin-top:16px;margin-bottom:10px;padding-left:6px">АККАУНТ</div>';
+  h += '<button onclick="closeMainMenu();doLogout()" style="width:100%;display:flex;align-items:center;gap:14px;padding:14px 14px;background:rgba(248,81,73,.08);border:1px solid rgba(248,81,73,.25);border-radius:14px;color:#ff7b72;font-size:15px;font-weight:600;cursor:pointer;text-align:left;font-family:-apple-system,system-ui,sans-serif">';
+  h += '<span style="font-size:22px">🚪</span>';
+  h += '<div style="flex:1"><div>Выйти из приложения</div><div style="font-size:11px;color:#8b949e;font-weight:500;margin-top:2px">Вернуться к экрану входа</div></div>';
+  h += '<span style="color:#8b949e;font-size:18px">›</span>';
+  h += '</button>';
+  
+  // Кнопка отмены
+  h += '<button onclick="closeMainMenu()" style="width:100%;margin-top:14px;padding:14px;background:transparent;border:1px solid #30363d;border-radius:14px;color:#8b949e;font-size:15px;font-weight:600;cursor:pointer;font-family:-apple-system,system-ui,sans-serif">Закрыть</button>';
+  
+  h += '</div></div>';
+  
+  // Удалим предыдущее меню если есть
+  var ex = document.getElementById('lg-menu-bg');
+  if(ex) ex.remove();
+  
+  var wrapper = document.createElement('div');
+  wrapper.innerHTML = h;
+  document.body.appendChild(wrapper.firstChild);
+};
+
+window.closeMainMenu = function(event){
+  if(event && event.target && event.target.id !== 'lg-menu-bg' && event.type === 'click'){
+    // Тап на кнопку внутри меню — НЕ закрываем (это сделают сами кнопки)
+    if(event.currentTarget && event.currentTarget.id !== 'lg-menu-bg') return;
+  }
+  var m = document.getElementById('lg-menu-bg');
+  if(m) m.remove();
+  if(typeof haptic === 'function') haptic('light');
+};
+
+window.goToJournal = function(){
+  if(typeof haptic === 'function') haptic('light');
+  try {
+    var modals = ['modal','drillModal','vmodal'];
+    modals.forEach(function(m){
+      var el = document.getElementById(m);
+      if(el && el.style.display !== 'none') el.style.display='none';
+    });
+    window._viewAsBrigade = false;
+    if(typeof setTab === 'function') setTab('journal');
+    else { curTab='journal'; render(); }
+  } catch(e) { alert('Ошибка: '+e.message); }
+};
+
 window.goToBrigades = function(){
   if(typeof haptic === 'function') haptic('light');
   try {
@@ -5190,6 +6303,39 @@ function rMain(){
       
       h += '</div>';
     });
+  }
+  
+  // === ЗАДАЧИ НА СЕГОДНЯ ===
+  var todayTasks = generateTodayTasks();
+  if(todayTasks.length > 0){
+    h += '<div class="yk-section" style="margin-top:20px"><span style="font-size:18px">📋</span>ЗАДАЧИ НА СЕГОДНЯ</div>';
+    
+    h += '<div style="background:linear-gradient(160deg,rgba(88,166,255,.08),#0d1117);border:1.5px solid rgba(88,166,255,.3);border-radius:18px;padding:16px;margin-bottom:18px;box-shadow:0 4px 16px rgba(0,0,0,.15)">';
+    
+    todayTasks.slice(0, 5).forEach(function(t, i){
+      var priColor = t.pri === 'critical' ? '#ff7b72' : (t.pri === 'normal' ? '#58a6ff' : '#8b949e');
+      var priBg = t.pri === 'critical' ? 'rgba(248,81,73,.10)' : (t.pri === 'normal' ? 'rgba(88,166,255,.06)' : 'rgba(255,255,255,.03)');
+      var priLabel = t.pri === 'critical' ? '🔴' : (t.pri === 'normal' ? '🟡' : '🟢');
+      
+      h += '<div style="display:flex;gap:12px;padding:14px;background:'+priBg+';border-radius:14px;border:1px solid '+priColor+'30;margin-bottom:'+(i<todayTasks.length-1?'10px':'0')+';align-items:flex-start;font-family:-apple-system,system-ui,sans-serif">';
+      
+      // Иконка приоритета
+      h += '<div style="font-size:24px;flex-shrink:0">'+t.icon+'</div>';
+      
+      // Контент
+      h += '<div style="flex:1;min-width:0">';
+      h += '<div style="font-size:14px;color:#ffffff;font-weight:700;margin-bottom:4px;line-height:1.3">'+t.title+'</div>';
+      h += '<div style="font-size:13px;color:#b9c3d0;line-height:1.4;margin-bottom:6px">'+t.what+'</div>';
+      h += '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px">';
+      h += '<div style="font-size:11px;color:'+priColor+';font-weight:700">👤 '+t.who+'</div>';
+      h += '<div style="font-size:11px;color:#8b949e;font-weight:600">⏰ '+t.time+'</div>';
+      h += '</div>';
+      h += '</div>';
+      
+      h += '</div>';
+    });
+    
+    h += '</div>';
   }
   
   // === 4 ПУЛЬСА ===
@@ -9073,8 +10219,10 @@ window.openAIChat = function(){
     'Сколько ещё м³ нужно до 100 млн прибыли?'
   ];
   
+  // Используем индексы вопросов вместо текста — надёжнее
+  window._aiQuickQs = quickQs;  // сохраняем для askAIByIdx
   quickQs.forEach(function(q, i){
-    html += '<div class="drill-row" onclick="askAI(\'' + q.replace(/\x27/g,'') + '\')">';
+    html += '<div class="drill-row" onclick="askAIByIdx('+i+')" style="cursor:pointer">';
     html += '<div class="drill-row-icon" style="background:rgba(212,167,58,.15);color:var(--gold)">?</div>';
     html += '<div class="drill-row-body">';
     html += '<div class="drill-row-title">'+q+'</div>';
@@ -9094,10 +10242,36 @@ window.openAIChat = function(){
   document.getElementById('drillModal').style.display='flex';
 }
 
+// Безопасный вызов AI по индексу из массива вопросов
+window.askAIByIdx = function(idx){
+  if(typeof haptic === 'function') haptic('medium');
+  if(window._aiQuickQs && window._aiQuickQs[idx]){
+    askAI(window._aiQuickQs[idx]);
+  }
+};
+
 window.askAI = function(question){
-  haptic('heavy');
+  if(typeof haptic === 'function') haptic('heavy');
+  
+  // Если AI чат не открыт — открываем его
   var answerEl = document.getElementById('aiAnswer');
-  if(!answerEl) return;
+  if(!answerEl){
+    // Открываем чат, потом задаём вопрос
+    if(typeof openAIChat === 'function'){
+      openAIChat();
+      setTimeout(function(){ askAI(question); }, 200);
+    }
+    return;
+  }
+  
+  // Запомним вопрос в истории
+  if(!window._aiHistory) window._aiHistory = [];
+  window._aiHistory.unshift({q: question, time: Date.now()});
+  if(window._aiHistory.length > 10) window._aiHistory.length = 10;
+  
+  // Покажем вопрос пользователя
+  var userBubble = '<div style="background:rgba(88,166,255,.10);border:1px solid rgba(88,166,255,.3);border-radius:14px;padding:12px 14px;margin-bottom:10px;font-family:-apple-system,system-ui,sans-serif"><div style="font-size:10px;color:#58a6ff;letter-spacing:1.5px;font-weight:700;margin-bottom:6px">🗣 ВЫ СПРОСИЛИ</div><div style="font-size:14px;color:#e6edf3;line-height:1.5">' + question + '</div></div>';
+  answerEl.innerHTML = userBubble;
   
   // Шаг 1: Сразу показываем ЛОКАЛЬНЫЙ совет (работает всегда, без интернета)
   var localAdvice = generateLocalAdvice(question);
@@ -9323,47 +10497,110 @@ window.askAICustom = function(){
 
 // === SHARE DAILY SUMMARY ===
 window.shareDailySummary = function shareDailySummary(){
-  haptic('medium');
+  if(typeof haptic === 'function') haptic('medium');
+  
+  // Собираем сводку
   var goal = calcGoalProgress();
   var C = calcCo();
   var workers = (S.brigades||[]).reduce(function(s,b){return s+(b.workers||0);},0);
+  var today = new Date();
+  var dateStr = today.toLocaleDateString('ru-RU', {day:'numeric',month:'long',year:'numeric'});
   
-  // Подсчёт за неделю
-  var now = new Date();
-  var dayW = now.getDay()||7;
-  var weekStart = new Date(now); weekStart.setDate(now.getDate()-dayW+1); weekStart.setHours(0,0,0,0);
-  var weekVol = 0;
-  (S.entries||[]).forEach(function(e){
-    if(e.type==='vol' && e.date && new Date(e.date) >= weekStart) weekVol += (e.volume||0);
-  });
-  
-  var dateStr = now.toLocaleDateString('ru-RU');
   var text = '🦁 LIONGATE — Сводка ' + dateStr + '\n\n';
   text += '💎 Прибыль: ' + (goal.current>=0?'+':'') + fmt(Math.round(goal.current/1000000)) + ' млн ₸\n';
-  text += '🎯 Прогресс к 820 млн: ' + goal.pct + '%\n';
-  text += '🔥 Касса: ' + fmt(Math.round(C.cash/1000)) + ' тыс ₸\n';
-  text += '📐 За неделю: ' + fmtD(weekVol) + ' м³\n';
-  text += '👷 На объекте: ' + workers + ' чел.\n';
-  text += '\n💼 На каждого партнёра: ' + fmt(Math.round(goal.perPartner/1000000)) + ' / 164 млн';
+  text += '🎯 Прогресс к 820: ' + (goal.pct||0) + '%\n';
+  text += '🔥 Касса: ' + fmt(C.cash) + ' ₸\n';
+  text += '👷 Рабочих: ' + workers + '\n';
+  text += '💰 Расходы: ' + fmt(Math.round(goal.expenses/1000000)) + ' млн ₸\n';
+  if(goal.earnedPending > 0){
+    text += '⏰ На сверке: ' + fmt(Math.round(goal.earnedPending/1000000)) + ' млн ₸\n';
+  }
+  text += '\n— из приложения LIONGATE';
   
-  if(navigator.share){
+  // Способ 1: Web Share API (нативное окно "Поделиться")
+  if(navigator.share && typeof navigator.share === 'function'){
     navigator.share({
       title: 'LIONGATE — Сводка',
       text: text
+    }).then(function(){
+      if(typeof haptic === 'function') haptic('heavy');
     }).catch(function(err){
-      // Если share не сработал — копируем в буфер
-      if(navigator.clipboard){
-        navigator.clipboard.writeText(text);
-        alert('Скопировано в буфер. Вставьте в Telegram.');
+      // Пользователь отменил или ошибка — fallback на копирование
+      if(err && err.name !== 'AbortError'){
+        copyToClipboardFallback(text);
       }
     });
-  } else if(navigator.clipboard){
-    navigator.clipboard.writeText(text);
-    alert('Скопировано в буфер. Вставьте в Telegram.');
-  } else {
-    // Fallback: показать в prompt чтобы можно было выбрать и скопировать
-    prompt('Скопируйте сводку:', text);
+    return;
   }
+  
+  // Способ 2: Clipboard API
+  copyToClipboardFallback(text);
+};
+
+// Fallback — копирование в буфер обмена
+function copyToClipboardFallback(text){
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(function(){
+      showShareModal(text, true);
+    }).catch(function(){
+      showShareModal(text, false);
+    });
+  } else {
+    showShareModal(text, false);
+  }
+}
+
+// Модалка с текстом сводки — пользователь может вручную скопировать
+function showShareModal(text, copied){
+  // Удалим старую модалку если есть
+  var ex = document.getElementById('lg-share-modal');
+  if(ex) ex.remove();
+  
+  var modal = document.createElement('div');
+  modal.id = 'lg-share-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(6px);z-index:99999;display:flex;align-items:flex-end;justify-content:center;animation:fadeIn .2s';
+  modal.onclick = function(e){ if(e.target === modal) modal.remove(); };
+  
+  var box = document.createElement('div');
+  box.style.cssText = 'width:100%;max-width:480px;background:#161b22;border-top:1.5px solid var(--gold);border-radius:24px 24px 0 0;padding:20px 16px calc(20px + env(safe-area-inset-bottom));box-shadow:0 -8px 32px rgba(0,0,0,.5);animation:slideUp .25s ease;font-family:-apple-system,system-ui,sans-serif';
+  box.onclick = function(e){ e.stopPropagation(); };
+  
+  box.innerHTML = 
+    '<div style="width:40px;height:5px;background:#30363d;border-radius:3px;margin:0 auto 18px"></div>' +
+    '<div style="text-align:center;margin-bottom:14px">' +
+      '<div style="font-size:11px;color:#8b949e;letter-spacing:2px;font-weight:700;margin-bottom:6px">ПОДЕЛИТЬСЯ СВОДКОЙ</div>' +
+      (copied ? '<div style="font-size:14px;color:#7ee787;font-weight:700">✓ Скопировано в буфер</div>' : '<div style="font-size:13px;color:#b9c3d0">Выделите и скопируйте текст ниже</div>') +
+    '</div>' +
+    '<textarea id="share-textarea" readonly style="width:100%;background:#0d1117;border:1px solid #30363d;color:#e6edf3;border-radius:12px;padding:12px;font-size:13px;font-family:-apple-system,system-ui,sans-serif;min-height:200px;resize:none;line-height:1.5">'+text+'</textarea>' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px">' +
+      '<button id="share-copy-btn" style="padding:14px;background:rgba(63,185,80,.15);border:1.5px solid rgba(63,185,80,.5);color:#7ee787;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:-apple-system,system-ui,sans-serif">📋 Скопировать</button>' +
+      '<button id="share-close-btn" style="padding:14px;background:transparent;border:1px solid #30363d;color:#8b949e;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:-apple-system,system-ui,sans-serif">Закрыть</button>' +
+    '</div>';
+  
+  modal.appendChild(box);
+  document.body.appendChild(modal);
+  
+  // Привяжем обработчики
+  document.getElementById('share-copy-btn').onclick = function(){
+    var ta = document.getElementById('share-textarea');
+    ta.select();
+    ta.setSelectionRange(0, 99999); // для iOS
+    try {
+      document.execCommand('copy');
+      this.textContent = '✓ Скопировано';
+      this.style.background = 'rgba(63,185,80,.25)';
+    } catch(e){
+      // Если не удалось — пусть копирует вручную
+    }
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text);
+    }
+    if(typeof haptic === 'function') haptic('heavy');
+  };
+  document.getElementById('share-close-btn').onclick = function(){
+    modal.remove();
+    if(typeof haptic === 'function') haptic('light');
+  };
 }
 
 // === HAPTIC FEEDBACK — определена глобально выше, здесь только комментарий ===
