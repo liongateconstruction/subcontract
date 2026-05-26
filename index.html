@@ -44,7 +44,7 @@ button, .nb, .hbtn, .fab, .yk-mini, .yk-big, .yk-alert { touch-action: manipulat
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--fm);overflow:hidden}
 #app{display:flex;flex-direction:column;height:calc(var(--vh, 1vh) * 100);height:100dvh}
-#ls{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:999;flex-direction:column;gap:16px;padding:24px}
+#ls{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:999;flex-direction:column;gap:16px;padding:24px;padding-top:env(safe-area-inset-top,0);padding-bottom:env(safe-area-inset-bottom,0)}
 .ll{font-family:var(--fd);font-size:44px;color:var(--gold);letter-spacing:4px}
 .lsub{font-size:9px;color:var(--mut);letter-spacing:3px;text-transform:uppercase;margin-top:-8px}
 .lbox{background:linear-gradient(145deg,rgba(22,27,34,0.98),rgba(13,17,23,0.99));border:1px solid rgba(255,179,32,0.2);border-radius:20px;padding:24px;width:100%;max-width:320px;box-shadow:0 20px 60px rgba(0,0,0,.5),0 0 0 1px rgba(255,255,255,0.03),inset 0 1px 0 rgba(255,255,255,0.05)}
@@ -56,7 +56,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .lbtn:active{transform:scale(.97)}
 .lvbtn{width:100%;background:transparent;color:var(--mut);border:1px solid var(--brd);font-family:var(--fm);font-size:11px;padding:9px;border-radius:8px;cursor:pointer;margin-top:6px}
 .lerr{color:var(--red);font-size:11px;text-align:center;margin-top:6px;min-height:14px}
-header{background:linear-gradient(180deg,rgba(22,27,34,0.98) 0%,rgba(13,17,23,0.95) 100%);border-bottom:2px solid var(--gold);padding:11px 14px 9px;display:flex;align-items:center;flex-shrink:0;backdrop-filter:blur(10px);box-shadow:0 2px 20px rgba(0,0,0,.4)}
+header{background:linear-gradient(180deg,rgba(22,27,34,0.98) 0%,rgba(13,17,23,0.95) 100%);border-bottom:2px solid var(--gold);padding:calc(11px + env(safe-area-inset-top)) calc(14px + env(safe-area-inset-right)) 9px calc(14px + env(safe-area-inset-left));display:flex;align-items:center;flex-shrink:0;backdrop-filter:blur(10px);box-shadow:0 2px 20px rgba(0,0,0,.4)}
 .hlog{font-family:var(--fd);font-size:22px;color:var(--gold);letter-spacing:3px;line-height:1}
 .hsub{font-size:10px;color:var(--mut);letter-spacing:2px;text-transform:uppercase;margin-top:3px}
 .hrgt{margin-left:auto;display:flex;align-items:center;gap:5px}
