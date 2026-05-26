@@ -9463,12 +9463,15 @@ setInterval(function(){
   el.textContent = txt;
 }, 10000);
 
-// === АВТО-ОБНОВЛЕНИЕ КАЖДЫЕ 60 СЕКУНД ===
+// === АВТО-ОБНОВЛЕНИЕ — ТОЛЬКО ЕСЛИ ИЗМЕНИЛИСЬ ДАННЫЕ ===
 setInterval(function(){
   if(typeof pullCloud === 'function' && typeof render === 'function' && !document.hidden){
+    var oldMod = S._modified || 0;
     pullCloud(function(){
-      render();
-      updateSyncTime();
+      if((S._modified||0) > oldMod){
+        render(); // рендерим ТОЛЬКО если в облаке свежее
+      }
+      if(typeof updateSyncTime === 'function') updateSyncTime();
     });
   }
 }, 60000);
@@ -9520,7 +9523,20 @@ document.getElementById('content').addEventListener('keydown',function(e){if(e.t
 document.getElementById('content').addEventListener('click',function(e){if(e.target.id==='j-btn-search'){var i=document.getElementById('j-search');if(i)searchQ=i.value;renderJournalResults();}if(e.target.id==='j-reset'){searchQ='';fType='all';fObj='all';fWho='all';fSource='all';fAccept='all';fDateFrom='';fDateTo='';render();}});
 // Старый дублирующий свайп удалён — был конфликт с новым SCREENS_ORDER
 // Свайп теперь только один (выше в коде), на 5 экранов концепта
-setInterval(function(){if(role)pullCloud(function(){render();});},10000);
+// УДАЛЕНО: setInterval 10с — вызывало моргание экрана
+// Облако теперь подтягивается только при действиях или раз в 5 минут
+setInterval(function(){
+  if(role && !document.hidden && typeof pullCloud === 'function'){
+    // Тихое обновление — без render() если данные не изменились
+    var oldMod = S._modified || 0;
+    pullCloud(function(){
+      if((S._modified||0) > oldMod){
+        // Данные действительно обновились — перерисовать
+        if(typeof render === 'function') render();
+      }
+    });
+  }
+}, 300000); // 5 минут вместо 10 секунд
 // Разовая очистка ошибочных записей "Авто-погашение долга" (баг был в v70)
 (function cleanupAutoReduceBug(){
   if(!S||!S.entries) return;
