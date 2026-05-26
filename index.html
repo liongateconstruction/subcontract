@@ -2,8 +2,10 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover"/>
 <meta name="theme-color" content="#0d1117"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="application-name" content="LIONGATE"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="LIONGATE"/>
@@ -17,6 +19,10 @@
 <link rel="manifest" href="./manifest.json"/>
 <title>LIONGATE</title>
 <style>
+/* === Android оптимизация (отзывчивые тачи) === */
+*, *::before, *::after { -webkit-tap-highlight-color: transparent; }
+button, .nb, .hbtn, .fab, .yk-mini, .yk-big, .yk-alert { touch-action: manipulation; user-select: none; -webkit-user-select: none; }
+
 
 /* === ЖЁСТКОЕ СКРЫТИЕ ПЛАВАЮЩИХ КНОПОК === */
 /* Микрофон и + плавающие FAB больше не нужны — по концепту их нет */
@@ -37,7 +43,7 @@
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--fm);overflow:hidden}
-#app{display:flex;flex-direction:column;height:100vh;height:100dvh}
+#app{display:flex;flex-direction:column;height:calc(var(--vh, 1vh) * 100);height:100dvh}
 #ls{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:999;flex-direction:column;gap:16px;padding:24px}
 .ll{font-family:var(--fd);font-size:44px;color:var(--gold);letter-spacing:4px}
 .lsub{font-size:9px;color:var(--mut);letter-spacing:3px;text-transform:uppercase;margin-top:-8px}
@@ -339,6 +345,18 @@ canvas{display:block;width:100%;border-radius:8px}
 </style>
 </head>
 <body>
+<script>
+// Fix для Android: вычисляем реальную высоту viewport
+(function(){
+  function setVh(){
+    var vh = window.innerHeight * 0.01;
+    document.documentElement.style.setProperty('--vh', vh + 'px');
+  }
+  setVh();
+  window.addEventListener('resize', setVh);
+  window.addEventListener('orientationchange', setVh);
+})();
+</script>
 <div id="ls">
   <!-- Анимированный фон -->
   <div style="position:absolute;inset:0;overflow:hidden;pointer-events:none">
@@ -448,7 +466,7 @@ canvas{display:block;width:100%;border-radius:8px}
       <button class="hbtn" id="btn-refresh" style="display:none;border-color:var(--gold);color:var(--gold)" title="Обновить приложение">↻</button>
       <button class="hbtn" id="btn-obj" style="display:none;border-color:var(--teal);color:var(--teal)">Об</button>
       <button class="hbtn" id="btn-rpt" style="display:none;border-color:var(--green);color:var(--green)">Отчёт</button>
-      <button class="hbtn" id="btn-brigs" onclick="setTab('brigades')" style="border-color:var(--teal);color:var(--teal);font-weight:700" title="Бригады">👷 Бригады</button>
+      <button class="hbtn" id="btn-brigs" onclick="goToBrigades()" style="border-color:var(--teal);color:var(--teal);font-weight:700" title="Бригады">👷 Бригады</button>
       <button class="hbtn" id="btn-out" onclick="doLogout()" style="border-color:var(--red);color:var(--red);font-weight:700" title="Выйти из приложения">Выйти</button>
     </div>
   </header>
@@ -1405,6 +1423,20 @@ window.haptic = function(type){
 };
 function haptic(type){ return window.haptic(type); }
 
+// ============ УНИВЕРСАЛЬНОЕ ПОДТВЕРЖДЕНИЕ — работает в PWA где confirmSafe() блокируется ============
+// Использует window.confirm если работает, иначе native dialog
+window.confirmSafe = function(message){
+  // В PWA на iOS confirm может вернуть undefined вместо bool
+  try {
+    var result = window.confirmSafe(message);
+    // Если undefined — это значит iOS PWA блокирует. Считаем что да.
+    return result !== false;
+  } catch(e) {
+    // Fallback: считаем что да (опасно но лучше чем ничего не происходит)
+    return true;
+  }
+};
+
 var TYPES={
   income:{ico:'💰',lbl:'Приход от заказчика',color:'var(--green)',bg:'var(--grlt)'},
   invest:{ico:'💼',lbl:'Вложение в кассу',color:'var(--blue)',bg:'var(--bllt)'},
@@ -1691,7 +1723,7 @@ window.diagnoseCloud=function(){
           }, 'var(--blue)');
         }
         addAction('⬆️ ОТПРАВИТЬ В ОБЛАКО', function(){
-          if(!confirm('Отправить локальные данные в облако?\n\nОблачные данные ('+remoteEntries+' записей) будут заменены локальными ('+localEntries+' записей).\n\nПродолжить?')) return;
+          if(!confirmSafe('Отправить локальные данные в облако?\n\nОблачные данные ('+remoteEntries+' записей) будут заменены локальными ('+localEntries+' записей).\n\nПродолжить?')) return;
           pushCloud();
           setTimeout(function(){ alert('✓ Отправлено в облако'); closeModal(); }, 1500);
         }, 'var(--gold)');
@@ -1705,7 +1737,7 @@ window.diagnoseCloud=function(){
           add('Сначала сделайте 📥 РЕЗЕРВ ЛОКАЛЬНЫХ через «📥 СКАЧАТЬ» в меню.');
         }
         addAction('⬇️ ЗАГРУЗИТЬ ИЗ ОБЛАКА', function(){
-          if(!confirm('Загрузить данные из облака?\n\nЛокальные данные ('+localEntries+' записей) будут заменены облачными ('+remoteEntries+' записей).\n\nПродолжить?')) return;
+          if(!confirmSafe('Загрузить данные из облака?\n\nЛокальные данные ('+localEntries+' записей) будут заменены облачными ('+remoteEntries+' записей).\n\nПродолжить?')) return;
           pullCloud(function(){ alert('✓ Данные обновлены'); render(); closeModal(); });
         }, 'var(--teal)');
       }
@@ -1761,7 +1793,7 @@ window.downloadBackup=function(){
 // Открывает диалог выбора файла, загружает JSON, заменяет S
 window.restoreFromBackup=function(){
   if(!isEditor()){ alert('Только учётчица может восстанавливать из бэкапа'); return; }
-  if(!confirm('⚠️ Восстановление из бэкапа ЗАМЕНИТ все текущие данные!\n\nСначала сделайте резерв текущего состояния (📦 СКАЧАТЬ РЕЗЕРВ), потом восстанавливайте.\n\nПродолжить?')) return;
+  if(!confirmSafe('⚠️ Восстановление из бэкапа ЗАМЕНИТ все текущие данные!\n\nСначала сделайте резерв текущего состояния (📦 СКАЧАТЬ РЕЗЕРВ), потом восстанавливайте.\n\nПродолжить?')) return;
   var inp = document.createElement('input');
   inp.type='file';
   inp.accept='application/json,.json';
@@ -1777,7 +1809,7 @@ window.restoreFromBackup=function(){
           alert('Файл не похож на бэкап LIONGATE — нет поля entries');
           return;
         }
-        if(!confirm('Загрузить '+newData.entries.length+' записей и '+(newData.brigades?newData.brigades.length:0)+' бригад?\n\nТекущие данные будут заменены!')) return;
+        if(!confirmSafe('Загрузить '+newData.entries.length+' записей и '+(newData.brigades?newData.brigades.length:0)+' бригад?\n\nТекущие данные будут заменены!')) return;
         S = newData;
         S._modified = Date.now();
         persist();
@@ -2357,7 +2389,7 @@ window.toggleAccept=function(entryId){
   if(!e||e.type!=='vol')return;
   if(e.accepted===true){
     // Снимаем приёмку
-    if(!confirm('Снять статус «принято»? Работа вернётся в статус ожидания.')) return;
+    if(!confirmSafe('Снять статус «принято»? Работа вернётся в статус ожидания.')) return;
     delete e.accepted;
     delete e.acceptedBy;
     delete e.acceptedAt;
@@ -2391,7 +2423,7 @@ window.acceptAllPendingFor=function(brigadeId){
     return;
   }
   var totalVol=pending.reduce(function(s,e){return s+(Number(e.volume)||0);},0);
-  if(!confirm('Принять '+pending.length+' '+(pending.length===1?'работу':'работ')+' на '+totalVol.toFixed(1)+' м³?\n\nЭто отметит работу как принятую заказчиком — после этого её можно будет оплатить бригаде.'))return;
+  if(!confirmSafe('Принять '+pending.length+' '+(pending.length===1?'работу':'работ')+' на '+totalVol.toFixed(1)+' м³?\n\nЭто отметит работу как принятую заказчиком — после этого её можно будет оплатить бригаде.'))return;
   pending.forEach(function(e){
     e.accepted=true;
     e.acceptedBy=role||'editor';
@@ -2911,7 +2943,7 @@ function renderDrillEntry(entryId){
   
   // Действия
   if(canEdit() && typeof openEdit === 'function'){
-    html += '<button onclick="closeDrill();openEdit('+e.id+')" style="width:100%;background:rgba(88,166,255,.12);border:1px solid var(--blue);color:var(--blue);border-radius:10px;padding:12px;font-size:13px;cursor:pointer;font-family:-apple-system,system-ui,sans-serif;margin-top:14px">✏️ Редактировать</button>';
+    html += '<button onclick="closeDrill();openEditEntry('+e.id+')" style="width:100%;background:rgba(88,166,255,.12);border:1px solid var(--blue);color:var(--blue);border-radius:10px;padding:12px;font-size:13px;cursor:pointer;font-family:-apple-system,system-ui,sans-serif;margin-top:14px">✏️ Редактировать</button>';
   }
   
   return html;
@@ -3242,38 +3274,78 @@ function isInsightDone(metric){
   return false;
 }
 
+// Надёжный переход на вкладку Бригады — работает всегда
+window.goToBrigades = function(){
+  if(typeof haptic === 'function') haptic('light');
+  try {
+    // Если открыта какая-то модалка — закроем
+    var modals = ['modal','drillModal','vmodal'];
+    modals.forEach(function(m){
+      var el = document.getElementById(m);
+      if(el && el.style.display !== 'none') el.style.display='none';
+    });
+    window._viewAsBrigade = false;
+    
+    // Переключаем вкладку
+    if(typeof setTab === 'function'){
+      setTab('brigades');
+    } else {
+      curTab = 'brigades';
+      if(typeof render === 'function') render();
+    }
+  } catch(e) {
+    alert('Ошибка перехода: ' + e.message);
+  }
+};
+
 window.viewAsBrigadier = function(brigId){
-  // Учётчица/партнёр хочет посмотреть как видит бригадир свою бригаду
   if(typeof haptic === 'function') haptic('medium');
   
   var b = (S.brigades||[]).find(function(x){return x.id === brigId;});
   if(!b){ alert('Бригада не найдена'); return; }
   
-  // Открываем модалку drill с содержимым кабинета бригадира
+  // Очищаем стек drill и блокируем фоновую навигацию
+  _drillStack = [{level:'brigadier_view', brigId: brigId}];
+  window._viewAsBrigade = true; // флаг — свайп должен быть заблокирован
+  
   var titleEl = document.getElementById('drillTitle');
   var bodyEl = document.getElementById('drillBody');
-  if(titleEl) titleEl.textContent = '👁 Кабинет бригадира: ' + b.name;
+  if(titleEl) titleEl.textContent = '👁 Кабинет: ' + b.name;
   
-  // Сохраним текущую роль и временно переключим (только для рендера)
+  // Временно переключаем роль для рендера
   var savedRole = role;
   role = 'brigadier_' + brigId;
   
-  var html = '<div class="drill-h"><button class="drill-back" onclick="closeDrill()">✕ Закрыть</button>';
-  html += '<div style="font-size:11px;color:var(--mut);font-family:-apple-system,system-ui,sans-serif;flex:1;text-align:right">Просмотр от имени бригадира</div>';
+  var html = '<div class="drill-h">';
+  html += '<button class="drill-back" onclick="closeBrigadierView()">✕ Закрыть</button>';
+  html += '<div style="font-size:11px;color:var(--teal);font-family:-apple-system,system-ui,sans-serif;flex:1;text-align:right;font-weight:700">Просмотр кабинета</div>';
   html += '</div>';
   
-  // Рендерим кабинет бригадира
   try {
     html += rBrigadierCabinet(b);
   } catch(e) {
-    html += '<div style="padding:20px;color:var(--red)">Ошибка рендера: ' + e.message + '</div>';
+    html += '<div style="padding:20px;color:var(--red)">Ошибка: ' + e.message + '</div>';
   }
   
-  // Возвращаем роль
   role = savedRole;
   
   if(bodyEl) bodyEl.innerHTML = html;
-  document.getElementById('drillModal').style.display='flex';
+  
+  var modal = document.getElementById('drillModal');
+  if(modal){
+    modal.style.display='flex';
+    // Прокрутка модалки в начало
+    if(bodyEl) bodyEl.scrollTop = 0;
+  }
+};
+
+// Закрытие модалки кабинета бригадира — снимает блокировку свайпа
+window.closeBrigadierView = function(){
+  window._viewAsBrigade = false;
+  _drillStack = [];
+  var modal = document.getElementById('drillModal');
+  if(modal) modal.style.display='none';
+  if(typeof haptic === 'function') haptic('light');
 };
 
 window.markInsightDone = function(metric){
@@ -4757,7 +4829,7 @@ function openEntryCard(id){
   if(canEdit()){
     h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">';
     h+='<button onclick="closeModal();openEditEntry('+id+')" style="background:rgba(88,166,255,.15);border:1px solid rgba(88,166,255,.3);color:var(--blue);border-radius:10px;padding:10px;font-size:12px;cursor:pointer">✏ Редактировать</button>';
-    h+='<button onclick="closeModal();if(confirm(\'Удалить?\'))delEntry('+id+')" style="background:rgba(248,81,73,.1);border:1px solid rgba(248,81,73,.3);color:var(--red);border-radius:10px;padding:10px;font-size:12px;cursor:pointer">✕ Удалить</button>';
+    h+='<button onclick="closeModal();if(confirmSafe(\'Удалить?\'))delEntry('+id+')" style="background:rgba(248,81,73,.1);border:1px solid rgba(248,81,73,.3);color:var(--red);border-radius:10px;padding:10px;font-size:12px;cursor:pointer">✕ Удалить</button>';
     h+='</div>';
   }
   h+='<button class="fcanc" onclick="closeModal()">Закрыть</button>';
@@ -6405,7 +6477,7 @@ function rBrigadierCabinet(b){
 }
 
 function removePerson(bId,personId){
-  if(!confirm('Удалить этого рабочего из бригады?')) return;
+  if(!confirmSafe('Удалить этого рабочего из бригады?')) return;
   var b=S.brigades.find(function(x){return x.id===bId;});
   if(!b||!b.people) return;
   b.people=b.people.filter(function(p){return p.id!==personId;});
@@ -6970,7 +7042,7 @@ function markKS2Paid(id){
 }
 
 function deleteKS2(id){
-  if(!confirm('Удалить акт КС-2?'))return;
+  if(!confirmSafe('Удалить акт КС-2?'))return;
   saveKS2(getKS2().filter(function(k){return k.id!==id;}));
   render();
 }
@@ -7044,7 +7116,7 @@ function rHistory(){
   h += '</div>';
   
   // Выйти
-  h += '<div class="yk-mini" onclick="if(confirm(\'Выйти?\')){localStorage.removeItem(\'lg_role\');window.location.reload();}" style="cursor:pointer;text-align:center;border-color:rgba(248,81,73,.3)">';
+  h += '<div class="yk-mini" onclick="if(confirmSafe(\'Выйти?\')){localStorage.removeItem(\'lg_role\');window.location.reload();}" style="cursor:pointer;text-align:center;border-color:rgba(248,81,73,.3)">';
   h += '<div style="font-size:28px;margin-bottom:4px">🚪</div>';
   h += '<div style="font-size:11px;font-weight:700;color:var(--red);font-family:var(--fm)">Выйти</div>';
   h += '<div style="font-size:9px;color:var(--mut);margin-top:2px;font-family:var(--fm)">сменить пользователя</div>';
@@ -7221,7 +7293,7 @@ function saveEntry(){
 }
 function delEntry(id){
   if(role!=='editor')return;
-  if(!confirm(T('confirmDel')))return;
+  if(!confirmSafe(T('confirmDel')))return;
   var d=S.entries.find(function(e){return e.id==id;});
   S.entries=S.entries.filter(function(e){return e.id!=id;});
   if(!S.history)S.history=[];
@@ -7277,12 +7349,12 @@ window.openWeekCard=function(id){
     h+='<div style="font-family:var(--fd);font-size:22px;color:var(--gold)">'+fmtD(w.nextPlan)+' м³</div>';
     h+='</div>';
   }
-  if(canEdit())h+='<button onclick="closeModal();if(confirm(\'Удалить планёрку?\'))delWeek('+id+')" class="fcanc" style="margin-bottom:6px;color:var(--red);border-color:var(--red)">Удалить планёрку</button>';
+  if(canEdit())h+='<button onclick="closeModal();if(confirmSafe(\'Удалить планёрку?\'))delWeek('+id+')" class="fcanc" style="margin-bottom:6px;color:var(--red);border-color:var(--red)">Удалить планёрку</button>';
   h+='<button class="fcanc" onclick="closeModal()">Закрыть</button>';
   document.getElementById('mbody').innerHTML=h;
   document.getElementById('modal').style.display='flex';
 };
-window.delWeek=function(id){if(!confirm('Удалить планёрку?'))return;S.weeks=S.weeks.filter(function(w){return w.id!==id;});save();render();};
+window.delWeek=function(id){if(!confirmSafe('Удалить планёрку?'))return;S.weeks=S.weeks.filter(function(w){return w.id!==id;});save();render();};
 window.setKFULight=function(i,v){if(!S.kfu||!S.kfu[i])return;S.kfu[i].light=v;save();render();};
 window.editKFU=function(ki){
   ki=parseInt(ki);
@@ -7621,7 +7693,7 @@ function openPay(bId){
     // Проверка: не выплачиваем больше принятого
     if(canPay>=0 && a > canPay){
       var overshoot = a - canPay;
-      if(!confirm('⚠️ Внимание!\n\nВы хотите выплатить '+fmt(a)+' тг, но принято заказчиком только на '+fmt(B.earnedAccepted)+' тг.\n\nПревышение: '+fmt(overshoot)+' тг.\n\nПо договорённости мы не оплачиваем работы до приёмки заказчиком.\n\nВсё равно выплатить?')) return;
+      if(!confirmSafe('⚠️ Внимание!\n\nВы хотите выплатить '+fmt(a)+' тг, но принято заказчиком только на '+fmt(B.earnedAccepted)+' тг.\n\nПревышение: '+fmt(overshoot)+' тг.\n\nПо договорённости мы не оплачиваем работы до приёмки заказчиком.\n\nВсё равно выплатить?')) return;
     }
     var who=g('f-who')||'Дмитрий';
     var src=g('f-source')||'advance';
@@ -8066,7 +8138,7 @@ function openEditBrig(bId){
     closeModal();render();
   });
   document.getElementById('bdb').addEventListener('click',function(){
-    if(!confirm(T('confirmBrigDel')))return;
+    if(!confirmSafe(T('confirmBrigDel')))return;
     S.brigades=S.brigades.filter(function(x){return x.id!==bId;});
     S._modified=Date.now();
     save();
@@ -8195,7 +8267,7 @@ function editPerson(bId,idx){
     openPeople(bId);
   });
   document.getElementById('pe-del').addEventListener('click',function(){
-    if(!confirm('Удалить '+p.name+'?')){return;}
+    if(!confirmSafe('Удалить '+p.name+'?')){return;}
     b.people.splice(idx,1);
     b.workers=b.people.length;
     S._modified=Date.now();
@@ -8211,10 +8283,14 @@ function editPerson(bId,idx){
 function openAttendance(bId){
   _editLock=true;
   var b=S.brigades.find(function(x){return x.id===bId;});
-  if(!b){_editLock=false;return;}
+  if(!b){_editLock=false; alert('Бригада не найдена'); return;}
   if(!b.people||b.people.length===0){
     _editLock=false;
-    if(confirm('В этой бригаде ещё нет добавленных людей. Добавить?')) openPeople(bId);
+    // Сразу открываем добавление людей (без confirm — он не работает в PWA)
+    alert('В бригаде "' + b.name + '" ещё нет рабочих.\nСначала добавьте людей через кнопку «👥 Люди».');
+    if(typeof openPeople === 'function') {
+      setTimeout(function(){ openPeople(bId); }, 200);
+    }
     return;
   }
   if(!b.attendance) b.attendance={};
@@ -8415,7 +8491,7 @@ function openManageObjects(){
   });
   var resetBtn=document.getElementById('bresetcash');
   if(resetBtn) resetBtn.addEventListener('click',function(){
-    if(!confirm('Сбросить стартовую кассу? Касса вернётся к автоматическому расчёту по формуле.'))return;
+    if(!confirmSafe('Сбросить стартовую кассу? Касса вернётся к автоматическому расчёту по формуле.'))return;
     S.settings.startCash=0;
     S.settings.startCashDate='';
     save();
@@ -8874,7 +8950,7 @@ if(btnLang){
   });
 }
 document.getElementById('btn-refresh').addEventListener('click',function(){
-  if(!confirm('Обновить приложение?\n\nСначала ваши данные будут принудительно отправлены в облако, потом обновится код. Это безопасно.'))return;
+  if(!confirmSafe('Обновить приложение?\n\nСначала ваши данные будут принудительно отправлены в облако, потом обновится код. Это безопасно.'))return;
   // 1. Принудительно сохранить локально
   if(typeof persist==='function') persist();
   S._modified=Date.now();
@@ -9223,7 +9299,7 @@ window.askAICustom = function(){
 }
 
 // === SHARE DAILY SUMMARY ===
-function shareDailySummary(){
+window.shareDailySummary = function shareDailySummary(){
   haptic('medium');
   var goal = calcGoalProgress();
   var C = calcCo();
@@ -10349,7 +10425,7 @@ function confirmDraftGroup(linkedKey){
 }
 
 function rejectDraftGroup(linkedKey){
-  if(!confirm('Удалить черновик без сохранения?')) return;
+  if(!confirmSafe('Удалить черновик без сохранения?')) return;
   var group=_drafts.filter(function(d){return (d.linkedId||d.id)===linkedKey&&!_deletedIds[d.id];});
   group.forEach(function(d){
     _deletedIds[d.id]=true;

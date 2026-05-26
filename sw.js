@@ -3,7 +3,14 @@ const ASSETS = ['./', './index.html', './manifest.json', './icon192.png', './ico
 
 self.addEventListener('install', function(e) {
   e.waitUntil(
-    caches.open(CACHE).then(function(c) { return c.addAll(ASSETS); }).catch(function(){})
+    caches.open(CACHE).then(function(c) { 
+      // Кешируем по одному — чтобы один битый файл не валил всё
+      return Promise.all(ASSETS.map(function(asset){
+        return c.add(asset).catch(function(err){
+          console.warn('Skip caching', asset, err.message);
+        });
+      }));
+    }).catch(function(){})
   );
   self.skipWaiting();
 });
@@ -16,9 +23,20 @@ self.addEventListener('activate', function(e) {
   );
 });
 
+self.addEventListener('message', function(e){
+  if(e.data === 'CLEAR_CACHE'){
+    caches.keys().then(function(keys){
+      keys.forEach(function(k){ caches.delete(k); });
+    });
+  }
+});
+
 self.addEventListener('fetch', function(e) {
   if (e.request.method !== 'GET') return;
+  // Не кешируем jsonbin и AI worker — всегда живые запросы
   if (e.request.url.indexOf('jsonbin.io') !== -1) return;
+  if (e.request.url.indexOf('workers.dev') !== -1) return;
+  if (e.request.url.indexOf('api.anthropic.com') !== -1) return;
 
   var url = e.request.url;
   var isHTML = e.request.mode === 'navigate' ||
@@ -26,6 +44,7 @@ self.addEventListener('fetch', function(e) {
                (e.request.headers.get('accept')||'').indexOf('text/html') !== -1;
 
   if (isHTML) {
+    // NETWORK-FIRST для HTML: всегда свежий код, fallback на кэш если нет интернета
     e.respondWith(
       fetch(e.request, {cache: 'no-store'}).then(function(res) {
         if (res.ok) {
@@ -38,6 +57,7 @@ self.addEventListener('fetch', function(e) {
       })
     );
   } else {
+    // CACHE-FIRST для статики (иконки, манифест)
     e.respondWith(
       caches.match(e.request).then(function(cached) {
         return cached || fetch(e.request).then(function(res) {
@@ -46,17 +66,8 @@ self.addEventListener('fetch', function(e) {
             caches.open(CACHE).then(function(c) { c.put(e.request, clone); });
           }
           return res;
-        });
+        }).catch(function(){ return cached; });
       })
     );
-  }
-});
-
-self.addEventListener('message', function(e) {
-  if (e.data === 'SKIP_WAITING') self.skipWaiting();
-  if (e.data === 'CLEAR_CACHE') {
-    caches.keys().then(function(keys) {
-      keys.forEach(function(k) { caches.delete(k); });
-    });
   }
 });
