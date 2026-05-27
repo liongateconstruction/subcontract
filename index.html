@@ -1595,7 +1595,96 @@ function touchLocal(){S._modified=Date.now();persist();}
 // Последнее известное время модификации в облаке — для детекции конфликтов
 var _lastKnownRemote = 0;
 
+// =============================================================
+// 🌩 CLOUDFLARE WORKER — ПЕРВИЧНОЕ ХРАНИЛИЩЕ (надёжное)
+// jsonbin.io — РЕЗЕРВ (на случай если Worker упадёт)
+// =============================================================
+
+window.SYNC_TOKEN = AI_SHARED_TOKEN || 'liongate-2026-secret-x7p2k9m4';
+
+// Проверка доступности Cloudflare Worker
+window._cfWorkerOk = null; // null = не знаем, true/false = известно
+window._cfWorkerCheckTime = 0;
+
+window.checkCfWorker = function(){
+  // Проверяем не чаще раз в 60 секунд
+  if(Date.now() - window._cfWorkerCheckTime < 60000) return Promise.resolve(window._cfWorkerOk);
+  window._cfWorkerCheckTime = Date.now();
+  
+  if(!AI_WORKER_URL) {
+    window._cfWorkerOk = false;
+    return Promise.resolve(false);
+  }
+  
+  return fetch(AI_WORKER_URL.replace(/\/$/,'') + '/api/health', {
+    method: 'GET',
+    headers: {'X-LG-Token': window.SYNC_TOKEN, 'X-Author': (typeof role !== 'undefined' && role) ? role : 'unknown'}
+  }).then(function(r){
+    window._cfWorkerOk = r.ok;
+    return r.ok;
+  }).catch(function(){
+    window._cfWorkerOk = false;
+    return false;
+  });
+};
+
+// Сохранение в Cloudflare
+window.pushToCf = function(){
+  if(!AI_WORKER_URL) return Promise.reject(new Error('No Worker URL'));
+  
+  var payload = JSON.parse(JSON.stringify(S));
+  payload._modified = Date.now();
+  
+  return fetch(AI_WORKER_URL.replace(/\/$/,'') + '/api/data?key=main', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-LG-Token': window.SYNC_TOKEN,
+      'X-Author': (typeof role !== 'undefined' && role) ? role : 'unknown'
+    },
+    body: JSON.stringify(payload)
+  }).then(function(r){
+    if(!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  });
+};
+
+// Загрузка из Cloudflare
+window.pullFromCf = function(){
+  if(!AI_WORKER_URL) return Promise.reject(new Error('No Worker URL'));
+  
+  return fetch(AI_WORKER_URL.replace(/\/$/,'') + '/api/data?key=main', {
+    method: 'GET',
+    headers: {'X-LG-Token': window.SYNC_TOKEN, 'X-Author': (typeof role !== 'undefined' && role) ? role : 'unknown'}
+  }).then(function(r){
+    if(!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  }).then(function(resp){
+    return resp.data;
+  });
+};
+
 function pushCloud(){
+  S._modified=S._modified||Date.now();
+  if(typeof persist === 'function') persist();
+  
+  // === ПЕРЕХВАТ: пробуем CLOUDFLARE первым ===
+  if(window.pushToCf && AI_WORKER_URL){
+    window.pushToCf().then(function(){
+      ss('OK',false);
+      if(typeof clearSyncQueue === 'function') clearSyncQueue();
+      window._cfWorkerOk = true;
+    }).catch(function(){
+      window._cfWorkerOk = false;
+      _pushCloudLegacy(); // резервный путь — jsonbin
+    });
+    return;
+  }
+  _pushCloudLegacy();
+}
+
+// Резервная синхронизация через jsonbin
+function _pushCloudLegacy(){
   S._modified=S._modified||Date.now();
   // Сохраняем снапшот для Telegram /report
   var C=calcCo();
@@ -1896,9 +1985,43 @@ var _editLock=false; // блокировка синхронизации во в�
 function pullCloud(cb){
   if(_editLock){if(cb)cb();return;} // не синхронизируем во время правки
   ss('..',false);
-  // Если нет интернета или ключей — показываем локальные данные сразу
+  
+  // === НОВАЯ ЛОГИКА: пробуем CLOUDFLARE первым ===
+  if(window.pullFromCf && AI_WORKER_URL){
+    window.pullFromCf().then(function(cloudData){
+      window._cfWorkerOk = true;
+      if(cloudData){
+        // Wrap в формат как у jsonbin {record: ...}
+        processCloudData({record: cloudData}, cb);
+      } else {
+        // Cloudflare пустой — может это первый раз. Пробуем jsonbin
+        pullFromJsonbin(cb);
+      }
+    }).catch(function(){
+      window._cfWorkerOk = false;
+      pullFromJsonbin(cb);
+    });
+    return;
+  }
+  
+  // Если нет Worker URL — сразу к jsonbin
+  pullFromJsonbin(cb);
+}
+
+// Резервный pull из jsonbin
+function pullFromJsonbin(cb){
   if(!AK||!BIN){if(cb)cb();return;}
   fetch(BURL,{headers:{'X-Master-Key':AK}}).then(function(r){return r.json();}).then(function(d){
+    processCloudData(d, cb);
+  }).catch(function(){
+    ss('!',true);
+    if(typeof addToSyncQueue === 'function') addToSyncQueue();
+    if(cb)cb();
+  });
+}
+
+// Обработка данных из облака (общая для Cloudflare и jsonbin)
+function processCloudData(d, cb){
     if(d&&d.record){
       var r=d.record;
       var remoteTime=r._modified||0;
@@ -1954,12 +2077,8 @@ function pullCloud(cb){
       }
     }else if(S.entries && S.entries.length>0){pushCloud();}
     if(cb)cb();
-  }).catch(function(){
-    ss('!',true);
-    // Даже при ошибке сети — показываем то что есть локально
-    if(cb)cb();
-  });
 }
+// (конец processCloudData)
 function defState(){return{
  objects:['ЖК «Алгабас», Мкр. Нуркент'],
  objMeta:{'ЖК «Алгабас», Мкр. Нуркент':{customer:'Sensata Group',rates:{}}},
@@ -4323,18 +4442,137 @@ window.forceUploadLocal = function(){
         },
         body: JSON.stringify(payload)
       }).then(function(r){return r.json();}).then(function(){
-        alert('✅ Готово!\n\nЛокальные данные ('+S.entries.length+' записей, '+(S.brigades||[]).length+' бригад) залиты в облако.\n\nТеперь на других устройствах появятся ваши правильные цифры.');
+        if(typeof showToast === 'function'){
+          showToast('✅ Залито в облако: '+S.entries.length+' записей', 'success');
+        } else {
+          alert('✅ Залито в облако!');
+        }
         ss('OK', false);
+        if(typeof clearSyncQueue === 'function') clearSyncQueue();
         if(typeof haptic === 'function') haptic('heavy');
       }).catch(function(err){
-        alert('❌ Ошибка заливки в облако: ' + err.message + '\n\nПопробуйте позже. Локально всё сохранено.');
-        ss('!', true);
+        // Не показываем alert — добавляем в очередь синхронизации
+        ss('⏳', true);
+        if(typeof addToSyncQueue === 'function') addToSyncQueue();
+        // Тихое уведомление в углу (исчезает через 3 сек)
+        if(typeof showToast === 'function') showToast('☁️ Облако недоступно — данные сохранены локально', 'warning');
       });
     } else {
       alert('Облако не настроено — данные хранятся только локально.');
     }
   }, 300);
 };
+
+// =============================================================
+// 🔄 ОЧЕРЕДЬ СИНХРОНИЗАЦИИ + ТИХИЙ РЕЖИМ
+// =============================================================
+// Если облако недоступно — копим изменения локально
+// Каждые 30 секунд пробуем повторить
+// При успехе — очищаем очередь
+
+window._syncQueueDirty = false; // флаг "есть несинхронизированные изменения"
+
+window.addToSyncQueue = function(){
+  window._syncQueueDirty = true;
+  try {
+    localStorage.setItem('lg_sync_dirty', '1');
+    localStorage.setItem('lg_sync_dirty_time', String(Date.now()));
+  } catch(e){}
+  updateSyncIndicator();
+};
+
+window.clearSyncQueue = function(){
+  window._syncQueueDirty = false;
+  try {
+    localStorage.removeItem('lg_sync_dirty');
+    localStorage.removeItem('lg_sync_dirty_time');
+  } catch(e){}
+  updateSyncIndicator();
+};
+
+window.updateSyncIndicator = function(){
+  try {
+    var el = document.getElementById('sync-st');
+    if(!el) return;
+    if(window._syncQueueDirty){
+      el.style.color = '#ffa657'; // оранжевый — есть что синхронизировать
+      el.textContent = '⏳';
+      el.title = 'Есть несинхронизированные изменения — повторим автоматически';
+    } else {
+      el.style.color = 'var(--green)';
+      el.textContent = '●';
+      el.title = 'Синхронизировано';
+    }
+  } catch(e){}
+};
+
+// Восстанавливаем состояние очереди при загрузке
+try {
+  if(localStorage.getItem('lg_sync_dirty') === '1'){
+    window._syncQueueDirty = true;
+  }
+} catch(e){}
+
+// Автоповтор каждые 30 секунд (если есть несинхронизированное)
+setInterval(function(){
+  if(!window._syncQueueDirty) return;
+  if(document.hidden) return; // не пытаемся когда приложение свёрнуто
+  
+  if(typeof pushCloud === 'function'){
+    pushCloud(); // pushCloud сам обработает success/error
+  }
+}, 30000);
+
+// =============================================================
+// 🍞 TOAST УВЕДОМЛЕНИЯ — лёгкие, не блокирующие
+// =============================================================
+window.showToast = function(message, type){
+  // Удаляем предыдущий toast если есть
+  var old = document.getElementById('lg-toast');
+  if(old) old.remove();
+  
+  var bgColor = '#161b22';
+  var borderColor = '#30363d';
+  var iconColor = '#8b949e';
+  
+  if(type === 'warning'){
+    bgColor = '#1c1611';
+    borderColor = 'rgba(255,179,32,.4)';
+    iconColor = '#ffa657';
+  } else if(type === 'error'){
+    bgColor = '#1f1212';
+    borderColor = 'rgba(248,81,73,.4)';
+    iconColor = '#ff7b72';
+  } else if(type === 'success'){
+    bgColor = '#0d1f12';
+    borderColor = 'rgba(63,185,80,.4)';
+    iconColor = '#7ee787';
+  }
+  
+  var toast = document.createElement('div');
+  toast.id = 'lg-toast';
+  toast.style.cssText = 'position:fixed;top:calc(60px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);background:'+bgColor+';border:1.5px solid '+borderColor+';color:#e6edf3;border-radius:14px;padding:12px 18px;font-size:13px;font-weight:600;font-family:-apple-system,system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.5);z-index:99999;max-width:90%;animation:toastIn .3s ease;display:flex;align-items:center;gap:10px;line-height:1.4';
+  toast.innerHTML = message;
+  toast.onclick = function(){ toast.remove(); };
+  
+  document.body.appendChild(toast);
+  
+  // Авто-удаление через 4 секунды
+  setTimeout(function(){
+    if(toast.parentNode){
+      toast.style.animation = 'toastOut .3s ease';
+      setTimeout(function(){ if(toast.parentNode) toast.remove(); }, 300);
+    }
+  }, 4000);
+};
+
+// Анимации toast
+if(!document.getElementById('lg-toast-style')){
+  var style = document.createElement('style');
+  style.id = 'lg-toast-style';
+  style.textContent = '@keyframes toastIn { from { opacity: 0; transform: translateX(-50%) translateY(-20px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } } @keyframes toastOut { to { opacity: 0; transform: translateX(-50%) translateY(-20px); } }';
+  document.head.appendChild(style);
+}
 
 // =============================================================
 // 📸 СИСТЕМА АВТО-СНАПШОТОВ (Защита от потери/порчи данных)
