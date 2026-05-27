@@ -298,7 +298,7 @@ canvas{display:block;width:100%;border-radius:8px}
 
 /* === DRILL-DOWN === */
 .drill-h{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--brd);margin-bottom:14px}
-.drill-back{background:var(--s2);border:1px solid var(--brd);color:var(--blue);border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer;font-family:-apple-system,system-ui,sans-serif;display:flex;align-items:center;gap:4px}
+.drill-back{position:absolute;top:14px;left:14px;height:38px;padding:0 14px 0 10px;border-radius:19px;background:rgba(255,255,255,.10);border:1.5px solid rgba(255,255,255,.20);color:#e6edf3;font-size:14px;font-weight:700;display:inline-flex;align-items:center;gap:4px;cursor:pointer;line-height:1;z-index:10;font-family:-apple-system,system-ui,sans-serif}.drill-back:hover{background:rgba(255,255,255,.20)}
 .drill-back:active{transform:scale(.96)}
 .drill-row{display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--sur);border:1px solid var(--brd);border-radius:12px;margin-bottom:6px;cursor:pointer;transition:.15s}
 .drill-row:active{background:var(--s2)}
@@ -505,17 +505,17 @@ canvas{display:block;width:100%;border-radius:8px}
       <span>Об</span></button>
   </nav>
 </div>
-<div id="modal" style="display:none" class="mbg">
-  <div class="mbox"><div class="mhandle"></div><div class="mtit" id="mtit">НОВАЯ ЗАПИСЬ</div><div id="mbody"></div></div>
+<div id="modal" onclick="if(event.target.id==='modal')closeModal()" style="display:none" class="mbg">
+  <div class="mbox" style="position:relative;padding-top:54px"><button onclick="closeModal()" style="position:absolute;top:14px;left:14px;height:36px;padding:0 14px 0 10px;border-radius:18px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:#e6edf3;font-size:14px;font-weight:700;cursor:pointer;line-height:1;display:inline-flex;align-items:center;gap:4px;z-index:10;font-family:-apple-system,system-ui,sans-serif"><span style="font-size:20px;line-height:1">←</span><span>Назад</span></button><div class="mhandle"></div><div class="mtit" id="mtit" style="text-align:center;padding:0 70px">НОВАЯ ЗАПИСЬ</div><div id="mbody"></div></div>
 </div>
 <div id="ptrIndicator" class="ptr-indicator">
   <span class="ptr-arrow">↓</span>
   <span id="ptrText">Потяните для обновления</span>
 </div>
-<div id="drillModal" style="display:none" class="mbg">
+<div id="drillModal" onclick="if(event.target.id==='drillModal')closeDrill()" style="display:none" class="mbg">
   <div class="mbox" style="max-height:90vh;display:flex;flex-direction:column">
     <div class="mhandle"></div>
-    <div class="mtit" id="drillTitle" style="padding:0 16px">DRILL-DOWN</div>
+    <div class="mtit" id="drillTitle" style="padding:0 70px 0 70px;text-align:center">DRILL-DOWN</div>
     <div id="drillBody" style="overflow-y:auto;flex:1;padding:0 16px 16px"></div>
   </div>
 </div>
@@ -525,10 +525,11 @@ canvas{display:block;width:100%;border-radius:8px}
     <div style="margin-top:12px"><button id="pv-close" style="background:#fff;border:none;padding:10px 24px;border-radius:8px;font-size:14px;cursor:pointer">Закрыть</button></div>
   </div>
 </div>
-<div id="vmodal" style="display:none" class="mbg">
-  <div class="mbox">
+<div id="vmodal" onclick="if(event.target.id==='vmodal')closeVoiceModal()" style="display:none" class="mbg">
+  <div class="mbox" style="position:relative;padding-top:54px">
+    <button onclick="closeVoiceModal()" style="position:absolute;top:14px;left:14px;height:36px;padding:0 14px 0 10px;border-radius:18px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:#e6edf3;font-size:14px;font-weight:700;cursor:pointer;line-height:1;display:inline-flex;align-items:center;gap:4px;z-index:10;font-family:-apple-system,system-ui,sans-serif"><span style="font-size:20px;line-height:1">←</span><span>Назад</span></button>
     <div class="mhandle"></div>
-    <div class="mtit" style="color:var(--purple)">🎤 ГОЛОСОВОЙ ВВОД</div>
+    <div class="mtit" style="color:var(--purple);text-align:center;padding:0 70px">🎤 ГОЛОСОВОЙ ВВОД</div>
     <div id="vbody">
       <div id="v-stage-record">
         <div style="text-align:center;padding:20px 0">
@@ -2825,7 +2826,7 @@ function renderDrill(){
   if(_drillStack.length > 1){
     headerHTML += '<button class="drill-back" onclick="drillBack()">‹ Назад</button>';
   } else {
-    headerHTML += '<button class="drill-back" onclick="closeDrill()">✕</button>';
+    headerHTML += '<button class="drill-back" onclick="closeDrill()"><span style="font-size:20px;line-height:1">←</span><span>Назад</span></button>';
   }
   headerHTML += '<div style="font-size:11px;color:var(--mut);font-family:-apple-system,system-ui,sans-serif;flex:1;text-align:right">'+(_drillStack.length)+' / 5 уровней</div>';
   headerHTML += '</div>';
@@ -3819,7 +3820,7 @@ window.openQuickSearch = function(){
   var bodyEl = document.getElementById('drillBody');
   if(titleEl) titleEl.textContent = '🔍 ПОИСК';
   
-  var html = '<div class="drill-h"><button class="drill-back" onclick="closeDrill()">✕</button></div>';
+  var html = '<div class="drill-h"><button class="drill-back" onclick="closeDrill()"><span style="font-size:20px;line-height:1">←</span><span>Назад</span></button></div>';
   html += '<div style="margin-bottom:14px"><input type="text" id="qs-input" placeholder="Введите сумму, имя, или текст..." oninput="runQuickSearch()" style="width:100%;background:#0d1117;border:1.5px solid var(--gold);color:#e6edf3;border-radius:12px;padding:14px;font-size:15px;font-family:-apple-system,system-ui,sans-serif" autofocus></div>';
   html += '<div id="qs-results" style="font-family:-apple-system,system-ui,sans-serif">';
   html += '<div style="text-align:center;padding:30px;color:#8b949e;font-size:13px">Начните вводить — поиск работает мгновенно</div>';
@@ -4106,7 +4107,7 @@ window.openMoreFeatures = function(){
   var bodyEl = document.getElementById('drillBody');
   if(titleEl) titleEl.textContent = '✨ ВОЗМОЖНОСТИ';
   
-  var html = '<div class="drill-h"><button class="drill-back" onclick="closeDrill()">✕</button></div>';
+  var html = '<div class="drill-h"><button class="drill-back" onclick="closeDrill()"><span style="font-size:20px;line-height:1">←</span><span>Назад</span></button></div>';
   
   var features = [
     {icon:'📈', title:'Прогноз на 30 дней', desc:'Касса, прибыль, объём', color:'#7ee787', fn:'showForecast'},
@@ -4143,7 +4144,7 @@ function genericModal(title, contentHtml){
   var titleEl = document.getElementById('drillTitle');
   var bodyEl = document.getElementById('drillBody');
   if(titleEl) titleEl.textContent = title;
-  var html = '<div class="drill-h"><button class="drill-back" onclick="closeDrill()">✕</button></div>';
+  var html = '<div class="drill-h"><button class="drill-back" onclick="closeDrill()"><span style="font-size:20px;line-height:1">←</span><span>Назад</span></button></div>';
   html += contentHtml;
   if(bodyEl) bodyEl.innerHTML = html;
   document.getElementById('drillModal').style.display='flex';
@@ -4326,7 +4327,7 @@ window.showCurrency = function(){
     var goalBln = 1000000000; // 1 МЛРД $
     var rateNum = rate || 540;
     
-    var html2 = '<div class="drill-h"><button class="drill-back" onclick="closeDrill()">✕</button></div>';
+    var html2 = '<div class="drill-h"><button class="drill-back" onclick="closeDrill()"><span style="font-size:20px;line-height:1">←</span><span>Назад</span></button></div>';
     html2 += '<div style="font-family:-apple-system,system-ui,sans-serif">';
     
     // Курс
@@ -4368,7 +4369,7 @@ window.showWeather = function(){
     var bodyEl = document.getElementById('drillBody');
     if(!bodyEl || !w) return;
     
-    var html2 = '<div class="drill-h"><button class="drill-back" onclick="closeDrill()">✕</button></div>';
+    var html2 = '<div class="drill-h"><button class="drill-back" onclick="closeDrill()"><span style="font-size:20px;line-height:1">←</span><span>Назад</span></button></div>';
     html2 += '<div style="font-family:-apple-system,system-ui,sans-serif">';
     
     // Сейчас
@@ -4783,7 +4784,7 @@ window.openDataProtection = function(){
   var bodyEl = document.getElementById('drillBody');
   if(titleEl) titleEl.textContent = '🛡 ЗАЩИТА ДАННЫХ';
   
-  var html = '<div class="drill-h"><button class="drill-back" onclick="closeDrill()">✕</button></div>';
+  var html = '<div class="drill-h"><button class="drill-back" onclick="closeDrill()"><span style="font-size:20px;line-height:1">←</span><span>Назад</span></button></div>';
   
   // Снапшоты
   var snapshots = [];
@@ -5100,6 +5101,88 @@ window.forceRefresh = function(){
   }
 };
 
+// Универсальный свайп вниз — закрывает модалки
+(function setupSwipeClose(){
+  var startY = 0, startX = 0, isModal = false, currentModal = null;
+  
+  function onTouchStart(e){
+    var t = e.touches[0];
+    startY = t.clientY;
+    startX = t.clientX;
+    
+    // Определяем какая модалка открыта
+    currentModal = null;
+    var menu = document.getElementById('lg-menu-bg');
+    var drill = document.getElementById('drillModal');
+    var modal = document.getElementById('modal');
+    var vmodal = document.getElementById('vmodal');
+    
+    if(menu) currentModal = {el: menu, close: 'closeMainMenu'};
+    else if(drill && drill.style.display === 'flex') currentModal = {el: drill, close: 'closeDrill'};
+    else if(modal && modal.style.display === 'flex') currentModal = {el: modal, close: 'closeModal'};
+    else if(vmodal && vmodal.style.display === 'flex') currentModal = {el: vmodal, close: 'closeVoiceModal'};
+    
+    isModal = !!currentModal;
+  }
+  
+  function onTouchEnd(e){
+    if(!isModal || !currentModal) return;
+    var t = e.changedTouches[0];
+    var dy = t.clientY - startY;
+    var dx = Math.abs(t.clientX - startX);
+    
+    // Свайп вниз минимум на 80px, без сильного горизонтального движения
+    if(dy > 80 && dx < 100){
+      // Проверяем — не скроллится ли пользователь внутри
+      // Если внутри есть скроллируемый блок и он не в начале — не закрываем
+      var target = e.target;
+      while(target && target !== currentModal.el){
+        if(target.scrollTop > 5) return; // скроллит — не закрываем
+        target = target.parentElement;
+      }
+      
+      // Закрываем
+      if(typeof window[currentModal.close] === 'function'){
+        window[currentModal.close]();
+      }
+    }
+  }
+  
+  document.addEventListener('touchstart', onTouchStart, {passive: true});
+  document.addEventListener('touchend', onTouchEnd, {passive: true});
+})();
+
+// Кнопка "назад" Android — закрывает модалку
+(function setupBackButton(){
+  window.addEventListener('popstate', function(e){
+    // Если открыта какая-то модалка — закрываем её
+    var menu = document.getElementById('lg-menu-bg');
+    if(menu){
+      menu.remove();
+      e.preventDefault();
+      return;
+    }
+    var drill = document.getElementById('drillModal');
+    if(drill && drill.style.display === 'flex'){
+      if(typeof closeDrill === 'function') closeDrill();
+      e.preventDefault();
+      return;
+    }
+    var modal = document.getElementById('modal');
+    if(modal && modal.style.display === 'flex'){
+      if(typeof closeModal === 'function') closeModal();
+      e.preventDefault();
+      return;
+    }
+    var vmodal = document.getElementById('vmodal');
+    if(vmodal && vmodal.style.display === 'flex'){
+      if(typeof closeVoiceModal === 'function') closeVoiceModal();
+      e.preventDefault();
+      return;
+    }
+  });
+})();
+
 window.openMainMenu = function(){
   if(typeof haptic === 'function') haptic('light');
   
@@ -5114,9 +5197,10 @@ window.openMainMenu = function(){
   }
   
   var h = '<div id="lg-menu-bg" onclick="closeMainMenu(event)" style="position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);z-index:9998;animation:fadeIn .2s">';
-  h += '<div onclick="event.stopPropagation()" style="position:absolute;bottom:0;left:0;right:0;background:#161b22;border-top:1.5px solid var(--gold);border-radius:24px 24px 0 0;padding:20px 16px calc(20px + env(safe-area-inset-bottom));box-shadow:0 -8px 32px rgba(0,0,0,.5);animation:slideUp .25s ease;font-family:-apple-system,system-ui,sans-serif">';
+  h += '<div onclick="event.stopPropagation()" style="position:absolute;bottom:0;left:0;right:0;background:#161b22;border-top:1.5px solid var(--gold);border-radius:24px 24px 0 0;padding:20px 16px calc(20px + env(safe-area-inset-bottom));box-shadow:0 -8px 32px rgba(0,0,0,.5);animation:slideUp .25s ease;font-family:-apple-system,system-ui,sans-serif;max-height:85vh;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-top:60px">';
   
   // Полоска-хэндл
+  h += '<button onclick="closeMainMenu()" style="position:absolute;top:14px;left:14px;height:36px;padding:0 14px 0 10px;border-radius:18px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:#e6edf3;font-size:14px;font-weight:700;cursor:pointer;line-height:1;display:inline-flex;align-items:center;gap:4px;z-index:10;font-family:-apple-system,system-ui,sans-serif"><span style="font-size:20px;line-height:1">←</span><span>Назад</span></button>';
   h += '<div style="width:40px;height:5px;background:#30363d;border-radius:3px;margin:0 auto 18px"></div>';
   
   // Шапка меню — роль + статус
@@ -11101,7 +11185,7 @@ window.openAIChat = function(){
   if(mtit) mtit.textContent = '🤖 AI-CFO';
   
   var html = '';
-  html += '<div class="drill-h"><button class="drill-back" onclick="closeDrill()">✕</button>';
+  html += '<div class="drill-h"><button class="drill-back" onclick="closeDrill()"><span style="font-size:20px;line-height:1">←</span><span>Назад</span></button>';
   html += '<div style="font-size:11px;color:var(--mut);font-family:-apple-system,system-ui,sans-serif;flex:1;text-align:right">Claude Sonnet</div>';
   html += '</div>';
   
@@ -11472,7 +11556,7 @@ function showShareModal(text, copied){
   modal.onclick = function(e){ if(e.target === modal) modal.remove(); };
   
   var box = document.createElement('div');
-  box.style.cssText = 'width:100%;max-width:480px;background:#161b22;border-top:1.5px solid var(--gold);border-radius:24px 24px 0 0;padding:20px 16px calc(20px + env(safe-area-inset-bottom));box-shadow:0 -8px 32px rgba(0,0,0,.5);animation:slideUp .25s ease;font-family:-apple-system,system-ui,sans-serif';
+  box.style.cssText = 'width:100%;max-width:480px;background:#161b22;border-top:1.5px solid var(--gold);border-radius:24px 24px 0 0;padding:20px 16px calc(20px + env(safe-area-inset-bottom));box-shadow:0 -8px 32px rgba(0,0,0,.5);animation:slideUp .25s ease;font-family:-apple-system,system-ui,sans-serif;max-height:85vh;overflow-y:auto;-webkit-overflow-scrolling:touch';
   box.onclick = function(e){ e.stopPropagation(); };
   
   box.innerHTML = 
