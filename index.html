@@ -164,7 +164,7 @@ header{background:linear-gradient(180deg,rgba(22,27,34,0.98) 0%,rgba(13,17,23,0.
 .content{flex:1;overflow-y:auto;padding:12px 14px 90px;transform:translate3d(0,0,0);-webkit-transform:translate3d(0,0,0);backface-visibility:hidden;-webkit-backface-visibility:hidden;-webkit-overflow-scrolling:touch}
 .content::-webkit-scrollbar{width:3px}.content::-webkit-scrollbar-thumb{background:var(--brd);border-radius:2px}
 nav{position:fixed;bottom:0;left:0;right:0;background:rgba(22,27,34,0.97);border-top:1px solid rgba(255,179,32,0.2);display:flex;z-index:90;padding-bottom:env(safe-area-inset-bottom);backdrop-filter:blur(12px);box-shadow:0 -4px 20px rgba(0,0,0,.3)}
-.nb{flex:1;display:flex;flex-direction:column;align-items:center;padding:10px 2px 8px;cursor:pointer;border:none;background:transparent;color:var(--mut);font-family:var(--fm);font-size:9px;letter-spacing:.3px;text-transform:uppercase;gap:3px;min-height:56px;transition:all .2s;position:relative}
+.nb{flex:1;display:flex;flex-direction:column;align-items:center;padding:10px 1px 8px;cursor:pointer;border:none;background:transparent;color:var(--mut);font-family:var(--fm);font-size:8.5px;letter-spacing:.2px;text-transform:uppercase;gap:3px;min-height:56px;transition:all .2s;position:relative;min-width:0;overflow:hidden;white-space:nowrap}
 .nb::after{content:'';position:absolute;bottom:0;left:20%;right:20%;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);border-radius:2px 2px 0 0;transform:scaleX(0);transition:transform .25s}
 .nb.active{color:var(--gold)}.nb.active::after{transform:scaleX(1)}
 .nb.active svg{filter:drop-shadow(0 0 6px rgba(255,179,32,.7))}
@@ -595,19 +595,22 @@ canvas{display:block;width:100%;border-radius:8px}
   <button class="fab" id="fab-mic" onclick="openVoiceModal()" style="bottom:calc(125px + env(safe-area-inset-bottom));background:linear-gradient(135deg,#a371f7,#8957e5);font-size:22px;color:#fff" title="Голосовой ввод">🎤</button>
   <nav>
     <button class="nb active" id="tab-main">
-      <span style="font-size:22px;line-height:1">🔥</span>
+      <span style="font-size:20px;line-height:1">🔥</span>
       <span>Пульс</span></button>
     <button class="nb" id="tab-pl">
-      <span style="font-size:22px;line-height:1">💰</span>
+      <span style="font-size:20px;line-height:1">💰</span>
       <span>Деньги</span></button>
     <button class="nb" id="tab-partners">
-      <span style="font-size:22px;line-height:1">👥</span>
+      <span style="font-size:20px;line-height:1">👥</span>
       <span>Партнёры</span></button>
+    <button class="nb" id="tab-brigades">
+      <span style="font-size:20px;line-height:1">👷</span>
+      <span>Бригады</span></button>
     <button class="nb" id="tab-objects">
-      <span style="font-size:22px;line-height:1">🏗</span>
+      <span style="font-size:20px;line-height:1">🏗</span>
       <span>Объекты</span></button>
     <button class="nb" id="tab-more">
-      <span style="font-size:22px;line-height:1">⚙</span>
+      <span style="font-size:20px;line-height:1">⚙</span>
       <span>Ещё</span></button>
   </nav>
 </div>
@@ -2266,7 +2269,7 @@ function defState(){return{
 };}
 
 // PRELOADED от 2026-05-25
-var PRELOADED_DATA = {"objects": ["ЖК «Алгабас», Мкр. Нуркент"], "objMeta": {"ЖК «Алгабас», Мкр. Нуркент": {"customer": "Sensata Group", "rates": {}, "custRates": [{"wtype": "Устройство стен", "unit": "м³", "rate": 38437.76}, {"wtype": "Устройство лестничного марша", "unit": "м³", "rate": 38437.76}, {"wtype": "Устройство плиты перекрытия и ригеля", "unit": "м³", "rate": 38437.76}, {"wtype": "Устройство парапета", "unit": "м³", "rate": 38437.76}], "spots": [{"id": "spot_b48", "name": "Блок 48", "deadline": "2026-10-31", "started": "2026-05-20", "completed": null, "constructions": [{"wtype": "Устройство стен", "unit": "м³", "volume": 1027.4, "heights": "-0,100 ÷ +42,850"}, {"wtype": "Устройство лестничного марша", "unit": "м³", "volume": 28.6, "heights": "-0,100 ÷ +40,550"}, {"wtype": "Устройство плиты перекрытия и ригеля", "unit": "м³", "volume": 868.8, "heights": "+4,150 ÷ +40,550"}, {"wtype": "Устройство парапета", "unit": "м³", "volume": 14.1, "heights": "+41,650 ÷ +43,950"}]}, {"id": "spot_b49", "name": "Блок 49", "deadline": "2026-11-30", "started": "2026-05-25", "completed": null, "constructions": [{"wtype": "Устройство стен", "unit": "м³", "volume": 707.5, "heights": "-0,100 ÷ +32,950"}, {"wtype": "Устройство лестничного марша", "unit": "м³", "volume": 20.8, "heights": "-0,100 ÷ +30,650"}, {"wtype": "Устройство плиты перекрытия и ригеля", "unit": "м³", "volume": 619.1, "heights": "+4,150 ÷ +33,150"}, {"wtype": "Устройство парапета", "unit": "м³", "volume": 13.6, "heights": "+31,750 ÷ +34,050"}]}]}}, "settings": {"deadline": "2026-12-31", "totalVol": 48000, "norms": {"Армирование": 0.5, "Опалубка": 0.75, "Бетонирование": 3, "Комплекс": 0.9}, "startCash": 0, "startCashDate": ""}, "brigades": [{"id": "b1", "name": "Бригада Шынгыс", "obj": "ЖК «Алгабас», Мкр. Нуркент", "workers": 15, "prices": {"Армирование": 14000, "Опалубка+бетон": 12000}, "people": [], "attendance": {}}, {"id": "b2", "name": "Бригада Нурсултан", "obj": "ЖК «Алгабас», Мкр. Нуркент", "workers": 8, "prices": {"Армирование": 14000, "Опалубка+бетон": 12000}, "people": [], "attendance": {}}, {"id": "b1779712091656", "name": "Штатная", "obj": "ЖК «Алгабас», Мкр. Нуркент", "workers": 1, "prices": {"Армирование": 14000, "Опалубка+бетон": 12000}, "people": [], "attendance": {}}], "history": [{"action": "reset_to_clean_v3", "at": "2026-05-25T12:10:29.027Z", "entries": 45}, {"action": "add", "by": "editor", "at": "2026-05-25T12:15:55.747Z", "type": "advance", "amount": 100000}, {"action": "add", "by": "editor", "at": "2026-05-25T12:17:40.539Z", "type": "expense", "amount": 80000}, {"action": "add", "by": "editor", "at": "2026-05-25T12:25:33.313Z", "type": "advance", "amount": 840000, "source": "tg-confirmed"}, {"action": "add", "by": "editor", "at": "2026-05-25T12:25:33.314Z", "type": "vol", "amount": 0, "source": "tg-confirmed"}, {"action": "add", "by": "editor", "at": "2026-05-25T12:27:27.323Z", "type": "advance", "amount": 200000, "source": "tg-confirmed"}, {"action": "add", "by": "editor", "at": "2026-05-25T13:16:19.606Z", "type": "expense", "amount": 840000}, {"action": "edit", "by": "editor", "at": "2026-05-25T13:31:17.807Z", "type": "advance", "amount": 840000}], "weeks": [], "goalsDone": {}, "ks2": [], "kzDict": {}, "workTypes": ["Армирование", "Опалубка", "Бетонирование", "Демонтаж опалубки", "Комплекс монолит", "Штукатурка", "Стяжка пола", "Шпаклёвка", "Покраска", "Кладка кирпича", "Кладка блоков", "Гипсокартон", "Плитка", "Гидроизоляция", "Утепление фасада", "Электромонтаж", "Сантехника", "Сварочные работы", "Кровельные работы", "Разнорабочие", "Уборка", "Демонтаж", "Комплекс"], "kfu": [{"id": 1, "name": "Темп заливки", "owner": "Бекжан", "target": "150 м³/нед", "auto": "temp", "light": 1, "hist": []}, {"id": 2, "name": "Деньги от заказчика", "owner": "Евгений", "target": "оплата КС-2 ≤15 дней", "auto": "money", "light": 1, "hist": []}, {"id": 3, "name": "Качество", "owner": "Нурсултан", "target": "0 переделок", "auto": "quality", "light": 1, "hist": []}, {"id": 4, "name": "Закрытие КС-2", "owner": "Евгений", "target": "акт помесячно", "auto": "ks", "light": 1, "hist": []}, {"id": 5, "name": "Безопасность", "owner": "Бекжан", "target": "0 происшествий, все в СИЗ", "light": 2, "hist": []}], "entries": [{"id": 1001, "date": "2026-05-14", "type": "advance", "amount": 400000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "Выдал Бекжану наличными на расходы"}, {"id": 1002, "date": "2026-05-15", "type": "expense", "amount": 5000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Связь", "note": "Мобильный Бекжана — оплатил Дмитрий напрямую"}, {"id": 1003, "date": "2026-05-16", "type": "expense", "amount": 53100, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Административные", "note": "Смартфон и номер для финансовых операций"}, {"id": 1004, "date": "2026-05-16", "type": "expense", "amount": 150000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Аванс / зарплата рабочим", "brigade": "b1", "note": "Аванс Бригада Шынгыс — перевод"}, {"id": 1005, "date": "2026-05-16", "type": "expense", "amount": 100000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Аванс / зарплата рабочим", "brigade": "b1", "note": "Аванс Бригада Шынгыс — наличные"}, {"id": 1006, "date": "2026-05-16", "type": "expense", "amount": 20000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Транспорт", "note": "Такси Бригада Нурсултан до объекта"}, {"id": 1007, "date": "2026-05-16", "type": "advance", "amount": 20000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Евгений", "note": "Дал Евгению (личное)"}, {"id": 1008, "date": "2026-05-17", "type": "expense", "amount": 70000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Инструменты и инвентарь", "note": "Каски, жилеты, перчатки, диски, молоток, бур"}, {"id": 1009, "date": "2026-05-17", "type": "advance", "amount": 150000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "Выдал Бекжану наличными на расходы"}, {"id": 1010, "date": "2026-05-17", "type": "advance", "amount": 110000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "Проценты за Альфард — личный расход Бекжана"}, {"id": 1012, "date": "2026-05-18", "type": "expense", "amount": 20000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Аванс / зарплата рабочим", "brigade": "b1", "note": "Аванс бригада Шынгыс"}, {"id": 1013, "date": "2026-05-18", "type": "expense", "amount": 54000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Инструменты и инвентарь", "note": "Рации 3 шт × 18 000"}, {"id": 1014, "date": "2026-05-18", "type": "invest", "amount": 170000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "note": "Закинул на счёт компании для оплаты страховки"}, {"id": 1015, "date": "2026-05-18", "type": "expense", "amount": 158100, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "cash", "cat": "Административные", "note": "Страховка компании"}, {"id": 1016, "date": "2026-05-18", "type": "expense", "amount": 4500, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "cash", "cat": "Административные", "note": "Комиссия банка — Оплата К2"}, {"id": 1017, "date": "2026-05-18", "type": "expense", "amount": 1000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "cash", "cat": "Административные", "note": "Комиссия банка — ведение счёта"}, {"id": 1018, "date": "2026-05-18", "type": "expense", "amount": 1000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "cash", "cat": "Административные", "note": "Комиссия банка — Внешний перевод"}, {"id": 1019, "date": "2026-05-19", "type": "expense", "amount": 500000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Аванс / зарплата рабочим", "brigade": "b1", "note": "Аванс наличными бригада Шынгыс"}, {"id": 1020, "date": "2026-05-19", "type": "expense", "amount": 400000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Аванс / зарплата рабочим", "brigade": "b2", "note": "Аванс наличными бригада Нурсултан"}, {"id": 1021, "date": "2026-05-19", "type": "expense", "amount": 25135, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Административные", "note": "Обед с заказчиками"}, {"id": 1022, "date": "2026-05-19", "type": "expense", "amount": 2000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Административные", "note": "Напитки заказчики на объекте"}, {"id": 1023, "date": "2026-05-19", "type": "expense", "amount": 7000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "own", "cat": "Инструменты и инвентарь", "note": "Перчатки 2 пачки, молотки 2 шт"}, {"id": 1024, "date": "2026-05-19", "type": "advance", "amount": 198000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Евгений", "note": "Дал Евгению (личное)"}, {"id": 1025, "date": "2026-05-20", "type": "expense", "amount": 80000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Инструменты и инвентарь", "note": "Пояс монтажный 8 шт"}, {"id": 1026, "date": "2026-05-20", "type": "advance", "amount": 100000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "На расходы Бекжан"}, {"id": 1027, "date": "2026-05-21", "type": "expense", "amount": 65000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Инструменты и инвентарь", "note": "Перчатка, перфоратор, бензин"}, {"id": 1028, "date": "2026-05-21", "type": "advance", "amount": 100000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "Бекжану на расходы"}, {"id": 1029, "date": "2026-05-22", "type": "expense", "amount": 45000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Инструменты и инвентарь", "note": "Вибратор"}, {"id": 1030, "date": "2026-05-22", "type": "expense", "amount": 10000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Материалы", "note": "Дождевик 5 шт"}, {"id": 1031, "date": "2026-05-22", "type": "expense", "amount": 8000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Топливо", "note": "Заправка бензина"}, {"id": 1032, "date": "2026-05-22", "type": "advance", "amount": 10000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Нурсултан", "note": "Нурсултану на личные"}, {"id": 1033, "date": "2026-05-22", "type": "advance", "amount": 75000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "Бекжану на расход отправил"}, {"id": 1034, "date": "2026-05-23", "type": "expense", "amount": 15200, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Евгений", "paySource": "advance", "cat": "Административные", "note": "Бургеры, кола, картофель фри (из подотчётных)"}, {"id": 1035, "date": "2026-05-23", "type": "advance", "amount": 100000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "На барана"}, {"id": 1036, "date": "2026-05-23", "type": "advance", "amount": 50000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Евгений", "to": "Бекжан", "note": "На барана, салаты, напитки"}, {"id": 1037, "date": "2026-05-23", "type": "advance", "amount": 60000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "На расход Шынгыс"}, {"id": 1038, "date": "2026-05-23", "type": "advance", "amount": 30000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "На расход разнорабочий"}, {"id": 1039, "date": "2026-05-23", "type": "expense", "amount": 10000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Топливо", "note": "Бензин"}, {"id": 1040, "date": "2026-05-23", "type": "advance", "amount": 25000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "На напитки"}, {"id": 1041, "date": "2026-05-23", "type": "expense", "amount": 26000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Питание", "note": "Картошка, яблоки, бананы, помидоры, огурцы"}, {"id": 1042, "date": "2026-05-23", "type": "expense", "amount": 105000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Питание", "note": "Баран"}, {"id": 1043, "date": "2026-05-23", "type": "expense", "amount": 3000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Транспорт", "note": "Такси"}, {"id": 1044, "date": "2026-05-23", "type": "expense", "amount": 34000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Питание", "note": "Напитки, пирожное, пирожки"}, {"id": 1045, "date": "2026-05-23", "type": "expense", "amount": 60000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Аванс / зарплата рабочим", "brigade": "b1", "note": "Аванс"}, {"id": 1046, "date": "2026-05-23", "type": "expense", "amount": 30000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Аванс / зарплата рабочим", "note": "Аванс разнорабочий"}, {"id": 1779711355747, "date": "2026-05-25", "type": "advance", "amount": 100000, "note": "Дал Бекжану аванс 100000 бригада Нурсултан", "from": "Дмитрий", "to": "Бекжан", "obj": "ЖК «Алгабас», Мкр. Нуркент"}, {"id": 1779711460539, "date": "2026-05-25", "type": "expense", "amount": 80000, "note": "Аванс", "obj": "ЖК «Алгабас», Мкр. Нуркент", "cat": "Аванс / зарплата рабочим", "who": "Бекжан", "paySource": "advance", "brigade": "b2"}, {"id": 1779711941102, "date": "2026-05-25", "amount": 840000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "note": "з/п за Блок 48 третий этаж отметка 7.550 стена Бригада Нурсултан", "source": "telegram", "tgAuthor": "Дмитрий Хегай", "type": "advance", "linkedId": "tg_lk1779711680923", "from": "Дмитрий", "to": "Бекжан"}, {"id": 1779711941097, "date": "2026-05-25", "amount": 0, "obj": "ЖК «Алгабас», Мкр. Нуркент", "note": "Залили 114,5 куб бетон", "source": "telegram", "tgAuthor": "Дмитрий Хегай", "type": "vol", "volume": 114.5, "unit": "м³", "wtype": "Бетонирование", "brigade": "b2", "amountPending": true, "linkedId": "tg_lk1779711680923"}, {"id": 1779712051286, "date": "2026-05-25", "amount": 200000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "note": "лично", "source": "telegram", "tgAuthor": "Дмитрий Хегай", "type": "advance", "from": "Дмитрий", "to": "Бекжан"}, {"id": 1779714979606, "date": "2026-05-25", "type": "expense", "amount": 840000, "note": "840000 нал Бекжану дал з/п за Блок 48 третий этаж отметка  7.550 стена Бригада Нурсултан залили 114,5 куб бетон остаток долга «54000» обьем больше получился 114,5 м3", "obj": "ЖК «Алгабас», Мкр. Нуркент", "cat": "Аванс / зарплата рабочим", "who": "Бекжан", "paySource": "advance", "brigade": "b2"}, {"id": 1779714979607, "date": "2026-05-26", "type": "expense", "amount": 10000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Евгений", "paySource": "advance", "cat": "Административные", "note": "Закуп журналов"}, {"id": 1779714979608, "date": "2026-05-26", "type": "expense", "amount": 48500, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Инструменты и инвентарь", "note": "лазер перчатка намордник шлифовочный диск очки маленький болгарка"}, {"id": 1779714979609, "date": "2026-05-26", "type": "advance", "amount": 60000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "на инструменты 60000"}], "_schema": 3, "_resetAt": "2026-05-25T12:10:29.027Z", "_modified": 1779893577630, "_preloaded": true};
+var PRELOADED_DATA = {"objects": ["ЖК «Алгабас», Мкр. Нуркент"], "objMeta": {"ЖК «Алгабас», Мкр. Нуркент": {"customer": "Sensata Group", "rates": {}, "custRates": [{"wtype": "Устройство стен", "unit": "м³", "rate": 38437.76}, {"wtype": "Устройство лестничного марша", "unit": "м³", "rate": 38437.76}, {"wtype": "Устройство плиты перекрытия и ригеля", "unit": "м³", "rate": 38437.76}, {"wtype": "Устройство парапета", "unit": "м³", "rate": 38437.76}], "spots": [{"id": "spot_b48", "name": "Блок 48", "deadline": "2026-10-31", "started": "2026-05-20", "completed": null, "constructions": [{"wtype": "Устройство стен", "unit": "м³", "volume": 1027.4, "heights": "-0,100 ÷ +42,850"}, {"wtype": "Устройство лестничного марша", "unit": "м³", "volume": 28.6, "heights": "-0,100 ÷ +40,550"}, {"wtype": "Устройство плиты перекрытия и ригеля", "unit": "м³", "volume": 868.8, "heights": "+4,150 ÷ +40,550"}, {"wtype": "Устройство парапета", "unit": "м³", "volume": 14.1, "heights": "+41,650 ÷ +43,950"}]}, {"id": "spot_b49", "name": "Блок 49", "deadline": "2026-11-30", "started": "2026-05-25", "completed": null, "constructions": [{"wtype": "Устройство стен", "unit": "м³", "volume": 707.5, "heights": "-0,100 ÷ +32,950"}, {"wtype": "Устройство лестничного марша", "unit": "м³", "volume": 20.8, "heights": "-0,100 ÷ +30,650"}, {"wtype": "Устройство плиты перекрытия и ригеля", "unit": "м³", "volume": 619.1, "heights": "+4,150 ÷ +33,150"}, {"wtype": "Устройство парапета", "unit": "м³", "volume": 13.6, "heights": "+31,750 ÷ +34,050"}]}]}}, "settings": {"deadline": "2026-12-31", "totalVol": 48000, "norms": {"Армирование": 0.5, "Опалубка": 0.75, "Бетонирование": 3, "Комплекс": 0.9, "Опалубка+бетон стен": 1.3, "Опалубка+бетон перекрытий": 1.3}, "workDaysPerWeek": 7, "startCash": 0, "startCashDate": ""}, "brigades": [{"id": "b1", "name": "Бригада Шынгыс", "obj": "ЖК «Алгабас», Мкр. Нуркент", "workers": 15, "started": "2026-05-18", "work": "Армирование", "norm": 0.5, "kfu_temp": true, "prices": [{"wtype": "Армирование", "unit": "м³", "rate": 14000}], "people": [], "attendance": {}}, {"id": "b2", "name": "Бригада Нурсултан", "obj": "ЖК «Алгабас», Мкр. Нуркент", "workers": 8, "started": "2026-05-18", "work": "Опалубка+бетон стен", "norm": 1.3, "kfu_temp": true, "prices": [{"wtype": "Опалубка+бетон стен", "unit": "м³", "rate": 12000}], "people": [], "attendance": {}}, {"id": "b3", "name": "Бригада Нуржан", "obj": "ЖК «Алгабас», Мкр. Нуркент", "workers": 8, "started": "2026-05-26", "work": "Опалубка+бетон перекрытий", "norm": 1.3, "kfu_temp": true, "prices": [{"wtype": "Опалубка+бетон перекрытий", "unit": "м³", "rate": 12000}], "people": [], "attendance": {}}, {"id": "b1779712091656", "name": "Штатная", "obj": "ЖК «Алгабас», Мкр. Нуркент", "workers": 1, "started": "2026-05-14", "work": "Разнорабочий", "norm": 0, "dailyRate": 20000, "kfu_temp": false, "prices": [], "people": [], "attendance": {}}], "history": [{"action": "reset_to_clean_v3", "at": "2026-05-25T12:10:29.027Z", "entries": 45}, {"action": "add", "by": "editor", "at": "2026-05-25T12:15:55.747Z", "type": "advance", "amount": 100000}, {"action": "add", "by": "editor", "at": "2026-05-25T12:17:40.539Z", "type": "expense", "amount": 80000}, {"action": "add", "by": "editor", "at": "2026-05-25T12:25:33.313Z", "type": "advance", "amount": 840000, "source": "tg-confirmed"}, {"action": "add", "by": "editor", "at": "2026-05-25T12:25:33.314Z", "type": "vol", "amount": 0, "source": "tg-confirmed"}, {"action": "add", "by": "editor", "at": "2026-05-25T12:27:27.323Z", "type": "advance", "amount": 200000, "source": "tg-confirmed"}, {"action": "add", "by": "editor", "at": "2026-05-25T13:16:19.606Z", "type": "expense", "amount": 840000}, {"action": "edit", "by": "editor", "at": "2026-05-25T13:31:17.807Z", "type": "advance", "amount": 840000}], "weeks": [], "goalsDone": {}, "ks2": [], "kzDict": {}, "workTypes": ["Армирование", "Опалубка", "Бетонирование", "Демонтаж опалубки", "Комплекс монолит", "Штукатурка", "Стяжка пола", "Шпаклёвка", "Покраска", "Кладка кирпича", "Кладка блоков", "Гипсокартон", "Плитка", "Гидроизоляция", "Утепление фасада", "Электромонтаж", "Сантехника", "Сварочные работы", "Кровельные работы", "Разнорабочие", "Уборка", "Демонтаж", "Комплекс"], "kfu": [{"id": 1, "name": "Темп заливки", "owner": "Бекжан", "target": "150 м³/нед", "auto": "temp", "light": 1, "hist": []}, {"id": 2, "name": "Деньги от заказчика", "owner": "Евгений", "target": "оплата КС-2 ≤15 дней", "auto": "money", "light": 1, "hist": []}, {"id": 3, "name": "Качество", "owner": "Нурсултан", "target": "0 переделок", "auto": "quality", "light": 1, "hist": []}, {"id": 4, "name": "Закрытие КС-2", "owner": "Евгений", "target": "акт помесячно", "auto": "ks", "light": 1, "hist": []}, {"id": 5, "name": "Безопасность", "owner": "Бекжан", "target": "0 происшествий, все в СИЗ", "light": 2, "hist": []}], "entries": [{"id": 1001, "date": "2026-05-14", "type": "advance", "amount": 400000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "Выдал Бекжану наличными на расходы"}, {"id": 1002, "date": "2026-05-15", "type": "expense", "amount": 5000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Связь", "note": "Мобильный Бекжана — оплатил Дмитрий напрямую"}, {"id": 1003, "date": "2026-05-16", "type": "expense", "amount": 53100, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Административные", "note": "Смартфон и номер для финансовых операций"}, {"id": 1004, "date": "2026-05-16", "type": "expense", "amount": 150000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Аванс / зарплата рабочим", "brigade": "b1", "note": "Аванс Бригада Шынгыс — перевод"}, {"id": 1005, "date": "2026-05-16", "type": "expense", "amount": 100000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Аванс / зарплата рабочим", "brigade": "b1", "note": "Аванс Бригада Шынгыс — наличные"}, {"id": 1006, "date": "2026-05-16", "type": "expense", "amount": 20000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Транспорт", "note": "Такси Бригада Нурсултан до объекта"}, {"id": 1007, "date": "2026-05-16", "type": "advance", "amount": 20000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Евгений", "note": "Дал Евгению (личное)"}, {"id": 1008, "date": "2026-05-17", "type": "expense", "amount": 70000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Инструменты и инвентарь", "note": "Каски, жилеты, перчатки, диски, молоток, бур"}, {"id": 1009, "date": "2026-05-17", "type": "advance", "amount": 150000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "Выдал Бекжану наличными на расходы"}, {"id": 1010, "date": "2026-05-17", "type": "advance", "amount": 110000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "Проценты за Альфард — личный расход Бекжана"}, {"id": 1012, "date": "2026-05-18", "type": "expense", "amount": 20000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Аванс / зарплата рабочим", "brigade": "b1", "note": "Аванс бригада Шынгыс"}, {"id": 1013, "date": "2026-05-18", "type": "expense", "amount": 54000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Инструменты и инвентарь", "note": "Рации 3 шт × 18 000"}, {"id": 1014, "date": "2026-05-18", "type": "invest", "amount": 170000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "note": "Закинул на счёт компании для оплаты страховки"}, {"id": 1015, "date": "2026-05-18", "type": "expense", "amount": 158100, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "cash", "cat": "Административные", "note": "Страховка компании"}, {"id": 1016, "date": "2026-05-18", "type": "expense", "amount": 4500, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "cash", "cat": "Административные", "note": "Комиссия банка — Оплата К2"}, {"id": 1017, "date": "2026-05-18", "type": "expense", "amount": 1000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "cash", "cat": "Административные", "note": "Комиссия банка — ведение счёта"}, {"id": 1018, "date": "2026-05-18", "type": "expense", "amount": 1000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "cash", "cat": "Административные", "note": "Комиссия банка — Внешний перевод"}, {"id": 1019, "date": "2026-05-19", "type": "expense", "amount": 500000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Аванс / зарплата рабочим", "brigade": "b1", "note": "Аванс наличными бригада Шынгыс"}, {"id": 1020, "date": "2026-05-19", "type": "expense", "amount": 400000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Аванс / зарплата рабочим", "brigade": "b2", "note": "Аванс наличными бригада Нурсултан"}, {"id": 1021, "date": "2026-05-19", "type": "expense", "amount": 25135, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Административные", "note": "Обед с заказчиками"}, {"id": 1022, "date": "2026-05-19", "type": "expense", "amount": 2000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Административные", "note": "Напитки заказчики на объекте"}, {"id": 1023, "date": "2026-05-19", "type": "expense", "amount": 7000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "own", "cat": "Инструменты и инвентарь", "note": "Перчатки 2 пачки, молотки 2 шт"}, {"id": 1024, "date": "2026-05-19", "type": "advance", "amount": 198000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Евгений", "note": "Дал Евгению (личное)"}, {"id": 1025, "date": "2026-05-20", "type": "expense", "amount": 80000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Инструменты и инвентарь", "note": "Пояс монтажный 8 шт"}, {"id": 1026, "date": "2026-05-20", "type": "advance", "amount": 100000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "На расходы Бекжан"}, {"id": 1027, "date": "2026-05-21", "type": "expense", "amount": 65000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Инструменты и инвентарь", "note": "Перчатка, перфоратор, бензин"}, {"id": 1028, "date": "2026-05-21", "type": "advance", "amount": 100000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "Бекжану на расходы"}, {"id": 1029, "date": "2026-05-22", "type": "expense", "amount": 45000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Инструменты и инвентарь", "note": "Вибратор"}, {"id": 1030, "date": "2026-05-22", "type": "expense", "amount": 10000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Материалы", "note": "Дождевик 5 шт"}, {"id": 1031, "date": "2026-05-22", "type": "expense", "amount": 8000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Топливо", "note": "Заправка бензина"}, {"id": 1032, "date": "2026-05-22", "type": "advance", "amount": 10000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Нурсултан", "note": "Нурсултану на личные"}, {"id": 1033, "date": "2026-05-22", "type": "advance", "amount": 75000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "Бекжану на расход отправил"}, {"id": 1034, "date": "2026-05-23", "type": "expense", "amount": 15200, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Евгений", "paySource": "advance", "cat": "Административные", "note": "Бургеры, кола, картофель фри (из подотчётных)"}, {"id": 1035, "date": "2026-05-23", "type": "advance", "amount": 100000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "На барана"}, {"id": 1036, "date": "2026-05-23", "type": "advance", "amount": 50000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Евгений", "to": "Бекжан", "note": "На барана, салаты, напитки"}, {"id": 1037, "date": "2026-05-23", "type": "advance", "amount": 60000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "На расход Шынгыс"}, {"id": 1038, "date": "2026-05-23", "type": "advance", "amount": 30000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "На расход разнорабочий"}, {"id": 1039, "date": "2026-05-23", "type": "expense", "amount": 10000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Топливо", "note": "Бензин"}, {"id": 1040, "date": "2026-05-23", "type": "advance", "amount": 25000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "На напитки"}, {"id": 1041, "date": "2026-05-23", "type": "expense", "amount": 26000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Питание", "note": "Картошка, яблоки, бананы, помидоры, огурцы"}, {"id": 1042, "date": "2026-05-23", "type": "expense", "amount": 105000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Питание", "note": "Баран"}, {"id": 1043, "date": "2026-05-23", "type": "expense", "amount": 3000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Транспорт", "note": "Такси"}, {"id": 1044, "date": "2026-05-23", "type": "expense", "amount": 34000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Питание", "note": "Напитки, пирожное, пирожки"}, {"id": 1045, "date": "2026-05-23", "type": "expense", "amount": 60000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Аванс / зарплата рабочим", "brigade": "b1", "note": "Аванс"}, {"id": 1046, "date": "2026-05-23", "type": "expense", "amount": 30000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Аванс / зарплата рабочим", "note": "Аванс разнорабочий"}, {"id": 1779711355747, "date": "2026-05-25", "type": "advance", "amount": 100000, "note": "Дал Бекжану аванс 100000 бригада Нурсултан", "from": "Дмитрий", "to": "Бекжан", "obj": "ЖК «Алгабас», Мкр. Нуркент"}, {"id": 1779711460539, "date": "2026-05-25", "type": "expense", "amount": 80000, "note": "Аванс", "obj": "ЖК «Алгабас», Мкр. Нуркент", "cat": "Аванс / зарплата рабочим", "who": "Бекжан", "paySource": "advance", "brigade": "b2"}, {"id": 1779711941102, "date": "2026-05-25", "amount": 840000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "note": "з/п за Блок 48 третий этаж отметка 7.550 стена Бригада Нурсултан", "source": "telegram", "tgAuthor": "Дмитрий Хегай", "type": "advance", "linkedId": "tg_lk1779711680923", "from": "Дмитрий", "to": "Бекжан"}, {"id": 1779711941097, "date": "2026-05-25", "amount": 0, "obj": "ЖК «Алгабас», Мкр. Нуркент", "note": "Залили 114,5 куб бетон", "source": "telegram", "tgAuthor": "Дмитрий Хегай", "type": "vol", "volume": 114.5, "unit": "м³", "wtype": "Опалубка+бетон стен", "brigade": "b2", "amountPending": true, "linkedId": "tg_lk1779711680923"}, {"id": 1779712051286, "date": "2026-05-25", "amount": 200000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "note": "лично", "source": "telegram", "tgAuthor": "Дмитрий Хегай", "type": "advance", "from": "Дмитрий", "to": "Бекжан"}, {"id": 1779714979606, "date": "2026-05-25", "type": "expense", "amount": 840000, "note": "840000 нал Бекжану дал з/п за Блок 48 третий этаж отметка  7.550 стена Бригада Нурсултан залили 114,5 куб бетон остаток долга «54000» обьем больше получился 114,5 м3", "obj": "ЖК «Алгабас», Мкр. Нуркент", "cat": "Аванс / зарплата рабочим", "who": "Бекжан", "paySource": "advance", "brigade": "b2"}, {"id": 1779714979607, "date": "2026-05-26", "type": "expense", "amount": 10000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Евгений", "paySource": "advance", "cat": "Административные", "note": "Закуп журналов"}, {"id": 1779714979608, "date": "2026-05-26", "type": "expense", "amount": 48500, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Инструменты и инвентарь", "note": "лазер перчатка намордник шлифовочный диск очки маленький болгарка"}, {"id": 1779714979609, "date": "2026-05-26", "type": "advance", "amount": 60000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "на инструменты 60000"}, {"id": 1779895004208, "date": "2026-05-26", "type": "expense", "amount": 710000, "note": "расчет за армирование 3 этаж отметка 7550 пятно 49 бригада Шынгыс", "obj": "ЖК «Алгабас», Мкр. Нуркент", "cat": "Аванс / зарплата рабочим", "who": "Бекжан", "paySource": "advance", "brigade": "b1"}, {"id": 1779895064281, "date": "2026-05-26", "type": "advance", "amount": 710000, "note": "Бекжану дал расчет за армирование 3 этаж отметка 7550 пятно 49 бригада Шынгыс", "from": "Дмитрий", "to": "Бекжан", "obj": "ЖК «Алгабас», Мкр. Нуркент"}, {"id": 1779895202221, "date": "2026-05-26", "type": "advance", "amount": 500000, "note": "Аванс бригада Нуржан плотники 500000 через Бекжана", "from": "Дмитрий", "to": "Бекжан", "obj": "ЖК «Алгабас», Мкр. Нуркент"}], "_schema": 3, "_resetAt": "2026-05-25T12:10:29.027Z", "_modified": 1779908209901, "_preloaded": true};
 
 // loadLocal — БЕЗОПАСНАЯ загрузка
 // ПРАВИЛО: локальные данные ВСЕГДА главнее встроенных в файл
@@ -2899,9 +2902,60 @@ function workNorm(wtype){var n=(S.settings&&S.settings.norms)||{};return n[wtype
 function brigTarget(b,wtype){return workNorm(wtype)*(b.workers||0);}
 // income that customer SHOULD pay by done volume (final concrete pours)
 function dueFromCustomer(){
+  // Выручка от заказчика = объём бетонирования (стен/перекрытий/лестниц) × расценка заказчика.
+  // Бригада "льёт бетон" если её work начинается с "Опалубка+бетон". Армирование само по себе НЕ выручка.
   var sum=0;
-  S.entries.filter(function(e){return e.type==='vol'&&(e.wtype==='Бетонирование'||e.wtype==='Комплекс');}).forEach(function(e){
-    sum+=(e.volume||0)*custRate(e.obj,e.struct);
+  S.entries.filter(function(e){return e.type==='vol';}).forEach(function(e){
+    if(!e.brigade) return;
+    var b=(S.brigades||[]).find(function(x){return x.id===e.brigade;});
+    if(!b) return;
+    var work=(b.work||'').toLowerCase();
+    var bridgesConcrete = work.indexOf('опалубка+бетон')===0 || work==='комплекс монолит' || (e.wtype||'').toLowerCase().indexOf('бетон')>=0;
+    if(!bridgesConcrete) return;
+    // Расценка заказчика: по struct (старый формат), либо по custRates (берём первую — все одинаковые у Sensata)
+    var rate=0;
+    if(e.struct) rate=custRate(e.obj, e.struct);
+    if(!rate){
+      var list=custRatesList(e.obj||'');
+      if(list.length) rate=list[0].rate;
+    }
+    sum += (e.volume||0)*rate;
+  });
+  return sum;
+}
+// Только за работы, которые ПРИНЯТЫ заказчиком (accepted:true) — для КС-2
+function dueFromCustomerAccepted(){
+  var sum=0;
+  S.entries.filter(function(e){return e.type==='vol' && e.accepted===true;}).forEach(function(e){
+    if(!e.brigade) return;
+    var b=(S.brigades||[]).find(function(x){return x.id===e.brigade;});
+    if(!b) return;
+    var work=(b.work||'').toLowerCase();
+    if(work.indexOf('опалубка+бетон')!==0 && work!=='комплекс монолит' && (e.wtype||'').toLowerCase().indexOf('бетон')<0) return;
+    var rate=0;
+    if(e.struct) rate=custRate(e.obj, e.struct);
+    if(!rate){
+      var list=custRatesList(e.obj||'');
+      if(list.length) rate=list[0].rate;
+    }
+    sum += (e.volume||0)*rate;
+  });
+  return sum;
+}
+// Выручка по конкретной бригаде (если она льёт бетон)
+function brigRevenue(b){
+  if(!b) return 0;
+  var work=(b.work||'').toLowerCase();
+  if(work.indexOf('опалубка+бетон')!==0 && work!=='комплекс монолит') return 0;
+  var sum=0;
+  S.entries.filter(function(e){return e.type==='vol' && e.brigade===b.id;}).forEach(function(e){
+    var rate=0;
+    if(e.struct) rate=custRate(e.obj, e.struct);
+    if(!rate){
+      var list=custRatesList(e.obj||'');
+      if(list.length) rate=list[0].rate;
+    }
+    sum += (e.volume||0)*rate;
   });
   return sum;
 }
@@ -5694,6 +5748,111 @@ function calcGoalProgress(){
     perPartner: profit / 5,
     remaining: Math.max(0, GOAL_2026.total - profit)
   };
+}
+
+// ============================================================
+// СИСТЕМА УПРАВЛЕНИЯ ЯНОВСКОГО — недельный цикл по КФУ
+// ============================================================
+
+// ISO-неделя для даты (год-W##). Понедельник = первый день.
+function isoWeek(d){
+  if(typeof d==='string') d=new Date(d);
+  var tgt=new Date(d.valueOf());
+  tgt.setHours(0,0,0,0);
+  // ISO: четверг определяет год недели
+  tgt.setDate(tgt.getDate() + 3 - ((tgt.getDay()+6)%7));
+  var firstThu=new Date(tgt.getFullYear(),0,4);
+  var weekNum=1 + Math.round(((tgt - firstThu)/86400000 - 3 + ((firstThu.getDay()+6)%7))/7);
+  return {year:tgt.getFullYear(), week:weekNum, key:tgt.getFullYear()+'-W'+String(weekNum).padStart(2,'0')};
+}
+// Дата понедельника недели
+function weekMonday(d){
+  if(typeof d==='string') d=new Date(d);
+  var x=new Date(d.valueOf()); x.setHours(0,0,0,0);
+  var dow=(x.getDay()+6)%7; // 0=пн, 6=вс
+  x.setDate(x.getDate()-dow);
+  return x;
+}
+// Дата воскресенья недели
+function weekSunday(d){
+  var mon=weekMonday(d);
+  var sun=new Date(mon.valueOf());
+  sun.setDate(sun.getDate()+6);
+  return sun;
+}
+// Все записи vol для бригады за неделю (по дате понедельник-воскресенье)
+function brigVolWeek(b, refDate){
+  var mon=weekMonday(refDate), sun=weekSunday(refDate);
+  var monStr=mon.toISOString().slice(0,10);
+  var sunStr=sun.toISOString().slice(0,10);
+  return (S.entries||[]).filter(function(e){
+    return e.type==='vol' && e.brigade===b.id && e.date>=monStr && e.date<=sunStr;
+  });
+}
+function sumVol(arr){return arr.reduce(function(s,e){return s+(e.volume||0);},0);}
+// Цель бригады по норме на неделю
+function brigWeekTarget(b){
+  var days=(S.settings && S.settings.workDaysPerWeek)||7;
+  var norm=b.norm||0;
+  return (b.workers||0)*norm*days;
+}
+// Цель компании по КФУ "Темп заливки" из YEAR_PLAN на текущий месяц
+function tempoPlanForMonth(monthNum){
+  if(typeof YEAR_PLAN==='undefined') return 0;
+  var row=YEAR_PLAN.find(function(r){return r.m===monthNum;});
+  return row ? row.weekVol : 0;
+}
+// Потолок компании = сумма целей всех бригад с kfu_temp:true
+function tempoCapacityCompany(){
+  var sum=0;
+  (S.brigades||[]).forEach(function(b){
+    if(b.kfu_temp===false) return;
+    sum += brigWeekTarget(b);
+  });
+  return sum;
+}
+// Факт компании за неделю — сумма vol всех бригад, относящихся к КФУ "Темп"
+function tempoFactCompany(refDate){
+  var sum=0;
+  (S.brigades||[]).forEach(function(b){
+    if(b.kfu_temp===false) return;
+    sum += sumVol(brigVolWeek(b, refDate||new Date()));
+  });
+  return sum;
+}
+// Производительность бригады за всё время (м³/чел/день)
+function brigProductivity(b){
+  if(!b.workers || !b.started) return 0;
+  var vols=(S.entries||[]).filter(function(e){return e.type==='vol' && e.brigade===b.id;});
+  if(!vols.length) return 0;
+  var totalVol=sumVol(vols);
+  // Если профиль бригады — только армирование, считаем по объёмам типа армирование;
+  // иначе суммарный объём (бригада делает комплекс).
+  var startDate=new Date(b.started);
+  var today=new Date(); today.setHours(0,0,0,0);
+  var days=Math.max(1, Math.ceil((today-startDate)/86400000)+1);
+  return totalVol/b.workers/days;
+}
+// Состояние недельного цикла КФУ. Создаёт пустую структуру при необходимости.
+function getCycle(kfuId, weekKey){
+  if(!S.cycles) S.cycles={};
+  var k=kfuId+'_'+weekKey;
+  if(!S.cycles[k]){
+    S.cycles[k]={
+      done:'',          // что сделано за неделю
+      analysisGood:'',  // анализ: хорошее
+      analysisBad:'',   // анализ: плохое
+      decisions:[],     // решения (массив строк)
+      closedAt:null     // null = неделя открыта
+    };
+  }
+  return S.cycles[k];
+}
+// Договорённости КФУ на неделю
+function cycleAgreements(kfuId, weekKey){
+  return (S.entries||[]).filter(function(e){
+    return e.type==='agreement' && String(e.kfu)===String(kfuId) && e.week===weekKey;
+  });
 }
 
 function calcCo(){
@@ -8503,49 +8662,562 @@ function rBrigades(){
     return rBrigadierCabinet(myBrig);
   }
 
-  var h='<div class="shdr"><h2>БРИГАДЫ</h2>'+(canEdit()?'<button class="fedit" onclick="openAddBrig()">+ Бригада</button>':'')+'</div>';
-h+='<div class="dcard" style="border-color:var(--teal);cursor:pointer" onclick="openVolAnalytics()"><div class="dtop"><div><div class="bn-label">Общий прогресс</div><div class="dbig" style="color:var(--teal)">'+fmtD(vd)+' <span style="font-size:19px">м³</span></div></div><div style="text-align:right"><div class="dpct">'+vp+'%</div><div style="font-size:11px;color:var(--mut)">из '+tv.toLocaleString('ru')+'</div></div></div><div class="ptrack"><div class="pfill" style="width:'+vp+'%;background:linear-gradient(90deg,#2dd4bf,#2ea043)"></div></div></div>';
-// Простой список по бригадам вместо нечитаемого графика
-h+='<div class="dcard"><div class="ctit">'+T('volByBrig')+'</div>';
-S.brigades.forEach(function(b,i){
-  var B=calcBrig(b);
-  var maxVol = Math.max.apply(null, S.brigades.map(function(x){return calcBrig(x).vol||0;}));
-  var pctOfMax = maxVol>0 ? Math.round((B.vol||0)/maxVol*100) : 0;
-  var clr = i===0?'var(--teal)':(i===1?'var(--gold)':'var(--blue)');
-  h+='<div style="padding:8px 0;'+(i<S.brigades.length-1?'border-bottom:1px solid rgba(255,255,255,.05)':'')+'">';
-  h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">';
-  h+='<span style="font-size:13px;color:var(--text);font-weight:600">'+b.name+'</span>';
-  h+='<span style="font-family:var(--fd);font-size:16px;color:'+clr+'">'+fmtD(B.vol)+' м³</span>';
-  h+='</div>';
-  h+='<div style="height:6px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden">';
-  h+='<div style="height:100%;width:'+pctOfMax+'%;background:'+clr+';border-radius:3px"></div></div>';
-  if(B.earned>0){
-    h+='<div style="font-size:11px;color:var(--mut);margin-top:3px">начислено '+fmt(B.earned)+' ₸ · выплачено '+fmt(B.paid)+' ₸</div>';
+  // === ВКЛАДКА "БРИГАДЫ" ПО СИСТЕМЕ ЯНОВСКОГО ===
+  // КФУ "Темп заливки" — хозяин Бекжан. Бригады = разрез факта.
+
+  var now=new Date();
+  var iso=isoWeek(now);
+  var mon=weekMonday(now), sun=weekSunday(now);
+  var dateRange=mon.getDate()+'.'+String(mon.getMonth()+1).padStart(2,'0')+' – '+sun.getDate()+'.'+String(sun.getMonth()+1).padStart(2,'0');
+  var planMonth=tempoPlanForMonth(now.getMonth()+1);
+  var capacity=tempoCapacityCompany();
+  var fact=tempoFactCompany(now);
+  // ЦЕЛЬ НА ЭТУ НЕДЕЛЮ = минимум из плана и потолка (как договорились — вариант D)
+  var weekTarget=Math.min(planMonth||Infinity, capacity||Infinity);
+  if(!isFinite(weekTarget)) weekTarget=0;
+  var kfuTempo=(S.kfu||[]).find(function(k){return k.auto==='temp' || /темп/i.test(k.name);}) || {id:1,name:'Темп заливки',owner:'Бекжан'};
+
+  // Пропорциональное распределение цели "льющим бетон" бригадам.
+  // Логика: только бригады с work=Опалубка+бетон* делают м³ выручки.
+  // Шынгыс (армирование) — обслуживающая, его цель = равна суммарной цели опалубочников.
+  var pourBrigs=(S.brigades||[]).filter(function(b){
+    if(b.kfu_temp===false) return false;
+    return (b.work||'').toLowerCase().indexOf('опалубка+бетон')===0;
+  });
+  var pourCapSum=pourBrigs.reduce(function(s,b){return s+brigWeekTarget(b);},0);
+  function brigTargetThisWeek(b){
+    // Бригада не в КФУ Темп — цели нет
+    if(b.kfu_temp===false) return 0;
+    var work=(b.work||'').toLowerCase();
+    // Армирующая бригада: цель = общая цель льющих (они армируют для них)
+    if(work==='армирование') return weekTarget;
+    // Опалубщики: доля в общей цели пропорционально потолку
+    if(work.indexOf('опалубка+бетон')===0){
+      if(pourCapSum<=0) return 0;
+      return weekTarget * (brigWeekTarget(b)/pourCapSum);
+    }
+    return 0;
   }
+
+  var h='<div class="shdr"><h2>БРИГАДЫ</h2>'+(canEdit()?'<button class="fedit" onclick="openAddBrig()">+ Бригада</button>':'')+'</div>';
+
+  // ===== БЛОК 1: КФУ "ТЕМП ЗАЛИВКИ" =====
+  h+='<div class="dcard" style="border-color:var(--gold);cursor:pointer" onclick="openCycle('+kfuTempo.id+',\''+iso.key+'\')">';
+  h+='<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">';
+  h+='<div><div style="font-size:11px;color:var(--mut);letter-spacing:1px">КФУ № '+kfuTempo.id+' · ХОЗЯИН '+(kfuTempo.owner||'—').toUpperCase()+'</div>';
+  h+='<div style="font-size:18px;font-weight:800;color:var(--gold);margin-top:2px">'+kfuTempo.name.toUpperCase()+'</div>';
+  h+='<div style="font-size:11px;color:var(--mut);margin-top:2px">Неделя '+iso.week+' · '+dateRange+'</div></div>';
+  h+='<div style="background:rgba(212,175,55,.12);border:1px solid var(--gold);color:var(--gold);font-size:10px;font-weight:700;padding:5px 9px;border-radius:6px">ЦИКЛ →</div>';
   h+='</div>';
-});
-h+='</div>';
-S.brigades.forEach(function(b){var B=calcBrig(b);var bc=B.balance>0?'var(--red)':B.balance<0?'var(--green)':'var(--mut)';var pct=B.earned?Math.min(Math.round(B.paid/B.earned*100),100):0;var workers=b.workers||0;var prodH='';if(workers>0&&B.vol>0){var days=new Set(B.vols.map(function(e){return e.date;})).size||1;prodH='<div class="r2" style="font-size:12px"><span class="lb">Рабочих: '+workers+' чел</span><span class="vl" style="color:var(--teal)">'+fmtD(B.vol/workers/days)+' м³/чел/день</span></div>';}
- h+='<div class="bcard" style="cursor:pointer;transition:transform .15s" onclick="openBrigCard(\''+b.id+'\')"><div class="bhdr"><div><div class="bname">'+b.name+'</div><div style="font-size:12px;color:var(--mut)">'+(workers?workers+' чел':'без людей')+'</div></div>';
- if(canEdit()){
-   h+='<div style="display:flex;gap:6px">';
-   h+='<button class="fedit" onclick="event.stopPropagation();viewAsBrigadier(\''+b.id+'\')" title="Смотреть как бригадир" style="background:rgba(57,211,187,.12);border:1px solid rgba(57,211,187,.4);color:var(--teal);font-size:13px">👁 Кабинет</button>';
-   h+='<button class="fedit" onclick="event.stopPropagation();openEditBrig(\''+b.id+'\')">ред</button>';
-   h+='</div>';
- }
- h+='</div><div class="bbody">';
- h+='<div class="kg3"><div class="kpi" style="border-color:var(--teal);padding:8px"><div class="klbl">Объём</div><div class="kval" style="font-size:19px;color:var(--teal)">'+fmtD(B.vol)+'</div><div class="ksub">м³</div></div><div class="kpi" style="border-color:var(--gold);padding:8px"><div class="klbl">Начислено</div><div class="kval" style="font-size:19px;color:var(--gold)">'+fmt(B.earned)+'</div><div class="ksub">тг</div></div><div class="kpi" style="border-color:var(--green);padding:8px"><div class="klbl">Выплачено</div><div class="kval" style="font-size:19px;color:var(--green)">'+fmt(B.paid)+'</div><div class="ksub">тг</div></div></div>';
- h+='<div class="bar" style="height:7px;margin-bottom:4px"><div class="barfill" style="width:'+pct+'%;background:var(--teal)"></div></div><div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:'+(prodH?'6':'10')+'px"><span style="color:var(--mut)">выплачено '+pct+'%</span><span style="color:'+bc+';font-weight:700">'+(B.balance>0?T('debt')+' '+fmt(B.balance):B.balance<0?T('overpaid')+' '+fmt(Math.abs(B.balance)):T('closed'))+'</span></div>';
- if(prodH)h+=prodH;
- if(canEdit())h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:12px" onclick="event.stopPropagation()"><button onclick="event.stopPropagation();openVol(\''+b.id+'\')" style="background:var(--tlt);border:1px solid var(--teal);color:var(--teal);border-radius:8px;padding:9px;font-family:var(--fm);font-size:13px;cursor:pointer">Объём</button><button onclick="event.stopPropagation();openPay(\''+b.id+'\')" style="background:var(--grlt);border:1px solid var(--green);color:var(--green);border-radius:8px;padding:9px;font-family:var(--fm);font-size:13px;cursor:pointer">Выплатить</button><button onclick="event.stopPropagation();openPeople(\''+b.id+'\')" style="background:var(--bllt);border:1px solid var(--blue);color:var(--blue);border-radius:8px;padding:9px;font-family:var(--fm);font-size:13px;cursor:pointer">👥 Люди ('+( (b.people&&b.people.length)||0 )+')</button><button onclick="event.stopPropagation();openAttendance(\''+b.id+'\')" style="background:var(--plt);border:1px solid var(--purple);color:var(--purple);border-radius:8px;padding:9px;font-family:var(--fm);font-size:13px;cursor:pointer">📅 Табель</button></div>';
- h+='</div></div>';});
-// Zalivki journal
-var av=[].concat(S.entries).filter(function(e){return e.type==='vol';}).sort(function(a,b){return b.date.localeCompare(a.date);});
-if(av.length){h+='<div class="sect">'+T('pouringJournal')+' ('+av.length+')</div><div class="dcard" style="padding:0"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><tr style="background:var(--s2)"><th style="padding:7px 6px;text-align:left;color:var(--mut)">Дата</th><th style="padding:7px 6px;text-align:left;color:var(--mut)">Конструкция</th><th style="padding:7px 6px;text-align:left;color:var(--mut)">Пятно</th><th style="padding:7px 6px;text-align:left;color:var(--mut)">Этаж</th><th style="padding:7px 6px;text-align:right;color:var(--mut)">м³</th></tr>';
-av.forEach(function(e,i){h+='<tr style="border-bottom:1px solid var(--brd);background:'+(i%2?'var(--s2)':'transparent')+'"><td style="padding:6px;color:var(--mut)">'+e.date.slice(5)+'</td><td style="padding:6px;color:var(--teal)">'+(e.struct||'-')+'</td><td style="padding:6px">'+(e.zone||'-')+'</td><td style="padding:6px;color:var(--mut)">'+(e.floor||'-')+'</td><td style="padding:6px;text-align:right;font-weight:700;color:var(--teal)">'+fmtD(e.volume||0)+'</td></tr>';});
-h+='<tr style="background:var(--tlt)"><td colspan="4" style="padding:7px 6px;font-weight:700;color:var(--teal)">ИТОГО</td><td style="padding:7px 6px;text-align:right;font-weight:700;color:var(--teal)">'+fmtD(vd)+'</td></tr></table></div></div>';}
-return h;}
+
+  // Главная цифра — цель недели крупно
+  var weekPct=weekTarget>0?Math.min(150,Math.round(fact/weekTarget*100)):0;
+  var weekColor=weekPct>=100?'var(--green)':(weekPct>=70?'var(--orange)':'var(--red)');
+  h+='<div style="background:rgba(255,255,255,.03);border-radius:8px;padding:12px;margin-bottom:12px">';
+  h+='<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">';
+  h+='<div style="font-size:11px;color:var(--mut);letter-spacing:.5px">🎯 ЦЕЛЬ НЕДЕЛИ → ФАКТ</div>';
+  h+='<div style="font-size:12px;color:'+weekColor+';font-weight:700">'+weekPct+'%</div></div>';
+  h+='<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:5px">';
+  h+='<span style="font-family:var(--fd);font-size:26px;color:'+weekColor+'">'+fmtD(fact)+'</span>';
+  h+='<span style="color:var(--mut);font-size:14px">/ '+fmtD(weekTarget)+' м³</span></div>';
+  h+='<div style="height:7px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden">';
+  h+='<div style="height:100%;width:'+Math.min(100,weekPct)+'%;background:'+weekColor+';border-radius:3px"></div></div>';
+  // Подпись — откуда взялась цель
+  var targetSource='';
+  if(planMonth>0 && capacity>0){
+    if(planMonth<=capacity) targetSource='= min('+fmtD(planMonth)+' план мая, '+fmtD(capacity)+' потолок) — ограничивает <b>план</b>';
+    else targetSource='= min('+fmtD(planMonth)+' план мая, '+fmtD(capacity)+' потолок) — ограничивает <b>потолок бригад</b>';
+  } else if(planMonth>0) targetSource='только план: '+fmtD(planMonth)+' м³';
+  else if(capacity>0) targetSource='только потолок: '+fmtD(capacity)+' м³';
+  h+='<div style="font-size:10px;color:var(--mut);margin-top:5px">'+targetSource+'</div>';
+  h+='</div>';
+
+  // Три полоски: План мес / Потолок бригад / Факт нед — для понимания разрыва
+  var maxScale=Math.max(planMonth, capacity, fact, 1);
+  function bar(lbl, val, color, sub){
+    var pct=Math.min(100, Math.round(val/maxScale*100));
+    return '<div style="margin-bottom:9px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><span style="color:var(--mut)">'+lbl+'</span><span style="color:'+color+';font-weight:700;font-family:var(--fd)">'+fmtD(val)+' м³</span></div>'+
+      '<div style="height:7px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:'+color+';border-radius:3px"></div></div>'+
+      (sub?'<div style="font-size:10px;color:var(--mut);margin-top:2px">'+sub+'</div>':'')+'</div>';
+  }
+  h+=bar('💰 План месяца ('+now.toLocaleString('ru-RU',{month:'long'})+')', planMonth, 'var(--gold)', 'из YEAR_PLAN');
+  h+=bar('⚙ Потолок бригад (нормы × люди × 7)', capacity, 'var(--blue)', 'максимум что можем выдать сейчас');
+  h+=bar('✅ Факт недели', fact, weekColor, '');
+
+  // Вывод-светофор
+  var verdict='', vcolor='';
+  if(fact===0){verdict='🟡 Факт пока 0 — неделя только началась.'; vcolor='var(--mut)';}
+  else if(fact>=weekTarget){verdict='🟢 Цель недели выполнена.'; vcolor='var(--green)';}
+  else if(capacity>=planMonth){verdict='🟡 Потолок позволяет план месяца — нужно дожать выработку.'; vcolor='var(--orange)';}
+  else{var gap=planMonth-capacity; verdict='🔴 Потолок ниже плана на '+fmtD(gap)+' м³/нед — нужны люди или 2-й объект.'; vcolor='var(--red)';}
+  h+='<div style="font-size:12px;color:'+vcolor+';font-weight:600;padding-top:6px;border-top:1px solid var(--brd)">'+verdict+'</div>';
+  h+='</div>';
+
+  // ===== БЛОК 2: ОБЩИЙ ПРОГРЕСС ОБЪЁМОВ =====
+  h+='<div class="dcard" style="border-color:var(--teal);cursor:pointer" onclick="openVolAnalytics()"><div class="dtop"><div><div class="bn-label">Общий прогресс по объекту</div><div class="dbig" style="color:var(--teal)">'+fmtD(vd)+' <span style="font-size:19px">м³</span></div></div><div style="text-align:right"><div class="dpct">'+vp+'%</div><div style="font-size:11px;color:var(--mut)">из '+tv.toLocaleString('ru')+'</div></div></div><div class="ptrack"><div class="pfill" style="width:'+vp+'%;background:linear-gradient(90deg,#2dd4bf,#2ea043)"></div></div></div>';
+
+  // ===== БЛОК 3: КАРТОЧКИ БРИГАД =====
+  h+='<div class="sect" style="margin-top:18px">БРИГАДЫ</div>';
+  S.brigades.forEach(function(b){
+    var B=calcBrig(b);
+    var capTarget=brigWeekTarget(b);          // потолок бригады по норме
+    var target=brigTargetThisWeek(b);          // справедливая цель этой недели (из общей цели компании)
+    var factWeek=sumVol(brigVolWeek(b, now));
+    var prod=brigProductivity(b);
+    var isTempKfu=(b.kfu_temp!==false);
+    var pctTarget=target>0?Math.min(150,Math.round(factWeek/target*100)):0;
+    var targetColor=pctTarget>=100?'var(--green)':(pctTarget>=70?'var(--orange)':'var(--red)');
+    var pay=B.earned?Math.min(Math.round(B.paid/B.earned*100),100):0;
+    // Баланс с бригадой = заработано всё (по факту работы) минус выплачено.
+    var brigBal=(B.earned||0)-(B.paid||0);
+    var balColor=brigBal>0?'var(--red)':(brigBal<0?'var(--gold)':'var(--mut)');
+    var balLbl=brigBal>0?'к выплате '+fmt(brigBal):(brigBal<0?'переплата '+fmt(Math.abs(brigBal)):'закрыто');
+    var revenue=brigRevenue(b);  // выручка от заказчика — для льющих бригад
+
+    h+='<div class="bcard" style="cursor:pointer" onclick="openBrigCard(\''+b.id+'\')">';
+    // Header
+    h+='<div class="bhdr"><div>';
+    h+='<div class="bname">'+b.name+'</div>';
+    h+='<div style="font-size:12px;color:var(--mut)">'+(b.workers||0)+' чел · '+(b.work||'—')+'</div>';
+    h+='<div style="font-size:11px;color:var(--mut);margin-top:2px">старт '+(b.started?b.started.split('-').reverse().join('.'):'—')+'</div>';
+    h+='</div>';
+    if(canEdit()){
+      h+='<button class="fedit" onclick="event.stopPropagation();openEditBrig(\''+b.id+'\')">ред</button>';
+    }
+    h+='</div><div class="bbody">';
+
+    // Цель / Факт недели — только для бригад внутри КФУ Темп
+    if(isTempKfu && target>0){
+      h+='<div style="background:rgba(255,255,255,.03);border-radius:8px;padding:10px;margin-bottom:10px">';
+      h+='<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px">';
+      h+='<div style="font-size:11px;color:var(--mut);letter-spacing:.5px">НЕДЕЛЯ '+iso.week+' · ЦЕЛЬ → ФАКТ</div>';
+      h+='<div style="font-size:11px;color:'+targetColor+';font-weight:700">'+pctTarget+'%</div></div>';
+      h+='<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:5px">';
+      h+='<span style="font-family:var(--fd);font-size:22px;color:'+targetColor+'">'+fmtD(factWeek)+'</span>';
+      h+='<span style="color:var(--mut);font-size:13px">/ '+fmtD(target)+' м³</span></div>';
+      h+='<div style="height:6px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden">';
+      h+='<div style="height:100%;width:'+Math.min(100,pctTarget)+'%;background:'+targetColor+';border-radius:3px"></div></div>';
+      // Подсказка: цель vs потолок (показываем только если ещё не дожали цель)
+      if(target>capTarget && capTarget>0 && factWeek<target){
+        var over=target-capTarget;
+        h+='<div style="font-size:10px;color:var(--red);margin-top:4px">⚠ цель выше потолка на '+fmtD(over)+' м³ — нужно ускоряться выше нормы или добавить людей</div>';
+      } else if(factWeek>=target && target>capTarget){
+        // Дожали цель которая была выше потолка — отличный результат
+        h+='<div style="font-size:10px;color:var(--green);margin-top:4px">✓ выработали выше нормы — норма '+b.norm+' м³/чел/день × '+(b.workers||0)+' чел = '+fmtD(capTarget)+' м³/нед</div>';
+      } else {
+        h+='<div style="font-size:10px;color:var(--mut);margin-top:4px">норма '+b.norm+' м³/чел/день × '+(b.workers||0)+' чел × 7 дн = '+fmtD(capTarget)+' м³/нед</div>';
+      }
+      h+='</div>';
+    } else if(b.work==='Разнорабочий'){
+      h+='<div style="background:rgba(255,255,255,.03);border-radius:8px;padding:10px;margin-bottom:10px;text-align:center">';
+      h+='<div style="font-size:11px;color:var(--mut);letter-spacing:.5px">ВНЕ КФУ "ТЕМП"</div>';
+      h+='<div style="font-family:var(--fd);font-size:18px;color:var(--purple);margin-top:4px">'+fmt(b.dailyRate||0)+' ₸/день</div>';
+      h+='<div style="font-size:10px;color:var(--mut);margin-top:2px">зарплата + разная работа</div>';
+      h+='</div>';
+    }
+
+    // KPI: суммарно всё время
+    h+='<div class="kg3"><div class="kpi" style="border-color:var(--teal);padding:8px"><div class="klbl">Всего м³</div><div class="kval" style="font-size:19px;color:var(--teal)">'+fmtD(B.vol)+'</div><div class="ksub">за всё время</div></div><div class="kpi" style="border-color:var(--gold);padding:8px"><div class="klbl">Начислено</div><div class="kval" style="font-size:19px;color:var(--gold)">'+fmt(B.earned)+'</div><div class="ksub">₸</div></div><div class="kpi" style="border-color:var(--green);padding:8px"><div class="klbl">Выплачено</div><div class="kval" style="font-size:19px;color:var(--green)">'+fmt(B.paid)+'</div><div class="ksub">'+pay+'%</div></div></div>';
+
+    // Плашка остатка к выплате — крупно и цветом
+    var remBg, remLbl, remVal, remIcon;
+    if(brigBal>0){
+      remBg='rgba(248,81,73,.10)'; remLbl='К ВЫПЛАТЕ БРИГАДЕ'; remIcon='⬆'; remVal='+'+fmt(brigBal)+' ₸';
+    } else if(brigBal<0){
+      remBg='rgba(212,175,55,.10)'; remLbl='ПЕРЕПЛАТА БРИГАДЕ'; remIcon='⬇'; remVal=fmt(brigBal)+' ₸';
+    } else {
+      remBg='rgba(255,255,255,.03)'; remLbl='РАСЧЁТ ЗАКРЫТ'; remIcon='✓'; remVal='0 ₸';
+    }
+    h+='<div style="display:flex;justify-content:space-between;align-items:center;background:'+remBg+';border:1px solid '+balColor+';border-radius:8px;padding:10px 12px;margin:10px 0 8px">';
+    h+='<div><div style="font-size:10px;color:var(--mut);letter-spacing:.5px;font-weight:600">'+remIcon+' '+remLbl+'</div></div>';
+    h+='<div style="font-family:var(--fd);font-size:20px;color:'+balColor+';font-weight:800">'+remVal+'</div>';
+    h+='</div>';
+
+    // Плашка выручки от заказчика — для бригад которые льют бетон
+    if(revenue>0){
+      var brigMargin=revenue - B.earned;  // прямая маржа: выручка − начисление бригаде
+      var marginPct=revenue>0?Math.round(brigMargin/revenue*100):0;
+      h+='<div style="display:flex;justify-content:space-between;align-items:center;background:rgba(59,130,246,.08);border:1px solid var(--blue);border-radius:8px;padding:10px 12px;margin-bottom:8px">';
+      h+='<div><div style="font-size:10px;color:var(--mut);letter-spacing:.5px;font-weight:600">💰 ВЫРУЧКА ОТ ЗАКАЗЧИКА</div>';
+      h+='<div style="font-size:10px;color:var(--mut);margin-top:2px">'+fmtD(B.vol)+' м³ × '+fmt(38437.76).replace(/\s/g,' ')+' ₸/м³</div></div>';
+      h+='<div style="text-align:right"><div style="font-family:var(--fd);font-size:18px;color:var(--blue);font-weight:800">'+fmt(revenue)+' ₸</div>';
+      if(brigMargin>0) h+='<div style="font-size:10px;color:var(--green);margin-top:2px">прямая маржа '+marginPct+'%</div>';
+      h+='</div></div>';
+    }
+
+    // Bar выплаты + баланс
+    h+='<div class="bar" style="height:7px;margin-bottom:4px"><div class="barfill" style="width:'+pay+'%;background:var(--teal)"></div></div>';
+    h+='<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:10px"><span style="color:var(--mut)">выплачено '+pay+'%</span><span style="color:'+balColor+';font-weight:700">'+balLbl+'</span></div>';
+
+    // Производительность по факту
+    if(prod>0){
+      h+='<div style="font-size:11px;color:var(--mut);text-align:center;padding:6px;background:rgba(255,255,255,.03);border-radius:6px;margin-bottom:8px">факт. выработка <span style="color:var(--teal);font-weight:700">'+fmtD(prod)+'</span> м³/чел/день';
+      if(b.norm>0){
+        var ratio=prod/b.norm;
+        if(ratio>1.5) h+=' <span style="color:var(--green)">(×'+ratio.toFixed(1)+' от нормы)</span>';
+        else if(ratio<0.8) h+=' <span style="color:var(--red)">('+Math.round(ratio*100)+'% от нормы)</span>';
+      }
+      h+='</div>';
+    }
+
+    if(canEdit()){
+      h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px" onclick="event.stopPropagation()">';
+      h+='<button onclick="event.stopPropagation();openVol(\''+b.id+'\')" style="background:var(--tlt);border:1px solid var(--teal);color:var(--teal);border-radius:8px;padding:9px;font-family:var(--fm);font-size:13px;cursor:pointer">+ Объём</button>';
+      h+='<button onclick="event.stopPropagation();openPay(\''+b.id+'\')" style="background:var(--grlt);border:1px solid var(--green);color:var(--green);border-radius:8px;padding:9px;font-family:var(--fm);font-size:13px;cursor:pointer">Выплатить</button>';
+      h+='</div>';
+    }
+    h+='</div></div>';
+  });
+
+  // ===== БЛОК 4: ЖУРНАЛ ЗАЛИВОК =====
+  var av=[].concat(S.entries).filter(function(e){return e.type==='vol';}).sort(function(a,b){return b.date.localeCompare(a.date);});
+  if(av.length){
+    h+='<div class="sect">'+T('pouringJournal')+' ('+av.length+')</div><div class="dcard" style="padding:0"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><tr style="background:var(--s2)"><th style="padding:7px 6px;text-align:left;color:var(--mut)">Дата</th><th style="padding:7px 6px;text-align:left;color:var(--mut)">Бригада</th><th style="padding:7px 6px;text-align:left;color:var(--mut)">Конструкция</th><th style="padding:7px 6px;text-align:left;color:var(--mut)">Пятно</th><th style="padding:7px 6px;text-align:right;color:var(--mut)">м³</th></tr>';
+    av.forEach(function(e,i){
+      h+='<tr style="border-bottom:1px solid var(--brd);background:'+(i%2?'var(--s2)':'transparent')+'"><td style="padding:6px;color:var(--mut)">'+e.date.slice(5)+'</td><td style="padding:6px;color:var(--blue);font-size:11px">'+bName(e.brigade).replace('Бригада ','')+'</td><td style="padding:6px;color:var(--teal)">'+(e.struct||e.wtype||'-')+'</td><td style="padding:6px">'+(e.zone||'-')+'</td><td style="padding:6px;text-align:right;font-weight:700;color:var(--teal)">'+fmtD(e.volume||0)+'</td></tr>';
+    });
+    h+='<tr style="background:var(--tlt)"><td colspan="4" style="padding:7px 6px;font-weight:700;color:var(--teal)">ИТОГО</td><td style="padding:7px 6px;text-align:right;font-weight:700;color:var(--teal)">'+fmtD(vd)+'</td></tr></table></div></div>';
+  }
+  return h;
+}
 function dcBrig(){var L=S.brigades.map(function(b){return b.name.replace('Бригада ','');});var V=S.brigades.map(function(b){return Math.round(calcBrig(b).vol*10)/10;});if(L.length)drawBar('ch-brig',L,[{data:V,color:'#2dd4bf'}],150,false);}
+
+// ============================================================
+// ЦИКЛ КФУ ПО ЯНОВСКОМУ — 10 шагов, окно недели
+// ============================================================
+function openCycle(kfuId, weekKey){
+  window._cycleKfuId=kfuId;
+  window._cycleWeekKey=weekKey;
+  renderCycle();
+  document.getElementById('modal').style.display='flex';
+  document.getElementById('mtit').textContent='ЦИКЛ КФУ';
+}
+function renderCycle(){
+  var kfuId=window._cycleKfuId;
+  var weekKey=window._cycleWeekKey;
+  var kfu=(S.kfu||[]).find(function(k){return String(k.id)===String(kfuId);});
+  if(!kfu){document.getElementById('mbody').innerHTML='<div style="padding:20px;color:var(--red)">КФУ не найден</div>';return;}
+  var cycle=getCycle(kfuId, weekKey);
+  var agreements=cycleAgreements(kfuId, weekKey);
+
+  // Парсим неделю из ключа "2026-W22"
+  var m=weekKey.match(/^(\d{4})-W(\d+)$/);
+  var weekNum=m?parseInt(m[2]):0;
+  var year=m?parseInt(m[1]):2026;
+
+  // Получаем диапазон дат недели (приблизительно — пн ISO-недели)
+  var jan4=new Date(year,0,4);
+  var jan4Dow=(jan4.getDay()+6)%7;
+  var weekStart=new Date(jan4); weekStart.setDate(jan4.getDate()-jan4Dow+(weekNum-1)*7);
+  var weekEnd=new Date(weekStart); weekEnd.setDate(weekStart.getDate()+6);
+  var dateRange=weekStart.getDate()+'.'+String(weekStart.getMonth()+1).padStart(2,'0')+' – '+weekEnd.getDate()+'.'+String(weekEnd.getMonth()+1).padStart(2,'0');
+  var isTempoKfu=(kfu.auto==='temp' || /темп/i.test(kfu.name));
+
+  // === Считаем цель и факт автоматически для КФУ Темп ===
+  var autoTarget=0, autoFact=0, factTPSI=0, factDeclared=0;
+  if(isTempoKfu){
+    autoTarget=tempoPlanForMonth(weekStart.getMonth()+1);
+    // Факт за эту неделю
+    (S.brigades||[]).forEach(function(b){
+      if(b.kfu_temp===false) return;
+      var vols=brigVolWeek(b, weekStart);
+      vols.forEach(function(v){
+        autoFact += (v.volume||0);
+        if(v.accepted===true) factTPSI += (v.volume||0);
+        else factDeclared += (v.volume||0);
+      });
+    });
+  }
+
+  var h='';
+  h+='<div style="padding:0 4px 80px">';
+  // Заголовок
+  h+='<div style="background:linear-gradient(135deg,rgba(212,175,55,.15),rgba(212,175,55,.03));border:1px solid var(--gold);border-radius:12px;padding:14px;margin-bottom:14px">';
+  h+='<div style="font-size:10px;color:var(--mut);letter-spacing:1px">КФУ № '+kfu.id+'</div>';
+  h+='<div style="font-size:20px;font-weight:800;color:var(--gold);margin:3px 0">'+kfu.name.toUpperCase()+'</div>';
+  h+='<div style="font-size:12px;color:var(--mut)">Хозяин: <span style="color:var(--text);font-weight:600">'+(kfu.owner||'—')+'</span> · Неделя '+weekNum+' · '+dateRange+'</div>';
+  h+='</div>';
+
+  function step(num, title, body){
+    return '<div style="background:var(--s2);border-radius:10px;padding:12px;margin-bottom:10px;border-left:3px solid var(--gold)">'+
+      '<div style="font-size:10px;color:var(--mut);letter-spacing:.5px;margin-bottom:4px">ШАГ '+num+'</div>'+
+      '<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px">'+title+'</div>'+
+      '<div style="font-size:13px;color:var(--text);line-height:1.5">'+body+'</div></div>';
+  }
+
+  // 1. КФУ
+  h+=step('1', 'КАТЕГОРИЯ УЛУЧШЕНИЯ (КФУ)', '<span style="color:var(--gold);font-weight:600">'+kfu.name+'</span>');
+
+  // 2. Хозяин
+  h+=step('2', 'ХОЗЯИН', '<span style="color:var(--teal);font-weight:600">'+(kfu.owner||'не назначен')+'</span>');
+
+  // 3. Цель
+  var targetBody='';
+  if(isTempoKfu){
+    var capForCycle=tempoCapacityCompany();
+    var weekTargetCycle=Math.min(autoTarget||Infinity, capForCycle||Infinity);
+    if(!isFinite(weekTargetCycle)) weekTargetCycle=0;
+    var srcLbl='';
+    if(autoTarget>0 && capForCycle>0){
+      srcLbl=autoTarget<=capForCycle?'(ограничивает план)':'(ограничивает потолок бригад)';
+    }
+    targetBody='<div style="background:rgba(212,175,55,.10);border-radius:6px;padding:8px;margin-bottom:8px;text-align:center"><div style="font-size:10px;color:var(--mut);letter-spacing:.5px">🎯 ЦЕЛЬ НЕДЕЛИ = min(план, потолок)</div><div style="font-family:var(--fd);font-size:22px;color:var(--gold);font-weight:800;margin-top:3px">'+fmtD(weekTargetCycle)+' м³</div><div style="font-size:10px;color:var(--mut);margin-top:2px">'+srcLbl+'</div></div>';
+    targetBody+='<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span style="color:var(--mut)">💰 План месяца (YEAR_PLAN):</span><span style="font-family:var(--fd);color:var(--gold);font-weight:700">'+fmtD(autoTarget)+' м³/нед</span></div>';
+    targetBody+='<div style="display:flex;justify-content:space-between;font-size:12px"><span style="color:var(--mut)">⚙ Потолок бригад:</span><span style="font-family:var(--fd);color:var(--blue);font-weight:700">'+fmtD(capForCycle)+' м³/нед</span></div>';
+  } else {
+    targetBody='<span style="color:var(--text)">'+(kfu.target||'не задана')+'</span>';
+  }
+  h+=step('3', 'ЦЕЛЬ НА НЕДЕЛЮ', targetBody);
+
+  // 4. Факт (ТПСИ)
+  var factBody='';
+  if(isTempoKfu){
+    var cap4=tempoCapacityCompany();
+    var realTarget=Math.min(autoTarget||Infinity, cap4||Infinity);
+    if(!isFinite(realTarget)) realTarget=autoTarget||0;
+    var pct=realTarget>0?Math.round(autoFact/realTarget*100):0;
+    var fcolor=pct>=100?'var(--green)':(pct>=70?'var(--orange)':'var(--red)');
+    factBody='<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">';
+    factBody+='<span style="font-family:var(--fd);font-size:22px;color:'+fcolor+'">'+fmtD(autoFact)+' м³</span>';
+    factBody+='<span style="color:'+fcolor+';font-weight:700">'+pct+'% от цели</span></div>';
+    if(factTPSI>0 || factDeclared>0){
+      factBody+='<div style="font-size:11px;color:var(--mut);margin-top:4px;padding-top:6px;border-top:1px solid var(--brd)">';
+      factBody+='🟢 ТПСИ (подписан КС-2): <span style="color:var(--green);font-weight:700">'+fmtD(factTPSI)+' м³</span><br>';
+      factBody+='🟡 Заявлено (без КС-2): <span style="color:var(--orange);font-weight:700">'+fmtD(factDeclared)+' м³</span></div>';
+    }
+    factBody+='<div style="font-size:10px;color:var(--mut);margin-top:6px"><b>ТПСИ</b> = Твёрдая Проверенная Своевременная Информация. До подписи КС-2 — деньги не приходят.</div>';
+  } else {
+    factBody='<span style="color:var(--mut)">Введите факт вручную</span>';
+  }
+  h+=step('4', 'ФАКТ (ТПСИ)', factBody);
+
+  // 5. Что сделано
+  var doneVal=escapeHtml(cycle.done||'');
+  h+=step('5', 'ЧТО СДЕЛАНО ЗА НЕДЕЛЮ',
+    canEdit()?'<textarea id="cyc-done" oninput="cycleSave(\'done\',this.value)" style="width:100%;min-height:70px;background:var(--bg);border:1px solid var(--brd);color:var(--text);border-radius:6px;padding:8px;font-family:inherit;font-size:13px;resize:vertical">'+doneVal+'</textarea>'
+    :(doneVal||'<span style="color:var(--mut)">—</span>'));
+
+  // 6. Анализ
+  var goodVal=escapeHtml(cycle.analysisGood||'');
+  var badVal=escapeHtml(cycle.analysisBad||'');
+  var analysisBody='';
+  if(canEdit()){
+    analysisBody='<div style="font-size:11px;color:var(--green);margin-bottom:4px">🟢 ХОРОШО:</div>';
+    analysisBody+='<textarea id="cyc-good" oninput="cycleSave(\'analysisGood\',this.value)" style="width:100%;min-height:50px;background:var(--bg);border:1px solid rgba(46,160,67,.3);color:var(--text);border-radius:6px;padding:8px;font-family:inherit;font-size:13px;resize:vertical;margin-bottom:8px">'+goodVal+'</textarea>';
+    analysisBody+='<div style="font-size:11px;color:var(--red);margin-bottom:4px">🔴 ПЛОХО / ПОЧЕМУ:</div>';
+    analysisBody+='<textarea id="cyc-bad" oninput="cycleSave(\'analysisBad\',this.value)" style="width:100%;min-height:50px;background:var(--bg);border:1px solid rgba(248,81,73,.3);color:var(--text);border-radius:6px;padding:8px;font-family:inherit;font-size:13px;resize:vertical">'+badVal+'</textarea>';
+  } else {
+    analysisBody='<div style="color:var(--green);font-size:12px;margin-bottom:6px">🟢 '+(goodVal||'—')+'</div>';
+    analysisBody+='<div style="color:var(--red);font-size:12px">🔴 '+(badVal||'—')+'</div>';
+  }
+  h+=step('6', 'АНАЛИЗ (почему так)', analysisBody);
+
+  // 7. Решения
+  var decisions=cycle.decisions||[];
+  var decBody='';
+  if(decisions.length){
+    decisions.forEach(function(d,i){
+      decBody+='<div style="display:flex;gap:6px;align-items:start;margin-bottom:4px;padding:6px;background:var(--bg);border-radius:6px"><span style="color:var(--gold);font-weight:700;min-width:14px">'+(i+1)+'.</span><span style="flex:1;font-size:13px">'+escapeHtml(d)+'</span>'+(canEdit()?'<button onclick="cycleRemoveDecision('+i+')" style="background:none;border:none;color:var(--mut);cursor:pointer;font-size:14px;padding:0 4px">✕</button>':'')+'</div>';
+    });
+  }
+  if(canEdit()){
+    decBody+='<div style="display:flex;gap:6px;margin-top:6px"><input id="cyc-newdec" placeholder="Новое решение..." style="flex:1;background:var(--bg);border:1px solid var(--brd);color:var(--text);border-radius:6px;padding:7px;font-family:inherit;font-size:13px"><button onclick="cycleAddDecision()" style="background:var(--gold);color:#0d1117;border:none;border-radius:6px;padding:7px 12px;font-weight:700;cursor:pointer">+</button></div>';
+  } else if(!decisions.length){
+    decBody='<span style="color:var(--mut)">—</span>';
+  }
+  h+=step('7', 'РЕШЕНИЯ (что меняем)', decBody);
+
+  // 8. Железные договорённости
+  var agrBody='';
+  if(agreements.length){
+    agreements.forEach(function(a){
+      var statIcon=a.status==='done'?'✓':(a.status==='failed'?'✗':'☐');
+      var statColor=a.status==='done'?'var(--green)':(a.status==='failed'?'var(--red)':'var(--mut)');
+      var overdue=a.deadline && new Date(a.deadline)<new Date() && a.status!=='done';
+      agrBody+='<div style="padding:8px;background:var(--bg);border-radius:6px;margin-bottom:6px;border-left:3px solid '+statColor+'">';
+      agrBody+='<div style="display:flex;justify-content:space-between;align-items:start;gap:8px">';
+      agrBody+='<div style="flex:1"><span style="color:'+statColor+';font-weight:700">'+statIcon+'</span> <span style="font-weight:600;color:var(--text)">'+escapeHtml(a.who||'—')+'</span>: '+escapeHtml(a.text||'');
+      if(a.deadline) agrBody+='<div style="font-size:10px;color:'+(overdue?'var(--red)':'var(--mut)')+';margin-top:3px">дедлайн '+a.deadline.split('-').reverse().join('.')+(overdue?' (просрочен)':'')+'</div>';
+      agrBody+='</div>';
+      if(canEdit()){
+        agrBody+='<div style="display:flex;gap:4px">';
+        if(a.status!=='done') agrBody+='<button onclick="agreementMark('+a.id+',\'done\')" title="Выполнено" style="background:var(--grlt);border:1px solid var(--green);color:var(--green);border-radius:4px;padding:3px 6px;font-size:11px;cursor:pointer">✓</button>';
+        if(a.status!=='failed') agrBody+='<button onclick="agreementMark('+a.id+',\'failed\')" title="Сорвано" style="background:rgba(248,81,73,.12);border:1px solid var(--red);color:var(--red);border-radius:4px;padding:3px 6px;font-size:11px;cursor:pointer">✗</button>';
+        agrBody+='</div>';
+      }
+      agrBody+='</div></div>';
+    });
+  } else {
+    agrBody+='<div style="color:var(--mut);font-size:12px;padding:6px 0">Договорённостей пока нет</div>';
+  }
+  if(canEdit()){
+    agrBody+='<button onclick="openAddAgreement('+kfu.id+',\''+weekKey+'\')" style="width:100%;background:var(--tlt);border:1px solid var(--teal);color:var(--teal);border-radius:6px;padding:8px;margin-top:6px;font-family:inherit;font-size:13px;cursor:pointer;font-weight:600">+ Договорённость</button>';
+  }
+  h+=step('8', 'ЖЕЛЕЗНЫЕ ДОГОВОРЁННОСТИ (письменно)', agrBody);
+
+  // 9. Действия
+  var actBody='';
+  var inProgress=agreements.filter(function(a){return a.status!=='done' && a.status!=='failed';});
+  if(inProgress.length){
+    inProgress.forEach(function(a){
+      var overdue=a.deadline && new Date(a.deadline)<new Date();
+      actBody+='<div style="display:flex;align-items:center;gap:8px;padding:6px;margin-bottom:4px;background:var(--bg);border-radius:6px">';
+      actBody+='<span style="color:'+(overdue?'var(--red)':'var(--orange)')+'">'+(overdue?'🔴':'🟡')+'</span>';
+      actBody+='<span style="font-size:12px;flex:1">'+escapeHtml(a.text||'')+' — <span style="color:var(--mut)">'+escapeHtml(a.who||'')+'</span></span>';
+      actBody+='</div>';
+    });
+  } else {
+    actBody='<span style="color:var(--mut);font-size:12px">Нет открытых действий</span>';
+  }
+  h+=step('9', 'ДЕЙСТВИЯ (что делается сейчас)', actBody);
+
+  // 10. Контроль
+  var done=agreements.filter(function(a){return a.status==='done';}).length;
+  var failed=agreements.filter(function(a){return a.status==='failed';}).length;
+  var pending=agreements.length-done-failed;
+  var ctrlBody='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;text-align:center">';
+  ctrlBody+='<div style="background:var(--grlt);border-radius:6px;padding:10px"><div style="font-size:22px;color:var(--green);font-weight:800">'+done+'</div><div style="font-size:10px;color:var(--mut)">✓ Выполнено</div></div>';
+  ctrlBody+='<div style="background:rgba(212,175,55,.12);border-radius:6px;padding:10px"><div style="font-size:22px;color:var(--orange);font-weight:800">'+pending+'</div><div style="font-size:10px;color:var(--mut)">🟡 В работе</div></div>';
+  ctrlBody+='<div style="background:rgba(248,81,73,.12);border-radius:6px;padding:10px"><div style="font-size:22px;color:var(--red);font-weight:800">'+failed+'</div><div style="font-size:10px;color:var(--mut)">✗ Срыв</div></div>';
+  ctrlBody+='</div>';
+  if(agreements.length){
+    var ctrlPct=Math.round(done/agreements.length*100);
+    ctrlBody+='<div style="margin-top:10px"><div style="height:7px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden"><div style="height:100%;width:'+ctrlPct+'%;background:var(--green)"></div></div><div style="font-size:11px;color:var(--mut);margin-top:3px;text-align:center">соблюдение договорённостей '+ctrlPct+'%</div></div>';
+  }
+  h+=step('10', 'КОНТРОЛЬ', ctrlBody);
+
+  // ===== АРХИВ ПРОШЛЫХ НЕДЕЛЬ =====
+  // Собираем все недели по этому КФУ из S.cycles и из договорённостей в S.entries
+  var pastWeeks={};
+  if(S.cycles){
+    Object.keys(S.cycles).forEach(function(k){
+      var parts=k.split('_'); // "kfuId_2026-W22"
+      if(parts.length===2 && String(parts[0])===String(kfuId) && parts[1]!==weekKey){
+        pastWeeks[parts[1]]=true;
+      }
+    });
+  }
+  (S.entries||[]).forEach(function(e){
+    if(e.type==='agreement' && String(e.kfu)===String(kfuId) && e.week && e.week!==weekKey){
+      pastWeeks[e.week]=true;
+    }
+  });
+  var pastKeys=Object.keys(pastWeeks).sort().reverse(); // от свежих к старым
+  if(pastKeys.length){
+    h+='<div style="margin-top:18px;border-top:1px solid var(--brd);padding-top:14px">';
+    h+='<div style="font-size:11px;color:var(--mut);letter-spacing:.5px;font-weight:600;margin-bottom:8px">📅 АРХИВ ПРОШЛЫХ НЕДЕЛЬ ('+pastKeys.length+')</div>';
+    pastKeys.forEach(function(wk){
+      var pm=wk.match(/^(\d{4})-W(\d+)$/);
+      var pwNum=pm?parseInt(pm[2]):0;
+      var pAgreements=cycleAgreements(kfuId, wk);
+      var pCycle=(S.cycles && S.cycles[kfuId+'_'+wk])||{};
+      var pDone=pAgreements.filter(function(a){return a.status==='done';}).length;
+      var pFailed=pAgreements.filter(function(a){return a.status==='failed';}).length;
+      var pTotal=pAgreements.length;
+      var pPct=pTotal?Math.round(pDone/pTotal*100):0;
+      var pColor=pPct>=80?'var(--green)':(pPct>=50?'var(--orange)':'var(--red)');
+      var hasContent=(pCycle.done||pCycle.analysisGood||pCycle.analysisBad||(pCycle.decisions&&pCycle.decisions.length)||pTotal>0);
+      h+='<div onclick="openCycle('+kfuId+',\''+wk+'\')" style="background:var(--bg);border:1px solid var(--brd);border-radius:8px;padding:10px;margin-bottom:6px;cursor:pointer;display:flex;justify-content:space-between;align-items:center">';
+      h+='<div><div style="font-weight:700;color:var(--text);font-size:13px">Неделя '+pwNum+'</div>';
+      if(hasContent){
+        h+='<div style="font-size:11px;color:var(--mut);margin-top:2px">';
+        if(pTotal>0) h+=pTotal+' договор · ';
+        if(pCycle.done) h+='заполнено';
+        else h+='—';
+        h+='</div>';
+      } else {
+        h+='<div style="font-size:11px;color:var(--mut);margin-top:2px">пусто</div>';
+      }
+      h+='</div>';
+      if(pTotal>0){
+        h+='<div style="text-align:right"><div style="color:'+pColor+';font-weight:700;font-size:13px">'+pPct+'%</div><div style="font-size:10px;color:var(--mut)">'+pDone+'/'+pTotal+'</div></div>';
+      } else {
+        h+='<div style="color:var(--mut);font-size:11px">→</div>';
+      }
+      h+='</div>';
+    });
+    h+='</div>';
+  }
+
+  h+='</div>';
+  document.getElementById('mbody').innerHTML=h;
+}
+
+// HTML-эскейп (для безопасной вставки текста)
+if(typeof escapeHtml!=='function'){
+  window.escapeHtml=function(s){return String(s||'').replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});};
+}
+
+// Сохранение полей цикла (НАДЁЖНОЕ)
+// 1. Сразу пишем в S и localStorage (мгновенно, никогда не потеряется)
+// 2. Облако обновляется с дебаунсом — через save() (1.5 сек после последнего ввода)
+// 3. При закрытии модалки — форс-push в облако
+function cycleSave(field, value){
+  var c=getCycle(window._cycleKfuId, window._cycleWeekKey);
+  c[field]=value;
+  S._modified=Date.now();
+  // Мгновенно в localStorage — это критично, чтоб не потерять при перезагрузке
+  if(typeof persist==='function') persist();
+  // С дебаунсом в облако
+  if(typeof save==='function') save();
+}
+function cycleAddDecision(){
+  var input=document.getElementById('cyc-newdec');
+  if(!input||!input.value.trim()) return;
+  var c=getCycle(window._cycleKfuId, window._cycleWeekKey);
+  if(!c.decisions) c.decisions=[];
+  c.decisions.push(input.value.trim());
+  S._modified=Date.now();
+  if(typeof persist==='function') persist();
+  if(typeof save==='function') save();
+  renderCycle();
+}
+function cycleRemoveDecision(idx){
+  var c=getCycle(window._cycleKfuId, window._cycleWeekKey);
+  if(!c.decisions) return;
+  c.decisions.splice(idx,1);
+  S._modified=Date.now();
+  if(typeof persist==='function') persist();
+  if(typeof save==='function') save();
+  renderCycle();
+}
+// Добавление договорённости
+function openAddAgreement(kfuId, weekKey){
+  var who=prompt('Кто берёт ответственность? (Дмитрий / Бекжан / Евгений / Нурсултан / Сергей)');
+  if(!who) return;
+  var text=prompt('Что обязуется сделать?');
+  if(!text) return;
+  var deadline=prompt('Дедлайн (YYYY-MM-DD):', new Date(Date.now()+7*86400000).toISOString().slice(0,10));
+  if(!deadline) return;
+  var a={
+    id:Date.now(),
+    type:'agreement',
+    date:new Date().toISOString().slice(0,10),
+    kfu:kfuId,
+    week:weekKey,
+    who:who.trim(),
+    text:text.trim(),
+    deadline:deadline.trim(),
+    status:'pending',
+    proof:''
+  };
+  if(!S.entries) S.entries=[];
+  S.entries.push(a);
+  S._modified=Date.now();
+  if(typeof persist==='function') persist();
+  if(typeof save==='function') save();
+  renderCycle();
+}
+function agreementMark(id, status){
+  var a=(S.entries||[]).find(function(e){return e.id===id && e.type==='agreement';});
+  if(!a) return;
+  a.status=status;
+  S._modified=Date.now();
+  if(typeof persist==='function') persist();
+  if(typeof save==='function') save();
+  renderCycle();
+}
+
 
 function rPlan(){
   // ============================================================
@@ -9697,7 +10369,16 @@ function compressPhoto(file,cb){
 function viewPhoto(id){var e=S.entries.find(function(x){return x.id==id;});if(!e||!e.photo)return;document.getElementById('pv-img').src=e.photo;document.getElementById('pv').style.display='flex';}
 var selType='expense';
 function openModal(){if(role!=='editor')return;selType='expense';pendingPhoto=null;buildModal();document.getElementById('modal').style.display='flex';}
-function closeModal(){document.getElementById('modal').style.display='none';pendingPhoto=null;}
+function closeModal(){
+  // Если открыт цикл КФУ — форс-push в облако, чтобы не потерять незакомиченные правки
+  if(window._cycleKfuId && typeof pushCloud==='function'){
+    try{ pushCloud(); }catch(e){}
+    window._cycleKfuId=null;
+    window._cycleWeekKey=null;
+  }
+  document.getElementById('modal').style.display='none';
+  pendingPhoto=null;
+}
 function buildModal(){
   var today=new Date().toISOString().slice(0,10);
   
