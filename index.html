@@ -4697,17 +4697,80 @@ window.findDuplicates = function(){
   var duplicates = [];
   var seen = {};
   
+  // Загружаем список "помечено как НЕ дубль"
+  var notDups = [];
+  try { notDups = JSON.parse(localStorage.getItem('lg_not_dups') || '[]'); } catch(e){}
+  
   S.entries.forEach(function(e){
     // Ключ: тип + дата + сумма (или объём для vol)
     var key = e.type + '|' + (e.date||'') + '|' + (e.amount||e.volume||0);
+    
     if(seen[key]){
-      duplicates.push({original: seen[key], dup: e, key: key});
+      var orig = seen[key];
+      
+      // Проверка 1: если у обеих записей есть РАЗНЫЕ note — это не дубль
+      var origNote = (orig.note || '').trim().toLowerCase();
+      var dupNote = (e.note || '').trim().toLowerCase();
+      
+      // Если оба note есть и они РАЗНЫЕ — это разные записи, не дубль
+      if(origNote && dupNote && origNote !== dupNote){
+        return; // пропускаем
+      }
+      
+      // Проверка 2: помечено пользователем как "не дубль"
+      var pairKey = Math.min(orig.id, e.id) + '_' + Math.max(orig.id, e.id);
+      if(notDups.indexOf(pairKey) >= 0){
+        return; // пропускаем — уже подтверждено что это не дубль
+      }
+      
+      // Проверка 3: разные категории — не дубль
+      if(orig.cat && e.cat && orig.cat !== e.cat){
+        // Категории совпадают, но note разные — это всё-таки разные операции
+        // Для expense уже отфильтровано выше через note
+      }
+      
+      duplicates.push({original: orig, dup: e, key: key, pairKey: pairKey});
     } else {
       seen[key] = e;
     }
   });
   
   return duplicates;
+};
+
+// Пометить пару записей как "это НЕ дубль" — навсегда исключить из проверки
+window.markNotDuplicate = function(pairKey){
+  if(typeof haptic === 'function') haptic('medium');
+  
+  if(typeof confirmSafe === 'function' && !confirmSafe('Пометить эти 2 записи как РАЗНЫЕ операции?\n\nОни больше не будут показываться как возможные дубли.')) return;
+  
+  try {
+    var notDups = JSON.parse(localStorage.getItem('lg_not_dups') || '[]');
+    if(notDups.indexOf(pairKey) < 0){
+      notDups.push(pairKey);
+    }
+    // Храним максимум 200 пар
+    if(notDups.length > 200) notDups = notDups.slice(-200);
+    localStorage.setItem('lg_not_dups', JSON.stringify(notDups));
+    
+    // Добавим в audit log
+    if(!S.history) S.history = [];
+    S.history.push({
+      time: Date.now(),
+      action: 'Помечено как не-дубль',
+      detail: 'pairKey=' + pairKey,
+      by: (typeof role !== 'undefined') ? role : 'unknown'
+    });
+    if(typeof persist === 'function') persist();
+    
+    if(typeof haptic === 'function') haptic('heavy');
+    if(typeof showToast === 'function') showToast('✅ Помечено: это разные операции', 'success');
+    
+    // Обновим экран
+    if(typeof openDataProtection === 'function') openDataProtection();
+  } catch(e) {
+    alert('Ошибка: ' + e.message);
+  }
 };
 
 // =============================================================
@@ -4790,17 +4853,35 @@ window.openDataProtection = function(){
   
   // === Дубли ===
   if(duplicates.length > 0){
-    html += '<div style="font-size:11px;color:#ff7b72;letter-spacing:2px;font-weight:800;margin:18px 0 10px">⚠️ НАЙДЕНЫ ВОЗМОЖНЫЕ ДУБЛИ</div>';
+    html += '<div style="font-size:11px;color:#ff7b72;letter-spacing:2px;font-weight:800;margin:18px 0 10px">⚠️ ВОЗМОЖНЫЕ ДУБЛИ (проверьте)</div>';
+    html += '<div style="font-size:11px;color:#8b949e;margin-bottom:10px;padding:8px 10px;background:rgba(255,179,32,.05);border-radius:8px;line-height:1.4">💡 Если это <b>разные операции</b> с одинаковой суммой — нажмите <b style="color:#7ee787">«Это не дубль»</b>, и они больше не будут показываться здесь.</div>';
     
     duplicates.slice(0, 10).forEach(function(d){
       var typeIcon = {expense:'💸',advance:'💼',vol:'🏗',income:'💵'}[d.dup.type] || '?';
       var amt = d.dup.type === 'vol' ? d.dup.volume + ' м³' : fmt(d.dup.amount) + ' ₸';
       
-      html += '<div style="background:rgba(248,81,73,.06);border:1px solid rgba(248,81,73,.3);border-radius:12px;padding:12px;margin-bottom:8px">';
-      html += '<div style="font-size:13px;color:#ff7b72;font-weight:700;margin-bottom:6px">'+typeIcon+' '+amt+' · '+(d.dup.date||'—')+'</div>';
-      html += '<div style="font-size:11px;color:#b9c3d0">Оригинал id='+d.original.id+': '+(d.original.note||'').substring(0,40)+'</div>';
-      html += '<div style="font-size:11px;color:#b9c3d0;margin-top:4px">Дубль id='+d.dup.id+': '+(d.dup.note||'').substring(0,40)+'</div>';
-      html += '<button onclick="deleteDuplicate('+d.dup.id+')" style="width:100%;margin-top:8px;padding:8px;background:rgba(248,81,73,.15);border:1px solid rgba(248,81,73,.4);color:#ff7b72;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:-apple-system,system-ui,sans-serif">🗑 Удалить дубль</button>';
+      html += '<div style="background:rgba(248,81,73,.06);border:1px solid rgba(248,81,73,.3);border-radius:12px;padding:12px;margin-bottom:10px">';
+      html += '<div style="font-size:13px;color:#ff7b72;font-weight:700;margin-bottom:8px">'+typeIcon+' '+amt+' · '+(d.dup.date||'—')+'</div>';
+      
+      // Показываю обе записи понятно
+      html += '<div style="background:#0d1117;border-left:3px solid #8b949e;border-radius:6px;padding:8px;margin-bottom:6px">';
+      html += '<div style="font-size:10px;color:#8b949e;letter-spacing:1.5px;font-weight:700;margin-bottom:3px">ЗАПИСЬ 1 (id '+d.original.id+')</div>';
+      html += '<div style="font-size:12px;color:#e6edf3">'+(d.original.note || '(без примечания)')+'</div>';
+      if(d.original.cat) html += '<div style="font-size:10px;color:#8b949e;margin-top:2px">Категория: '+d.original.cat+'</div>';
+      html += '</div>';
+      
+      html += '<div style="background:#0d1117;border-left:3px solid #8b949e;border-radius:6px;padding:8px;margin-bottom:10px">';
+      html += '<div style="font-size:10px;color:#8b949e;letter-spacing:1.5px;font-weight:700;margin-bottom:3px">ЗАПИСЬ 2 (id '+d.dup.id+')</div>';
+      html += '<div style="font-size:12px;color:#e6edf3">'+(d.dup.note || '(без примечания)')+'</div>';
+      if(d.dup.cat) html += '<div style="font-size:10px;color:#8b949e;margin-top:2px">Категория: '+d.dup.cat+'</div>';
+      html += '</div>';
+      
+      // 2 кнопки: "Это не дубль" (зелёная) и "Удалить дубль" (красная)
+      html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
+      html += '<button onclick="markNotDuplicate(\''+d.pairKey+'\')" style="padding:10px 8px;background:rgba(63,185,80,.15);border:1px solid rgba(63,185,80,.5);color:#7ee787;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:-apple-system,system-ui,sans-serif">✓ Это не дубль</button>';
+      html += '<button onclick="deleteDuplicate('+d.dup.id+')" style="padding:10px 8px;background:rgba(248,81,73,.15);border:1px solid rgba(248,81,73,.4);color:#ff7b72;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:-apple-system,system-ui,sans-serif">🗑 Удалить дубль</button>';
+      html += '</div>';
+      
       html += '</div>';
     });
   }
@@ -4810,17 +4891,47 @@ window.openDataProtection = function(){
     html += '<div style="font-size:11px;color:#8b949e;letter-spacing:2px;font-weight:800;margin:18px 0 10px">📋 ПОСЛЕДНИЕ ДЕЙСТВИЯ</div>';
     
     S.history.slice(-15).reverse().forEach(function(h){
-      var d = new Date(h.time);
-      var dStr = d.toLocaleString('ru-RU', {day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+      // Поддерживаем разные форматы времени
+      var timeVal = h.time || h.at || h.ts || h.timestamp || 0;
+      // Если строка — попробуем распарсить
+      if(typeof timeVal === 'string') timeVal = Date.parse(timeVal) || 0;
+      // Если число — может быть в секундах или миллисекундах
+      if(typeof timeVal === 'number' && timeVal > 0 && timeVal < 10000000000) {
+        timeVal = timeVal * 1000; // секунды → миллисекунды
+      }
+      
+      var dStr = '—';
+      if(timeVal > 0){
+        var d = new Date(timeVal);
+        if(!isNaN(d.getTime())){
+          dStr = d.toLocaleString('ru-RU', {day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+        }
+      }
+      
+      // Текст действия — поддерживаем разные форматы
+      var actionText = h.action || h.act || h.type || 'действие';
+      var actionMap = {
+        'edit': '✏️ Редактирование',
+        'add': '➕ Добавление',
+        'del': '🗑 Удаление',
+        'delete': '🗑 Удаление',
+        'restore': '↻ Восстановление'
+      };
+      if(actionMap[actionText]) actionText = actionMap[actionText];
+      
+      var detailText = h.detail || h.note || h.info || '';
+      var byText = h.by || h.who || h.user || h.author || '';
       
       html += '<div style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:10px;margin-bottom:6px">';
-      html += '<div style="display:flex;justify-content:space-between;margin-bottom:2px">';
-      html += '<div style="font-size:11px;color:#e6edf3;font-weight:700">'+(h.action||'действие')+'</div>';
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">';
+      html += '<div style="font-size:11px;color:#e6edf3;font-weight:700">'+actionText+'</div>';
       html += '<div style="font-size:10px;color:#8b949e">'+dStr+'</div>';
       html += '</div>';
-      html += '<div style="font-size:11px;color:#b9c3d0">'+(h.detail || '—')+'</div>';
-      if(h.by){
-        html += '<div style="font-size:10px;color:#ffd166;margin-top:3px">👤 '+h.by+'</div>';
+      if(detailText){
+        html += '<div style="font-size:11px;color:#b9c3d0">'+detailText+'</div>';
+      }
+      if(byText){
+        html += '<div style="font-size:10px;color:#ffd166;margin-top:3px">👤 '+byText+'</div>';
       }
       html += '</div>';
     });
