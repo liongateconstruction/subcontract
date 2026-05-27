@@ -2120,6 +2120,31 @@ function processCloudData(d, cb){
       var cloudHasData = (r.entries && r.entries.length>0) || (r.brigades && r.brigades.length>0);
       var localHasData = (S.entries && S.entries.length>0) || (S.brigades && S.brigades.length>0);
       
+      // === НОВАЯ ЛОГИКА: 3 случая ===
+      // 1) PRELOADED новее всего (мы обновили файл) → берём PRELOADED, пушим в облако
+      // 2) Локальные новее облака на 1+ минуту → пушим в облако
+      // 3) Облако новее локальных на 1+ минуту → берём облако
+      var preloadedTime = (typeof PRELOADED_DATA !== 'undefined' && PRELOADED_DATA._modified) || 0;
+      
+      // PRELOADED свежее всего — приоритет встроенным данным
+      if(preloadedTime > localTime + 60000 && preloadedTime > remoteTime + 60000){
+        console.log('[pull] PRELOADED свежее всех → используем встроенные данные');
+        S.entries = PRELOADED_DATA.entries.slice();
+        S.brigades = PRELOADED_DATA.brigades.slice();
+        S.objects = PRELOADED_DATA.objects.slice();
+        if(PRELOADED_DATA.objMeta) S.objMeta = PRELOADED_DATA.objMeta;
+        if(PRELOADED_DATA.kfu) S.kfu = PRELOADED_DATA.kfu;
+        if(PRELOADED_DATA.settings) S.settings = PRELOADED_DATA.settings;
+        if(PRELOADED_DATA.workTypes) S.workTypes = PRELOADED_DATA.workTypes;
+        S._modified = preloadedTime;
+        _lastKnownRemote = preloadedTime;
+        persist();
+        pushCloud(); // обновим облако
+        ss('🔄',false);
+        if(cb) cb();
+        return;
+      }
+      
       // Случай 1: локально есть данные → ПУШИМ В ОБЛАКО (а не забираем оттуда)
       if(localHasData){
         // Если облако явно новее на 60+ секунд И больше записей — берём облако (другой пользователь внёс)
@@ -2187,7 +2212,7 @@ function defState(){return{
 };}
 
 // PRELOADED от 2026-05-25
-var PRELOADED_DATA = {"objects": ["ЖК «Алгабас», Мкр. Нуркент"], "objMeta": {"ЖК «Алгабас», Мкр. Нуркент": {"customer": "Sensata Group", "rates": {}, "custRates": [{"wtype": "Устройство стен", "unit": "м³", "rate": 38437.76}, {"wtype": "Устройство лестничного марша", "unit": "м³", "rate": 38437.76}, {"wtype": "Устройство плиты перекрытия и ригеля", "unit": "м³", "rate": 38437.76}, {"wtype": "Устройство парапета", "unit": "м³", "rate": 38437.76}], "spots": [{"id": "spot_b48", "name": "Блок 48", "deadline": "2026-10-31", "started": "2026-05-20", "completed": null, "constructions": [{"wtype": "Устройство стен", "unit": "м³", "volume": 1027.4, "heights": "-0,100 ÷ +42,850"}, {"wtype": "Устройство лестничного марша", "unit": "м³", "volume": 28.6, "heights": "-0,100 ÷ +40,550"}, {"wtype": "Устройство плиты перекрытия и ригеля", "unit": "м³", "volume": 868.8, "heights": "+4,150 ÷ +40,550"}, {"wtype": "Устройство парапета", "unit": "м³", "volume": 14.1, "heights": "+41,650 ÷ +43,950"}]}, {"id": "spot_b49", "name": "Блок 49", "deadline": "2026-11-30", "started": "2026-05-25", "completed": null, "constructions": [{"wtype": "Устройство стен", "unit": "м³", "volume": 707.5, "heights": "-0,100 ÷ +32,950"}, {"wtype": "Устройство лестничного марша", "unit": "м³", "volume": 20.8, "heights": "-0,100 ÷ +30,650"}, {"wtype": "Устройство плиты перекрытия и ригеля", "unit": "м³", "volume": 619.1, "heights": "+4,150 ÷ +33,150"}, {"wtype": "Устройство парапета", "unit": "м³", "volume": 13.6, "heights": "+31,750 ÷ +34,050"}]}]}}, "settings": {"deadline": "2026-12-31", "totalVol": 48000, "norms": {"Армирование": 0.5, "Опалубка": 0.75, "Бетонирование": 3, "Комплекс": 0.9}, "startCash": 0, "startCashDate": ""}, "brigades": [{"id": "b1", "name": "Бригада Шынгыс", "obj": "ЖК «Алгабас», Мкр. Нуркент", "workers": 15, "prices": {"Армирование": 14000, "Опалубка+бетон": 12000}, "people": [], "attendance": {}}, {"id": "b2", "name": "Бригада Нурсултан", "obj": "ЖК «Алгабас», Мкр. Нуркент", "workers": 8, "prices": {"Армирование": 14000, "Опалубка+бетон": 12000}, "people": [], "attendance": {}}, {"id": "b1779712091656", "name": "Штатная", "obj": "ЖК «Алгабас», Мкр. Нуркент", "workers": 1, "prices": {"Армирование": 14000, "Опалубка+бетон": 12000}, "people": [], "attendance": {}}], "history": [{"action": "reset_to_clean_v3", "at": "2026-05-25T12:10:29.027Z", "entries": 45}, {"action": "add", "by": "editor", "at": "2026-05-25T12:15:55.747Z", "type": "advance", "amount": 100000}, {"action": "add", "by": "editor", "at": "2026-05-25T12:17:40.539Z", "type": "expense", "amount": 80000}, {"action": "add", "by": "editor", "at": "2026-05-25T12:25:33.313Z", "type": "advance", "amount": 840000, "source": "tg-confirmed"}, {"action": "add", "by": "editor", "at": "2026-05-25T12:25:33.314Z", "type": "vol", "amount": 0, "source": "tg-confirmed"}, {"action": "add", "by": "editor", "at": "2026-05-25T12:27:27.323Z", "type": "advance", "amount": 200000, "source": "tg-confirmed"}, {"action": "add", "by": "editor", "at": "2026-05-25T13:16:19.606Z", "type": "expense", "amount": 840000}, {"action": "edit", "by": "editor", "at": "2026-05-25T13:31:17.807Z", "type": "advance", "amount": 840000}], "weeks": [], "goalsDone": {}, "ks2": [], "kzDict": {}, "workTypes": ["Армирование", "Опалубка", "Бетонирование", "Демонтаж опалубки", "Комплекс монолит", "Штукатурка", "Стяжка пола", "Шпаклёвка", "Покраска", "Кладка кирпича", "Кладка блоков", "Гипсокартон", "Плитка", "Гидроизоляция", "Утепление фасада", "Электромонтаж", "Сантехника", "Сварочные работы", "Кровельные работы", "Разнорабочие", "Уборка", "Демонтаж", "Комплекс"], "kfu": [{"id": 1, "name": "Темп заливки", "owner": "Бекжан", "target": "150 м³/нед", "auto": "temp", "light": 1, "hist": []}, {"id": 2, "name": "Деньги от заказчика", "owner": "Евгений", "target": "оплата КС-2 ≤15 дней", "auto": "money", "light": 1, "hist": []}, {"id": 3, "name": "Качество", "owner": "Нурсултан", "target": "0 переделок", "auto": "quality", "light": 1, "hist": []}, {"id": 4, "name": "Закрытие КС-2", "owner": "Евгений", "target": "акт помесячно", "auto": "ks", "light": 1, "hist": []}, {"id": 5, "name": "Безопасность", "owner": "Бекжан", "target": "0 происшествий, все в СИЗ", "light": 2, "hist": []}], "entries": [{"id": 1001, "date": "2026-05-14", "type": "advance", "amount": 400000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "Выдал Бекжану наличными на расходы"}, {"id": 1002, "date": "2026-05-15", "type": "expense", "amount": 5000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Связь", "note": "Мобильный Бекжана — оплатил Дмитрий напрямую"}, {"id": 1003, "date": "2026-05-16", "type": "expense", "amount": 53100, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Административные", "note": "Смартфон и номер для финансовых операций"}, {"id": 1004, "date": "2026-05-16", "type": "expense", "amount": 150000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Аванс / зарплата рабочим", "brigade": "b1", "note": "Аванс Бригада Шынгыс — перевод"}, {"id": 1005, "date": "2026-05-16", "type": "expense", "amount": 100000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Аванс / зарплата рабочим", "brigade": "b1", "note": "Аванс Бригада Шынгыс — наличные"}, {"id": 1006, "date": "2026-05-16", "type": "expense", "amount": 20000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Транспорт", "note": "Такси Бригада Нурсултан до объекта"}, {"id": 1007, "date": "2026-05-16", "type": "advance", "amount": 20000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Евгений", "note": "Дал Евгению (личное)"}, {"id": 1008, "date": "2026-05-17", "type": "expense", "amount": 70000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Инструменты и инвентарь", "note": "Каски, жилеты, перчатки, диски, молоток, бур"}, {"id": 1009, "date": "2026-05-17", "type": "advance", "amount": 150000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "Выдал Бекжану наличными на расходы"}, {"id": 1010, "date": "2026-05-17", "type": "advance", "amount": 110000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "Проценты за Альфард — личный расход Бекжана"}, {"id": 1012, "date": "2026-05-18", "type": "expense", "amount": 20000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Аванс / зарплата рабочим", "brigade": "b1", "note": "Аванс бригада Шынгыс"}, {"id": 1013, "date": "2026-05-18", "type": "expense", "amount": 54000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Инструменты и инвентарь", "note": "Рации 3 шт × 18 000"}, {"id": 1014, "date": "2026-05-18", "type": "invest", "amount": 170000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "note": "Закинул на счёт компании для оплаты страховки"}, {"id": 1015, "date": "2026-05-18", "type": "expense", "amount": 158100, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "cash", "cat": "Административные", "note": "Страховка компании"}, {"id": 1016, "date": "2026-05-18", "type": "expense", "amount": 4500, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "cash", "cat": "Административные", "note": "Комиссия банка — Оплата К2"}, {"id": 1017, "date": "2026-05-18", "type": "expense", "amount": 1000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "cash", "cat": "Административные", "note": "Комиссия банка — ведение счёта"}, {"id": 1018, "date": "2026-05-18", "type": "expense", "amount": 1000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "cash", "cat": "Административные", "note": "Комиссия банка — Внешний перевод"}, {"id": 1019, "date": "2026-05-19", "type": "expense", "amount": 500000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Аванс / зарплата рабочим", "brigade": "b1", "note": "Аванс наличными бригада Шынгыс"}, {"id": 1020, "date": "2026-05-19", "type": "expense", "amount": 400000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Аванс / зарплата рабочим", "brigade": "b2", "note": "Аванс наличными бригада Нурсултан"}, {"id": 1021, "date": "2026-05-19", "type": "expense", "amount": 25135, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Административные", "note": "Обед с заказчиками"}, {"id": 1022, "date": "2026-05-19", "type": "expense", "amount": 2000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Административные", "note": "Напитки заказчики на объекте"}, {"id": 1023, "date": "2026-05-19", "type": "expense", "amount": 7000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "own", "cat": "Инструменты и инвентарь", "note": "Перчатки 2 пачки, молотки 2 шт"}, {"id": 1024, "date": "2026-05-19", "type": "advance", "amount": 198000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Евгений", "note": "Дал Евгению (личное)"}, {"id": 1025, "date": "2026-05-20", "type": "expense", "amount": 80000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Инструменты и инвентарь", "note": "Пояс монтажный 8 шт"}, {"id": 1026, "date": "2026-05-20", "type": "advance", "amount": 100000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "На расходы Бекжан"}, {"id": 1027, "date": "2026-05-21", "type": "expense", "amount": 65000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Инструменты и инвентарь", "note": "Перчатка, перфоратор, бензин"}, {"id": 1028, "date": "2026-05-21", "type": "advance", "amount": 100000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "Бекжану на расходы"}, {"id": 1029, "date": "2026-05-22", "type": "expense", "amount": 45000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Инструменты и инвентарь", "note": "Вибратор"}, {"id": 1030, "date": "2026-05-22", "type": "expense", "amount": 10000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Материалы", "note": "Дождевик 5 шт"}, {"id": 1031, "date": "2026-05-22", "type": "expense", "amount": 8000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Топливо", "note": "Заправка бензина"}, {"id": 1032, "date": "2026-05-22", "type": "advance", "amount": 10000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Нурсултан", "note": "Нурсултану на личные"}, {"id": 1033, "date": "2026-05-22", "type": "advance", "amount": 75000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "Бекжану на расход отправил"}, {"id": 1034, "date": "2026-05-23", "type": "expense", "amount": 15200, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Евгений", "paySource": "own", "cat": "Административные", "note": "Бургеры, кола, картофель фри"}, {"id": 1035, "date": "2026-05-23", "type": "advance", "amount": 100000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "На барана"}, {"id": 1036, "date": "2026-05-23", "type": "advance", "amount": 50000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Евгений", "to": "Бекжан", "note": "На барана, салаты, напитки"}, {"id": 1037, "date": "2026-05-23", "type": "advance", "amount": 60000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "На расход Шынгыс"}, {"id": 1038, "date": "2026-05-23", "type": "advance", "amount": 30000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "На расход разнорабочий"}, {"id": 1039, "date": "2026-05-23", "type": "expense", "amount": 10000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Топливо", "note": "Бензин"}, {"id": 1040, "date": "2026-05-23", "type": "advance", "amount": 25000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "На напитки"}, {"id": 1041, "date": "2026-05-23", "type": "expense", "amount": 26000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Питание", "note": "Картошка, яблоки, бананы, помидоры, огурцы"}, {"id": 1042, "date": "2026-05-23", "type": "expense", "amount": 105000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Питание", "note": "Баран"}, {"id": 1043, "date": "2026-05-23", "type": "expense", "amount": 3000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Транспорт", "note": "Такси"}, {"id": 1044, "date": "2026-05-23", "type": "expense", "amount": 34000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Питание", "note": "Напитки, пирожное, пирожки"}, {"id": 1045, "date": "2026-05-23", "type": "expense", "amount": 60000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Аванс / зарплата рабочим", "brigade": "b1", "note": "Аванс"}, {"id": 1046, "date": "2026-05-23", "type": "expense", "amount": 30000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Аванс / зарплата рабочим", "note": "Аванс разнорабочий"}, {"id": 1779711355747, "date": "2026-05-25", "type": "advance", "amount": 100000, "note": "Дал Бекжану аванс 100000 бригада Нурсултан", "from": "Дмитрий", "to": "Бекжан", "obj": "ЖК «Алгабас», Мкр. Нуркент"}, {"id": 1779711460539, "date": "2026-05-25", "type": "expense", "amount": 80000, "note": "Аванс", "obj": "ЖК «Алгабас», Мкр. Нуркент", "cat": "Аванс / зарплата рабочим", "who": "Бекжан", "paySource": "advance", "brigade": "b2"}, {"id": 1779711941102, "date": "2026-05-25", "amount": 840000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "note": "з/п за Блок 48 третий этаж отметка 7.550 стена Бригада Нурсултан", "source": "telegram", "tgAuthor": "Дмитрий Хегай", "type": "advance", "linkedId": "tg_lk1779711680923", "from": "Дмитрий", "to": "Бекжан"}, {"id": 1779711941097, "date": "2026-05-25", "amount": 0, "obj": "ЖК «Алгабас», Мкр. Нуркент", "note": "Залили 114,5 куб бетон", "source": "telegram", "tgAuthor": "Дмитрий Хегай", "type": "vol", "volume": 114.5, "unit": "м³", "wtype": "Бетонирование", "brigade": "b2", "amountPending": true, "linkedId": "tg_lk1779711680923"}, {"id": 1779712051286, "date": "2026-05-25", "amount": 200000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "note": "лично", "source": "telegram", "tgAuthor": "Дмитрий Хегай", "type": "advance", "from": "Дмитрий", "to": "Бекжан"}, {"id": 1779714979606, "date": "2026-05-25", "type": "expense", "amount": 840000, "note": "840000 нал Бекжану дал з/п за Блок 48 третий этаж отметка  7.550 стена Бригада Нурсултан залили 114,5 куб бетон остаток долга «54000» обьем больше получился 114,5 м3", "obj": "ЖК «Алгабас», Мкр. Нуркент", "cat": "Аванс / зарплата рабочим", "who": "Бекжан", "paySource": "advance", "brigade": "b2"}], "_schema": 3, "_resetAt": "2026-05-25T12:10:29.027Z", "_modified": 1779730299929, "_preloaded": true};
+var PRELOADED_DATA = {"objects": ["ЖК «Алгабас», Мкр. Нуркент"], "objMeta": {"ЖК «Алгабас», Мкр. Нуркент": {"customer": "Sensata Group", "rates": {}, "custRates": [{"wtype": "Устройство стен", "unit": "м³", "rate": 38437.76}, {"wtype": "Устройство лестничного марша", "unit": "м³", "rate": 38437.76}, {"wtype": "Устройство плиты перекрытия и ригеля", "unit": "м³", "rate": 38437.76}, {"wtype": "Устройство парапета", "unit": "м³", "rate": 38437.76}], "spots": [{"id": "spot_b48", "name": "Блок 48", "deadline": "2026-10-31", "started": "2026-05-20", "completed": null, "constructions": [{"wtype": "Устройство стен", "unit": "м³", "volume": 1027.4, "heights": "-0,100 ÷ +42,850"}, {"wtype": "Устройство лестничного марша", "unit": "м³", "volume": 28.6, "heights": "-0,100 ÷ +40,550"}, {"wtype": "Устройство плиты перекрытия и ригеля", "unit": "м³", "volume": 868.8, "heights": "+4,150 ÷ +40,550"}, {"wtype": "Устройство парапета", "unit": "м³", "volume": 14.1, "heights": "+41,650 ÷ +43,950"}]}, {"id": "spot_b49", "name": "Блок 49", "deadline": "2026-11-30", "started": "2026-05-25", "completed": null, "constructions": [{"wtype": "Устройство стен", "unit": "м³", "volume": 707.5, "heights": "-0,100 ÷ +32,950"}, {"wtype": "Устройство лестничного марша", "unit": "м³", "volume": 20.8, "heights": "-0,100 ÷ +30,650"}, {"wtype": "Устройство плиты перекрытия и ригеля", "unit": "м³", "volume": 619.1, "heights": "+4,150 ÷ +33,150"}, {"wtype": "Устройство парапета", "unit": "м³", "volume": 13.6, "heights": "+31,750 ÷ +34,050"}]}]}}, "settings": {"deadline": "2026-12-31", "totalVol": 48000, "norms": {"Армирование": 0.5, "Опалубка": 0.75, "Бетонирование": 3, "Комплекс": 0.9}, "startCash": 0, "startCashDate": ""}, "brigades": [{"id": "b1", "name": "Бригада Шынгыс", "obj": "ЖК «Алгабас», Мкр. Нуркент", "workers": 15, "prices": {"Армирование": 14000, "Опалубка+бетон": 12000}, "people": [], "attendance": {}}, {"id": "b2", "name": "Бригада Нурсултан", "obj": "ЖК «Алгабас», Мкр. Нуркент", "workers": 8, "prices": {"Армирование": 14000, "Опалубка+бетон": 12000}, "people": [], "attendance": {}}, {"id": "b1779712091656", "name": "Штатная", "obj": "ЖК «Алгабас», Мкр. Нуркент", "workers": 1, "prices": {"Армирование": 14000, "Опалубка+бетон": 12000}, "people": [], "attendance": {}}], "history": [{"action": "reset_to_clean_v3", "at": "2026-05-25T12:10:29.027Z", "entries": 45}, {"action": "add", "by": "editor", "at": "2026-05-25T12:15:55.747Z", "type": "advance", "amount": 100000}, {"action": "add", "by": "editor", "at": "2026-05-25T12:17:40.539Z", "type": "expense", "amount": 80000}, {"action": "add", "by": "editor", "at": "2026-05-25T12:25:33.313Z", "type": "advance", "amount": 840000, "source": "tg-confirmed"}, {"action": "add", "by": "editor", "at": "2026-05-25T12:25:33.314Z", "type": "vol", "amount": 0, "source": "tg-confirmed"}, {"action": "add", "by": "editor", "at": "2026-05-25T12:27:27.323Z", "type": "advance", "amount": 200000, "source": "tg-confirmed"}, {"action": "add", "by": "editor", "at": "2026-05-25T13:16:19.606Z", "type": "expense", "amount": 840000}, {"action": "edit", "by": "editor", "at": "2026-05-25T13:31:17.807Z", "type": "advance", "amount": 840000}], "weeks": [], "goalsDone": {}, "ks2": [], "kzDict": {}, "workTypes": ["Армирование", "Опалубка", "Бетонирование", "Демонтаж опалубки", "Комплекс монолит", "Штукатурка", "Стяжка пола", "Шпаклёвка", "Покраска", "Кладка кирпича", "Кладка блоков", "Гипсокартон", "Плитка", "Гидроизоляция", "Утепление фасада", "Электромонтаж", "Сантехника", "Сварочные работы", "Кровельные работы", "Разнорабочие", "Уборка", "Демонтаж", "Комплекс"], "kfu": [{"id": 1, "name": "Темп заливки", "owner": "Бекжан", "target": "150 м³/нед", "auto": "temp", "light": 1, "hist": []}, {"id": 2, "name": "Деньги от заказчика", "owner": "Евгений", "target": "оплата КС-2 ≤15 дней", "auto": "money", "light": 1, "hist": []}, {"id": 3, "name": "Качество", "owner": "Нурсултан", "target": "0 переделок", "auto": "quality", "light": 1, "hist": []}, {"id": 4, "name": "Закрытие КС-2", "owner": "Евгений", "target": "акт помесячно", "auto": "ks", "light": 1, "hist": []}, {"id": 5, "name": "Безопасность", "owner": "Бекжан", "target": "0 происшествий, все в СИЗ", "light": 2, "hist": []}], "entries": [{"id": 1001, "date": "2026-05-14", "type": "advance", "amount": 400000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "Выдал Бекжану наличными на расходы"}, {"id": 1002, "date": "2026-05-15", "type": "expense", "amount": 5000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Связь", "note": "Мобильный Бекжана — оплатил Дмитрий напрямую"}, {"id": 1003, "date": "2026-05-16", "type": "expense", "amount": 53100, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Административные", "note": "Смартфон и номер для финансовых операций"}, {"id": 1004, "date": "2026-05-16", "type": "expense", "amount": 150000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Аванс / зарплата рабочим", "brigade": "b1", "note": "Аванс Бригада Шынгыс — перевод"}, {"id": 1005, "date": "2026-05-16", "type": "expense", "amount": 100000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Аванс / зарплата рабочим", "brigade": "b1", "note": "Аванс Бригада Шынгыс — наличные"}, {"id": 1006, "date": "2026-05-16", "type": "expense", "amount": 20000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Транспорт", "note": "Такси Бригада Нурсултан до объекта"}, {"id": 1007, "date": "2026-05-16", "type": "advance", "amount": 20000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Евгений", "note": "Дал Евгению (личное)"}, {"id": 1008, "date": "2026-05-17", "type": "expense", "amount": 70000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Инструменты и инвентарь", "note": "Каски, жилеты, перчатки, диски, молоток, бур"}, {"id": 1009, "date": "2026-05-17", "type": "advance", "amount": 150000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "Выдал Бекжану наличными на расходы"}, {"id": 1010, "date": "2026-05-17", "type": "advance", "amount": 110000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "Проценты за Альфард — личный расход Бекжана"}, {"id": 1012, "date": "2026-05-18", "type": "expense", "amount": 20000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Аванс / зарплата рабочим", "brigade": "b1", "note": "Аванс бригада Шынгыс"}, {"id": 1013, "date": "2026-05-18", "type": "expense", "amount": 54000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Инструменты и инвентарь", "note": "Рации 3 шт × 18 000"}, {"id": 1014, "date": "2026-05-18", "type": "invest", "amount": 170000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "note": "Закинул на счёт компании для оплаты страховки"}, {"id": 1015, "date": "2026-05-18", "type": "expense", "amount": 158100, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "cash", "cat": "Административные", "note": "Страховка компании"}, {"id": 1016, "date": "2026-05-18", "type": "expense", "amount": 4500, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "cash", "cat": "Административные", "note": "Комиссия банка — Оплата К2"}, {"id": 1017, "date": "2026-05-18", "type": "expense", "amount": 1000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "cash", "cat": "Административные", "note": "Комиссия банка — ведение счёта"}, {"id": 1018, "date": "2026-05-18", "type": "expense", "amount": 1000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "cash", "cat": "Административные", "note": "Комиссия банка — Внешний перевод"}, {"id": 1019, "date": "2026-05-19", "type": "expense", "amount": 500000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Аванс / зарплата рабочим", "brigade": "b1", "note": "Аванс наличными бригада Шынгыс"}, {"id": 1020, "date": "2026-05-19", "type": "expense", "amount": 400000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Аванс / зарплата рабочим", "brigade": "b2", "note": "Аванс наличными бригада Нурсултан"}, {"id": 1021, "date": "2026-05-19", "type": "expense", "amount": 25135, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Административные", "note": "Обед с заказчиками"}, {"id": 1022, "date": "2026-05-19", "type": "expense", "amount": 2000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Административные", "note": "Напитки заказчики на объекте"}, {"id": 1023, "date": "2026-05-19", "type": "expense", "amount": 7000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "own", "cat": "Инструменты и инвентарь", "note": "Перчатки 2 пачки, молотки 2 шт"}, {"id": 1024, "date": "2026-05-19", "type": "advance", "amount": 198000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Евгений", "note": "Дал Евгению (личное)"}, {"id": 1025, "date": "2026-05-20", "type": "expense", "amount": 80000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Инструменты и инвентарь", "note": "Пояс монтажный 8 шт"}, {"id": 1026, "date": "2026-05-20", "type": "advance", "amount": 100000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "На расходы Бекжан"}, {"id": 1027, "date": "2026-05-21", "type": "expense", "amount": 65000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Инструменты и инвентарь", "note": "Перчатка, перфоратор, бензин"}, {"id": 1028, "date": "2026-05-21", "type": "advance", "amount": 100000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "Бекжану на расходы"}, {"id": 1029, "date": "2026-05-22", "type": "expense", "amount": 45000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Инструменты и инвентарь", "note": "Вибратор"}, {"id": 1030, "date": "2026-05-22", "type": "expense", "amount": 10000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Материалы", "note": "Дождевик 5 шт"}, {"id": 1031, "date": "2026-05-22", "type": "expense", "amount": 8000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Топливо", "note": "Заправка бензина"}, {"id": 1032, "date": "2026-05-22", "type": "advance", "amount": 10000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Нурсултан", "note": "Нурсултану на личные"}, {"id": 1033, "date": "2026-05-22", "type": "advance", "amount": 75000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "Бекжану на расход отправил"}, {"id": 1034, "date": "2026-05-23", "type": "expense", "amount": 15200, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Евгений", "paySource": "advance", "cat": "Административные", "note": "Бургеры, кола, картофель фри (из подотчётных)"}, {"id": 1035, "date": "2026-05-23", "type": "advance", "amount": 100000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "На барана"}, {"id": 1036, "date": "2026-05-23", "type": "advance", "amount": 50000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Евгений", "to": "Бекжан", "note": "На барана, салаты, напитки"}, {"id": 1037, "date": "2026-05-23", "type": "advance", "amount": 60000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "На расход Шынгыс"}, {"id": 1038, "date": "2026-05-23", "type": "advance", "amount": 30000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "На расход разнорабочий"}, {"id": 1039, "date": "2026-05-23", "type": "expense", "amount": 10000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Топливо", "note": "Бензин"}, {"id": 1040, "date": "2026-05-23", "type": "advance", "amount": 25000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "На напитки"}, {"id": 1041, "date": "2026-05-23", "type": "expense", "amount": 26000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Питание", "note": "Картошка, яблоки, бананы, помидоры, огурцы"}, {"id": 1042, "date": "2026-05-23", "type": "expense", "amount": 105000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Питание", "note": "Баран"}, {"id": 1043, "date": "2026-05-23", "type": "expense", "amount": 3000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Транспорт", "note": "Такси"}, {"id": 1044, "date": "2026-05-23", "type": "expense", "amount": 34000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Питание", "note": "Напитки, пирожное, пирожки"}, {"id": 1045, "date": "2026-05-23", "type": "expense", "amount": 60000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Аванс / зарплата рабочим", "brigade": "b1", "note": "Аванс"}, {"id": 1046, "date": "2026-05-23", "type": "expense", "amount": 30000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Аванс / зарплата рабочим", "note": "Аванс разнорабочий"}, {"id": 1779711355747, "date": "2026-05-25", "type": "advance", "amount": 100000, "note": "Дал Бекжану аванс 100000 бригада Нурсултан", "from": "Дмитрий", "to": "Бекжан", "obj": "ЖК «Алгабас», Мкр. Нуркент"}, {"id": 1779711460539, "date": "2026-05-25", "type": "expense", "amount": 80000, "note": "Аванс", "obj": "ЖК «Алгабас», Мкр. Нуркент", "cat": "Аванс / зарплата рабочим", "who": "Бекжан", "paySource": "advance", "brigade": "b2"}, {"id": 1779711941102, "date": "2026-05-25", "amount": 840000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "note": "з/п за Блок 48 третий этаж отметка 7.550 стена Бригада Нурсултан", "source": "telegram", "tgAuthor": "Дмитрий Хегай", "type": "advance", "linkedId": "tg_lk1779711680923", "from": "Дмитрий", "to": "Бекжан"}, {"id": 1779711941097, "date": "2026-05-25", "amount": 0, "obj": "ЖК «Алгабас», Мкр. Нуркент", "note": "Залили 114,5 куб бетон", "source": "telegram", "tgAuthor": "Дмитрий Хегай", "type": "vol", "volume": 114.5, "unit": "м³", "wtype": "Бетонирование", "brigade": "b2", "amountPending": true, "linkedId": "tg_lk1779711680923"}, {"id": 1779712051286, "date": "2026-05-25", "amount": 200000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "note": "лично", "source": "telegram", "tgAuthor": "Дмитрий Хегай", "type": "advance", "from": "Дмитрий", "to": "Бекжан"}, {"id": 1779714979606, "date": "2026-05-25", "type": "expense", "amount": 840000, "note": "840000 нал Бекжану дал з/п за Блок 48 третий этаж отметка  7.550 стена Бригада Нурсултан залили 114,5 куб бетон остаток долга «54000» обьем больше получился 114,5 м3", "obj": "ЖК «Алгабас», Мкр. Нуркент", "cat": "Аванс / зарплата рабочим", "who": "Бекжан", "paySource": "advance", "brigade": "b2"}], "_schema": 3, "_resetAt": "2026-05-25T12:10:29.027Z", "_modified": 1779879777564, "_preloaded": true};
 
 // loadLocal — БЕЗОПАСНАЯ загрузка
 // ПРАВИЛО: локальные данные ВСЕГДА главнее встроенных в файл
@@ -2197,24 +2222,56 @@ function loadLocal(){
   try{
     var s = localStorage.getItem('lg_v9');
     if(!s || s === 'null' || s === '{}'){
-      // Только если localStorage пустой — берём встроенные данные
       console.log('[loadLocal] localStorage пустой → используем встроенные данные');
+      _saveSourceLog('preloaded-empty-local', PRELOADED_DATA);
       return PRELOADED_DATA;
     }
     var local = JSON.parse(s);
-    if(!local || !local.entries){
-      // Битые данные в localStorage — берём встроенные
+    if(!local || !local.entries || !Array.isArray(local.entries)){
       console.log('[loadLocal] Битые данные в localStorage → используем встроенные');
+      _saveSourceLog('preloaded-broken-local', PRELOADED_DATA);
       return PRELOADED_DATA;
     }
-    // ЛОКАЛЬНЫЕ ДАННЫЕ ВСЕГДА В ПРИОРИТЕТЕ. Встроенные данные больше НЕ затирают локальные.
-    // Свежие данные подтянутся из облака через pullCloud, если они там есть.
-    console.log('[loadLocal] Используем локальные данные ('+local.entries.length+' записей, '+(local.brigades||[]).length+' бригад)');
+    
+    // === НОВАЯ ЛОГИКА: сравнение по времени ===
+    var localTime = local._modified || 0;
+    var preloadedTime = PRELOADED_DATA._modified || 0;
+    
+    // PRELOADED НОВЕЕ локальных → встроенные данные обновлены, берём их
+    // (это значит мы обновили версию приложения с новыми эталонными данными)
+    if(preloadedTime > localTime + 60000){ // +60 сек запас на округление
+      console.log('[loadLocal] 🔄 PRELOADED новее localStorage ('+new Date(preloadedTime).toLocaleString()+' vs '+new Date(localTime).toLocaleString()+') → обновляем');
+      // Сохраним резервную копию старых локальных данных
+      try { localStorage.setItem('lg_v9_backup_'+Date.now(), s); } catch(e){}
+      _saveSourceLog('preloaded-newer', PRELOADED_DATA);
+      // Сразу запишем PRELOADED в localStorage чтобы не повторять
+      try { localStorage.setItem('lg_v9', JSON.stringify(PRELOADED_DATA)); } catch(e){}
+      return PRELOADED_DATA;
+    }
+    
+    // Локальные данные актуальны
+    console.log('[loadLocal] ✓ Локальные данные актуальны ('+local.entries.length+' записей, _modified='+new Date(localTime).toLocaleString()+')');
+    _saveSourceLog('local', local);
     return local;
   }catch(e){
     console.log('[loadLocal] Ошибка чтения localStorage:', e.message);
+    _saveSourceLog('preloaded-error', PRELOADED_DATA);
     return (typeof PRELOADED_DATA !== 'undefined') ? PRELOADED_DATA : defState();
   }
+}
+
+// Лог откуда взяли данные (для диагностики)
+function _saveSourceLog(source, data){
+  try {
+    var info = {
+      source: source,
+      at: Date.now(),
+      entries: (data.entries||[]).length,
+      modified: data._modified || 0,
+      cashCalc: 0
+    };
+    localStorage.setItem('lg_data_source', JSON.stringify(info));
+  } catch(e){}
 }
 function persist(){try{localStorage.setItem('lg_v9',JSON.stringify(S));}catch(e){}}
 // Ограничение размера S.history — не более 500 последних записей
@@ -7841,53 +7898,95 @@ function rPartners(){
   });
   
   // Считаем итоговый баланс для каждого партнёра
+  // ПРАВИЛЬНАЯ ФОРМУЛА (как в отчёте LIONGATE):
+  // Компания должна = (вложил) + (из своих) + (отдал под отчёт другим) − (выплачено ему)
+  // Партнёр должен = (получил под отчёт) − (потратил под отчёт) − (передал дальше другому)
+  //
+  // ВАЖНО: когда Дмитрий передаёт Бекжану 100к под отчёт,
+  //   • Дмитрию +100к в "профинансировал" (advanceOut)
+  //   • Бекжану +100к в "должен компании" (advanceIn)
+  // Когда Бекжан тратит 80к — он гасит свой долг компании.
   partners.forEach(function(p){
     var d = P[p];
-    // Компания должна партнёру = (вложил + из своих) − (выплачено)
-    d.debtFromCompany = d.invested + d.ownPaid - d.payouts;
-    // Партнёр должен компании = (получил под отчёт) − (потратил под отчёт) − (отдал под отчёт обратно)
-    d.debtToCompany = Math.max(0, d.advanceIn - d.spentAdv - d.advanceOut);
-    // Чистый баланс (+ = к получению партнёром, - = должен компании)
+    // Компания должна партнёру = (вложил_в_кассу) + (из_своих) + (отдал_другим_под_отчёт) − (получил_выплаты)
+    d.debtFromCompany = d.invested + d.ownPaid + d.advanceOut - d.payouts;
+    // Партнёр должен компании = (получил_под_отчёт) − (потратил_из_подотчёта)
+    d.debtToCompany = Math.max(0, d.advanceIn - d.spentAdv);
+    // Чистый баланс (+ = к получению, - = должен)
     d.netBalance = d.debtFromCompany - d.debtToCompany;
-    d.totalActivity = d.invested + d.ownPaid + d.advanceIn + d.spentAdv + d.payouts;
+    d.totalActivity = d.invested + d.ownPaid + d.advanceIn + d.spentAdv + d.payouts + d.advanceOut;
   });
   
   // ============= ОБЩАЯ СВОДКА =============
-  var totalInvested = partners.reduce(function(s,p){return s+P[p].invested;},0);
-  var totalOwnPaid  = partners.reduce(function(s,p){return s+P[p].ownPaid;},0);
+  // Общая статистика
+  var totalContributed = partners.reduce(function(s,p){return s+P[p].invested+P[p].ownPaid+P[p].advanceOut;},0);
   var totalDebtFromCompany = partners.reduce(function(s,p){return s+Math.max(0, P[p].netBalance);},0);
   var totalDebtToCompany = partners.reduce(function(s,p){return s+Math.max(0, -P[p].netBalance);},0);
+  var totalCashIn = partners.reduce(function(s,p){return s+P[p].invested;},0);
+  var totalOwnPaid = partners.reduce(function(s,p){return s+P[p].ownPaid;},0);
+  var totalAdvanced = partners.reduce(function(s,p){return s+P[p].advanceOut;},0);
   
-  h += '<div style="background:linear-gradient(135deg,#161b22,#0d1117);border:1.5px solid var(--gold);border-radius:18px;padding:16px;margin-bottom:18px;position:relative;overflow:hidden">';
+  h += '<div style="background:linear-gradient(135deg,#161b22,#0d1117);border:1.5px solid var(--gold);border-radius:18px;padding:18px;margin-bottom:18px;position:relative;overflow:hidden">';
   h += '<div style="position:absolute;top:-30px;right:-30px;width:120px;height:120px;background:radial-gradient(circle,rgba(240,165,0,.12),transparent);border-radius:50%"></div>';
   h += '<div style="position:relative">';
   h += '<div style="font-size:13px;color:var(--mut);letter-spacing:2px;font-weight:800;margin-bottom:14px">📊 ОБЩАЯ КАРТИНА</div>';
   
-  h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">';
+  // 2 большие карточки: ВЛОЖЕНО ВСЕГО / БАЛАНС РАСЧЁТОВ
+  h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">';
   
-  h += '<div style="background:rgba(63,185,80,.08);border:1px solid rgba(63,185,80,.30);border-radius:12px;padding:12px">';
-  h += '<div style="font-size:11px;color:var(--mut);letter-spacing:1.5px;font-weight:700">ВЛОЖЕНО В КАССУ</div>';
-  h += '<div style="font-size:22px;color:#7ee787;font-weight:800;margin-top:4px">'+fmt(totalInvested)+' ₸</div>';
+  var netDebt = totalDebtFromCompany - totalDebtToCompany;
+  var debtColor = netDebt > 0 ? '#ffd166' : '#7ee787';
+  
+  // === Симметричные карточки одинаковой высоты ===
+  // flex-column + justify-content:space-between делает их одинаковыми
+  
+  // Карточка 1: ВЛОЖЕНО В КОМПАНИЮ
+  h += '<div style="background:rgba(63,185,80,.10);border:1.5px solid rgba(63,185,80,.40);border-radius:14px;padding:14px;display:flex;flex-direction:column;justify-content:space-between;min-height:130px">';
+  h += '<div>';
+  h += '<div style="font-size:12px;color:#7ee787;letter-spacing:1.5px;font-weight:700;line-height:1.3">💼 ВЛОЖЕНО<br>В КОМПАНИЮ</div>';
+  h += '</div>';
+  h += '<div>';
+  h += '<div style="font-size:22px;color:#7ee787;font-weight:800;line-height:1.1;white-space:nowrap">'+fmt(totalContributed)+'</div>';
+  h += '<div style="font-size:11px;color:var(--mut);margin-top:4px">всеми партнёрами</div>';
+  h += '</div>';
   h += '</div>';
   
-  h += '<div style="background:rgba(88,166,255,.08);border:1px solid rgba(88,166,255,.30);border-radius:12px;padding:12px">';
-  h += '<div style="font-size:11px;color:var(--mut);letter-spacing:1.5px;font-weight:700">ИЗ СВОИХ</div>';
-  h += '<div style="font-size:22px;color:#58a6ff;font-weight:800;margin-top:4px">'+fmt(totalOwnPaid)+' ₸</div>';
+  // Карточка 2: КОМПАНИЯ ДОЛЖНА
+  h += '<div style="background:rgba(255,179,32,.10);border:1.5px solid rgba(255,179,32,.40);border-radius:14px;padding:14px;display:flex;flex-direction:column;justify-content:space-between;min-height:130px">';
+  h += '<div>';
+  h += '<div style="font-size:12px;color:#ffd166;letter-spacing:1.5px;font-weight:700;line-height:1.3">💸 КОМПАНИЯ<br>ДОЛЖНА</div>';
   h += '</div>';
-  
-  h += '<div style="background:rgba(255,179,32,.08);border:1px solid rgba(255,179,32,.30);border-radius:12px;padding:12px">';
-  h += '<div style="font-size:11px;color:var(--mut);letter-spacing:1.5px;font-weight:700">КОМПАНИЯ ДОЛЖНА</div>';
-  h += '<div style="font-size:22px;color:#ffd166;font-weight:800;margin-top:4px">'+fmt(totalDebtFromCompany)+' ₸</div>';
-  h += '<div style="font-size:12px;color:var(--mut);margin-top:2px">партнёрам</div>';
+  h += '<div>';
+  h += '<div style="font-size:22px;color:'+debtColor+';font-weight:800;line-height:1.1;white-space:nowrap">'+fmt(Math.abs(netDebt))+'</div>';
+  h += '<div style="font-size:11px;color:var(--mut);margin-top:4px">после взаимозачёта</div>';
   h += '</div>';
-  
-  h += '<div style="background:rgba(255,123,114,.08);border:1px solid rgba(255,123,114,.30);border-radius:12px;padding:12px">';
-  h += '<div style="font-size:11px;color:var(--mut);letter-spacing:1.5px;font-weight:700">ДОЛЖНЫ КОМПАНИИ</div>';
-  h += '<div style="font-size:22px;color:#ff7b72;font-weight:800;margin-top:4px">'+fmt(totalDebtToCompany)+' ₸</div>';
-  h += '<div style="font-size:12px;color:var(--mut);margin-top:2px">партнёры</div>';
   h += '</div>';
   
   h += '</div>';
+  
+  // Детализация — 3 колонки одинаковой ширины
+  h += '<div style="background:rgba(255,255,255,.02);border-radius:10px;padding:12px;margin-top:10px">';
+  h += '<div style="font-size:10px;color:var(--mut);letter-spacing:1px;font-weight:700;margin-bottom:8px">ИЗ НИХ:</div>';
+  h += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;font-size:12px;text-align:center">';
+  
+  h += '<div>';
+  h += '<div style="color:var(--mut);font-size:10px;margin-bottom:3px">в кассу</div>';
+  h += '<div style="color:#7ee787;font-weight:700;font-size:13px">'+fmt(totalCashIn)+'</div>';
+  h += '</div>';
+  
+  h += '<div>';
+  h += '<div style="color:var(--mut);font-size:10px;margin-bottom:3px">из своих</div>';
+  h += '<div style="color:#58a6ff;font-weight:700;font-size:13px">'+fmt(totalOwnPaid)+'</div>';
+  h += '</div>';
+  
+  h += '<div>';
+  h += '<div style="color:var(--mut);font-size:10px;margin-bottom:3px">передано</div>';
+  h += '<div style="color:#ffa657;font-weight:700;font-size:13px">'+fmt(totalAdvanced)+'</div>';
+  h += '</div>';
+  
+  h += '</div>';
+  h += '</div>';
+  
   
   // Информация о долях
   h += '<div style="margin-top:14px;padding:10px 12px;background:rgba(255,255,255,.03);border-radius:10px;display:flex;justify-content:space-between;align-items:center">';
@@ -7904,67 +8003,190 @@ function rPartners(){
     var d = P[p];
     var pcolor = partnerColors[p] || '#8b949e';
     
-    // Карточка
-    h += '<div onclick="window.openPartnerDetails && window.openPartnerDetails(\''+p+'\')" style="background:#161b22;border:1.5px solid '+pcolor+'40;border-radius:16px;padding:14px;margin-bottom:12px;cursor:pointer;transition:all .2s" ontouchstart="this.style.background=\'#21262d\'" ontouchend="this.style.background=\'#161b22\'">';
+    // Определим роль
+    var isInvestor = d.invested + d.ownPaid + d.advanceOut > 100000;
+    var isContractor = d.advanceIn > 100000;
+    var roleLabel = '';
+    var roleIcon = '';
+    if(isInvestor && !isContractor){
+      roleIcon = '💎'; roleLabel = 'Инвестор';
+    } else if(isContractor && !isInvestor){
+      roleIcon = '👷'; roleLabel = 'Исполнитель';
+    } else if(isContractor && isInvestor){
+      roleIcon = '⚡'; roleLabel = 'Инвестор + Исп.';
+    } else {
+      roleIcon = '👤'; roleLabel = 'Партнёр';
+    }
     
-    // Шапка с аватаром и итогом
-    h += '<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">';
+    // === ИСПРАВЛЕННАЯ ФОРМУЛА ===
+    // ВЛОЖИЛ — только СВОИ деньги:
+    //   • вложил в кассу (invested)
+    //   • заплатил из своих (ownPaid)
+    //   • передал под отчёт другим ИЗ СВОИХ (только если не из подотчётных)
+    //     = max(0, advanceOut - advanceIn)
+    // Если partner сначала получил Z под отчёт, потом передал Y дальше:
+    //   • если Y ≤ Z — все Y это чужие подотчётные (прокинул)
+    //   • если Y > Z — излишек (Y - Z) это его свои деньги
+    var ownAdvanceOut = Math.max(0, d.advanceOut - d.advanceIn);  // передал из своих
+    var passThroughAdv = Math.min(d.advanceOut, d.advanceIn);     // прокинул чужое
+    var totalIn = d.invested + d.ownPaid + ownAdvanceOut;
+    
+    // ОТЧИТАЛСЯ — что сделал с подотчётными деньгами:
+    //   • потратил по делу (spentAdv)
+    //   • передал дальше (passThroughAdv — это уже не на нём)
+    var totalReported = d.spentAdv + passThroughAdv;
+    var toReport = Math.max(0, d.advanceIn - totalReported);
+    var reportPct = d.advanceIn > 0 ? Math.round((totalReported/d.advanceIn)*100) : 0;
+    
+    // Сколько вернуть партнёру (только его реальные деньги минус выплаты)
+    var toReturn = totalIn - d.payouts;
+    
+    // Проверим прибыль компании для блока 70/30
+    var companyProfit = (typeof C !== 'undefined' && C.profit) ? C.profit : 0;
+    var partnerShare = companyProfit > 0 ? companyProfit * 0.20 : 0; // 20% от прибыли
+    var reinvest = partnerShare * 0.7;
+    var inPocket = partnerShare * 0.3;
+    
+    // === КАРТОЧКА ===
+    h += '<div onclick="window.openPartnerDetails && window.openPartnerDetails(\''+p+'\')" style="background:#161b22;border:1.5px solid '+pcolor+'40;border-radius:18px;padding:18px;margin-bottom:14px;cursor:pointer;transition:all .2s" ontouchstart="this.style.background=\'#21262d\'" ontouchend="this.style.background=\'#161b22\'">';
+    
+    // Шапка: аватар + имя + роль
+    h += '<div style="display:flex;align-items:center;gap:14px;margin-bottom:16px">';
     
     // Аватар
-    h += '<div style="width:48px;height:48px;border-radius:50%;background:'+pcolor+'20;border:2px solid '+pcolor+';display:flex;align-items:center;justify-content:center;flex-shrink:0">';
+    h += '<div style="width:56px;height:56px;border-radius:50%;background:'+pcolor+'20;border:2px solid '+pcolor+';display:flex;align-items:center;justify-content:center;flex-shrink:0">';
     h += '<div style="font-size:26px;color:'+pcolor+';font-weight:800">'+p.charAt(0)+'</div>';
     h += '</div>';
     
-    // Имя и активность
+    // Имя + роль
     h += '<div style="flex:1;min-width:0">';
     h += '<div style="font-size:19px;color:'+pcolor+';font-weight:800">'+p+'</div>';
-    h += '<div style="font-size:13px;color:var(--mut);margin-top:2px">'+d.entries.length+' операций · 20% доля</div>';
-    h += '</div>';
-    
-    // Итоговый баланс
-    var balColor = d.netBalance > 0 ? '#7ee787' : d.netBalance < 0 ? '#ff7b72' : '#8b949e';
-    var balLabel = d.netBalance > 0 ? 'к получению' : d.netBalance < 0 ? 'должен' : '0';
-    h += '<div style="text-align:right">';
-    h += '<div style="font-size:19px;color:'+balColor+';font-weight:800;line-height:1">'+(d.netBalance >= 0 ? '+' : '')+fmt(d.netBalance)+'</div>';
-    h += '<div style="font-size:11px;color:var(--mut);letter-spacing:1px;font-weight:700;margin-top:3px">'+balLabel.toUpperCase()+'</div>';
+    h += '<div style="font-size:12px;color:var(--mut);margin-top:3px">'+roleIcon+' '+roleLabel+' · 20% доля</div>';
     h += '</div>';
     
     h += '</div>';
     
-    // 4 ключевые цифры
-    h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">';
-    
-    h += '<div style="background:#0d1117;border-radius:8px;padding:8px 10px">';
-    h += '<div style="font-size:11px;color:var(--mut);letter-spacing:1px;font-weight:700">💼 ВЛОЖИЛ</div>';
-    h += '<div style="font-size:15px;color:#e6edf3;font-weight:800;margin-top:2px">'+fmt(d.invested)+'</div>';
+    // === 1. ВЛОЖИЛ В КОМПАНИЮ — главная карточка ===
+    h += '<div style="background:#0d1117;border:1px solid rgba(63,185,80,.30);border-radius:12px;padding:12px;margin-bottom:10px">';
+    h += '<div style="font-size:11px;color:#7ee787;letter-spacing:1.5px;font-weight:700;margin-bottom:6px">💼 ВЛОЖИЛ В КОМПАНИЮ</div>';
+    h += '<div style="font-size:24px;color:#7ee787;font-weight:800;line-height:1;white-space:nowrap">'+fmt(totalIn)+'</div>';
+    if(totalIn > 0){
+      var parts = [];
+      if(d.invested > 0) parts.push('в кассу: '+fmt(d.invested));
+      if(d.ownPaid > 0) parts.push('из своих: '+fmt(d.ownPaid));
+      if(ownAdvanceOut > 0) parts.push('передал: '+fmt(ownAdvanceOut));
+      h += '<div style="font-size:11px;color:var(--mut);margin-top:6px">'+parts.join(' · ')+'</div>';
+    }
     h += '</div>';
     
-    h += '<div style="background:#0d1117;border-radius:8px;padding:8px 10px">';
-    h += '<div style="font-size:11px;color:var(--mut);letter-spacing:1px;font-weight:700">💳 ИЗ СВОИХ</div>';
-    h += '<div style="font-size:15px;color:#e6edf3;font-weight:800;margin-top:2px">'+fmt(d.ownPaid)+'</div>';
+    // === БЛОК: ПОЛУЧИЛ ВЫПЛАТЫ (всегда) ===
+    h += '<div style="background:#0d1117;border:1px solid rgba(255,179,32,.30);border-radius:12px;padding:12px;margin-bottom:10px">';
+    h += '<div style="font-size:11px;color:#ffd166;letter-spacing:1.5px;font-weight:700;margin-bottom:6px">💸 ПОЛУЧИЛ ВЫПЛАТЫ</div>';
+    h += '<div style="font-size:24px;color:'+(d.payouts>0?'#ffd166':'#8b949e')+';font-weight:800;line-height:1;white-space:nowrap">'+fmt(d.payouts)+'</div>';
+    if(d.payouts === 0){
+      h += '<div style="font-size:11px;color:var(--mut);margin-top:4px">пока не было выплат</div>';
+    }
     h += '</div>';
     
-    h += '<div style="background:#0d1117;border-radius:8px;padding:8px 10px">';
-    h += '<div style="font-size:11px;color:var(--mut);letter-spacing:1px;font-weight:700">📥 ВЗЯЛ ПОД ОТЧЁТ</div>';
-    h += '<div style="font-size:15px;color:#e6edf3;font-weight:800;margin-top:2px">'+fmt(d.advanceIn)+'</div>';
-    h += '</div>';
-    
-    h += '<div style="background:#0d1117;border-radius:8px;padding:8px 10px">';
-    h += '<div style="font-size:11px;color:var(--mut);letter-spacing:1px;font-weight:700">📤 ОТЧИТАЛСЯ</div>';
-    h += '<div style="font-size:15px;color:#e6edf3;font-weight:800;margin-top:2px">'+fmt(d.spentAdv)+'</div>';
-    h += '</div>';
-    
-    h += '</div>';
-    
-    // Если есть выплаты — показываем
-    if(d.payouts > 0){
-      h += '<div style="background:rgba(255,179,32,.06);border:1px solid rgba(255,179,32,.25);border-radius:8px;padding:6px 10px;margin-top:6px">';
-      h += '<span style="font-size:12px;color:#ffa657">↩️ Получено от компании: <b>'+fmt(d.payouts)+' ₸</b></span>';
+    // === 2. ПОДОТЧЁТНЫЕ ДЕНЬГИ — 3 строки: ВЗЯЛ / ОТЧИТАЛСЯ / НЕ ОТЧИТАЛСЯ ===
+    if(d.advanceIn > 0){
+      h += '<div style="background:#0d1117;border:1px solid '+(toReport>0?'rgba(255,179,32,.40)':'rgba(63,185,80,.30)')+';border-radius:12px;padding:14px;margin-bottom:10px">';
+      h += '<div style="font-size:11px;color:#ffd166;letter-spacing:1.5px;font-weight:700;margin-bottom:12px">📋 ПОДОТЧЁТНЫЕ ДЕНЬГИ</div>';
+      
+      // Строка 1: ВЗЯЛ В ПОДОТЧЁТ
+      h += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #21262d">';
+      h += '<div style="font-size:13px;color:#b9c3d0">📥 Взял в подотчёт</div>';
+      h += '<div style="font-size:16px;color:#e6edf3;font-weight:800;white-space:nowrap">'+fmt(d.advanceIn)+'</div>';
+      h += '</div>';
+      
+      // Строка 2: ОТЧИТАЛСЯ
+      h += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #21262d">';
+      h += '<div style="font-size:13px;color:#b9c3d0">📤 Отчитался</div>';
+      h += '<div style="font-size:16px;color:#7ee787;font-weight:800;white-space:nowrap">'+fmt(totalReported)+'</div>';
+      h += '</div>';
+      
+      // Строка 3: НЕ ОТЧИТАЛСЯ (главная)
+      var notReportedColor = toReport > 0 ? '#ff7b72' : '#7ee787';
+      var notReportedLabel = toReport > 0 ? '⚠ Не отчитался' : '✓ Полностью отчитался';
+      h += '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0 0">';
+      h += '<div style="font-size:13px;color:'+notReportedColor+';font-weight:700">'+notReportedLabel+'</div>';
+      h += '<div style="font-size:18px;color:'+notReportedColor+';font-weight:800;white-space:nowrap">'+fmt(toReport)+'</div>';
+      h += '</div>';
+      
       h += '</div>';
     }
     
-    // Подсказка "тап для подробностей"
-    h += '<div style="text-align:center;font-size:12px;color:'+pcolor+'80;margin-top:8px;font-weight:600">Тап для подробной истории →</div>';
+        // === 3. РАСПРЕДЕЛЕНИЕ ПРИБЫЛИ — ВСЕГДА (для всех партнёров) ===
+    if(true){
+      var hasProfit = companyProfit > 0;
+      var blockBorder = hasProfit ? 'rgba(63,185,80,.40)' : 'rgba(255,255,255,.10)';
+      var blockBg = hasProfit ? 'linear-gradient(135deg,rgba(63,185,80,.10),#0d1117)' : '#0d1117';
+      var titleColor = hasProfit ? '#7ee787' : 'var(--mut)';
+      var titleText = '📊 РАСПРЕДЕЛЕНИЕ ПРИБЫЛИ';
+      
+      h += '<div style="background:'+blockBg+';border:1.5px solid '+blockBorder+';border-radius:12px;padding:12px;margin-bottom:10px">';
+      h += '<div style="font-size:11px;color:'+titleColor+';letter-spacing:1.5px;font-weight:700;margin-bottom:10px">'+titleText+'</div>';
+      
+      var grayedColor = hasProfit ? '' : ';opacity:.55';
+      
+      h += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">';
+      
+      // Вернуть вложения — всегда есть конкретная цифра
+      h += '<div style="text-align:center;padding:10px 4px;background:rgba(63,185,80,.08);border-radius:8px">';
+      h += '<div style="font-size:18px;line-height:1;margin-bottom:4px">↩</div>';
+      h += '<div style="font-size:9px;color:var(--mut);letter-spacing:.5px;font-weight:700">ВЕРНУТЬ</div>';
+      h += '<div style="font-size:13px;color:#7ee787;font-weight:800;margin-top:3px;white-space:nowrap">'+fmt(toReturn)+'</div>';
+      h += '<div style="font-size:9px;color:var(--mut);margin-top:1px">вложений</div>';
+      h += '</div>';
+      
+      // Реинвест 70% — серым если прибыли нет
+      h += '<div style="text-align:center;padding:10px 4px;background:rgba(88,166,255,.08);border-radius:8px'+grayedColor+'">';
+      h += '<div style="font-size:18px;line-height:1;margin-bottom:4px">🔄</div>';
+      h += '<div style="font-size:9px;color:var(--mut);letter-spacing:.5px;font-weight:700">РЕИНВЕСТ</div>';
+      if(hasProfit){
+        h += '<div style="font-size:13px;color:#58a6ff;font-weight:800;margin-top:3px;white-space:nowrap">'+fmt(reinvest)+'</div>';
+      } else {
+        h += '<div style="font-size:13px;color:#58a6ff;font-weight:800;margin-top:3px">— ₸</div>';
+      }
+      h += '<div style="font-size:9px;color:var(--mut);margin-top:1px">70% доли</div>';
+      h += '</div>';
+      
+      // В карман 30% — серым если прибыли нет
+      h += '<div style="text-align:center;padding:10px 4px;background:rgba(255,179,32,.08);border-radius:8px'+grayedColor+'">';
+      h += '<div style="font-size:18px;line-height:1;margin-bottom:4px">💵</div>';
+      h += '<div style="font-size:9px;color:var(--mut);letter-spacing:.5px;font-weight:700">В КАРМАН</div>';
+      if(hasProfit){
+        h += '<div style="font-size:13px;color:#ffd166;font-weight:800;margin-top:3px;white-space:nowrap">'+fmt(inPocket)+'</div>';
+      } else {
+        h += '<div style="font-size:13px;color:#ffd166;font-weight:800;margin-top:3px">— ₸</div>';
+      }
+      h += '<div style="font-size:9px;color:var(--mut);margin-top:1px">30% доли</div>';
+      h += '</div>';
+      
+      h += '</div>';
+      
+      // Подпись внизу
+      if(hasProfit){
+        h += '<div style="font-size:10px;color:var(--mut);margin-top:8px;text-align:center">Доля 20% = '+fmt(partnerShare)+' ₸</div>';
+      } else {
+        h += '<div style="font-size:10px;color:var(--mut);margin-top:8px;text-align:center">Цифры заполнятся при появлении прибыли</div>';
+      }
+      h += '</div>';
+    }
+    
+    // === 4. ИТОГ внизу ===
+    var balColor = d.netBalance > 0 ? '#7ee787' : d.netBalance < 0 ? '#ff7b72' : '#8b949e';
+    var balLabel = d.netBalance > 0 ? 'к получению' : d.netBalance < 0 ? 'должен компании' : 'рассчитан';
+    
+    h += '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:rgba(255,255,255,.02);border-radius:10px">';
+    h += '<div style="font-size:11px;color:var(--mut);letter-spacing:1px;font-weight:700">ИТОГ</div>';
+    h += '<div style="text-align:right">';
+    h += '<div style="font-size:17px;color:'+balColor+';font-weight:800;line-height:1;white-space:nowrap">'+(d.netBalance >= 0 ? '+' : '')+fmt(d.netBalance)+'</div>';
+    h += '<div style="font-size:10px;color:var(--mut);margin-top:2px">'+balLabel+'</div>';
+    h += '</div>';
+    h += '</div>';
+    
+    h += '<div style="text-align:center;font-size:11px;color:'+pcolor+'80;margin-top:10px;font-weight:600">Тап для подробной истории →</div>';
     
     h += '</div>';
   });
@@ -8011,15 +8233,21 @@ function rPartners(){
     transfers.slice(0, 10).forEach(function(t, i){
       var fromColor = partnerColors[t.from] || '#8b949e';
       var toColor   = partnerColors[t.to]   || '#8b949e';
-      h += '<div style="display:flex;align-items:center;gap:10px;padding:10px 0'+(i<transfers.length-1?';border-bottom:1px solid #21262d':'')+'">';
-      h += '<div style="display:flex;align-items:center;gap:6px;flex:1;min-width:0">';
+      
+      h += '<div style="padding:12px 0'+(i<transfers.length-1?';border-bottom:1px solid #21262d':'')+'">';
+      
+      // Строка 1: аватары + имена
+      h += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">';
       h += '<div style="width:28px;height:28px;border-radius:50%;background:'+fromColor+'20;border:1.5px solid '+fromColor+';display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:13px;color:'+fromColor+';font-weight:800">'+t.from.charAt(0)+'</div>';
       h += '<span style="font-size:14px;color:#b9c3d0;font-weight:700">'+t.from+'</span>';
-      h += '<span style="font-size:19px;color:var(--mut)">→</span>';
+      h += '<span style="font-size:16px;color:var(--mut);margin:0 2px">→</span>';
       h += '<div style="width:28px;height:28px;border-radius:50%;background:'+toColor+'20;border:1.5px solid '+toColor+';display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:13px;color:'+toColor+';font-weight:800">'+t.to.charAt(0)+'</div>';
       h += '<span style="font-size:14px;color:#b9c3d0;font-weight:700">'+t.to+'</span>';
       h += '</div>';
-      h += '<div style="font-size:16px;color:#ffd166;font-weight:800;white-space:nowrap">'+fmt(t.amount)+' ₸</div>';
+      
+      // Строка 2: сумма (отдельно, не наезжает)
+      h += '<div style="font-size:18px;color:#ffd166;font-weight:800;padding-left:36px">'+fmt(t.amount)+' ₸</div>';
+      
       h += '</div>';
     });
     h += '</div>';
@@ -8033,13 +8261,22 @@ function rPartners(){
     h += '<div style="background:#161b22;border:1px solid var(--brd);border-radius:14px;padding:14px;margin-bottom:14px">';
     invests.slice(0, 10).forEach(function(e, i){
       var pcolor = partnerColors[e.who] || '#8b949e';
-      h += '<div style="display:flex;align-items:center;gap:10px;padding:10px 0'+(i<Math.min(invests.length,10)-1?';border-bottom:1px solid #21262d':'')+'">';
+      var noteText = (e.note||'').length > 35 ? (e.note||'').slice(0,35)+'…' : (e.note||'');
+      
+      h += '<div style="padding:12px 0'+(i<Math.min(invests.length,10)-1?';border-bottom:1px solid #21262d':'')+'">';
+      
+      // Строка 1: аватар + имя + сумма
+      h += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:'+(noteText?'4px':'0')+'">';
       h += '<div style="width:32px;height:32px;border-radius:50%;background:'+pcolor+'20;border:1.5px solid '+pcolor+';display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:15px;color:'+pcolor+';font-weight:800">'+(e.who||'?').charAt(0)+'</div>';
-      h += '<div style="flex:1;min-width:0">';
-      h += '<div style="font-size:15px;color:#e6edf3;font-weight:700">'+(e.who||'?')+'</div>';
-      h += '<div style="font-size:12px;color:var(--mut);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(e.date||'')+(e.note ? ' · '+e.note : '')+'</div>';
-      h += '</div>';
+      h += '<div style="flex:1;min-width:0;font-size:15px;color:#e6edf3;font-weight:700">'+(e.who||'?')+'</div>';
       h += '<div style="font-size:16px;color:#7ee787;font-weight:800;white-space:nowrap">+'+fmt(e.amount)+' ₸</div>';
+      h += '</div>';
+      
+      // Строка 2: дата + заметка (мелкая, отдельно)
+      if(e.date || noteText){
+        h += '<div style="font-size:11px;color:var(--mut);padding-left:42px">'+(e.date||'')+(noteText ? ' · '+noteText : '')+'</div>';
+      }
+      
       h += '</div>';
     });
     if(invests.length > 10){
@@ -8091,7 +8328,11 @@ window.openPartnerDetails = function(partner){
     }
     else if(e.type === 'payout') pay += amt;
   });
-  var net = (inv + op) - pay - Math.max(0, ai - sa - ao);
+  // ПРАВИЛЬНАЯ ФОРМУЛА: компания должна = вложил + из_своих + отдал_под_отчёт − выплачено
+  //                      партнёр должен = получил_под_отчёт − потратил
+  var debtFromCo = inv + op + ao - pay;
+  var debtToCo = Math.max(0, ai - sa);
+  var net = debtFromCo - debtToCo;
   
   h += '<div style="background:linear-gradient(135deg,'+pcolor+'15,#0d1117);border:1.5px solid '+pcolor+';border-radius:14px;padding:14px;margin-bottom:14px">';
   h += '<div style="display:flex;align-items:center;gap:12px">';
@@ -9341,7 +9582,7 @@ var tp=[
   {k:'invest',  c:'tc-invest',  i:'💼',t:'Вложение в кассу',d:'Партнёр положил деньги в кассу'},
   {k:'advance', c:'tc-advance', i:'🔄',t:'Передача',        d:'Партнёр дал партнёру под отчёт'},
   {k:'expense', c:'tc-expense', i:'🧾',t:'Расход',          d:'Купили для стройки / на еду'},
-  {k:'payout',  c:'tc-payout',  i:'↩️',t:'Выплата',         d:'Компания вернула партнёру'}
+  {k:'payout',  c:'tc-payout',  i:'↩️',t:'Выплата',         d:'Компания выплатила партнёру'}
 ];
 var tc=tp.map(function(t){return '<div class="tcard '+t.c+(selType===t.k?' sel':'')+'" data-type="'+t.k+'"><div class="tic">'+t.i+'</div><div class="ttit" style="color:'+(TYPES[t.k]?TYPES[t.k].color:'var(--mut)')+'">'+t.t+'</div><div class="tdsc">'+t.d+'</div></div>';}).join('');
 var fl='';
@@ -12436,7 +12677,7 @@ function openDraftsModal(){
         h+='<input type="text" value="'+(op.note||'').replace(/"/g,'&quot;')+'" onchange="updateDraftField(\''+d.id+'\',\'note\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px"/></div>';
       }
       else if(op.kind==='payout'){
-        // ↩️ ВЫПЛАТА — компания вернула партнёру (закрыла свой долг)
+        // ↩️ ВЫПЛАТА — компания выплатила партнёру (закрыла свой долг)
         h+='<div style="background:rgba(255,179,32,.06);border:1px solid rgba(255,179,32,.25);border-radius:6px;padding:8px;margin-bottom:6px">';
         h+='<div style="font-size:9px;color:var(--gold);margin-bottom:6px;font-weight:700">↩️ ВЫПЛАТА (КОМПАНИЯ → ПАРТНЁР)</div>';
         h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">';
@@ -12580,7 +12821,7 @@ function confirmDraftGroup(linkedKey){
         }
       } 
       else if(op.kind==='payout'){
-        // ↩️ ВЫПЛАТА — компания вернула партнёру
+        // ↩️ ВЫПЛАТА — компания выплатила партнёру
         entry.type='payout';
         entry.who=op.who||'';
       }
@@ -12814,6 +13055,45 @@ if(navigator.onLine!==false){
     }catch(e){}
   },2000);
 }
+
+// === БЫСТРАЯ ВЫПЛАТА ПАРТНЁРУ ===
+window.quickPayoutPartner = function(partnerName){
+  var amountStr = prompt('💸 Выплата партнёру: ' + partnerName + '\n\nСумма (₸):', '');
+  if(!amountStr) return;
+  var amount = parseFloat(amountStr.replace(/[\s,]/g, ''));
+  if(isNaN(amount) || amount <= 0){
+    alert('Введите корректную сумму');
+    return;
+  }
+  var note = prompt('Заметка (можно пропустить):', '') || '';
+  
+  // Создаём запись payout
+  var entry = {
+    id: Date.now(),
+    date: new Date().toISOString().slice(0,10),
+    type: 'payout',
+    amount: amount,
+    who: partnerName,
+    note: note || 'Выплата партнёру',
+    obj: (S.objects && S.objects[0]) || ''
+  };
+  
+  S.entries = S.entries || [];
+  S.entries.push(entry);
+  
+  // Лог в историю
+  S.history = S.history || [];
+  S.history.push({
+    action: 'add', by: 'editor', at: new Date().toISOString(),
+    type: 'payout', amount: amount
+  });
+  
+  if(typeof save === 'function') save();
+  if(typeof render === 'function') render();
+  
+  alert('✓ Выплата ' + amount.toLocaleString('ru-RU') + ' ₸ для ' + partnerName + ' зафиксирована');
+};
+
 </script>
 
 <style>
