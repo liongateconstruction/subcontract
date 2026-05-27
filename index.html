@@ -32,8 +32,8 @@ button, .nb, .hbtn, .fab, .yk-mini, .yk-big, .yk-alert { touch-action: manipulat
 
 /* === ЖЁСТКОЕ СКРЫТИЕ ПЛАВАЮЩИХ КНОПОК === */
 /* Микрофон и + плавающие FAB больше не нужны — по концепту их нет */
-#fab-mic, .fab#fab-mic, button#fab-mic { display: none !important; visibility: hidden !important; opacity: 0 !important; pointer-events: none !important; }
-#fab, .fab#fab, button#fab { display: none !important; visibility: hidden !important; opacity: 0 !important; pointer-events: none !important; }
+/* fab-mic — голосовая кнопка, показывается редактору */
+/* FAB кнопка добавления записи — показывается только редактору */
 
 :root{
   --bg:#0d1117;--sur:#161b22;--s2:#212a3d;--brd:#3d4655;
@@ -485,8 +485,8 @@ canvas{display:block;width:100%;border-radius:8px}
   </header>
   <div class="content" id="content"></div>
   <!-- Плавающие кнопки скрыты — по концепту их нет на главном -->
-  <button class="fab" id="fab" style="display:none">+</button>
-  <button class="fab" id="fab-mic" style="display:none;bottom:calc(120px + env(safe-area-inset-bottom));background:var(--purple);font-size:22px" title="Голосовой ввод">🎤</button>
+  <button class="fab" id="fab" onclick="openModal()" title="Добавить запись">+</button>
+  <button class="fab" id="fab-mic" onclick="openVoiceModal()" style="bottom:calc(125px + env(safe-area-inset-bottom));background:linear-gradient(135deg,#a371f7,#8957e5);font-size:22px;color:#fff" title="Голосовой ввод">🎤</button>
   <nav>
     <button class="nb active" id="tab-main">
       <span style="font-size:22px;line-height:1">🔥</span>
@@ -1904,43 +1904,55 @@ function pullCloud(cb){
       var remoteTime=r._modified||0;
       var localTime=S._modified||0;
       
-      // === ЗАЩИТА ОТ ЗАТИРАНИЯ ===
-      // Если в облаке есть РЕАЛЬНЫЕ данные (entries.length > 0 или brigades.length > 0) И облако новее — забираем их
+      // === КРИТИЧЕСКАЯ ЗАЩИТА ОТ ЗАТИРАНИЯ ===
+      // ПРАВИЛО: локальные данные ВСЕГДА главнее, если они существуют
+      // Это исключает потери при облачных конфликтах
       var cloudHasData = (r.entries && r.entries.length>0) || (r.brigades && r.brigades.length>0);
-      var localIsFresh = localTime > remoteTime + 1000;
+      var localHasData = (S.entries && S.entries.length>0) || (S.brigades && S.brigades.length>0);
       
-      // Если локально явно новее (только что что-то изменили) — пушим
-      if(localIsFresh && S.entries.length>0){
-        pushCloud();ss('↑',false);if(cb)cb();return;
+      // Случай 1: локально есть данные → ПУШИМ В ОБЛАКО (а не забираем оттуда)
+      if(localHasData){
+        // Если облако явно новее на 60+ секунд И больше записей — берём облако (другой пользователь внёс)
+        var cloudIsMuchNewer = remoteTime > localTime + 60000 && 
+                               (r.entries||[]).length > S.entries.length;
+        if(!cloudIsMuchNewer){
+          // НЕ затираем локальные. Пушим текущее состояние в облако.
+          pushCloud();
+          ss('↑',false);
+          if(cb)cb();
+          return;
+        }
       }
-      // Если в облаке ничего нет, а локально есть — пушим
-      if(!cloudHasData && S.entries.length>0){
-        pushCloud();ss('↑',false);if(cb)cb();return;
+      
+      // Случай 2: локально пусто, в облаке есть — забираем
+      if(!localHasData && cloudHasData){
+        // Миграция схемы если нужно
+        if(!r._schema || r._schema<2){
+          var tmpState={entries:r.entries||[],history:r.history||[],_schema:r._schema};
+          if(typeof migrateToSchemaV2 === 'function') migrateToSchemaV2(tmpState);
+          r.entries=tmpState.entries;
+          r.history=tmpState.history;
+          r._schema=2;
+        }
+        S.entries=r.entries;
+        if(r.brigades&&r.brigades.length>0)S.brigades=r.brigades;
+        if(r.objects&&r.objects.length>0)S.objects=r.objects;
+        if(r.history)S.history=r.history;
+        if(r.weeks)S.weeks=r.weeks;
+        if(r.kfu&&r.kfu.length&&r.kfu[0]&&r.kfu[0].auto)S.kfu=r.kfu;
+        if(r.settings){S.settings=r.settings;if(!S.settings.norms)S.settings.norms=defState().settings.norms;}
+        if(r.goalsDone)S.goalsDone=r.goalsDone;
+        if(r.kzDict)S.kzDict=r.kzDict;
+        if(r.objMeta)S.objMeta=r.objMeta;
+        if(r.workTypes&&r.workTypes.length>0)S.workTypes=r.workTypes;
+        S._schema=Math.max(S._schema||2, r._schema||2);
+        S._modified=remoteTime;
+        _lastKnownRemote=remoteTime;
+        if(typeof ensureSpotsStructure === 'function') S=ensureSpotsStructure(S);
+        persist();
+        ss('↓',false);
       }
-      // Если облако ещё на старой схеме — мигрируем перед применением (но НЕ перезаписываем)
-      if(!r._schema || r._schema<2){
-        var tmpState={entries:r.entries||[],history:r.history||[],_schema:r._schema};
-        migrateToSchemaV2(tmpState);
-        r.entries=tmpState.entries;
-        r.history=tmpState.history;
-        r._schema=2;
-      }
-      // Принимаем данные облака (защита от потери:только если облако новее ИЛИ у нас локально пусто)
-      if(r.entries&&r.entries.length>0)S.entries=r.entries;
-      if(r.brigades&&r.brigades.length>0)S.brigades=r.brigades;
-      if(r.objects&&r.objects.length>0)S.objects=r.objects;
-      if(r.history)S.history=r.history;
-      if(r.weeks)S.weeks=r.weeks;
-      if(r.kfu&&r.kfu.length&&r.kfu[0]&&r.kfu[0].auto)S.kfu=r.kfu;else S.kfu=defState().kfu;
-      if(r.settings){S.settings=r.settings;if(!S.settings.norms)S.settings.norms=defState().settings.norms;}
-      if(r.goalsDone)S.goalsDone=r.goalsDone;
-      if(r.kzDict)S.kzDict=r.kzDict;
-      if(r.objMeta)S.objMeta=r.objMeta;
-      if(r.workTypes&&r.workTypes.length>0)S.workTypes=r.workTypes;
-      // Схема — берём максимум из локальной и облачной
-      S._schema=Math.max(S._schema||2, r._schema||2);
-      S._modified=remoteTime;_lastKnownRemote=remoteTime;S=ensureSpotsStructure(S);persist();ss('OK',false);
-    }else if(S.entries.length>0){pushCloud();}
+    }else if(S.entries && S.entries.length>0){pushCloud();}
     if(cb)cb();
   }).catch(function(){
     ss('!',true);
@@ -4273,10 +4285,438 @@ window.showWeather = function(){
 };
 
 window.startVoiceInput = function(){
-  alert('🎤 Голосовой ввод\n\nФункция доступна на iOS Safari через диктовку клавиатуры:\n\n1. Откройте форму добавления записи\n2. Тапните на поле ввода\n3. Тапните 🎤 на клавиатуре\n4. Говорите\n\nЭто работает в любом текстовом поле!');
+  // Открываем реальный голосовой модал
+  if(typeof openVoiceModal === 'function'){
+    openVoiceModal();
+  } else {
+    alert('🎤 Голосовой ввод\n\nИспользуйте диктовку iOS клавиатуры:\n1. Откройте + Добавить запись\n2. Тапните на поле ввода\n3. На клавиатуре нажмите 🎤\n4. Говорите');
+  }
 };
 
 // Главное меню (⋯) — современный bottom sheet
+// ПРИНУДИТЕЛЬНАЯ ЗАЛИВКА ЛОКАЛЬНЫХ ДАННЫХ В ОБЛАКО
+// Использовать если в облаке битые данные, а в приложении — правильные
+window.forceUploadLocal = function(){
+  if(typeof haptic === 'function') haptic('heavy');
+  
+  alert('Сейчас ВСЕ локальные данные приложения будут залиты в облако.\n\nВ облаке всё перепишется на то что у вас сейчас в приложении.\n\nИспользуйте это если:\n• В облаке битые данные\n• На разных устройствах разные цифры\n• После сброса хотите синхронизировать');
+  
+  setTimeout(function(){
+    if(typeof confirmSafe === 'function' && !confirmSafe('Точно залить локальные данные в облако?\n\nВ облаке всё перепишется.')) return;
+    
+    // Помечаем что локальное самое свежее
+    S._modified = Date.now();
+    try { persist(); } catch(e){}
+    
+    // Прямой push в облако
+    if(typeof BURL !== 'undefined' && typeof AK !== 'undefined' && AK){
+      ss('↑', false);
+      var payload = JSON.parse(JSON.stringify(S));
+      payload._modified = Date.now();
+      
+      fetch(BURL, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Master-Key': AK,
+          'X-Bin-Versioning': 'false'
+        },
+        body: JSON.stringify(payload)
+      }).then(function(r){return r.json();}).then(function(){
+        alert('✅ Готово!\n\nЛокальные данные ('+S.entries.length+' записей, '+(S.brigades||[]).length+' бригад) залиты в облако.\n\nТеперь на других устройствах появятся ваши правильные цифры.');
+        ss('OK', false);
+        if(typeof haptic === 'function') haptic('heavy');
+      }).catch(function(err){
+        alert('❌ Ошибка заливки в облако: ' + err.message + '\n\nПопробуйте позже. Локально всё сохранено.');
+        ss('!', true);
+      });
+    } else {
+      alert('Облако не настроено — данные хранятся только локально.');
+    }
+  }, 300);
+};
+
+// =============================================================
+// 📸 СИСТЕМА АВТО-СНАПШОТОВ (Защита от потери/порчи данных)
+// =============================================================
+// Каждые 6 часов сохраняем полный снимок состояния в localStorage
+// Храним последние 7 снимков
+// При проблеме можно откатить на любой из них
+
+window.LG_MAX_SNAPSHOTS = 7;
+window.LG_SNAPSHOT_INTERVAL = 6 * 60 * 60 * 1000; // 6 часов
+
+window.createSnapshot = function(label){
+  try {
+    var snapshots = JSON.parse(localStorage.getItem('lg_snapshots') || '[]');
+    var snapshot = {
+      time: Date.now(),
+      label: label || ('Авто-снапшот ' + new Date().toLocaleString('ru-RU')),
+      entries: S.entries.length,
+      brigades: (S.brigades||[]).length,
+      author: (typeof role !== 'undefined' && role) ? role : 'unknown',
+      data: JSON.stringify(S) // полный снимок
+    };
+    snapshots.unshift(snapshot);
+    // Храним только последние LG_MAX_SNAPSHOTS
+    if(snapshots.length > window.LG_MAX_SNAPSHOTS){
+      snapshots = snapshots.slice(0, window.LG_MAX_SNAPSHOTS);
+    }
+    localStorage.setItem('lg_snapshots', JSON.stringify(snapshots));
+    return true;
+  } catch(e) {
+    return false;
+  }
+};
+
+window.shouldCreateSnapshot = function(){
+  try {
+    var snapshots = JSON.parse(localStorage.getItem('lg_snapshots') || '[]');
+    if(snapshots.length === 0) return true;
+    var last = snapshots[0];
+    return (Date.now() - last.time) > window.LG_SNAPSHOT_INTERVAL;
+  } catch(e) { return false; }
+};
+
+// Запускаем создание снапшота при загрузке (если прошло 6 часов)
+setTimeout(function(){
+  if(typeof shouldCreateSnapshot === 'function' && shouldCreateSnapshot()){
+    createSnapshot();
+  }
+}, 5000);
+
+// =============================================================
+// 🗑️ КОРЗИНА УДАЛЁННЫХ ЗАПИСЕЙ (хранение 30 дней)
+// =============================================================
+window.moveToTrash = function(entry){
+  try {
+    var trash = JSON.parse(localStorage.getItem('lg_trash') || '[]');
+    var item = JSON.parse(JSON.stringify(entry));
+    item._deletedAt = Date.now();
+    item._deletedBy = (typeof role !== 'undefined') ? role : 'unknown';
+    trash.unshift(item);
+    
+    // Очищаем старше 30 дней
+    var monthAgo = Date.now() - 30*24*3600*1000;
+    trash = trash.filter(function(e){ return (e._deletedAt || 0) > monthAgo; });
+    
+    // Максимум 200 в корзине
+    if(trash.length > 200) trash = trash.slice(0, 200);
+    
+    localStorage.setItem('lg_trash', JSON.stringify(trash));
+    return true;
+  } catch(e) { return false; }
+};
+
+window.restoreFromTrash = function(entryId){
+  try {
+    var trash = JSON.parse(localStorage.getItem('lg_trash') || '[]');
+    var found = trash.find(function(e){ return e.id === entryId; });
+    if(!found) return false;
+    
+    // Очищаем технические поля
+    delete found._deletedAt;
+    delete found._deletedBy;
+    
+    // Добавляем обратно в S.entries
+    S.entries.push(found);
+    S._modified = Date.now();
+    
+    // Удаляем из корзины
+    trash = trash.filter(function(e){ return e.id !== entryId; });
+    localStorage.setItem('lg_trash', JSON.stringify(trash));
+    
+    if(typeof persist === 'function') persist();
+    if(typeof pushCloud === 'function') pushCloud();
+    return true;
+  } catch(e) { return false; }
+};
+
+// =============================================================
+// 👤 ПОДПИСЬ АВТОРА В ЗАПИСЯХ
+// =============================================================
+// Когда добавляется запись — добавляется author
+// При редактировании — добавляется editedBy и editTime
+window.tagAuthor = function(entry, isEdit){
+  try {
+    if(!entry) return entry;
+    var who = (typeof role !== 'undefined' && role) ? role : 'unknown';
+    if(!isEdit && !entry.author){
+      entry.author = who;
+      entry.createdAt = entry.createdAt || Date.now();
+    } else if(isEdit){
+      if(!entry.editedBy) entry.editedBy = [];
+      entry.editedBy.push({by: who, time: Date.now()});
+    }
+  } catch(e){}
+  return entry;
+};
+
+// =============================================================
+// 🔍 ПОИСК ДУБЛЕЙ ЗАПИСЕЙ
+// =============================================================
+window.findDuplicates = function(){
+  var duplicates = [];
+  var seen = {};
+  
+  S.entries.forEach(function(e){
+    // Ключ: тип + дата + сумма (или объём для vol)
+    var key = e.type + '|' + (e.date||'') + '|' + (e.amount||e.volume||0);
+    if(seen[key]){
+      duplicates.push({original: seen[key], dup: e, key: key});
+    } else {
+      seen[key] = e;
+    }
+  });
+  
+  return duplicates;
+};
+
+// =============================================================
+// 📋 ОТКРЫТЬ ОКНО ЗАЩИТЫ ДАННЫХ
+// =============================================================
+window.openDataProtection = function(){
+  if(typeof haptic === 'function') haptic('medium');
+  
+  var titleEl = document.getElementById('drillTitle');
+  var bodyEl = document.getElementById('drillBody');
+  if(titleEl) titleEl.textContent = '🛡 ЗАЩИТА ДАННЫХ';
+  
+  var html = '<div class="drill-h"><button class="drill-back" onclick="closeDrill()">✕</button></div>';
+  
+  // Снапшоты
+  var snapshots = [];
+  try { snapshots = JSON.parse(localStorage.getItem('lg_snapshots') || '[]'); } catch(e){}
+  
+  var trash = [];
+  try { trash = JSON.parse(localStorage.getItem('lg_trash') || '[]'); } catch(e){}
+  
+  var duplicates = findDuplicates();
+  
+  html += '<div style="font-family:-apple-system,system-ui,sans-serif">';
+  
+  // === Текущее состояние ===
+  html += '<div style="background:linear-gradient(135deg,rgba(63,185,80,.10),#0d1117);border:1.5px solid rgba(63,185,80,.4);border-radius:14px;padding:16px;margin-bottom:14px">';
+  html += '<div style="font-size:11px;color:#7ee787;letter-spacing:2px;font-weight:800;margin-bottom:10px">💾 СЕЙЧАС</div>';
+  html += '<div style="font-size:13px;color:#b9c3d0;line-height:1.7">';
+  html += '• Записей: <b style="color:#fff">'+S.entries.length+'</b><br>';
+  html += '• Бригад: <b style="color:#fff">'+(S.brigades||[]).length+'</b><br>';
+  html += '• Снапшотов: <b style="color:#fff">'+snapshots.length+'</b> (макс 7)<br>';
+  html += '• В корзине: <b style="color:#fff">'+trash.length+'</b><br>';
+  html += '• Дублей найдено: <b style="color:'+(duplicates.length > 0 ? '#ff7b72' : '#7ee787')+'">'+duplicates.length+'</b>';
+  html += '</div>';
+  
+  html += '<button onclick="createSnapshot(); haptic(\'heavy\'); openDataProtection();" style="width:100%;margin-top:14px;padding:12px;background:rgba(63,185,80,.20);border:1px solid rgba(63,185,80,.5);color:#7ee787;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:-apple-system,system-ui,sans-serif">📸 Сделать снапшот сейчас</button>';
+  html += '</div>';
+  
+  // === Снапшоты ===
+  if(snapshots.length > 0){
+    html += '<div style="font-size:11px;color:#8b949e;letter-spacing:2px;font-weight:800;margin:18px 0 10px">📸 СНАПШОТЫ (для отката)</div>';
+    
+    snapshots.forEach(function(s, i){
+      var date = new Date(s.time);
+      var dateStr = date.toLocaleString('ru-RU', {day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+      var hoursAgo = Math.floor((Date.now() - s.time) / 3600000);
+      
+      html += '<div style="background:#161b22;border:1px solid #30363d;border-radius:12px;padding:14px;margin-bottom:8px">';
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">';
+      html += '<div style="font-size:13px;color:#e6edf3;font-weight:700">'+dateStr+'</div>';
+      html += '<div style="font-size:11px;color:#8b949e">'+hoursAgo+' ч назад</div>';
+      html += '</div>';
+      html += '<div style="font-size:11px;color:#b9c3d0;margin-bottom:10px">'+s.entries+' записей · '+s.brigades+' бригад · автор: '+s.author+'</div>';
+      html += '<button onclick="restoreSnapshot('+i+')" style="width:100%;padding:10px;background:rgba(255,179,32,.15);border:1px solid rgba(255,179,32,.4);color:#ffd166;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;font-family:-apple-system,system-ui,sans-serif">↺ Откатить на это состояние</button>';
+      html += '</div>';
+    });
+  }
+  
+  // === Корзина ===
+  if(trash.length > 0){
+    html += '<div style="font-size:11px;color:#8b949e;letter-spacing:2px;font-weight:800;margin:18px 0 10px">🗑️ КОРЗИНА УДАЛЁННЫХ ('+trash.length+')</div>';
+    
+    trash.slice(0, 20).forEach(function(t){
+      var d = new Date(t._deletedAt);
+      var dStr = d.toLocaleString('ru-RU', {day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+      var typeIcon = {expense:'💸',advance:'💼',vol:'🏗',income:'💵',invest:'💎'}[t.type] || '?';
+      var amtStr = t.type === 'vol' ? (t.volume + ' м³') : fmt(t.amount) + ' ₸';
+      
+      html += '<div style="background:#161b22;border:1px solid #30363d;border-radius:12px;padding:12px;margin-bottom:8px">';
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">';
+      html += '<div style="font-size:13px;color:#e6edf3;font-weight:700">'+typeIcon+' '+amtStr+'</div>';
+      html += '<div style="font-size:11px;color:#ff7b72">удалено '+dStr+'</div>';
+      html += '</div>';
+      html += '<div style="font-size:11px;color:#8b949e;margin-bottom:8px">'+(t.date||'—')+(t.note ? ' · '+t.note.substring(0,50) : '')+'</div>';
+      html += '<button onclick="doRestore('+t.id+')" style="width:100%;padding:8px;background:rgba(63,185,80,.15);border:1px solid rgba(63,185,80,.4);color:#7ee787;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:-apple-system,system-ui,sans-serif">↻ Восстановить</button>';
+      html += '</div>';
+    });
+  }
+  
+  // === Дубли ===
+  if(duplicates.length > 0){
+    html += '<div style="font-size:11px;color:#ff7b72;letter-spacing:2px;font-weight:800;margin:18px 0 10px">⚠️ НАЙДЕНЫ ВОЗМОЖНЫЕ ДУБЛИ</div>';
+    
+    duplicates.slice(0, 10).forEach(function(d){
+      var typeIcon = {expense:'💸',advance:'💼',vol:'🏗',income:'💵'}[d.dup.type] || '?';
+      var amt = d.dup.type === 'vol' ? d.dup.volume + ' м³' : fmt(d.dup.amount) + ' ₸';
+      
+      html += '<div style="background:rgba(248,81,73,.06);border:1px solid rgba(248,81,73,.3);border-radius:12px;padding:12px;margin-bottom:8px">';
+      html += '<div style="font-size:13px;color:#ff7b72;font-weight:700;margin-bottom:6px">'+typeIcon+' '+amt+' · '+(d.dup.date||'—')+'</div>';
+      html += '<div style="font-size:11px;color:#b9c3d0">Оригинал id='+d.original.id+': '+(d.original.note||'').substring(0,40)+'</div>';
+      html += '<div style="font-size:11px;color:#b9c3d0;margin-top:4px">Дубль id='+d.dup.id+': '+(d.dup.note||'').substring(0,40)+'</div>';
+      html += '<button onclick="deleteDuplicate('+d.dup.id+')" style="width:100%;margin-top:8px;padding:8px;background:rgba(248,81,73,.15);border:1px solid rgba(248,81,73,.4);color:#ff7b72;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:-apple-system,system-ui,sans-serif">🗑 Удалить дубль</button>';
+      html += '</div>';
+    });
+  }
+  
+  // === Аудит изменений (история) ===
+  if(S.history && S.history.length > 0){
+    html += '<div style="font-size:11px;color:#8b949e;letter-spacing:2px;font-weight:800;margin:18px 0 10px">📋 ПОСЛЕДНИЕ ДЕЙСТВИЯ</div>';
+    
+    S.history.slice(-15).reverse().forEach(function(h){
+      var d = new Date(h.time);
+      var dStr = d.toLocaleString('ru-RU', {day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+      
+      html += '<div style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:10px;margin-bottom:6px">';
+      html += '<div style="display:flex;justify-content:space-between;margin-bottom:2px">';
+      html += '<div style="font-size:11px;color:#e6edf3;font-weight:700">'+(h.action||'действие')+'</div>';
+      html += '<div style="font-size:10px;color:#8b949e">'+dStr+'</div>';
+      html += '</div>';
+      html += '<div style="font-size:11px;color:#b9c3d0">'+(h.detail || '—')+'</div>';
+      if(h.by){
+        html += '<div style="font-size:10px;color:#ffd166;margin-top:3px">👤 '+h.by+'</div>';
+      }
+      html += '</div>';
+    });
+  }
+  
+  html += '</div>';
+  
+  if(bodyEl) bodyEl.innerHTML = html;
+  document.getElementById('drillModal').style.display='flex';
+};
+
+window.restoreSnapshot = function(idx){
+  if(typeof haptic === 'function') haptic('heavy');
+  
+  alert('⚠️ ВНИМАНИЕ!\n\nСейчас текущее состояние будет ЗАМЕНЕНО на снапшот.\nПеред откатом сделается снапшот текущего состояния (для отката отката).\n\nПродолжить?');
+  
+  setTimeout(function(){
+    if(typeof confirmSafe === 'function' && !confirmSafe('Точно откатить на этот снапшот?')) return;
+    
+    try {
+      // Сначала сохраним ТЕКУЩЕЕ состояние как снапшот
+      createSnapshot('Перед откатом ' + new Date().toLocaleString('ru-RU'));
+      
+      var snapshots = JSON.parse(localStorage.getItem('lg_snapshots') || '[]');
+      var target = snapshots[idx];
+      if(!target){ alert('Снапшот не найден'); return; }
+      
+      var restoredS = JSON.parse(target.data);
+      restoredS._modified = Date.now();
+      
+      // Заменяем S
+      Object.keys(S).forEach(function(k){ delete S[k]; });
+      Object.keys(restoredS).forEach(function(k){ S[k] = restoredS[k]; });
+      
+      if(typeof persist === 'function') persist();
+      if(typeof pushCloud === 'function') pushCloud();
+      
+      alert('✅ Откат выполнен!\n\n' + restoredS.entries.length + ' записей восстановлено.\nПерезагрузка...');
+      setTimeout(function(){ location.reload(); }, 500);
+    } catch(e) {
+      alert('Ошибка отката: ' + e.message);
+    }
+  }, 300);
+};
+
+window.doRestore = function(entryId){
+  if(typeof haptic === 'function') haptic('medium');
+  if(restoreFromTrash(entryId)){
+    if(typeof haptic === 'function') haptic('heavy');
+    openDataProtection(); // обновить
+  } else {
+    alert('Не удалось восстановить');
+  }
+};
+
+window.deleteDuplicate = function(entryId){
+  if(typeof haptic === 'function') haptic('medium');
+  
+  if(typeof confirmSafe === 'function' && !confirmSafe('Удалить дубль навсегда?\n(Будет сохранён в корзине 30 дней)')) return;
+  
+  try {
+    var idx = S.entries.findIndex(function(e){ return e.id === entryId; });
+    if(idx < 0) return;
+    
+    var entry = S.entries[idx];
+    moveToTrash(entry);
+    S.entries.splice(idx, 1);
+    S._modified = Date.now();
+    
+    // Добавим в историю
+    if(!S.history) S.history = [];
+    S.history.push({
+      time: Date.now(),
+      action: 'Удаление дубля',
+      detail: 'id='+entryId+', сумма='+fmt(entry.amount||entry.volume||0),
+      by: (typeof role !== 'undefined') ? role : 'unknown'
+    });
+    
+    if(typeof persist === 'function') persist();
+    if(typeof pushCloud === 'function') pushCloud();
+    
+    if(typeof haptic === 'function') haptic('heavy');
+    openDataProtection();
+  } catch(e) {
+    alert('Ошибка: ' + e.message);
+  }
+};
+
+// СБРОС ВСЕХ ДАННЫХ к встроенным правильным значениям
+window.resetToClean = function(){
+  if(typeof haptic === 'function') haptic('heavy');
+  
+  alert('⚠️ ВНИМАНИЕ!\n\nСейчас все локальные данные будут заменены на эталонные:\n\n• 51 запись (от 14 по 25 мая)\n• 3 бригады (Шынгыс, Нурсултан, Штатная)\n• Объект: ЖК Алгабас\n• Объём на сверке: 114.5 м³\n\nСделайте бэкап если нужно сохранить текущее состояние.');
+  
+  // Двойное подтверждение
+  setTimeout(function(){
+    if(!window.confirmSafe('Точно сбросить ВСЕ данные к эталонным?\n\nЭто действие нельзя отменить.')) return;
+    
+    try {
+      // Очищаем localStorage
+      localStorage.removeItem('lg_v9');
+      // Также сбросим флаг "видел новинки"
+      localStorage.removeItem('lg_seen_features_v2');
+      
+      // Также очистим облако чтобы не подтянулось обратно
+      if(typeof BURL !== 'undefined' && typeof AK !== 'undefined' && AK){
+        var cleanData = JSON.parse(JSON.stringify(PRELOADED_DATA));
+        cleanData._modified = Date.now();
+        fetch(BURL, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Master-Key': AK,
+            'X-Bin-Versioning': 'false'
+          },
+          body: JSON.stringify(cleanData)
+        }).then(function(){
+          alert('✅ Готово!\n\nДанные сброшены к эталонным.\nПриложение перезагрузится.');
+          setTimeout(function(){ location.reload(); }, 800);
+        }).catch(function(err){
+          // Локально сбросили, облако упало — всё равно перезагрузим
+          alert('⚠️ Локально сброшено.\nОблако недоступно — попробуйте позже.\n\nПерезагрузка...');
+          setTimeout(function(){ location.reload(); }, 800);
+        });
+      } else {
+        alert('✅ Локальные данные сброшены.\nПерезагрузка...');
+        setTimeout(function(){ location.reload(); }, 500);
+      }
+    } catch(e) {
+      alert('Ошибка сброса: ' + e.message);
+    }
+  }, 300);
+};
+
 // Принудительное обновление приложения (сброс кеша)
 window.forceRefresh = function(){
   if(typeof haptic === 'function') haptic('heavy');
@@ -4336,6 +4776,17 @@ window.openMainMenu = function(){
   h += '<div style="font-size:16px;color:'+roleColor+';font-weight:700">'+roleLabel+'</div>';
   h += '</div>';
   
+  // Группа: Действия (только для редактора)
+  if(typeof canEdit === 'function' && canEdit()){
+    h += '<div style="font-size:11px;color:#8b949e;letter-spacing:1.5px;font-weight:700;margin-bottom:10px;padding-left:6px">ДОБАВИТЬ</div>';
+    
+    h += '<button onclick="closeMainMenu();openModal()" style="width:100%;display:flex;align-items:center;gap:14px;padding:14px 14px;background:linear-gradient(135deg,rgba(255,179,32,.20),rgba(255,140,0,.10));border:1.5px solid var(--gold);border-radius:14px;color:var(--gold);font-size:15px;font-weight:700;cursor:pointer;margin-bottom:14px;text-align:left;font-family:-apple-system,system-ui,sans-serif">';
+    h += '<span style="font-size:24px">➕</span>';
+    h += '<div style="flex:1"><div style="font-weight:800">Добавить запись</div><div style="font-size:11px;color:#8b949e;font-weight:500;margin-top:2px">Расход · Аванс · Объём · Поступление</div></div>';
+    h += '<span style="color:var(--gold);font-size:18px;font-weight:800">›</span>';
+    h += '</button>';
+  }
+  
   // Группа: Навигация
   h += '<div style="font-size:11px;color:#8b949e;letter-spacing:1.5px;font-weight:700;margin-bottom:10px;padding-left:6px">НАВИГАЦИЯ</div>';
   
@@ -4378,6 +4829,17 @@ window.openMainMenu = function(){
     h += '</button>';
   }
   
+  // Защита данных — ВАЖНО
+  if(typeof canEdit === 'function' && canEdit()){
+    h += '<div style="font-size:11px;color:#8b949e;letter-spacing:1.5px;font-weight:700;margin-top:16px;margin-bottom:10px;padding-left:6px">ЗАЩИТА ДАННЫХ</div>';
+    
+    h += '<button onclick="closeMainMenu();openDataProtection()" style="width:100%;display:flex;align-items:center;gap:14px;padding:14px 14px;background:linear-gradient(135deg,rgba(57,211,187,.10),rgba(88,166,255,.05));border:1px solid rgba(57,211,187,.30);border-radius:14px;color:#39d3bb;font-size:15px;font-weight:600;cursor:pointer;margin-bottom:8px;text-align:left;font-family:-apple-system,system-ui,sans-serif">';
+    h += '<span style="font-size:22px">🛡</span>';
+    h += '<div style="flex:1"><div>Защита данных</div><div style="font-size:11px;color:#8b949e;font-weight:500;margin-top:2px">Снапшоты · Корзина · Дубли · Аудит</div></div>';
+    h += '<span style="color:#39d3bb;font-size:18px">›</span>';
+    h += '</button>';
+  }
+  
   // Принудительное обновление
   h += '<div style="font-size:11px;color:#8b949e;letter-spacing:1.5px;font-weight:700;margin-top:16px;margin-bottom:10px;padding-left:6px">ОБСЛУЖИВАНИЕ</div>';
   h += '<button onclick="closeMainMenu();forceRefresh()" style="width:100%;display:flex;align-items:center;gap:14px;padding:14px 14px;background:rgba(255,179,32,.08);border:1px solid rgba(255,179,32,.25);border-radius:14px;color:#ffd166;font-size:15px;font-weight:600;cursor:pointer;margin-bottom:8px;text-align:left;font-family:-apple-system,system-ui,sans-serif">';
@@ -4385,6 +4847,22 @@ window.openMainMenu = function(){
   h += '<div style="flex:1"><div>Обновить приложение</div><div style="font-size:11px;color:#8b949e;font-weight:500;margin-top:2px">Если новые функции не видны</div></div>';
   h += '<span style="color:#8b949e;font-size:18px">›</span>';
   h += '</button>';
+  
+  // ЗАЛИТЬ ЛОКАЛЬНОЕ В ОБЛАКО — самая частая нужда
+  if(typeof canEdit === 'function' && canEdit()){
+    h += '<button onclick="closeMainMenu();forceUploadLocal()" style="width:100%;display:flex;align-items:center;gap:14px;padding:14px 14px;background:rgba(63,185,80,.08);border:1px solid rgba(63,185,80,.30);border-radius:14px;color:#7ee787;font-size:15px;font-weight:600;cursor:pointer;margin-bottom:8px;text-align:left;font-family:-apple-system,system-ui,sans-serif">';
+    h += '<span style="font-size:22px">☁️↑</span>';
+    h += '<div style="flex:1"><div>Залить локальное в облако</div><div style="font-size:11px;color:#8b949e;font-weight:500;margin-top:2px">Если цифры путаются — это исправит</div></div>';
+    h += '<span style="color:#7ee787;font-size:18px">›</span>';
+    h += '</button>';
+    
+    // СБРОС К ЭТАЛОННЫМ ДАННЫМ — крайний случай
+    h += '<button onclick="closeMainMenu();resetToClean()" style="width:100%;display:flex;align-items:center;gap:14px;padding:14px 14px;background:rgba(248,81,73,.06);border:1px solid rgba(248,81,73,.20);border-radius:14px;color:#ff7b72;font-size:15px;font-weight:600;cursor:pointer;margin-bottom:8px;text-align:left;font-family:-apple-system,system-ui,sans-serif">';
+    h += '<span style="font-size:22px">⚠️</span>';
+    h += '<div style="flex:1"><div>Сброс к эталонным данным</div><div style="font-size:11px;color:#8b949e;font-weight:500;margin-top:2px">КРАЙНИЙ СЛУЧАЙ — 51 запись 25.05</div></div>';
+    h += '<span style="color:#ff7b72;font-size:18px">›</span>';
+    h += '</button>';
+  }
   
   // Выйти
   h += '<button onclick="closeMainMenu();doLogout()" style="width:100%;display:flex;align-items:center;gap:14px;padding:14px 14px;background:rgba(248,81,73,.08);border:1px solid rgba(248,81,73,.25);border-radius:14px;color:#ff7b72;font-size:15px;font-weight:600;cursor:pointer;text-align:left;font-family:-apple-system,system-ui,sans-serif">';
@@ -5120,6 +5598,17 @@ window._lastRenderTab = null;
 window._lastRenderHTML = null;
 
 function render(){
+  // Показываем FAB кнопки только редактору
+  var fabEl = document.getElementById('fab');
+  var fabMic = document.getElementById('fab-mic');
+  var isEditor = typeof canEdit === 'function' && canEdit();
+  if(fabEl){
+    fabEl.style.display = isEditor ? 'flex' : 'none';
+  }
+  if(fabMic){
+    fabMic.style.display = isEditor ? 'flex' : 'none';
+  }
+  
   var el=document.getElementById('content');
   if(!el)return;
   var map={main:rMain,pl:rPL,partners:rPartners,brigades:rBrigades,plan:rPlan,journal:rJournal,history:rHistory};
@@ -9416,6 +9905,17 @@ function openPeople(bId){
   if(!b.people) b.people=[];
   document.getElementById('mtit').textContent=T('peopleTitle')+' — '+b.name;
   function render(){
+  // Показываем FAB кнопки только редактору
+  var fabEl = document.getElementById('fab');
+  var fabMic = document.getElementById('fab-mic');
+  var isEditor = typeof canEdit === 'function' && canEdit();
+  if(fabEl){
+    fabEl.style.display = isEditor ? 'flex' : 'none';
+  }
+  if(fabMic){
+    fabMic.style.display = isEditor ? 'flex' : 'none';
+  }
+  
     var h='';
     h+='<div style="font-size:11px;color:var(--mut);margin-bottom:10px">Всего: <b style="color:var(--text)">'+b.people.length+' чел</b> · Сумма ставок/день: <b style="color:var(--gold)">'+fmt(b.people.reduce(function(s,p){return s+(p.rate||0);},0))+' тг</b></div>';
     if(b.people.length===0){
