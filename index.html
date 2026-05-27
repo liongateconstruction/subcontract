@@ -280,6 +280,26 @@ nav{position:fixed;bottom:0;left:0;right:0;background:rgba(22,27,34,0.97);border
 .fg{margin-bottom:12px}
 .fl{font-size:12px;color:var(--mut);letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:6px;font-weight:700}
 .fi{width:100%;background:var(--s2);border:1px solid var(--brd);border-radius:8px;padding:11px 12px;color:var(--text);font-family:var(--fm);font-size:14px;outline:none}
+/* === УНИФИКАЦИЯ ФОРМ ЧЕРНОВИКОВ — выглядят как ручной ввод === */
+#mbody select[onchange*="updateDraftField"],
+#mbody input[onchange*="updateDraftField"]{
+  width:100% !important;
+  background:var(--s2) !important;
+  border:1px solid var(--brd) !important;
+  border-radius:8px !important;
+  padding:11px 12px !important;
+  color:var(--text) !important;
+  font-family:var(--fm) !important;
+  font-size:14px !important;
+  outline:none !important;
+  min-height:44px;
+}
+#mbody select[onchange*="updateDraftField"]:focus,
+#mbody input[onchange*="updateDraftField"]:focus{ border-color:var(--gold) !important; }
+/* Подписи полей в черновиках */
+.df-fg{margin-bottom:12px}
+.df-fl{font-size:12px;color:var(--mut);letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:6px;font-weight:700}
+.df-frow{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .fi:focus{border-color:var(--gold)}
 textarea.fi{resize:vertical;min-height:60px}
 .frow{display:grid;grid-template-columns:1fr 1fr;gap:8px}
@@ -7086,6 +7106,44 @@ function openEntryCard(id){
     h+='</div>';
   }
   
+  // === БЛОК ПРИКРЕПЛЁННОГО ФАЙЛА ===
+  if(e.photo){
+    var isPdf = e.fileType === 'application/pdf' || (e.photo.indexOf('application/pdf') !== -1);
+    var isImg = !isPdf && (e.fileType ? e.fileType.indexOf('image/') === 0 : true);
+    
+    h += '<div style="font-size:10px;color:var(--mut);letter-spacing:2px;margin-bottom:8px">📎 ПРИКРЕПЛЁННЫЙ ФАЙЛ</div>';
+    h += '<div style="background:var(--s2);border-radius:12px;padding:14px;margin-bottom:12px">';
+    
+    if(isImg){
+      // Фото — показываем превью
+      h += '<img src="'+e.photo+'" style="width:100%;max-height:400px;object-fit:contain;border-radius:8px;cursor:pointer;display:block" onclick="viewPhoto(\''+id+'\')"/>';
+      h += '<div style="font-size:11px;color:var(--mut);margin-top:8px;text-align:center">Тап чтобы открыть на весь экран</div>';
+    } else if(isPdf){
+      // PDF — кнопка скачать/открыть
+      var fileName = e.fileName || 'документ.pdf';
+      h += '<div style="display:flex;align-items:center;gap:12px;padding:10px;background:rgba(248,81,73,.08);border:1px solid rgba(248,81,73,.3);border-radius:10px">';
+      h += '<div style="font-size:32px">📄</div>';
+      h += '<div style="flex:1;min-width:0">';
+      h += '<div style="font-size:13px;color:#e6edf3;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+fileName+'</div>';
+      h += '<div style="font-size:10px;color:var(--mut);margin-top:2px">PDF документ</div>';
+      h += '</div>';
+      h += '<a href="'+e.photo+'" download="'+fileName+'" onclick="event.stopPropagation()" style="background:var(--red);color:#fff;border-radius:8px;padding:8px 12px;font-size:11px;text-decoration:none;font-weight:600">Открыть</a>';
+      h += '</div>';
+    } else {
+      // Другой файл
+      var fileName2 = e.fileName || 'файл';
+      h += '<div style="display:flex;align-items:center;gap:12px;padding:10px;background:rgba(139,148,158,.1);border:1px solid var(--brd);border-radius:10px">';
+      h += '<div style="font-size:32px">📎</div>';
+      h += '<div style="flex:1;min-width:0">';
+      h += '<div style="font-size:13px;color:#e6edf3;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+fileName2+'</div>';
+      h += '</div>';
+      h += '<a href="'+e.photo+'" download="'+fileName2+'" onclick="event.stopPropagation()" style="background:var(--mut);color:#fff;border-radius:8px;padding:8px 12px;font-size:11px;text-decoration:none">Скачать</a>';
+      h += '</div>';
+    }
+    
+    h += '</div>';
+  }
+  
   // Блок ПРИЁМКА — только для записей объёма
   if(e.type==='vol' && canEdit()){
     h+='<div style="font-size:10px;color:var(--mut);letter-spacing:2px;margin-bottom:8px">ПРИЁМКА ЗАКАЗЧИКА</div>';
@@ -9605,80 +9663,200 @@ function rHistory(){
 function exportCSV(){var rows=[['Дата','Тип','Кто','Объект','Категория','Примечание','Сумма','Бригада','Конструкция','Пятно','Этаж','Объём м3']];getFiltered().forEach(function(e){var t=TYPES[e.type];rows.push([e.date,t?t.lbl:e.type,e.who||'',e.obj||'',e.cat||'',e.note||'',e.amount||'',e.brigade?bName(e.brigade):'',e.struct||'',e.zone||'',e.floor||'',e.volume||'']);});var csv=rows.map(function(r){return r.map(function(c){return '"'+(c||'').toString().replace(/"/g,'""')+'"';}).join(';');}).join('\n');var blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'});var u=URL.createObjectURL(blob);var a=document.createElement('a');a.href=u;a.download='LIONGATE_'+new Date().toLocaleDateString('ru-RU').replace(/\./g,'-')+'.csv';document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(u);}
 
 var pendingPhoto=null;
-function compressPhoto(file,cb){var rd=new FileReader();rd.onload=function(ev){var img=new Image();img.onload=function(){var mw=800,sc=Math.min(1,mw/img.width);var c=document.createElement('canvas');c.width=Math.round(img.width*sc);c.height=Math.round(img.height*sc);c.getContext('2d').drawImage(img,0,0,c.width,c.height);cb(c.toDataURL('image/jpeg',0.7));};img.src=ev.target.result;};rd.readAsDataURL(file);}
+var pendingFileName='';
+var pendingFileType='';
+// Универсальная функция: картинки сжимает, файлы (PDF) грузит как есть
+function compressPhoto(file,cb){
+  pendingFileName = file.name || 'файл';
+  pendingFileType = file.type || '';
+  // Картинка → сжать
+  if(file.type && file.type.indexOf('image/') === 0){
+    var rd = new FileReader();
+    rd.onload = function(ev){
+      var img = new Image();
+      img.onload = function(){
+        var mw=800, sc=Math.min(1, mw/img.width);
+        var c=document.createElement('canvas');
+        c.width=Math.round(img.width*sc);
+        c.height=Math.round(img.height*sc);
+        c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+        cb(c.toDataURL('image/jpeg',0.7));
+      };
+      img.src=ev.target.result;
+    };
+    rd.readAsDataURL(file);
+    return;
+  }
+  // PDF / другой файл → как есть в base64
+  var rd2 = new FileReader();
+  rd2.onload = function(ev){
+    cb(ev.target.result);
+  };
+  rd2.readAsDataURL(file);
+}
 function viewPhoto(id){var e=S.entries.find(function(x){return x.id==id;});if(!e||!e.photo)return;document.getElementById('pv-img').src=e.photo;document.getElementById('pv').style.display='flex';}
 var selType='expense';
 function openModal(){if(role!=='editor')return;selType='expense';pendingPhoto=null;buildModal();document.getElementById('modal').style.display='flex';}
 function closeModal(){document.getElementById('modal').style.display='none';pendingPhoto=null;}
-function buildModal(){var today=new Date().toISOString().slice(0,10);var po=PARTNERS.map(function(p){return '<option>'+p+'</option>';}).join('');var co=EXP_CATS.map(function(c){return '<option>'+c+'</option>';}).join('');var oo=S.objects.map(function(o){return '<option>'+o+'</option>';}).join('');var bo=S.brigades.map(function(b){return '<option value="'+b.id+'">'+b.name+'</option>';}).join('');
-var tp=[
-  {k:'income',  c:'tc-income',  i:'💰',t:'Доход',          d:'Заказчик заплатил'},
-  {k:'invest',  c:'tc-invest',  i:'💼',t:'Вложение в кассу',d:'Партнёр положил деньги в кассу'},
-  {k:'advance', c:'tc-advance', i:'🔄',t:'Передача',        d:'Партнёр дал партнёру под отчёт'},
-  {k:'expense', c:'tc-expense', i:'🧾',t:'Расход',          d:'Купили для стройки / на еду'},
-  {k:'payout',  c:'tc-payout',  i:'↩️',t:'Выплата',         d:'Компания выплатила партнёру'}
-];
-var tc=tp.map(function(t){return '<div class="tcard '+t.c+(selType===t.k?' sel':'')+'" data-type="'+t.k+'"><div class="tic">'+t.i+'</div><div class="ttit" style="color:'+(TYPES[t.k]?TYPES[t.k].color:'var(--mut)')+'">'+t.t+'</div><div class="tdsc">'+t.d+'</div></div>';}).join('');
-var fl='';
-if(selType==='income'){
-  var due=dueFromCustomer();var paidAlr=sumT('income');var dueLeft=Math.max(0,due-paidAlr);
-  fl='<div style="background:var(--bllt);border:1px solid var(--blue);border-radius:8px;padding:10px;margin-bottom:12px;font-size:11px;color:var(--blue)">'+
-    'По выполненному объёму заказчик должен ≈ <b>'+fmt(due)+' тг</b><br>'+
-    'Уже оплачено: '+fmt(paidAlr)+' тг<br>'+
-    '<b>Ожидается ещё ≈ '+fmt(dueLeft)+' тг</b></div>'+
-    '<div class="fg"><label class="fl">Объект</label><select class="fi" id="f-obj">'+oo+'</select>'+hint('По какому объекту пришла оплата')+'</div>'+
-    '<div class="fg"><label class="fl">От кого</label><input class="fi" id="f-from" type="text" value="Sensata Group"/>'+hint('Заказчик который перевёл деньги')+'</div>'+
-    '<div class="fg"><label class="fl">Примечание</label><input class="fi" id="f-note" type="text" placeholder="КС-2 №1, аванс..."/>'+hint('За что оплата')+'</div>';
+function buildModal(){
+  var today=new Date().toISOString().slice(0,10);
+  
+  // === ОБЩИЕ СПИСКИ ===
+  var po = PARTNERS.map(function(p){return '<option>'+p+'</option>';}).join('');
+  var poEmpty = '<option value="">— выберите —</option>'+po;
+  var co = EXP_CATS.map(function(c){return '<option>'+c+'</option>';}).join('');
+  var oo = S.objects.map(function(o){return '<option>'+o+'</option>';}).join('');
+  var bo = S.brigades.map(function(b){return '<option value="'+b.id+'">'+b.name+'</option>';}).join('');
+  
+  // === ВЫБОР ТИПА ОПЕРАЦИИ ===
+  var tp=[
+    {k:'income',  c:'tc-income',  i:'💰',t:'Доход',          d:'Заказчик заплатил'},
+    {k:'invest',  c:'tc-invest',  i:'💼',t:'Вложение в кассу',d:'Партнёр положил деньги в кассу'},
+    {k:'advance', c:'tc-advance', i:'🔄',t:'Передача',        d:'Партнёр дал партнёру под отчёт'},
+    {k:'expense', c:'tc-expense', i:'🧾',t:'Расход',          d:'Купили для стройки / на еду'},
+    {k:'payout',  c:'tc-payout',  i:'↩️',t:'Выплата',         d:'Компания выплатила партнёру'}
+  ];
+  var tc = tp.map(function(t){
+    return '<div class="tcard '+t.c+(selType===t.k?' sel':'')+'" data-type="'+t.k+'">'+
+           '<div class="tic">'+t.i+'</div>'+
+           '<div class="ttit" style="color:'+(TYPES[t.k]?TYPES[t.k].color:'var(--mut)')+'">'+t.t+'</div>'+
+           '<div class="tdsc">'+t.d+'</div>'+
+           '</div>';
+  }).join('');
+  
+  // === ПОДСКАЗКА СВЕРХУ (зависит от типа) ===
+  var hintHTML = '';
+  if(selType==='income'){
+    var due = (typeof dueFromCustomer === 'function') ? dueFromCustomer() : 0;
+    var paidAlr = (typeof sumT === 'function') ? sumT('income') : 0;
+    var dueLeft = Math.max(0, due - paidAlr);
+    hintHTML = '<div style="background:var(--bllt);border:1px solid var(--blue);border-radius:8px;padding:10px;margin-bottom:12px;font-size:11px;color:var(--blue)">'+
+      'По объёму заказчик должен ≈ <b>'+fmt(due)+' тг</b>, оплачено: '+fmt(paidAlr)+
+      ', ожидается ещё ≈ <b>'+fmt(dueLeft)+' тг</b></div>';
+  } else if(selType==='invest'){
+    hintHTML = '<div style="background:rgba(56,139,253,.05);border:1px solid rgba(56,139,253,.2);border-radius:8px;padding:10px;margin-bottom:12px;font-size:11px;color:var(--blue)">'+
+      '💡 Партнёр <b>положил свои деньги в кассу</b>. Касса увеличится, компания будет должна вернуть.</div>';
+  } else if(selType==='advance'){
+    hintHTML = '<div style="background:rgba(57,211,187,.05);border:1px solid rgba(57,211,187,.2);border-radius:8px;padding:10px;margin-bottom:12px;font-size:11px;color:var(--teal)">'+
+      '💡 Один партнёр <b>дал наличку другому под отчёт</b>. Касса не меняется.</div>';
+  } else if(selType==='expense'){
+    hintHTML = '<div style="background:rgba(248,81,73,.04);border:1px solid rgba(248,81,73,.2);border-radius:8px;padding:10px;margin-bottom:12px;font-size:11px;color:var(--mut)">'+
+      '💡 Компания потратила деньги. Выберите откуда взяли (касса/подотчёт/свои).</div>';
+  } else if(selType==='payout'){
+    hintHTML = '<div style="background:rgba(240,165,0,.04);border:1px solid rgba(240,165,0,.2);border-radius:8px;padding:10px;margin-bottom:12px;font-size:11px;color:var(--gold)">'+
+      '💡 Компания выплачивает партнёру (из кассы). Уменьшит долг компании перед партнёром.</div>';
+  }
+  
+  // ╔═══════════════════════════════════════════╗
+  // ║  ЕДИНЫЙ СТАНДАРТ — все 5 форм одинаковые  ║
+  // ╚═══════════════════════════════════════════╝
+  
+  var fl = hintHTML;
+  
+  // === БЛОК 1: ДАТА + СУММА (всегда первая строка) ===
+  fl += '<div class="frow">';
+  fl += '<div class="fg"><label class="fl">📅 Дата</label><input class="fi" id="f-date" type="date" value="'+today+'"/></div>';
+  fl += '<div class="fg"><label class="fl">💵 Сумма (₸)</label><input class="fi" id="f-amount" type="number" placeholder="0" inputmode="numeric"/></div>';
+  fl += '</div>';
+  
+  // === БЛОК 2: ПАРТНЁР (везде одинаковое название) ===
+  if(selType==='income'){
+    // Доход — кто принял оплату + От кого (заказчик)
+    fl += '<div class="fg"><label class="fl">👤 Партнёр (кто принял)</label><select class="fi" id="f-who">'+po+'</select></div>';
+    fl += '<div class="fg"><label class="fl">🏢 От кого (заказчик)</label><input class="fi" id="f-from" type="text" value="Sensata Group"/></div>';
+  } else if(selType==='advance'){
+    // Передача — 2 партнёра
+    fl += '<div class="fg"><label class="fl">👤 Партнёр (от кого)</label><select class="fi" id="f-from">'+poEmpty+'</select></div>';
+    fl += '<div class="fg"><label class="fl">👥 Кому (под отчёт)</label><select class="fi" id="f-to">'+poEmpty+'</select></div>';
+  } else {
+    // Invest, Expense, Payout — один партнёр
+    fl += '<div class="fg"><label class="fl">👤 Партнёр</label><select class="fi" id="f-who">'+po+'</select></div>';
+  }
+  
+  // === БЛОК 3: ОБЪЕКТ (везде одинаково) ===
+  fl += '<div class="fg"><label class="fl">🏗 Объект</label><select class="fi" id="f-obj">'+oo+'</select></div>';
+  
+  // === БЛОК 4: СПЕЦИФИЧНЫЕ ПОЛЯ ПОД ТИП ===
+  if(selType==='expense'){
+    fl += '<div class="fg"><label class="fl">💳 Источник денег</label><select class="fi" id="f-source">'+
+          '<option value="advance">Из подотчётных (гасит долг)</option>'+
+          '<option value="own">Со своих (компания будет должна)</option>'+
+          '<option value="cash">Из кассы (со счёта)</option>'+
+          '</select></div>';
+    fl += '<div class="fg"><label class="fl">🏷 Статья расхода</label><select class="fi" id="f-cat">'+co+'</select></div>';
+    fl += '<div class="fg"><label class="fl">👷 Бригада (если связано)</label><select class="fi" id="f-brig"><option value="">— не относится к бригаде —</option>'+bo+'</select></div>';
+  }
+  
+  // === БЛОК 5: ПРИМЕЧАНИЕ (везде одинаково) ===
+  var notePlaceholder = '';
+  if(selType==='income') notePlaceholder = 'КС-2 №1, аванс...';
+  else if(selType==='invest') notePlaceholder = 'На счёт компании, на страховку...';
+  else if(selType==='advance') notePlaceholder = 'На расходы, на барана...';
+  else if(selType==='expense') notePlaceholder = 'Арматура 12мм, 2 тонны...';
+  else if(selType==='payout') notePlaceholder = 'Возврат вложения...';
+  
+  fl += '<div class="fg"><label class="fl">📝 Примечание</label><input class="fi" id="f-note" type="text" placeholder="'+notePlaceholder+'"/></div>';
+  
+  // === БЛОК 6: ФАЙЛ-ПОДТВЕРЖДЕНИЕ (везде одинаково) ===
+  fl += '<div class="fg"><label class="fl">📎 Файл-подтверждение (необязательно)</label>'+
+        '<label style="display:block;cursor:pointer">'+
+        '<div class="photo-area" id="photo-ph">📷 Фото / 📄 PDF / 📋 Накладная</div>'+
+        '<img id="photo-prev" class="photo-prev"/>'+
+        '<div id="file-info" style="display:none;background:rgba(63,185,80,.08);border:1px solid rgba(63,185,80,.3);border-radius:8px;padding:10px;margin-top:6px;font-size:12px;color:var(--green)"></div>'+
+        '<input type="file" id="f-photo" accept="image/*,application/pdf,.pdf" style="display:none"/>'+
+        '</label>'+
+        '<div style="font-size:10px;color:var(--mut);margin-top:4px;line-height:1.4">💡 Чек, накладная, PDF, скриншот перевода — просто прикрепляется как доказательство</div>'+
+        '</div>';
+  
+  // === СБОРКА ФОРМЫ ===
+  document.getElementById('mtit').textContent = 'НОВАЯ ЗАПИСЬ';
+  document.getElementById('mbody').innerHTML = 
+    '<div class="tgrid">'+tc+'</div>'+
+    fl+
+    '<button class="fsave" id="btn-sv">СОХРАНИТЬ</button>'+
+    '<button class="fcanc" id="btn-cn">Отмена</button>';
+  
+  // === СОБЫТИЯ ===
+  document.querySelectorAll('.tcard').forEach(function(c){
+    c.addEventListener('click', function(){
+      selType = this.getAttribute('data-type');
+      pendingPhoto = null;
+      buildModal();
+    });
+  });
+  
+  var pi = document.getElementById('f-photo');
+  if(pi) pi.addEventListener('change', function(){
+    if(!this.files || !this.files[0]) return;
+    var f = this.files[0];
+    compressPhoto(f, function(d){
+      pendingPhoto = d;
+      var pv = document.getElementById('photo-prev');
+      var ph = document.getElementById('photo-ph');
+      var fi = document.getElementById('file-info');
+      var isImg = f.type && f.type.indexOf('image/') === 0;
+      
+      if(isImg){
+        if(pv){ pv.src=d; pv.style.display='block'; }
+        if(ph) ph.style.display='none';
+        if(fi) fi.style.display='none';
+      } else {
+        if(pv) pv.style.display='none';
+        if(ph) ph.style.display='none';
+        if(fi){
+          var sizeKb = Math.round(f.size/1024);
+          var icon = f.type === 'application/pdf' ? '📄' : '📎';
+          fi.innerHTML = icon + ' <b>' + (f.name || 'файл') + '</b><br>' +
+                         '<span style="font-size:11px;color:var(--mut)">' + sizeKb + ' КБ · прикреплено</span>';
+          fi.style.display = 'block';
+        }
+      }
+    });
+  });
+  
+  document.getElementById('btn-sv').addEventListener('click', saveEntry);
+  document.getElementById('btn-cn').addEventListener('click', closeModal);
 }
-else if(selType==='invest')fl=
-  '<div style="background:rgba(56,139,253,.05);border:1px solid rgba(56,139,253,.2);border-radius:8px;padding:10px;margin-bottom:12px;font-size:11px;color:var(--blue)">'+
-  '💡 Партнёр <b>положил свои деньги в кассу</b> (наличными, на счёт компании). Касса увеличится, компания будет должна вернуть.<br><br>'+
-  '<b>Не используйте если:</b> партнёр отдал деньги другому партнёру нал — для этого тип «Передача».'+
-  '</div>'+
-  '<div class="fg"><label class="fl">Кто вложил в кассу</label><select class="fi" id="f-who">'+po+'</select>'+hint('Тот кто реально принёс деньги в общий котёл')+'</div>'+
-  '<div class="fg"><label class="fl">Объект</label><select class="fi" id="f-obj">'+oo+'</select></div>'+
-  '<div class="fg"><label class="fl">Примечание</label><input class="fi" id="f-note" type="text" placeholder="На счёт компании, на страховку..."/></div>';
-else if(selType==='advance')fl=
-  '<div style="background:rgba(57,211,187,.05);border:1px solid rgba(57,211,187,.2);border-radius:8px;padding:10px;margin-bottom:12px;font-size:11px;color:var(--teal)">'+
-  '💡 Один партнёр <b>дал наличку другому под отчёт</b> (не клал в кассу).<br>'+
-  '• У отправителя — компания будет ему должна<br>'+
-  '• У получателя — он будет должен компании<br>'+
-  '• Касса не меняется'+
-  '</div>'+
-  '<div class="fg"><label class="fl">Кто дал (от кого)</label><select class="fi" id="f-from"><option value="">— выберите —</option>'+po+'</select>'+hint('Тот кто отдал свои деньги')+'</div>'+
-  '<div class="fg"><label class="fl">Кому дал (под отчёт)</label><select class="fi" id="f-to"><option value="">— выберите —</option>'+po+'</select>'+hint('Тот кто получил деньги под отчёт')+'</div>'+
-  '<div class="fg"><label class="fl">Объект</label><select class="fi" id="f-obj">'+oo+'</select></div>'+
-  '<div class="fg"><label class="fl">Примечание</label><input class="fi" id="f-note" type="text" placeholder="На расходы, на барана..."/></div>';
-else if(selType==='expense')fl=
-  '<div style="background:rgba(248,81,73,.04);border:1px solid rgba(248,81,73,.2);border-radius:8px;padding:10px;margin-bottom:12px;font-size:11px;color:var(--mut)">'+
-  '💡 Компания потратила деньги. <b>Выберите откуда взяли:</b><br>'+
-  '• <b>Из кассы</b> — со счёта компании / общих наличных<br>'+
-  '• <b>Из подотчётных</b> — партнёр потратил из тех денег что ему дали под отчёт (гасит его долг)<br>'+
-  '• <b>Со своих</b> — партнёр заплатил из своего кармана (компания будет ему должна)'+
-  '</div>'+
-  '<div class="fg"><label class="fl">Кто оплатил</label><select class="fi" id="f-who">'+po+'</select>'+hint('Партнёр который физически отдал деньги поставщику')+'</div>'+
-  '<div class="fg"><label class="fl">Откуда взяли деньги (источник)</label><select class="fi" id="f-source">'+
-    '<option value="advance">Из подотчётных (гасит долг)</option>'+
-    '<option value="own">Со своих (компания будет должна)</option>'+
-    '<option value="cash">Из кассы (Дмитрий со счёта)</option>'+
-  '</select>'+hint('Обычно: Бекжан/Евгений — из подотчётных, Дмитрий — со своих или из кассы')+'</div>'+
-  '<div class="fg"><label class="fl">Статья расхода</label><select class="fi" id="f-cat">'+co+'</select>'+hint('Обеды с заказчиками = Представительские')+'</div>'+
-  '<div class="fg"><label class="fl">Что куплено</label><input class="fi" id="f-note" type="text" placeholder="Арматура 12мм, 2 тонны..."/>'+hint('Подробно — название, количество')+'</div>'+
-  '<div class="fg"><label class="fl">Бригада (если аванс)</label><select class="fi" id="f-brig"><option value="">— не относится к бригаде —</option>'+bo+'</select>'+hint('Только если это аванс/зарплата бригаде')+'</div>'+
-  '<div class="fg"><label class="fl">Объект</label><select class="fi" id="f-obj">'+oo+'</select></div>'+
-  '<div class="fg"><label class="fl">Фото чека</label><label style="display:block;cursor:pointer"><div class="photo-area" id="photo-ph">Камера / Галерея / Файл</div><img id="photo-prev" class="photo-prev"/><input type="file" id="f-photo" accept="image/*" style="display:none"/></label></div>';
-else if(selType==='payout')fl=
-  '<div style="background:rgba(240,165,0,.04);border:1px solid rgba(240,165,0,.2);border-radius:8px;padding:10px;margin-bottom:12px;font-size:11px;color:var(--gold)">'+
-  '💡 Компания возвращает партнёру его вложения деньгами (из кассы). Уменьшит долг компании перед партнёром.'+
-  '</div>'+
-  '<div class="fg"><label class="fl">Кому выплата</label><select class="fi" id="f-who">'+po+'</select>'+hint('Партнёр которому возвращаем')+'</div>'+
-  '<div class="fg"><label class="fl">Примечание</label><input class="fi" id="f-note" type="text" placeholder="Возврат вложения..."/></div>';
-document.getElementById('mtit').textContent='НОВАЯ ЗАПИСЬ';
-document.getElementById('mbody').innerHTML='<div class="tgrid">'+tc+'</div><div class="frow"><div class="fg"><label class="fl">Дата</label><input class="fi" id="f-date" type="date" value="'+today+'"/></div><div class="fg"><label class="fl">Сумма тг</label><input class="fi" id="f-amount" type="number" placeholder="0" inputmode="numeric"/></div></div>'+fl+'<button class="fsave" id="btn-sv">СОХРАНИТЬ</button><button class="fcanc" id="btn-cn">Отмена</button>';
-document.querySelectorAll('.tcard').forEach(function(c){c.addEventListener('click',function(){selType=this.getAttribute('data-type');pendingPhoto=null;buildModal();});});
-var pi=document.getElementById('f-photo');if(pi)pi.addEventListener('change',function(){if(!this.files||!this.files[0])return;compressPhoto(this.files[0],function(d){pendingPhoto=d;var pv=document.getElementById('photo-prev'),ph=document.getElementById('photo-ph');if(pv){pv.src=d;pv.style.display='block';}if(ph)ph.style.display='none';});});
-document.getElementById('btn-sv').addEventListener('click',saveEntry);
-document.getElementById('btn-cn').addEventListener('click',closeModal);}
 function saveEntry(){
   var a=parseFloat(g('f-amount'));
   if(!a||isNaN(a)){alert('Введите сумму');return;}
@@ -9686,6 +9864,7 @@ function saveEntry(){
   if(selType==='income'){
     e.obj=g('f-obj')||S.objects[0];
     e.from=g('f-from')||'';
+    e.who=g('f-who')||'';
   }
   if(selType==='invest'){
     e.who=g('f-who')||'';
@@ -9703,16 +9882,21 @@ function saveEntry(){
     e.obj=g('f-obj')||S.objects[0];
     e.cat=g('f-cat')||'';
     e.who=g('f-who')||'';
-    if(!e.who){alert('Выберите кто оплатил');return;}
+    if(!e.who){alert('Выберите партнёра');return;}
     e.paySource=g('f-source')||'advance';
     var bv=g('f-brig');
     if(bv)e.brigade=bv;
-    if(pendingPhoto)e.photo=pendingPhoto;
   }
   if(selType==='payout'){
     e.who=g('f-who')||'';
-    if(!e.who){alert('Выберите кому выплата');return;}
-    e.obj='-';
+    if(!e.who){alert('Выберите партнёра');return;}
+    e.obj=g('f-obj')||S.objects[0];
+  }
+  // === ФАЙЛ-ПОДТВЕРЖДЕНИЕ — для ВСЕХ типов ===
+  if(pendingPhoto){
+    e.photo = pendingPhoto;
+    if(pendingFileName) e.fileName = pendingFileName;
+    if(pendingFileType) e.fileType = pendingFileType;
   }
   S.entries.push(e);
   if(!S.history)S.history=[];
@@ -12536,9 +12720,9 @@ function openDraftsModal(){
     if(multi) h+='<div style="font-size:9px;color:var(--gold);letter-spacing:1px;margin-bottom:6px">⚡ СВЯЗАННЫЕ: '+g.items.length+'</div>';
     g.items.forEach(function(d,idx){
       var op=d.op,col=colors[op.kind]||'var(--mut)';
-      h+='<div style="padding:8px;margin:4px 0;background:var(--sur);border-radius:6px;border-left:2px solid '+col+'">';
+      h+='<div style="padding:14px;margin:8px 0;background:var(--sur);border-radius:10px;border-left:3px solid '+col+'">';
       h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">';
-      h+='<div style="font-family:var(--fd);font-size:11px;color:'+col+'">'+(labels[op.kind]||op.kind)+'</div>';
+      h+='<div style="font-family:var(--fd);font-size:13px;font-weight:700;color:'+col+'">'+(labels[op.kind]||op.kind)+'</div>';
       // Селектор типов — новые типы первыми
       h+='<select onchange="updateDraftField(\''+d.id+'\',\'kind\',this.value);openDraftsModal()" style="background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:3px 6px;font-size:11px">';
       ['income','invest','advance','expense','payout','vol','workers'].forEach(function(kk){
@@ -12550,16 +12734,16 @@ function openDraftsModal(){
       if(op.kind==='workers'){
         // 👷 РАБОЧИЕ — бригада + количество
         h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">';
-        h+='<div><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Бригада</div>';
-        h+='<select onchange="updateDraftField(\''+d.id+'\',\'brigadeName\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px">';
+        h+='<div><div style="font-size:13px;color:var(--mut);letter-spacing:0.5px;margin-bottom:6px;font-weight:600">Бригада</div>';
+        h+='<select onchange="updateDraftField(\''+d.id+'\',\'brigadeName\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:8px;padding:11px 12px;font-size:14px;min-height:44px">';
         h+='<option value="">— выберите —</option>';
         (S.brigades||[]).forEach(function(b){
           var sel=(op.brigadeName&&b.name.toLowerCase().indexOf(op.brigadeName.toLowerCase())>=0)||(op.brigadeName===b.name);
           h+='<option value="'+b.name.replace(/"/g,'&quot;')+'"'+(sel?' selected':'')+'>'+b.name+'</option>';
         });
         h+='</select></div>';
-        h+='<div><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Чел</div>';
-        h+='<input type="number" value="'+(op.workersCount||0)+'" onchange="updateDraftField(\''+d.id+'\',\'workersCount\',parseInt(this.value)||0)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px"/></div>';
+        h+='<div><div style="font-size:13px;color:var(--mut);letter-spacing:0.5px;margin-bottom:6px;font-weight:600">Чел</div>';
+        h+='<input type="number" value="'+(op.workersCount||0)+'" onchange="updateDraftField(\''+d.id+'\',\'workersCount\',parseInt(this.value)||0)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:8px;padding:11px 12px;font-size:14px;min-height:44px"/></div>';
         h+='</div>';
       } 
       else if(op.kind==='advance'){
@@ -12568,59 +12752,59 @@ function openDraftsModal(){
         h+='<div style="font-size:9px;color:var(--gold);margin-bottom:6px;font-weight:700">🔄 ПЕРЕДАЧА ДЕНЕГ МЕЖДУ ПАРТНЁРАМИ</div>';
         h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">';
         // Сумма
-        h+='<div><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Сумма, тг</div>';
-        h+='<input type="number" value="'+(op.amount||0)+'" onchange="updateDraftField(\''+d.id+'\',\'amount\',parseInt(this.value)||0)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px"/></div>';
+        h+='<div><div style="font-size:13px;color:var(--mut);letter-spacing:0.5px;margin-bottom:6px;font-weight:600">Сумма, тг</div>';
+        h+='<input type="number" value="'+(op.amount||0)+'" onchange="updateDraftField(\''+d.id+'\',\'amount\',parseInt(this.value)||0)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:8px;padding:11px 12px;font-size:14px;min-height:44px"/></div>';
         // От кого
-        h+='<div><div style="font-size:9px;color:var(--mut);margin-bottom:2px">От кого</div>';
-        h+='<select onchange="updateDraftField(\''+d.id+'\',\'from\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px">';
+        h+='<div><div style="font-size:13px;color:var(--mut);letter-spacing:0.5px;margin-bottom:6px;font-weight:600">От кого</div>';
+        h+='<select onchange="updateDraftField(\''+d.id+'\',\'from\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:8px;padding:11px 12px;font-size:14px;min-height:44px">';
         h+='<option value="">— выберите —</option>';
         PARTNERS.forEach(function(p){h+='<option value="'+p+'"'+(op.from===p?' selected':'')+'>'+p+'</option>';});
         h+='</select></div>';
         h+='</div>';
         // Кому
-        h+='<div><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Кому передал</div>';
-        h+='<select onchange="updateDraftField(\''+d.id+'\',\'to\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px">';
+        h+='<div><div style="font-size:13px;color:var(--mut);letter-spacing:0.5px;margin-bottom:6px;font-weight:600">Кому передал</div>';
+        h+='<select onchange="updateDraftField(\''+d.id+'\',\'to\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:8px;padding:11px 12px;font-size:14px;min-height:44px">';
         h+='<option value="">— выберите —</option>';
         PARTNERS.forEach(function(p){h+='<option value="'+p+'"'+(op.to===p?' selected':'')+'>'+p+'</option>';});
         h+='</select></div>';
         h+='</div>';
         // Объект
-        h+='<div style="margin-bottom:6px"><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Объект</div>';
-        h+='<select onchange="updateDraftField(\''+d.id+'\',\'obj\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px">';
+        h+='<div style="margin-bottom:14px"><div style="font-size:13px;color:var(--mut);letter-spacing:0.5px;margin-bottom:6px;font-weight:600">Объект</div>';
+        h+='<select onchange="updateDraftField(\''+d.id+'\',\'obj\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:8px;padding:11px 12px;font-size:14px;min-height:44px">';
         (S.objects||[]).forEach(function(o){h+='<option value="'+o+'"'+(op.obj===o?' selected':'')+'>'+o+'</option>';});
         h+='</select></div>';
         // Примечание
-        h+='<div><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Примечание</div>';
-        h+='<input type="text" value="'+(op.note||'').replace(/"/g,'&quot;')+'" onchange="updateDraftField(\''+d.id+'\',\'note\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px"/></div>';
+        h+='<div><div style="font-size:13px;color:var(--mut);letter-spacing:0.5px;margin-bottom:6px;font-weight:600">Примечание</div>';
+        h+='<input type="text" value="'+(op.note||'').replace(/"/g,'&quot;')+'" onchange="updateDraftField(\''+d.id+'\',\'note\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:8px;padding:11px 12px;font-size:14px;min-height:44px"/></div>';
       }
       else if(op.kind==='expense'){
         // 💸 РАСХОД — сумма + кто платит + откуда + категория + бригада + объект
         h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">';
-        h+='<div><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Сумма, тг</div>';
-        h+='<input type="number" value="'+(op.amount||0)+'" onchange="updateDraftField(\''+d.id+'\',\'amount\',parseInt(this.value)||0)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px"/></div>';
-        h+='<div><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Кто платит</div>';
-        h+='<select onchange="updateDraftField(\''+d.id+'\',\'who\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px">';
+        h+='<div><div style="font-size:13px;color:var(--mut);letter-spacing:0.5px;margin-bottom:6px;font-weight:600">Сумма, тг</div>';
+        h+='<input type="number" value="'+(op.amount||0)+'" onchange="updateDraftField(\''+d.id+'\',\'amount\',parseInt(this.value)||0)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:8px;padding:11px 12px;font-size:14px;min-height:44px"/></div>';
+        h+='<div><div style="font-size:13px;color:var(--mut);letter-spacing:0.5px;margin-bottom:6px;font-weight:600">Кто платит</div>';
+        h+='<select onchange="updateDraftField(\''+d.id+'\',\'who\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:8px;padding:11px 12px;font-size:14px;min-height:44px">';
         h+='<option value="">— выберите —</option>';
         PARTNERS.forEach(function(p){h+='<option value="'+p+'"'+(op.who===p?' selected':'')+'>'+p+'</option>';});
         h+='</select></div>';
         h+='</div>';
         // Откуда деньги (paySource)
-        h+='<div style="margin-bottom:6px"><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Откуда деньги</div>';
+        h+='<div style="margin-bottom:14px"><div style="font-size:13px;color:var(--mut);letter-spacing:0.5px;margin-bottom:6px;font-weight:600">Откуда деньги</div>';
         var defaultPaySource = op.paySource || (op.who==='Дмитрий'?'own':'advance');
-        h+='<select onchange="updateDraftField(\''+d.id+'\',\'paySource\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px">';
+        h+='<select onchange="updateDraftField(\''+d.id+'\',\'paySource\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:8px;padding:11px 12px;font-size:14px;min-height:44px">';
         h+='<option value="advance"'+(defaultPaySource==='advance'?' selected':'')+'>Из подотчётных</option>';
         h+='<option value="own"'+(defaultPaySource==='own'?' selected':'')+'>Со своих</option>';
         h+='<option value="cash"'+(defaultPaySource==='cash'?' selected':'')+'>Из кассы</option>';
         h+='</select></div>';
         // Категория
-        h+='<div style="margin-bottom:6px"><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Категория</div>';
-        h+='<select onchange="updateDraftField(\''+d.id+'\',\'category\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px">';
+        h+='<div style="margin-bottom:14px"><div style="font-size:13px;color:var(--mut);letter-spacing:0.5px;margin-bottom:6px;font-weight:600">Категория</div>';
+        h+='<select onchange="updateDraftField(\''+d.id+'\',\'category\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:8px;padding:11px 12px;font-size:14px;min-height:44px">';
         h+='<option value="">— нет —</option>';
         EXP_CATS.forEach(function(c){h+='<option value="'+c+'"'+(op.category===c?' selected':'')+'>'+c+'</option>';});
         h+='</select></div>';
         // Бригада (опционально, если выплата бригаде)
-        h+='<div style="margin-bottom:6px"><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Бригада (если выплата бригаде)</div>';
-        h+='<select onchange="updateDraftField(\''+d.id+'\',\'brigadeName\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px">';
+        h+='<div style="margin-bottom:14px"><div style="font-size:13px;color:var(--mut);letter-spacing:0.5px;margin-bottom:6px;font-weight:600">Бригада (если выплата бригаде)</div>';
+        h+='<select onchange="updateDraftField(\''+d.id+'\',\'brigadeName\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:8px;padding:11px 12px;font-size:14px;min-height:44px">';
         h+='<option value="">— нет —</option>';
         (S.brigades||[]).forEach(function(b){
           var sel=(op.brigadeName&&b.name.toLowerCase().indexOf(op.brigadeName.toLowerCase())>=0)||(op.brigadeName===b.name);
@@ -12628,63 +12812,63 @@ function openDraftsModal(){
         });
         h+='</select></div>';
         // Объект
-        h+='<div style="margin-bottom:6px"><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Объект</div>';
-        h+='<select onchange="updateDraftField(\''+d.id+'\',\'obj\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px">';
+        h+='<div style="margin-bottom:14px"><div style="font-size:13px;color:var(--mut);letter-spacing:0.5px;margin-bottom:6px;font-weight:600">Объект</div>';
+        h+='<select onchange="updateDraftField(\''+d.id+'\',\'obj\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:8px;padding:11px 12px;font-size:14px;min-height:44px">';
         (S.objects||[]).forEach(function(o){h+='<option value="'+o+'"'+(op.obj===o?' selected':'')+'>'+o+'</option>';});
         h+='</select></div>';
         // Примечание
-        h+='<div><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Примечание</div>';
-        h+='<input type="text" value="'+(op.note||'').replace(/"/g,'&quot;')+'" onchange="updateDraftField(\''+d.id+'\',\'note\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px"/></div>';
+        h+='<div><div style="font-size:13px;color:var(--mut);letter-spacing:0.5px;margin-bottom:6px;font-weight:600">Примечание</div>';
+        h+='<input type="text" value="'+(op.note||'').replace(/"/g,'&quot;')+'" onchange="updateDraftField(\''+d.id+'\',\'note\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:8px;padding:11px 12px;font-size:14px;min-height:44px"/></div>';
       }
       else if(op.kind==='income'){
         // 💰 ДОХОД — сумма + кто получил + объект + примечание
         h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">';
-        h+='<div><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Сумма, тг</div>';
-        h+='<input type="number" value="'+(op.amount||0)+'" onchange="updateDraftField(\''+d.id+'\',\'amount\',parseInt(this.value)||0)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px"/></div>';
-        h+='<div><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Кто получил</div>';
-        h+='<select onchange="updateDraftField(\''+d.id+'\',\'who\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px">';
+        h+='<div><div style="font-size:13px;color:var(--mut);letter-spacing:0.5px;margin-bottom:6px;font-weight:600">Сумма, тг</div>';
+        h+='<input type="number" value="'+(op.amount||0)+'" onchange="updateDraftField(\''+d.id+'\',\'amount\',parseInt(this.value)||0)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:8px;padding:11px 12px;font-size:14px;min-height:44px"/></div>';
+        h+='<div><div style="font-size:13px;color:var(--mut);letter-spacing:0.5px;margin-bottom:6px;font-weight:600">Кто получил</div>';
+        h+='<select onchange="updateDraftField(\''+d.id+'\',\'who\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:8px;padding:11px 12px;font-size:14px;min-height:44px">';
         h+='<option value="">— нет —</option>';
         PARTNERS.forEach(function(p){h+='<option value="'+p+'"'+(op.who===p?' selected':'')+'>'+p+'</option>';});
         h+='</select></div>';
         h+='</div>';
-        h+='<div style="margin-bottom:6px"><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Объект</div>';
-        h+='<select onchange="updateDraftField(\''+d.id+'\',\'obj\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px">';
+        h+='<div style="margin-bottom:14px"><div style="font-size:13px;color:var(--mut);letter-spacing:0.5px;margin-bottom:6px;font-weight:600">Объект</div>';
+        h+='<select onchange="updateDraftField(\''+d.id+'\',\'obj\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:8px;padding:11px 12px;font-size:14px;min-height:44px">';
         (S.objects||[]).forEach(function(o){h+='<option value="'+o+'"'+(op.obj===o?' selected':'')+'>'+o+'</option>';});
         h+='</select></div>';
-        h+='<div><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Примечание</div>';
-        h+='<input type="text" value="'+(op.note||'').replace(/"/g,'&quot;')+'" onchange="updateDraftField(\''+d.id+'\',\'note\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px"/></div>';
+        h+='<div><div style="font-size:13px;color:var(--mut);letter-spacing:0.5px;margin-bottom:6px;font-weight:600">Примечание</div>';
+        h+='<input type="text" value="'+(op.note||'').replace(/"/g,'&quot;')+'" onchange="updateDraftField(\''+d.id+'\',\'note\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:8px;padding:11px 12px;font-size:14px;min-height:44px"/></div>';
       }
       else if(op.kind==='vol'){
         // 📐 ОБЪЁМ — объём + единица + вид работ + бригада
         h+='<div style="display:grid;grid-template-columns:1fr 100px;gap:6px;margin-bottom:6px">';
-        h+='<div><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Объём</div>';
-        h+='<input type="number" step="0.01" value="'+(op.volume||0)+'" onchange="updateDraftField(\''+d.id+'\',\'volume\',parseFloat(this.value)||0)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px"/></div>';
-        h+='<div><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Ед.</div>';
-        h+='<select onchange="updateDraftField(\''+d.id+'\',\'unit\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px">';
+        h+='<div><div style="font-size:13px;color:var(--mut);letter-spacing:0.5px;margin-bottom:6px;font-weight:600">Объём</div>';
+        h+='<input type="number" step="0.01" value="'+(op.volume||0)+'" onchange="updateDraftField(\''+d.id+'\',\'volume\',parseFloat(this.value)||0)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:8px;padding:11px 12px;font-size:14px;min-height:44px"/></div>';
+        h+='<div><div style="font-size:13px;color:var(--mut);letter-spacing:0.5px;margin-bottom:6px;font-weight:600">Ед.</div>';
+        h+='<select onchange="updateDraftField(\''+d.id+'\',\'unit\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:8px;padding:11px 12px;font-size:14px;min-height:44px">';
         ['м³','м²','тн','шт','м/п','кг'].forEach(function(u){
           h+='<option value="'+u+'"'+(op.unit===u||(u==='м³'&&!op.unit)?' selected':'')+'>'+u+'</option>';
         });
         h+='</select></div>';
         h+='</div>';
-        h+='<div style="margin-bottom:6px"><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Вид работ</div>';
-        h+='<select onchange="updateDraftField(\''+d.id+'\',\'wtype\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px">';
+        h+='<div style="margin-bottom:14px"><div style="font-size:13px;color:var(--mut);letter-spacing:0.5px;margin-bottom:6px;font-weight:600">Вид работ</div>';
+        h+='<select onchange="updateDraftField(\''+d.id+'\',\'wtype\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:8px;padding:11px 12px;font-size:14px;min-height:44px">';
         h+='<option value="">— выберите —</option>';
         WORK_TYPES.forEach(function(w){h+='<option value="'+w+'"'+(op.wtype===w?' selected':'')+'>'+w+'</option>';});
         h+='</select></div>';
-        h+='<div style="margin-bottom:6px"><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Бригада</div>';
-        h+='<select onchange="updateDraftField(\''+d.id+'\',\'brigadeName\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px">';
+        h+='<div style="margin-bottom:14px"><div style="font-size:13px;color:var(--mut);letter-spacing:0.5px;margin-bottom:6px;font-weight:600">Бригада</div>';
+        h+='<select onchange="updateDraftField(\''+d.id+'\',\'brigadeName\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:8px;padding:11px 12px;font-size:14px;min-height:44px">';
         h+='<option value="">— выберите —</option>';
         (S.brigades||[]).forEach(function(b){
           var sel=(op.brigadeName&&b.name.toLowerCase().indexOf(op.brigadeName.toLowerCase())>=0)||(op.brigadeName===b.name);
           h+='<option value="'+b.name.replace(/"/g,'&quot;')+'"'+(sel?' selected':'')+'>'+b.name+'</option>';
         });
         h+='</select></div>';
-        h+='<div style="margin-bottom:6px"><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Объект</div>';
-        h+='<select onchange="updateDraftField(\''+d.id+'\',\'obj\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px">';
+        h+='<div style="margin-bottom:14px"><div style="font-size:13px;color:var(--mut);letter-spacing:0.5px;margin-bottom:6px;font-weight:600">Объект</div>';
+        h+='<select onchange="updateDraftField(\''+d.id+'\',\'obj\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:8px;padding:11px 12px;font-size:14px;min-height:44px">';
         (S.objects||[]).forEach(function(o){h+='<option value="'+o+'"'+(op.obj===o?' selected':'')+'>'+o+'</option>';});
         h+='</select></div>';
-        h+='<div><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Примечание</div>';
-        h+='<input type="text" value="'+(op.note||'').replace(/"/g,'&quot;')+'" onchange="updateDraftField(\''+d.id+'\',\'note\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px"/></div>';
+        h+='<div><div style="font-size:13px;color:var(--mut);letter-spacing:0.5px;margin-bottom:6px;font-weight:600">Примечание</div>';
+        h+='<input type="text" value="'+(op.note||'').replace(/"/g,'&quot;')+'" onchange="updateDraftField(\''+d.id+'\',\'note\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:8px;padding:11px 12px;font-size:14px;min-height:44px"/></div>';
       }
       else if(op.kind==='invest'){
         // 💼 ВЛОЖЕНИЕ В КАССУ — партнёр положил свои деньги в общую кассу
@@ -12692,23 +12876,23 @@ function openDraftsModal(){
         h+='<div style="font-size:9px;color:var(--blue);margin-bottom:6px;font-weight:700">💼 ВЛОЖЕНИЕ В ОБЩУЮ КАССУ</div>';
         h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">';
         // Сумма
-        h+='<div><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Сумма, тг</div>';
-        h+='<input type="number" value="'+(op.amount||0)+'" onchange="updateDraftField(\''+d.id+'\',\'amount\',parseInt(this.value)||0)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px"/></div>';
+        h+='<div><div style="font-size:13px;color:var(--mut);letter-spacing:0.5px;margin-bottom:6px;font-weight:600">Сумма, тг</div>';
+        h+='<input type="number" value="'+(op.amount||0)+'" onchange="updateDraftField(\''+d.id+'\',\'amount\',parseInt(this.value)||0)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:8px;padding:11px 12px;font-size:14px;min-height:44px"/></div>';
         // Кто вложил
-        h+='<div><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Кто вложил</div>';
-        h+='<select onchange="updateDraftField(\''+d.id+'\',\'who\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px">';
+        h+='<div><div style="font-size:13px;color:var(--mut);letter-spacing:0.5px;margin-bottom:6px;font-weight:600">Кто вложил</div>';
+        h+='<select onchange="updateDraftField(\''+d.id+'\',\'who\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:8px;padding:11px 12px;font-size:14px;min-height:44px">';
         h+='<option value="">— выберите —</option>';
         PARTNERS.forEach(function(p){h+='<option value="'+p+'"'+(op.who===p?' selected':'')+'>'+p+'</option>';});
         h+='</select></div>';
         h+='</div></div>';
         // Объект
-        h+='<div style="margin-bottom:6px"><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Объект</div>';
-        h+='<select onchange="updateDraftField(\''+d.id+'\',\'obj\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px">';
+        h+='<div style="margin-bottom:14px"><div style="font-size:13px;color:var(--mut);letter-spacing:0.5px;margin-bottom:6px;font-weight:600">Объект</div>';
+        h+='<select onchange="updateDraftField(\''+d.id+'\',\'obj\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:8px;padding:11px 12px;font-size:14px;min-height:44px">';
         (S.objects||[]).forEach(function(o){h+='<option value="'+o+'"'+(op.obj===o?' selected':'')+'>'+o+'</option>';});
         h+='</select></div>';
         // Примечание
-        h+='<div><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Примечание</div>';
-        h+='<input type="text" value="'+(op.note||'').replace(/"/g,'&quot;')+'" onchange="updateDraftField(\''+d.id+'\',\'note\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px"/></div>';
+        h+='<div><div style="font-size:13px;color:var(--mut);letter-spacing:0.5px;margin-bottom:6px;font-weight:600">Примечание</div>';
+        h+='<input type="text" value="'+(op.note||'').replace(/"/g,'&quot;')+'" onchange="updateDraftField(\''+d.id+'\',\'note\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:8px;padding:11px 12px;font-size:14px;min-height:44px"/></div>';
       }
       else if(op.kind==='payout'){
         // ↩️ ВЫПЛАТА — компания выплатила партнёру (закрыла свой долг)
@@ -12716,23 +12900,23 @@ function openDraftsModal(){
         h+='<div style="font-size:9px;color:var(--gold);margin-bottom:6px;font-weight:700">↩️ ВЫПЛАТА (КОМПАНИЯ → ПАРТНЁР)</div>';
         h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">';
         // Сумма
-        h+='<div><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Сумма, тг</div>';
-        h+='<input type="number" value="'+(op.amount||0)+'" onchange="updateDraftField(\''+d.id+'\',\'amount\',parseInt(this.value)||0)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px"/></div>';
+        h+='<div><div style="font-size:13px;color:var(--mut);letter-spacing:0.5px;margin-bottom:6px;font-weight:600">Сумма, тг</div>';
+        h+='<input type="number" value="'+(op.amount||0)+'" onchange="updateDraftField(\''+d.id+'\',\'amount\',parseInt(this.value)||0)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:8px;padding:11px 12px;font-size:14px;min-height:44px"/></div>';
         // Кому
-        h+='<div><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Кому</div>';
-        h+='<select onchange="updateDraftField(\''+d.id+'\',\'who\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px">';
+        h+='<div><div style="font-size:13px;color:var(--mut);letter-spacing:0.5px;margin-bottom:6px;font-weight:600">Кому</div>';
+        h+='<select onchange="updateDraftField(\''+d.id+'\',\'who\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:8px;padding:11px 12px;font-size:14px;min-height:44px">';
         h+='<option value="">— выберите —</option>';
         PARTNERS.forEach(function(p){h+='<option value="'+p+'"'+(op.who===p?' selected':'')+'>'+p+'</option>';});
         h+='</select></div>';
         h+='</div></div>';
         // Объект
-        h+='<div style="margin-bottom:6px"><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Объект</div>';
-        h+='<select onchange="updateDraftField(\''+d.id+'\',\'obj\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px">';
+        h+='<div style="margin-bottom:14px"><div style="font-size:13px;color:var(--mut);letter-spacing:0.5px;margin-bottom:6px;font-weight:600">Объект</div>';
+        h+='<select onchange="updateDraftField(\''+d.id+'\',\'obj\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:8px;padding:11px 12px;font-size:14px;min-height:44px">';
         (S.objects||[]).forEach(function(o){h+='<option value="'+o+'"'+(op.obj===o?' selected':'')+'>'+o+'</option>';});
         h+='</select></div>';
         // Примечание
-        h+='<div><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Примечание</div>';
-        h+='<input type="text" value="'+(op.note||'').replace(/"/g,'&quot;')+'" onchange="updateDraftField(\''+d.id+'\',\'note\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:4px;padding:4px;font-size:11px"/></div>';
+        h+='<div><div style="font-size:13px;color:var(--mut);letter-spacing:0.5px;margin-bottom:6px;font-weight:600">Примечание</div>';
+        h+='<input type="text" value="'+(op.note||'').replace(/"/g,'&quot;')+'" onchange="updateDraftField(\''+d.id+'\',\'note\',this.value)" style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--brd);border-radius:8px;padding:11px 12px;font-size:14px;min-height:44px"/></div>';
       }
       else {
         // Старые типы personal или неизвестный
