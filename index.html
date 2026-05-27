@@ -2154,6 +2154,31 @@ function processCloudData(d, cb){
         return;
       }
       
+      // === ВСЕГДА проверяем PRELOADED первым ===
+      // Если PRELOADED содержит более свежие исправления данных
+      // (например, мы вручную поправили запись в коде) — применяем PRELOADED
+      // Это исправляет ситуацию когда в облаке остались СТАРЫЕ значения
+      if(typeof PRELOADED_DATA !== 'undefined' && PRELOADED_DATA._modified){
+        // PRELOADED новее облака на 60+ сек → берём PRELOADED и обновляем облако
+        if(PRELOADED_DATA._modified > remoteTime + 60000){
+          console.log('[pull] PRELOADED ('+new Date(PRELOADED_DATA._modified).toISOString()+') новее облака ('+new Date(remoteTime).toISOString()+') → применяем PRELOADED');
+          S.entries = JSON.parse(JSON.stringify(PRELOADED_DATA.entries));
+          if(PRELOADED_DATA.brigades) S.brigades = JSON.parse(JSON.stringify(PRELOADED_DATA.brigades));
+          if(PRELOADED_DATA.objects) S.objects = PRELOADED_DATA.objects.slice();
+          if(PRELOADED_DATA.objMeta) S.objMeta = JSON.parse(JSON.stringify(PRELOADED_DATA.objMeta));
+          if(PRELOADED_DATA.kfu) S.kfu = JSON.parse(JSON.stringify(PRELOADED_DATA.kfu));
+          if(PRELOADED_DATA.settings) S.settings = JSON.parse(JSON.stringify(PRELOADED_DATA.settings));
+          if(PRELOADED_DATA.workTypes) S.workTypes = PRELOADED_DATA.workTypes.slice();
+          S._modified = PRELOADED_DATA._modified;
+          _lastKnownRemote = PRELOADED_DATA._modified;
+          persist();
+          pushCloud(); // обновим облако новыми данными
+          ss('🔄',false);
+          if(cb) cb();
+          return;
+        }
+      }
+      
       // Случай 1: локально есть данные → ПУШИМ В ОБЛАКО (а не забираем оттуда)
       if(localHasData){
         // Если облако явно новее на 60+ секунд И больше записей — берём облако (другой пользователь внёс)
