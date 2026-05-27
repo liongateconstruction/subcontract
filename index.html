@@ -298,7 +298,7 @@ canvas{display:block;width:100%;border-radius:8px}
 
 /* === DRILL-DOWN === */
 .drill-h{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--brd);margin-bottom:14px}
-.drill-back{position:absolute;top:14px;left:14px;height:38px;padding:0 14px 0 10px;border-radius:19px;background:rgba(255,255,255,.10);border:1.5px solid rgba(255,255,255,.20);color:#e6edf3;font-size:14px;font-weight:700;display:inline-flex;align-items:center;gap:4px;cursor:pointer;line-height:1;z-index:10;font-family:-apple-system,system-ui,sans-serif}.drill-back:hover{background:rgba(255,255,255,.20)}
+.drill-back{position:fixed;top:calc(14px + env(safe-area-inset-top));left:14px;height:38px;padding:0 14px 0 10px;border-radius:19px;background:rgba(22,27,34,.85);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1.5px solid rgba(255,255,255,.20);color:#e6edf3;font-size:14px;font-weight:700;display:inline-flex;align-items:center;gap:4px;cursor:pointer;line-height:1;z-index:100;font-family:-apple-system,system-ui,sans-serif;box-shadow:0 4px 12px rgba(0,0,0,.3)}.drill-back:hover{background:rgba(255,255,255,.20)}
 .drill-back:active{transform:scale(.96)}
 .drill-row{display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--sur);border:1px solid var(--brd);border-radius:12px;margin-bottom:6px;cursor:pointer;transition:.15s}
 .drill-row:active{background:var(--s2)}
@@ -506,7 +506,7 @@ canvas{display:block;width:100%;border-radius:8px}
   </nav>
 </div>
 <div id="modal" onclick="if(event.target.id==='modal')closeModal()" style="display:none" class="mbg">
-  <div class="mbox" style="position:relative;padding-top:54px"><button onclick="closeModal()" style="position:absolute;top:14px;left:14px;height:36px;padding:0 14px 0 10px;border-radius:18px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:#e6edf3;font-size:14px;font-weight:700;cursor:pointer;line-height:1;display:inline-flex;align-items:center;gap:4px;z-index:10;font-family:-apple-system,system-ui,sans-serif"><span style="font-size:20px;line-height:1">←</span><span>Назад</span></button><div class="mhandle"></div><div class="mtit" id="mtit" style="text-align:center;padding:0 70px">НОВАЯ ЗАПИСЬ</div><div id="mbody"></div></div>
+  <div class="mbox" style="position:relative;padding-top:calc(64px + env(safe-area-inset-top))"><button onclick="closeModal()" style="position:absolute;top:calc(14px + env(safe-area-inset-top));left:14px;height:36px;padding:0 14px 0 10px;border-radius:18px;background:rgba(22,27,34,.85);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.20);color:#e6edf3;font-size:14px;font-weight:700;cursor:pointer;line-height:1;display:inline-flex;align-items:center;gap:4px;z-index:100;font-family:-apple-system,system-ui,sans-serif;box-shadow:0 4px 12px rgba(0,0,0,.3)"><span style="font-size:20px;line-height:1">←</span><span>Назад</span></button><div class="mhandle"></div><div class="mtit" id="mtit" style="text-align:center;padding:0 70px">НОВАЯ ЗАПИСЬ</div><div id="mbody"></div></div>
 </div>
 <div id="ptrIndicator" class="ptr-indicator">
   <span class="ptr-arrow">↓</span>
@@ -526,8 +526,8 @@ canvas{display:block;width:100%;border-radius:8px}
   </div>
 </div>
 <div id="vmodal" onclick="if(event.target.id==='vmodal')closeVoiceModal()" style="display:none" class="mbg">
-  <div class="mbox" style="position:relative;padding-top:54px">
-    <button onclick="closeVoiceModal()" style="position:absolute;top:14px;left:14px;height:36px;padding:0 14px 0 10px;border-radius:18px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:#e6edf3;font-size:14px;font-weight:700;cursor:pointer;line-height:1;display:inline-flex;align-items:center;gap:4px;z-index:10;font-family:-apple-system,system-ui,sans-serif"><span style="font-size:20px;line-height:1">←</span><span>Назад</span></button>
+  <div class="mbox" style="position:relative;padding-top:calc(64px + env(safe-area-inset-top))">
+    <button onclick="closeVoiceModal()" style="position:absolute;top:calc(14px + env(safe-area-inset-top));left:14px;height:36px;padding:0 14px 0 10px;border-radius:18px;background:rgba(22,27,34,.85);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.20);color:#e6edf3;font-size:14px;font-weight:700;cursor:pointer;line-height:1;display:inline-flex;align-items:center;gap:4px;z-index:100;font-family:-apple-system,system-ui,sans-serif;box-shadow:0 4px 12px rgba(0,0,0,.3)"><span style="font-size:20px;line-height:1">←</span><span>Назад</span></button>
     <div class="mhandle"></div>
     <div class="mtit" style="color:var(--purple);text-align:center;padding:0 70px">🎤 ГОЛОСОВОЙ ВВОД</div>
     <div id="vbody">
@@ -5197,10 +5197,10 @@ window.openMainMenu = function(){
   }
   
   var h = '<div id="lg-menu-bg" onclick="closeMainMenu(event)" style="position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);z-index:9998;animation:fadeIn .2s">';
-  h += '<div onclick="event.stopPropagation()" style="position:absolute;bottom:0;left:0;right:0;background:#161b22;border-top:1.5px solid var(--gold);border-radius:24px 24px 0 0;padding:20px 16px calc(20px + env(safe-area-inset-bottom));box-shadow:0 -8px 32px rgba(0,0,0,.5);animation:slideUp .25s ease;font-family:-apple-system,system-ui,sans-serif;max-height:85vh;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-top:60px">';
+  h += '<div onclick="event.stopPropagation()" style="position:absolute;bottom:0;left:0;right:0;background:#161b22;border-top:1.5px solid var(--gold);border-radius:24px 24px 0 0;padding:20px 16px calc(20px + env(safe-area-inset-bottom));box-shadow:0 -8px 32px rgba(0,0,0,.5);animation:slideUp .25s ease;font-family:-apple-system,system-ui,sans-serif;max-height:85vh;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-top:calc(70px + env(safe-area-inset-top))">';
   
   // Полоска-хэндл
-  h += '<button onclick="closeMainMenu()" style="position:absolute;top:14px;left:14px;height:36px;padding:0 14px 0 10px;border-radius:18px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:#e6edf3;font-size:14px;font-weight:700;cursor:pointer;line-height:1;display:inline-flex;align-items:center;gap:4px;z-index:10;font-family:-apple-system,system-ui,sans-serif"><span style="font-size:20px;line-height:1">←</span><span>Назад</span></button>';
+  h += '<button onclick="closeMainMenu()" style="position:absolute;top:calc(14px + env(safe-area-inset-top));left:14px;height:36px;padding:0 14px 0 10px;border-radius:18px;background:rgba(22,27,34,.85);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.20);color:#e6edf3;font-size:14px;font-weight:700;cursor:pointer;line-height:1;display:inline-flex;align-items:center;gap:4px;z-index:100;font-family:-apple-system,system-ui,sans-serif;box-shadow:0 4px 12px rgba(0,0,0,.3)"><span style="font-size:20px;line-height:1">←</span><span>Назад</span></button>';
   h += '<div style="width:40px;height:5px;background:#30363d;border-radius:3px;margin:0 auto 18px"></div>';
   
   // Шапка меню — роль + статус
