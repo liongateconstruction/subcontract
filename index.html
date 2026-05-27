@@ -47,6 +47,96 @@ button, .nb, .hbtn, .fab, .yk-mini, .yk-big, .yk-alert { touch-action: manipulat
   --text:#f0f6fc;--mut:#b9c3d0;
   --fd:'Bebas Neue',sans-serif;--fm:'IBM Plex Mono',monospace;
 }
+
+/* ==== КРАСИВЫЕ КАРТОЧКИ И ТИПОГРАФИКА ==== */
+.lg-card{
+  background:#161b22;
+  border:1px solid #21262d;
+  border-radius:16px;
+  padding:16px;
+  margin-bottom:12px;
+  transition:transform .15s, box-shadow .2s;
+}
+.lg-card:active{transform:scale(.99)}
+.lg-card-gold{
+  border:1.5px solid var(--gold);
+  box-shadow:0 4px 20px rgba(240,165,0,.08);
+}
+.lg-card-success{
+  border:1.5px solid rgba(63,185,80,.5);
+  box-shadow:0 4px 16px rgba(63,185,80,.08);
+}
+.lg-card-warning{
+  border:1.5px solid rgba(255,179,32,.5);
+  box-shadow:0 4px 16px rgba(255,179,32,.08);
+}
+.lg-card-danger{
+  border:1.5px solid rgba(255,123,114,.5);
+  box-shadow:0 4px 16px rgba(255,123,114,.08);
+}
+
+/* Заголовки секций */
+.lg-section-title{
+  font-size:13px;
+  color:#8b949e;
+  letter-spacing:2.5px;
+  font-weight:800;
+  margin:20px 4px 12px;
+  text-transform:uppercase;
+}
+
+/* Заголовки экранов */
+.lg-screen-title{
+  font-size:28px;
+  color:var(--gold);
+  font-weight:800;
+  letter-spacing:2px;
+  font-family:var(--fd);
+  margin-bottom:6px;
+}
+.lg-screen-subtitle{
+  font-size:14px;
+  color:#8b949e;
+  margin-bottom:18px;
+}
+
+/* Большие цифры */
+.lg-big-num{
+  font-size:32px;
+  font-weight:800;
+  letter-spacing:-.5px;
+  line-height:1.1;
+}
+.lg-mid-num{
+  font-size:22px;
+  font-weight:800;
+  line-height:1.1;
+}
+
+/* Метки (caps) */
+.lg-label{
+  font-size:11px;
+  color:#8b949e;
+  letter-spacing:2px;
+  font-weight:700;
+  text-transform:uppercase;
+}
+
+/* Сглаживание шрифтов */
+body, button, input, select, textarea{
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+  text-rendering:optimizeLegibility;
+}
+
+/* Минимум высота кнопок для пальца (Apple HIG = 44px) */
+button{
+  min-height:44px;
+}
+button.fab{min-height:auto}
+.nb{min-height:auto}
+
+
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--fm);overflow:hidden}
 #app{display:flex;flex-direction:column;height:calc(var(--vh, 1vh) * 100);height:100dvh}
@@ -460,20 +550,16 @@ canvas{display:block;width:100%;border-radius:8px}
       <div id="hdr-role" style="font-size:9px;color:var(--gold);letter-spacing:2.5px;margin-top:3px;font-weight:700;opacity:.6">2030 · 1 МЛРД $</div>
     </div>
     <div class="hrgt" style="gap:8px">
-      <!-- Индикатор синхронизации -->
-      <span id="sync-st" style="font-size:16px;color:var(--green);line-height:1" title="Статус синхронизации">●</span>
-      <span id="syncTime" class="sync-time" style="display:none">только что</span>
-      
-      <!-- Скрытые роли (показываются в меню) -->
+      <!-- Скрытый индикатор синхронизации (только для статуса в JS, не виден) -->
+      <span id="sync-st" style="display:none">●</span>
+      <span id="syncTime" style="display:none">только что</span>
       <span class="rpill" id="rpill" style="display:none"></span>
       
-      <!-- Язык -->
-      <button id="btn-lang" class="hbtn" style="border-color:var(--purple);color:var(--purple);min-width:42px;font-weight:700">RU</button>
+      <!-- Только кнопка языка -->
+      <button id="btn-lang" class="hbtn" style="border-color:var(--purple);color:var(--purple);min-width:48px;font-weight:700">RU</button>
       
-      <!-- ⋯ Меню (заменяет 4 старые кнопки) -->
-      <button class="hbtn" id="btn-menu" onclick="openMainMenu()" style="border-color:var(--gold);color:var(--gold);font-weight:700;font-size:18px;line-height:1;min-width:42px;position:relative" title="Меню (новые функции!)"><span style="position:absolute;top:-4px;right:-4px;width:10px;height:10px;background:#ff7b72;border-radius:50%;animation:pulse 2s infinite"></span>⋯</button>
-      
-      <!-- Скрытые служебные кнопки -->
+      <!-- Скрытые служебные (для совместимости с JS) -->
+      <button class="hbtn" id="btn-menu" onclick="openMainMenu()" style="display:none">⋯</button>
       <div id="gt-widget" style="display:none"></div>
       <button class="hbtn" id="btn-refresh" style="display:none">↻</button>
       <button class="hbtn" id="btn-obj" style="display:none">Об</button>
@@ -491,18 +577,18 @@ canvas{display:block;width:100%;border-radius:8px}
     <button class="nb active" id="tab-main">
       <span style="font-size:22px;line-height:1">🔥</span>
       <span>Пульс</span></button>
-    <button class="nb" id="tab-plan">
-      <span style="font-size:22px;line-height:1">🎯</span>
-      <span>План</span></button>
     <button class="nb" id="tab-pl">
       <span style="font-size:22px;line-height:1">💰</span>
       <span>Деньги</span></button>
     <button class="nb" id="tab-partners">
-      <span style="font-size:22px;line-height:1">🚀</span>
-      <span>Рост</span></button>
-    <button class="nb" id="tab-history">
+      <span style="font-size:22px;line-height:1">👥</span>
+      <span>Партнёры</span></button>
+    <button class="nb" id="tab-objects">
+      <span style="font-size:22px;line-height:1">🏗</span>
+      <span>Объекты</span></button>
+    <button class="nb" id="tab-more">
       <span style="font-size:22px;line-height:1">⚙</span>
-      <span>Об</span></button>
+      <span>Ещё</span></button>
   </nav>
 </div>
 <div id="modal" onclick="if(event.target.id==='modal')closeModal()" style="display:none" class="mbg">
@@ -6044,7 +6130,7 @@ function render(){
   
   var el=document.getElementById('content');
   if(!el)return;
-  var map={main:rMain,pl:rPL,partners:rPartners,brigades:rBrigades,plan:rPlan,journal:rJournal,history:rHistory};
+  var map={main:rMain,pl:rPL,partners:rPartners,brigades:rBrigades,plan:rPlan,journal:rJournal,history:rHistory,more:rMore,objects:rObjects};
   if(map[curTab]){
     try{
       var newHTML = map[curTab]();
@@ -7064,798 +7150,44 @@ function openEditEntry(id){
 }
 
 function rMain(){
-  // === ПЛАШКА НОВИНОК (показывается до первого тапа) ===
-  var seenFeatures = localStorage.getItem('lg_seen_features_v2');
-  var newFeaturesBanner = '';
-  if(!seenFeatures){
-    newFeaturesBanner = '<div onclick="window.openMoreFeatures();localStorage.setItem(\'lg_seen_features_v2\',\'1\');" style="background:linear-gradient(135deg,#FFD93D,#FFA500);border-radius:18px;padding:16px;margin-bottom:16px;cursor:pointer;box-shadow:0 4px 20px rgba(255,165,0,.4);font-family:-apple-system,system-ui,sans-serif;position:relative;overflow:hidden">' +
-      '<div style="position:absolute;top:-30px;right:-30px;width:100px;height:100px;background:rgba(255,255,255,.15);border-radius:50%"></div>' +
-      '<div style="position:relative;display:flex;align-items:center;gap:14px">' +
-        '<div style="font-size:36px;flex-shrink:0">✨</div>' +
-        '<div style="flex:1">' +
-          '<div style="font-size:16px;color:#0d1117;font-weight:800;margin-bottom:4px">10 НОВЫХ ФУНКЦИЙ!</div>' +
-          '<div style="font-size:12px;color:#0d1117;font-weight:600;line-height:1.4">Прогноз · Погода · KPI · Календарь · Курс USD · Поиск · Импорт банка · Фото чека и др.</div>' +
-        '</div>' +
-        '<div style="font-size:22px;color:#0d1117;font-weight:800">›</div>' +
-      '</div>' +
-    '</div>';
-  }
-  
-
   // ============================================================
-  // НОВЫЙ ГЛАВНЫЙ ЭКРАН — ПУЛЬС (СИСТЕМА ЯНКОВСКОГО)
-  // Полная переделка по концепту: большая карточка + 4 пульса + светофор
+  // 🔥 ПУЛЬС — Что важно сейчас
+  // Тревоги · Черновики · Главные цифры · Задачи · Быстрый ввод
   // ============================================================
-  var C = calcCo();
-  var goal = calcGoalProgress();
-  var h = '';
-
-  // === ЧЕРНОВИКИ (если есть) — сверху как уведомление ===
-  var draftsCount = (_drafts||[]).filter(function(d){return !_deletedIds[d.id];}).length;
-  if(draftsCount>0 && canEdit()){
-    h+='<div onclick="openDraftsModal()" style="background:linear-gradient(90deg,var(--gold),var(--orange));border-radius:12px;padding:14px 16px;margin-bottom:14px;cursor:pointer;display:flex;align-items:center;gap:12px;box-shadow:0 4px 14px rgba(240,165,0,.25)">';
-    h+='<div style="font-size:24px">📥</div>';
-    h+='<div style="flex:1;color:#000">';
-    h+='<div style="font-family:var(--fm);font-size:13px;font-weight:800;letter-spacing:.5px">'+draftsCount+' ЧЕРНОВИК'+(draftsCount===1?'':(draftsCount<5?'А':'ОВ'))+' НА СВЕРКЕ</div>';
-    h+='<div style="font-size:10px;opacity:.7;margin-top:2px">от Telegram-бота · нажмите чтобы открыть</div>';
-    h+='</div>';
-    h+='<div style="font-size:24px;color:#000">›</div>';
-    h+='</div>';
-  }
-
-  // === ГЛАВНАЯ КАРТОЧКА: ПРИБЫЛЬ МЕСЯЦА (как в концепте) ===
-  var partners = PARTNERS || ['Дмитрий','Бекжан','Евгений','Нурсултан','Сергей'];
-  var partnerColors = {'Дмитрий':'#ffb320','Бекжан':'#3fb950','Евгений':'#58a6ff','Нурсултан':'#a371f7','Сергей':'#39d3bb'};
+  var entries = S.entries || [];
+  var brigades = S.brigades || [];
+  var C = (typeof calcCo === 'function') ? calcCo() : {cash:0, income:0, expense:0, profit:0, invested:0};
+  var canEditNow = (typeof canEdit === 'function') ? canEdit() : false;
   
-  // Считаем ПРИБЫЛЬ МЕСЯЦА (заработано минус расходы ТЕКУЩЕГО месяца)
-  var nowD = new Date();
-  var monthStartD = new Date(nowD.getFullYear(), nowD.getMonth(), 1);
-  var monthEnd = new Date(nowD.getFullYear(), nowD.getMonth()+1, 0);
-  var daysInMonth = monthEnd.getDate();
-  var daysPassed = nowD.getDate();
-  var daysLeftInMonth = daysInMonth - daysPassed;
+  // Считаем за месяц
+  var today = new Date();
+  var ym = today.toISOString().slice(0,7);
+  var curMonth = entries.filter(function(e){return (e.date||'').startsWith(ym);});
   
-  var custRate = 38437.76; // расценка Sensata
-  var meta = (S.objMeta && S.objects && S.objects[0] && S.objMeta[S.objects[0]]) || {};
-  if(meta.custRates && meta.custRates.length > 0){
-    var sumR=0, cntR=0;
-    meta.custRates.forEach(function(r){if(r.rate){sumR+=r.rate;cntR++;}});
-    custRate = cntR > 0 ? sumR/cntR : 38437.76;
-  }
-  
-  var earnedMonth = 0;
-  var expensesMonth = 0;
-  // Прошлый месяц для тренда
-  var prevMonthStart = new Date(nowD.getFullYear(), nowD.getMonth()-1, 1);
-  var prevMonthEnd = new Date(nowD.getFullYear(), nowD.getMonth(), 0);
-  var earnedPrevMonth = 0;
-  
-  S.entries.forEach(function(e){
-    if(!e.date) return;
-    var d = new Date(e.date);
-    if(d >= monthStartD){
-      if(e.type === 'vol' && e.accepted) earnedMonth += (e.volume||0) * custRate;
-      else if(e.type === 'expense') expensesMonth += (e.amount||0);
-    } else if(d >= prevMonthStart && d <= prevMonthEnd){
-      if(e.type === 'vol' && e.accepted) earnedPrevMonth += (e.volume||0) * custRate;
-    }
+  var monthIncome=0, monthExpense=0, monthVol=0;
+  curMonth.forEach(function(e){
+    var amt = Number(e.amount)||0;
+    if(e.type === 'income') monthIncome += amt;
+    else if(e.type === 'expense') monthExpense += amt;
+    else if(e.type === 'vol') monthVol += (Number(e.volume)||0);
   });
   
-  var profitMonth = earnedMonth - expensesMonth;
-  var profitPrevMonth = earnedPrevMonth; // упрощённо
-  
-  // План месяца: 820 млн / 7 мес ≈ 117 млн (но текущий май стартовый, поэтому используем общую логику)
-  var monthPlan = Math.round(GOAL_2026.total / 7); // 117 млн
-  var profitPctOfMonthPlan = Math.min(100, Math.max(0, Math.round(profitMonth / monthPlan * 100)));
-  
-  // Тренд
-  var trendPct = 0;
-  if(profitPrevMonth > 0) trendPct = Math.round((profitMonth - profitPrevMonth) / Math.abs(profitPrevMonth) * 100);
-  else if(profitMonth > 0) trendPct = 100;
-  
-  // === КАРТОЧКА «ПРИБЫЛЬ МЕСЯЦА» (как в концепте!) ===
-  var pmColor = profitMonth > 0 ? 'green' : (profitMonth === 0 ? 'gold' : 'red');
-  var pmSign = profitMonth > 0 ? '+' : (profitMonth < 0 ? '−' : '');
-  var monthNames = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
-  var monthGen = monthNames[nowD.getMonth()];
-  
-  h += '<div class="yk-big '+(profitMonth > 0 ? 'green' : 'gold')+'" onclick="openDrill(\'profit\',\'month\')" style="cursor:pointer">';
-  h += '<div class="yk-label">💎 ПРИБЫЛЬ МЕСЯЦА</div>';
-  h += '<div class="yk-value '+pmColor+'">'+pmSign+fmt(Math.abs(Math.round(profitMonth/1000000)))+'<span class="yk-unit">млн ₸</span></div>';
-  
-  // Чипы
-  h += '<div class="yk-sub">';
-  if(trendPct !== 0){
-    var trendClass = trendPct > 0 ? 'up' : 'down';
-    var trendArrow = trendPct > 0 ? '↑' : '↓';
-    h += '<span class="yk-chip '+trendClass+'">'+trendArrow+' '+Math.abs(trendPct)+'% к прошлому месяцу</span>';
-  }
-  h += '<span>из '+fmt(Math.round(monthPlan/1000000))+' млн плана '+monthGen+'</span>';
-  h += '</div>';
-  
-  // Полоса
-  h += '<div class="yk-pbar"><div class="yk-pbar-fill '+(profitMonth>0?'green':'')+'" style="width:'+Math.max(2,profitPctOfMonthPlan)+'%"></div></div>';
-  h += '<div class="yk-pbar-info">';
-  h += '<span>'+profitPctOfMonthPlan+'% месячного плана</span>';
-  h += '<span>осталось '+daysLeftInMonth+' дней</span>';
-  h += '</div>';
-  
-  // === Подсказка если прибыль отрицательная — есть НЕпринятые объёмы ===
-  if(profitMonth < 0){
-    var pendingVolMonth = 0;
-    S.entries.forEach(function(e){
-      if(!e.date) return;
-      var d = new Date(e.date);
-      if(d < monthStartD) return;
-      if(e.type === 'vol' && !e.accepted){
-        pendingVolMonth += (e.volume||0) * custRate;
-      }
-    });
-    if(pendingVolMonth > 0){
-      h += '<div style="margin-top:14px;padding:10px 12px;background:rgba(240,136,62,.08);border:1px solid rgba(240,136,62,.25);border-radius:10px;font-size:11px;color:var(--orange);font-family:-apple-system,system-ui,sans-serif;line-height:1.4">';
-      h += '<b>⚠️ Есть объёмы на сверке: '+fmt(Math.round(pendingVolMonth/1000000))+' млн ₸</b><br>';
-      h += '<span style="color:var(--mut)">Когда учётчица подтвердит КС-2 — прибыль станет +'+fmt(Math.round((pendingVolMonth+profitMonth)/1000000))+' млн ₸</span>';
-      h += '</div>';
-    }
+  // Сколько дней с последнего KS-2 / дохода
+  var lastIncomeEntry = entries.filter(function(e){return e.type==='income';})
+                              .sort(function(a,b){return (b.date||'').localeCompare(a.date||'');})[0];
+  var daysSinceIncome = 999;
+  if(lastIncomeEntry && lastIncomeEntry.date){
+    daysSinceIncome = Math.floor((today - new Date(lastIncomeEntry.date))/(86400000));
   }
   
-  // === Подсказка про дебиторку ===
-  if(goal.earned > goal.received){
-    var debt = goal.earned - goal.received;
-    h += '<div style="margin-top:14px;padding:10px 12px;background:rgba(88,166,255,.08);border:1px solid rgba(88,166,255,.2);border-radius:10px;font-size:11px;color:var(--blue);font-family:-apple-system,system-ui,sans-serif;line-height:1.4">';
-    h += '<b>💡 Заказчик должен: '+fmt(Math.round(debt/1000000))+' млн ₸</b><br>';
-    h += '<span style="color:var(--mut)">Объёмы приняты (КС-2 подписан), деньги ещё не поступили</span>';
-    h += '</div>';
-  }
-  
-  h += '</div>';  // конец главной карточки
-  
-  // === ВТОРАЯ КАРТОЧКА: ПРОГРЕСС К 820 МЛН (с полосками партнёров) ===
-  var profitColor820 = goal.current > 0 ? 'green' : (goal.current === 0 ? 'gold' : 'red');
-  var profitSign820 = goal.current > 0 ? '+' : (goal.current < 0 ? '−' : '');
-  
-  h += '<div class="yk-big" onclick="openDrill(\'goal820\',\'year\')" style="cursor:pointer">';
-  h += '<div class="yk-label">🎯 ПРОГРЕСС К 820 МЛН</div>';
-  h += '<div class="yk-value '+profitColor820+'">'+profitSign820+fmt(Math.abs(Math.round(goal.current/1000000)))+'<span class="yk-unit">млн ₸</span></div>';
-  h += '<div class="yk-sub">';
-  h += '<span class="yk-chip">'+goal.pct+'% годового плана</span>';
-  h += '<span>осталось '+fmt(Math.round(goal.remaining/1000000))+' млн ₸</span>';
-  h += '</div>';
-  h += '<div class="yk-pbar"><div class="yk-pbar-fill" style="width:'+Math.max(2,goal.pct)+'%"></div></div>';
-  
-  // === ПОЛОСКИ 5 ПАРТНЁРОВ ===
-  h += '<div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--brd)">';
-  h += '<div style="font-size:11px;color:var(--mut);letter-spacing:2px;margin-bottom:10px;font-family:-apple-system,system-ui,sans-serif;font-weight:600;text-transform:uppercase">на каждого партнёра — 164 млн</div>';
-  partners.forEach(function(p){
-    var clr = partnerColors[p] || '#888';
-    var perPartner = goal.perPartner;
-    var partnerPct = Math.min(100, Math.round(perPartner / 164000000 * 100));
-    h += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">';
-    h += '<div style="flex:0 0 36px;font-size:11px;font-weight:700;color:'+clr+';font-family:-apple-system,system-ui,sans-serif;letter-spacing:.5px">'+p.substring(0,3).toUpperCase()+'</div>';
-    h += '<div style="flex:1;height:8px;background:rgba(255,255,255,.05);border-radius:4px;overflow:hidden">';
-    h += '<div style="height:100%;background:'+clr+';width:'+Math.max(2,partnerPct)+'%;border-radius:4px"></div>';
-    h += '</div>';
-    h += '<div style="flex:0 0 75px;text-align:right;font-family:-apple-system,system-ui,sans-serif;font-size:14px;font-weight:700;color:'+clr+'">'+fmt(Math.round(perPartner/1000000))+'<span style="font-size:10px;color:var(--mut);margin-left:2px;font-weight:500">/164M</span></div>';
-    h += '</div>';
-  });
-  h += '</div>';
-  h += '</div>';
-  
-  // Старая логика 3 подцифр (заработано/получено/расходы) удалена — она дублировала прибыль
-  
-  // === АНАЛИТИКА ПО ЯНКОВСКОМУ — Инсайты ===
-  var insights = generateInsights().filter(function(x){return !isInsightDone(x.metric);});
-  if(insights.length > 0){
-    insights.forEach(function(ins){
-      var colorMap = {
-        'critical': {bg:'linear-gradient(160deg,rgba(248,81,73,.12),rgba(22,27,34,.95))', border:'rgba(248,81,73,.5)', label:'#ff7b72', icon_bg:'rgba(248,81,73,.25)', icon_color:'#ff7b72'},
-        'warning':  {bg:'linear-gradient(160deg,rgba(240,136,62,.10),rgba(22,27,34,.95))', border:'rgba(240,136,62,.5)', label:'#ffa657', icon_bg:'rgba(240,136,62,.25)', icon_color:'#ffa657'},
-        'good':     {bg:'linear-gradient(160deg,rgba(63,185,80,.10),rgba(22,27,34,.95))', border:'rgba(63,185,80,.5)', label:'#7ee787', icon_bg:'rgba(63,185,80,.25)', icon_color:'#7ee787'}
-      };
-      var c = colorMap[ins.priority] || colorMap['warning'];
-      
-      h += '<div style="background:'+c.bg+';border:1.5px solid '+c.border+';border-radius:20px;padding:20px;margin-bottom:16px;box-shadow:0 4px 16px rgba(0,0,0,.15)">';
-      
-      // Заголовок: иконка + лейбл приоритета — КРУПНЕЕ
-      h += '<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">';
-      h += '<div style="width:44px;height:44px;border-radius:12px;background:'+c.icon_bg+';color:'+c.icon_color+';display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">'+ins.icon+'</div>';
-      h += '<div style="flex:1;font-size:14px;font-weight:800;color:'+c.label+';letter-spacing:1px;font-family:-apple-system,system-ui,sans-serif;line-height:1.2">'+ins.label+'</div>';
-      h += '<div style="background:var(--s2);padding:6px 12px;border-radius:8px;font-size:12px;font-weight:600;color:#e6edf3;font-family:-apple-system,system-ui,sans-serif;flex-shrink:0">'+ins.owner+'</div>';
-      h += '</div>';
-      
-      // 4 секции: ФАКТ / АНАЛИЗ / РЕШЕНИЕ / ДЕЙСТВИЕ — КРУПНЫЕ И ЧИТАЕМЫЕ
-      var sections = [
-        {label:'ФАКТ',     icon:'📊', text:ins.fact,     color:'#f0f6fc', labelColor:'#7d8590', bg:'rgba(255,255,255,.03)'},
-        {label:'АНАЛИЗ',   icon:'🔍', text:ins.analysis, color:'#e6edf3', labelColor:'#7d8590', bg:'rgba(255,255,255,.03)'},
-        {label:'РЕШЕНИЕ',  icon:'💡', text:ins.solution, color:'#ffd166', labelColor:'#d4a73a', bg:'rgba(212,167,58,.08)'},
-        {label:'ДЕЙСТВИЕ', icon:'✅', text:ins.action,   color:'#7ee787', labelColor:'#3fb950', bg:'rgba(63,185,80,.08)'}
-      ];
-      
-      sections.forEach(function(s, i){
-        h += '<div style="margin-bottom:'+(i<sections.length-1?'12px':'16px')+';background:'+s.bg+';border-radius:12px;padding:12px 14px">';
-        h += '<div style="font-size:11px;color:'+s.labelColor+';letter-spacing:2px;font-weight:800;margin-bottom:6px;font-family:-apple-system,system-ui,sans-serif;display:flex;align-items:center;gap:6px"><span style="font-size:14px">'+s.icon+'</span> '+s.label+'</div>';
-        h += '<div style="font-size:15px;line-height:1.5;color:'+s.color+';font-family:-apple-system,system-ui,sans-serif;font-weight:500">'+s.text+'</div>';
-        h += '</div>';
-      });
-      
-      // Кнопки — крупнее, читаемее
-      h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px;padding-top:16px;border-top:1px solid var(--brd)">';
-      h += '<button onclick="event.stopPropagation();openInsightAI(\''+ins.metric+'\')" style="background:rgba(212,167,58,.18);border:1.5px solid rgba(212,167,58,.5);color:#ffd166;border-radius:12px;padding:14px 10px;font-size:14px;font-weight:700;cursor:pointer;font-family:-apple-system,system-ui,sans-serif;letter-spacing:.3px">🤖 Спросить Claude</button>';
-      h += '<button onclick="event.stopPropagation();markInsightDone(\''+ins.metric+'\')" style="background:rgba(63,185,80,.18);border:1.5px solid rgba(63,185,80,.5);color:#7ee787;border-radius:12px;padding:14px 10px;font-size:14px;font-weight:700;cursor:pointer;font-family:-apple-system,system-ui,sans-serif;letter-spacing:.3px">✓ Сделано</button>';
-      h += '</div>';
-      
-      h += '</div>';
-    });
-  }
-  
-  // === ЗАДАЧИ НА СЕГОДНЯ ===
-  var todayTasks = generateTodayTasks();
-  if(todayTasks.length > 0){
-    h += '<div class="yk-section" style="margin-top:20px"><span style="font-size:18px">📋</span>ЗАДАЧИ НА СЕГОДНЯ</div>';
-    
-    h += '<div style="background:linear-gradient(160deg,rgba(88,166,255,.08),#0d1117);border:1.5px solid rgba(88,166,255,.3);border-radius:18px;padding:16px;margin-bottom:18px;box-shadow:0 4px 16px rgba(0,0,0,.15)">';
-    
-    todayTasks.slice(0, 5).forEach(function(t, i){
-      var priColor = t.pri === 'critical' ? '#ff7b72' : (t.pri === 'normal' ? '#58a6ff' : '#8b949e');
-      var priBg = t.pri === 'critical' ? 'rgba(248,81,73,.10)' : (t.pri === 'normal' ? 'rgba(88,166,255,.06)' : 'rgba(255,255,255,.03)');
-      var priLabel = t.pri === 'critical' ? '🔴' : (t.pri === 'normal' ? '🟡' : '🟢');
-      
-      h += '<div style="display:flex;gap:12px;padding:14px;background:'+priBg+';border-radius:14px;border:1px solid '+priColor+'30;margin-bottom:'+(i<todayTasks.length-1?'10px':'0')+';align-items:flex-start;font-family:-apple-system,system-ui,sans-serif">';
-      
-      // Иконка приоритета
-      h += '<div style="font-size:24px;flex-shrink:0">'+t.icon+'</div>';
-      
-      // Контент
-      h += '<div style="flex:1;min-width:0">';
-      h += '<div style="font-size:14px;color:#ffffff;font-weight:700;margin-bottom:4px;line-height:1.3">'+t.title+'</div>';
-      h += '<div style="font-size:13px;color:#b9c3d0;line-height:1.4;margin-bottom:6px">'+t.what+'</div>';
-      h += '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px">';
-      h += '<div style="font-size:11px;color:'+priColor+';font-weight:700">👤 '+t.who+'</div>';
-      h += '<div style="font-size:11px;color:#8b949e;font-weight:600">⏰ '+t.time+'</div>';
-      h += '</div>';
-      h += '</div>';
-      
-      h += '</div>';
-    });
-    
-    h += '</div>';
-  }
-  
-  // === 4 ПУЛЬСА ===
-  h += '<div class="yk-grid2">';
-  
-  // КАССА
-  var cashColor = C.cash > 5000000 ? 'green' : (C.cash > 0 ? 'orange' : 'red');
-  var cashDisplay = C.cash >= 1000000 ? fmt(Math.round(C.cash/1000000))+'<span class="yk-mini-unit">'+T('mln_short')+'</span>' : 
-                    C.cash >= 1000 ? fmt(Math.round(C.cash/1000))+'<span class="yk-mini-unit">K</span>' :
-                    fmt(C.cash)+'<span class="yk-mini-unit">тг</span>';
-  h += '<div class="yk-mini" onclick="openDrill(\'cash\',\'all\')" style="cursor:pointer">';
-  h += '<div class="yk-mini-label">🔥 '+T('cash_now')+'</div>';
-  h += '<div class="yk-mini-value '+cashColor+'">'+cashDisplay+'</div>';
-  h += '<div class="yk-mini-sub">'+(C.cash>=0 ? '✓ '+T('positive') : '⚠ '+T('negative'))+'</div>';
-  h += '</div>';
-  
-  // RUNWAY (дни до конца денег) — переменные nowD/monthStartD уже определены выше
-  var now = nowD;
-  var dayW = now.getDay()||7;
-  var weekStart = new Date(now); weekStart.setDate(now.getDate()-dayW+1); weekStart.setHours(0,0,0,0);
-  var monthIncome = 0;
-  var weekVol = 0;
-  S.entries.forEach(function(e){
-    if(!e.date) return;
-    var d = new Date(e.date);
-    if(d >= monthStartD){
-      if(e.type === 'income') monthIncome += (e.amount||0);
-    }
-    if(e.type === 'vol' && d >= weekStart) weekVol += (e.volume||0);
-  });
-  var dailyBurn = expensesMonth / Math.max(1, Math.ceil((now - monthStartD) / (24*3600*1000)));
-  var runway = dailyBurn > 0 ? Math.floor(Math.max(0,C.cash) / dailyBurn) : 999;
-  var runwayColor = runway > 30 ? 'green' : (runway > 7 ? 'orange' : 'red');
-  h += '<div class="yk-mini" onclick="openDrill(\'expenses\',\'month\')" style="cursor:pointer">';
-  h += '<div class="yk-mini-label">⏱ RUNWAY</div>';
-  h += '<div class="yk-mini-value '+runwayColor+'">'+(runway>=999?'∞':runway)+'<span class="yk-mini-unit">дней</span></div>';
-  h += '<div class="yk-mini-sub">если без оплат</div>';
-  h += '</div>';
-  
-  // ЭТОЙ НЕДЕЛИ м³
-  h += '<div class="yk-mini" onclick="openDrill(\'volume\',\'week\')" style="cursor:pointer">';
-  h += '<div class="yk-mini-label">📐 '+T('this_week')+'</div>';
-  h += '<div class="yk-mini-value gold">'+fmtD(weekVol)+'<span class="yk-mini-unit">м³</span></div>';
-  h += '<div class="yk-mini-sub">'+T('volume_done')+'</div>';
-  h += '</div>';
-  
-  // НА ОБЪЕКТЕ
-  var workers = (S.brigades||[]).reduce(function(s,b){return s+(b.workers||0);},0);
-  h += '<div class="yk-mini" onclick="setTab(\'brigades\')" style="cursor:pointer">';
-  h += '<div class="yk-mini-label">👷 '+T('workers_on_site')+'</div>';
-  h += '<div class="yk-mini-value">'+workers+'</div>';
-  h += '<div class="yk-mini-sub">'+T('plan_aug')+' 200</div>';
-  h += '</div>';
-  h += '</div>';
-
-  // === СВЕТОФОР АЛЕРТОВ ===
-  var critical = [];
-  var warning = [];
-  var good = [];
-  
-  // КРИТИЧНЫЕ
-  if(C.cash < 0){
-    critical.push({icon:'!!', iconClass:'red', title:T('cash_negative'), meta:T('need_urgent_payment'), num:fmt(C.cash), numClass:'red'});
-  } else if(C.cash < 2000000){
-    critical.push({icon:'!', iconClass:'red', title:T('cash_low_alert'), meta:'Дмитрий · '+T('runway_lt_week'), num:fmt(Math.round(C.cash/1000000))+'M', numClass:'red'});
-  }
-  
-  // ВНИМАНИЕ
-  var pendingVols = (S.entries||[]).filter(function(e){return e.type==='vol' && !e.accepted;});
-  if(pendingVols.length > 0){
-    var pendingVolSum = pendingVols.reduce(function(s,e){return s+(e.amount||0);},0);
-    warning.push({icon:'⏰', iconClass:'orange', title:T('ks2_pending'), meta:'Евгений · '+pendingVols.length+' '+T('works_waiting'), num:fmt(Math.round(pendingVolSum/1000000))+'M', numClass:'orange'});
-  }
-  
-  if(workers < 30){
-    warning.push({icon:'👥', iconClass:'orange', title:T('not_enough_workers'), meta:'Бекжан · '+T('need_more'), num:workers+'/30', numClass:'orange'});
-  }
-  
-  // Проверка темпа
-  if(weekVol < 100 && weekVol > 0){
-    warning.push({icon:'📐', iconClass:'orange', title:'Темп ниже плана', meta:'Бекжан · план 160 м³/нед', num:fmtD(weekVol)+'/160', numClass:'orange'});
-  }
-  
-  // ХОРОШИЕ
-  if(monthIncome > 0){
-    good.push({icon:'✓', iconClass:'green', title:T('income_received'), meta:T('this_month'), num:'+'+fmt(Math.round(monthIncome/1000000))+'M', numClass:'green'});
-  }
-  if(weekVol > 0){
-    good.push({icon:'⚒', iconClass:'green', title:T('week_work_done'), meta:fmtD(weekVol)+' м³ '+T('this_week_brigades'), num:'✓', numClass:'green'});
-  }
-  if(C.profit > 0){
-    good.push({icon:'💎', iconClass:'green', title:'Прибыль положительная', meta:'Все · накоплено', num:'+'+fmt(Math.round(C.profit/1000000))+'M', numClass:'green'});
-  }
-  
-  // Рендер алертов
-  if(critical.length > 0){
-    h += '<div class="yk-section red">🔴 '+T('critical_section')+' ('+critical.length+')</div>';
-    critical.forEach(function(a){
-      h += '<div class="yk-alert critical">';
-      h += '<div class="yk-alert-icon '+a.iconClass+'">'+a.icon+'</div>';
-      h += '<div class="yk-alert-body">';
-      h += '<div class="yk-alert-title">'+a.title+'</div>';
-      h += '<div class="yk-alert-meta">'+a.meta+'</div>';
-      h += '</div>';
-      h += '<div class="yk-alert-num '+a.numClass+' yk-pulse">'+a.num+'</div>';
-      h += '</div>';
-    });
-  }
-  
-  if(warning.length > 0){
-    h += '<div class="yk-section orange">🟡 '+T('warning_section')+' ('+warning.length+')</div>';
-    warning.forEach(function(a){
-      h += '<div class="yk-alert warning">';
-      h += '<div class="yk-alert-icon '+a.iconClass+'">'+a.icon+'</div>';
-      h += '<div class="yk-alert-body">';
-      h += '<div class="yk-alert-title">'+a.title+'</div>';
-      h += '<div class="yk-alert-meta">'+a.meta+'</div>';
-      h += '</div>';
-      h += '<div class="yk-alert-num '+a.numClass+'">'+a.num+'</div>';
-      h += '</div>';
-    });
-  }
-  
-  if(good.length > 0){
-    h += '<div class="yk-section green">🟢 '+T('good_section')+' ('+good.length+')</div>';
-    good.forEach(function(a){
-      h += '<div class="yk-alert">';
-      h += '<div class="yk-alert-icon '+a.iconClass+'">'+a.icon+'</div>';
-      h += '<div class="yk-alert-body">';
-      h += '<div class="yk-alert-title">'+a.title+'</div>';
-      h += '<div class="yk-alert-meta">'+a.meta+'</div>';
-      h += '</div>';
-      h += '<div class="yk-alert-num '+a.numClass+'">'+a.num+'</div>';
-      h += '</div>';
-    });
-  }
-  
-  return h;
-}
-function dcMain(){
-// Мини-график динамики накопления за последние 30 дней
-(function(){
-  var now=new Date(),days=[];
-  for(var i=29;i>=0;i--){var d=new Date(now);d.setDate(now.getDate()-i);days.push(d.toISOString().slice(0,10));}
-  var dayVals=days.map(function(){return 0;});
-  S.entries.forEach(function(e){
-    if(e.type==='vol')return;
-    var idx=days.indexOf(e.date);
-    if(idx<0)return;
-    dayVals[idx]+=cashEffect(e);
-  });
-  // Накопительный итог
-  var cum=[];var run=0;
-  // Стартуем с накопленного до периода
-  var preStart=days[0];
-  S.entries.forEach(function(e){if(e.type!=='vol'&&e.date<preStart){run+=cashEffect(e);}});
-  dayVals.forEach(function(v){run+=v;cum.push(Math.round(run/1000));});
-  var labels=days.map(function(d,i){return (i%7===0)?d.slice(5):'';});
-  drawLine('ch-trend',labels,[{data:cum,color:'#f0a500',fill:'rgba(240,165,0,0.1)'}],80);
-})();
-var sorted=[].concat(S.entries).filter(function(e){return e.type!=='vol';}).sort(function(a,b){return a.date.localeCompare(b.date);});
-if(sorted.length>=2){var run=0,L=[],V=[];sorted.forEach(function(e,i){run+=cashEffect(e);if(i===0||i===sorted.length-1||i%Math.ceil(sorted.length/7)===0){L.push(e.date.slice(5));V.push(Math.round(run/1000));}});drawLine('ch-cash',L,[{data:V,color:'#f0a500',fill:'rgba(240,165,0,0.1)'}],140);}
-// Volume analytics — grouped by period with filters + target line
-var vf=S.entries.filter(function(e){return e.type==='vol'&&(volObj==='all'||e.obj===volObj)&&(volBrig==='all'||e.brigade===volBrig);});
-if(vf.length>0){
-  function periodKey(ds){
-    var d=new Date(ds);
-    if(volPeriod==='day')return ds;
-    if(volPeriod==='week'){var dy=d.getDay()||7;d.setDate(d.getDate()-dy+1);return d.toISOString().slice(0,10);}
-    return ds.slice(0,7);
-  }
-  var grp={};vf.forEach(function(e){var k=periodKey(e.date);grp[k]=(grp[k]||0)+(e.volume||0);});
-  var keys=Object.keys(grp).sort();
-  var L=keys.map(function(k){return volPeriod==='month'?k.slice(2):k.slice(5);});
-  var V=keys.map(function(k){return Math.round(grp[k]*10)/10;});
-  // target per period
-  var tgt=volPeriod==='day'?150/7:volPeriod==='week'?150:150*4.3;
-  var ds=[{data:V,color:'#2dd4bf',label:'Факт м³'}];
-  // target line as flat dataset overlay
-  if(volBrig==='all'){ds.push({data:keys.map(function(){return Math.round(tgt);}),color:'#f0a500',label:'Цель'});}
-  drawBar('ch-vol',L,ds,170,true);
-}
-}
-
-function rPL(){
-  // ============================================================
-  // ЭКРАН ДЕНЬГИ — ДЕТАЛЬНЫЙ P&L ПО ЯНКОВСКОМУ
-  // Общая сводка · Период · Касса · Категории · Партнёры
-  // ============================================================
-  var h = '';
-  var C = calcCo();
-  var goal = calcGoalProgress();
-  
-  // === ОБЩАЯ СВОДКА (вверху, за всё время) ===
-  // Считаем все деньги компании одним взглядом
-  var totalEarned = goal.earned;        // Принято по КС-2 за всё время
-  var totalReceived = goal.received;    // Поступило в кассу
-  var totalExpenses = goal.expenses;    // Все расходы
-  var totalPending = goal.earnedPending; // Объёмы на сверке
-  var totalProfit = goal.current;       // Итоговая прибыль
-  var debtFromClient = totalEarned - totalReceived; // Дебиторка Sensata
-  
-  // Деньги в обороте
-  var totalAdvances = 0;
-  S.entries.forEach(function(e){
-    if(e.type === 'advance') totalAdvances += (e.amount||0);
+  // Считаем подписанный/неподписанный КС-2
+  var pendingVol = 0, signedVol = 0;
+  entries.filter(function(e){return e.type==='vol';}).forEach(function(e){
+    if(e.accepted) signedVol += (e.volume||0);
+    else pendingVol += (e.volume||0);
   });
   
-  // Главная карточка ОБЩАЯ СВОДКА
-  h += '<div class="yk-big" onclick="openDrill(\'profit\',\'all\')" style="cursor:pointer;background:linear-gradient(160deg,rgba(212,167,58,.12),#0d1117);border:1.5px solid rgba(212,167,58,.5)">';
-  h += '<div class="yk-label" style="color:#ffd166;font-size:14px;letter-spacing:2px;font-weight:800">📊 ОБЩАЯ СВОДКА · ВСЁ ВРЕМЯ</div>';
-  
-  // Главная цифра — Прибыль
-  var profitColor = totalProfit > 0 ? 'green' : (totalProfit < 0 ? 'red' : 'gold');
-  var profitSign = totalProfit > 0 ? '+' : (totalProfit < 0 ? '−' : '');
-  h += '<div class="yk-value '+profitColor+'">'+profitSign+fmt(Math.abs(Math.round(totalProfit/1000000)))+'<span class="yk-unit">млн ₸</span></div>';
-  h += '<div class="yk-sub" style="color:#b9c3d0"><span class="yk-chip" style="background:#21262d;color:#e6edf3;font-weight:700">прибыль компании</span><span style="color:#b9c3d0;font-weight:500">с момента старта</span></div>';
-  
-  // === 4 ключевые цифры в сетке — ЯРКИЕ И КОНТРАСТНЫЕ ===
-  h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:18px;padding-top:18px;border-top:1px solid var(--brd)">';
-  
-  // Заработано — на тёмном фоне (не прозрачный)
-  h += '<div style="background:#0d1117;border:1.5px solid rgba(63,185,80,.4);border-radius:12px;padding:14px;text-align:center">';
-  h += '<div style="font-size:12px;color:#7ee787;letter-spacing:1.5px;font-weight:800;margin-bottom:8px;font-family:-apple-system,system-ui,sans-serif">💎 ЗАРАБОТАНО</div>';
-  h += '<div style="font-family:-apple-system,system-ui,sans-serif;font-size:28px;font-weight:800;color:#7ee787;line-height:1;font-feature-settings:\'tnum\'">'+fmt(Math.round(totalEarned/1000000))+'<span style="font-size:14px;color:#b9c3d0;margin-left:3px;font-weight:600">M</span></div>';
-  h += '<div style="font-size:11px;color:#b9c3d0;margin-top:6px;font-weight:600">КС-2 принят</div>';
-  h += '</div>';
-  
-  // Получено
-  h += '<div style="background:#0d1117;border:1.5px solid rgba(88,166,255,.4);border-radius:12px;padding:14px;text-align:center">';
-  h += '<div style="font-size:12px;color:#58a6ff;letter-spacing:1.5px;font-weight:800;margin-bottom:8px;font-family:-apple-system,system-ui,sans-serif">💵 ПОЛУЧЕНО</div>';
-  h += '<div style="font-family:-apple-system,system-ui,sans-serif;font-size:28px;font-weight:800;color:#58a6ff;line-height:1;font-feature-settings:\'tnum\'">'+fmt(Math.round(totalReceived/1000000))+'<span style="font-size:14px;color:#b9c3d0;margin-left:3px;font-weight:600">M</span></div>';
-  h += '<div style="font-size:11px;color:#b9c3d0;margin-top:6px;font-weight:600">в кассу</div>';
-  h += '</div>';
-  
-  // Расходы
-  h += '<div style="background:#0d1117;border:1.5px solid rgba(248,81,73,.4);border-radius:12px;padding:14px;text-align:center">';
-  h += '<div style="font-size:12px;color:#ff7b72;letter-spacing:1.5px;font-weight:800;margin-bottom:8px;font-family:-apple-system,system-ui,sans-serif">💸 РАСХОДЫ</div>';
-  h += '<div style="font-family:-apple-system,system-ui,sans-serif;font-size:28px;font-weight:800;color:#ff7b72;line-height:1;font-feature-settings:\'tnum\'">'+fmt(Math.round(totalExpenses/1000000))+'<span style="font-size:14px;color:#b9c3d0;margin-left:3px;font-weight:600">M</span></div>';
-  h += '<div style="font-size:11px;color:#b9c3d0;margin-top:6px;font-weight:600">потрачено</div>';
-  h += '</div>';
-  
-  // На сверке
-  h += '<div style="background:#0d1117;border:1.5px solid rgba(240,136,62,.4);border-radius:12px;padding:14px;text-align:center">';
-  h += '<div style="font-size:12px;color:#ffa657;letter-spacing:1.5px;font-weight:800;margin-bottom:8px;font-family:-apple-system,system-ui,sans-serif">⏰ НА СВЕРКЕ</div>';
-  h += '<div style="font-family:-apple-system,system-ui,sans-serif;font-size:28px;font-weight:800;color:#ffa657;line-height:1;font-feature-settings:\'tnum\'">'+fmt(Math.round(totalPending/1000000))+'<span style="font-size:14px;color:#b9c3d0;margin-left:3px;font-weight:600">M</span></div>';
-  h += '<div style="font-size:11px;color:#b9c3d0;margin-top:6px;font-weight:600">ждёт КС-2</div>';
-  h += '</div>';
-  
-  h += '</div>';
-  
-  // === Подсказка про дебиторку ===
-  if(debtFromClient > 0){
-    h += '<div style="margin-top:14px;padding:12px 14px;background:rgba(88,166,255,.10);border:1px solid rgba(88,166,255,.3);border-radius:10px">';
-    h += '<div style="font-size:14px;color:#58a6ff;font-weight:700;font-family:-apple-system,system-ui,sans-serif;margin-bottom:6px">💡 Заказчик должен: '+fmt(Math.round(debtFromClient/1000000))+' млн ₸</div>';
-    h += '<div style="font-size:12px;color:#b9c3d0;font-family:-apple-system,system-ui,sans-serif">КС-2 подписан, ждём перевод от Sensata</div>';
-    h += '</div>';
-  }
-  
-  // === Подсказка про сверку ===
-  if(totalPending > 0){
-    h += '<div style="margin-top:10px;padding:12px 14px;background:rgba(240,136,62,.10);border:1px solid rgba(240,136,62,.3);border-radius:10px">';
-    h += '<div style="font-size:14px;color:#ffa657;font-weight:700;font-family:-apple-system,system-ui,sans-serif;margin-bottom:6px">⏰ На сверке: '+fmt(Math.round(totalPending/1000000))+' млн ₸</div>';
-    h += '<div style="font-size:12px;color:#b9c3d0;font-family:-apple-system,system-ui,sans-serif">Объёмы выполнены, ждут подписи Sensata</div>';
-    h += '</div>';
-  }
-  
-  h += '</div>';
-  
-  // ============================================================
-  // 📊 P&L (Profit & Loss) — за всё время
-  // ============================================================
-  h += '<div class="yk-section">📊 P&L · ОТЧЁТ О ПРИБЫЛИ</div>';
-  
-  // Большая карточка P&L
-  h += '<div class="yk-big" onclick="openDrill(\'profit\',\'all\')" style="cursor:pointer">';
-  h += '<div class="yk-label">📊 ВЫРУЧКА − РАСХОДЫ = ПРИБЫЛЬ</div>';
-  
-  // Структура P&L
-  h += '<div style="display:grid;grid-template-columns:auto 1fr auto;gap:10px 14px;align-items:baseline;margin-top:14px;font-family:-apple-system,system-ui,sans-serif">';
-  
-  // Строка ВЫРУЧКА (заработано)
-  h += '<div style="font-size:13px;color:#b9c3d0;font-weight:600">Выручка</div>';
-  h += '<div style="font-size:11px;color:var(--mut);line-height:1.3">принято КС-2 × расценки</div>';
-  h += '<div style="font-size:18px;font-weight:800;color:#7ee787;font-feature-settings:\'tnum\'">+'+fmt(Math.round(totalEarned/1000000))+' M</div>';
-  
-  // Строка РАСХОДЫ
-  h += '<div style="font-size:13px;color:#b9c3d0;font-weight:600">Расходы</div>';
-  h += '<div style="font-size:11px;color:var(--mut);line-height:1.3">з/п, материалы, админ</div>';
-  h += '<div style="font-size:18px;font-weight:800;color:#ff7b72;font-feature-settings:\'tnum\'">−'+fmt(Math.round(totalExpenses/1000000))+' M</div>';
-  
-  // Разделительная линия
-  h += '<div style="grid-column:1/4;border-top:1px solid var(--brd);margin:4px 0"></div>';
-  
-  // ИТОГО ПРИБЫЛЬ
-  var pnlColor = totalProfit > 0 ? '#7ee787' : (totalProfit < 0 ? '#ff7b72' : '#ffd166');
-  var pnlSign = totalProfit > 0 ? '+' : (totalProfit < 0 ? '−' : '');
-  h += '<div style="font-size:14px;color:#e6edf3;font-weight:800;letter-spacing:.5px">ПРИБЫЛЬ</div>';
-  h += '<div></div>';
-  h += '<div style="font-size:24px;font-weight:800;color:'+pnlColor+';font-feature-settings:\'tnum\'">'+pnlSign+fmt(Math.abs(Math.round(totalProfit/1000000)))+' M</div>';
-  
-  h += '</div>';
-  
-  // Маржинальность
-  if(totalEarned > 0){
-    var margin = Math.round((totalProfit / totalEarned) * 100);
-    h += '<div style="margin-top:14px;padding:10px 12px;background:rgba(255,255,255,.04);border-radius:8px;display:flex;justify-content:space-between;align-items:center;font-family:-apple-system,system-ui,sans-serif">';
-    h += '<span style="font-size:12px;color:#b9c3d0">Маржинальность</span>';
-    h += '<span style="font-size:16px;font-weight:800;color:'+(margin>0?'#7ee787':'#ff7b72')+'">'+margin+'%</span>';
-    h += '</div>';
-  }
-  
-  h += '</div>';
-  
-  // ============================================================
-  // ⚖️ БАЛАНС — что есть, кому должны, нам должны
-  // ============================================================
-  h += '<div class="yk-section">⚖️ БАЛАНС · АКТИВЫ И ОБЯЗАТЕЛЬСТВА</div>';
-  
-  // Считаем баланс
-  var balDebtFromClient = totalEarned - totalReceived; // Заказчик должен
-  
-  // Подотчёт (выдано - потрачено)
-  var advGiven = 0, advUsed = 0;
-  S.entries.forEach(function(e){
-    if(e.type === 'advance') advGiven += (e.amount||0);
-    if(e.type === 'expense' && e.paySource === 'advance') advUsed += (e.amount||0);
-  });
-  var advRemaining = Math.max(0, advGiven - advUsed);
-  
-  // Долг партнёрам (расходы из своих)
-  var debtToPartners = 0;
-  S.entries.forEach(function(e){
-    if(e.type === 'expense' && e.paySource === 'own') debtToPartners += (e.amount||0);
-  });
-  
-  var totalAssets = C.cash + balDebtFromClient + totalPending + advRemaining;
-  var totalLiab = debtToPartners;
-  var equity = totalAssets - totalLiab;
-  
-  // Карточка баланса
-  h += '<div class="yk-big">';
-  h += '<div class="yk-label">⚖️ ЧТО ЕСТЬ У КОМПАНИИ</div>';
-  
-  // АКТИВЫ
-  h += '<div style="margin-top:12px;margin-bottom:14px">';
-  h += '<div style="font-size:11px;color:#7ee787;letter-spacing:1.5px;font-weight:700;margin-bottom:8px;font-family:-apple-system,system-ui,sans-serif">🟢 АКТИВЫ — ЧТО НАШЕ</div>';
-  
-  // Строки активов
-  var assets = [
-    {icon:'💰', name:'Деньги в кассе',         val:C.cash,            note:'наличные/счёт'},
-    {icon:'🟢', name:'Заказчик должен',        val:balDebtFromClient, note:'КС-2 ✓, перевод ждём'},
-    {icon:'⏰', name:'Объёмы на сверке',       val:totalPending,      note:'выполнено, КС-2 ждём'},
-    {icon:'🔵', name:'Авансы партнёров',       val:advRemaining,      note:'выдано — потрачено'}
-  ];
-  
-  assets.forEach(function(a){
-    if(a.val === 0) return; // скрываем нули
-    h += '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:rgba(63,185,80,.06);border-radius:8px;margin-bottom:4px;font-family:-apple-system,system-ui,sans-serif">';
-    h += '<div style="font-size:16px">'+a.icon+'</div>';
-    h += '<div style="flex:1;min-width:0">';
-    h += '<div style="font-size:13px;color:#e6edf3;font-weight:600">'+a.name+'</div>';
-    h += '<div style="font-size:10px;color:#8b949e;margin-top:1px">'+a.note+'</div>';
-    h += '</div>';
-    var disp = a.val >= 1000000 ? fmt(Math.round(a.val/1000000))+' M' : (a.val >= 1000 ? fmt(Math.round(a.val/1000))+' K' : fmt(a.val));
-    h += '<div style="font-family:-apple-system,system-ui,sans-serif;font-size:16px;font-weight:800;color:#7ee787;font-feature-settings:\'tnum\'">'+disp+'</div>';
-    h += '</div>';
-  });
-  
-  // Сумма активов
-  h += '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:rgba(63,185,80,.15);border-radius:8px;margin-top:6px;font-family:-apple-system,system-ui,sans-serif">';
-  h += '<div style="font-size:12px;color:#7ee787;font-weight:700;letter-spacing:1px">ИТОГО АКТИВОВ</div>';
-  var assetsDisp = totalAssets >= 1000000 ? fmt(Math.round(totalAssets/1000000))+' M' : fmt(totalAssets);
-  h += '<div style="font-size:20px;font-weight:800;color:#7ee787;font-feature-settings:\'tnum\'">'+assetsDisp+'</div>';
-  h += '</div>';
-  h += '</div>';
-  
-  // ОБЯЗАТЕЛЬСТВА
-  h += '<div style="margin-bottom:14px">';
-  h += '<div style="font-size:11px;color:#ff7b72;letter-spacing:1.5px;font-weight:700;margin-bottom:8px;font-family:-apple-system,system-ui,sans-serif">🔴 ОБЯЗАТЕЛЬСТВА — КОМУ МЫ ДОЛЖНЫ</div>';
-  
-  if(debtToPartners > 0){
-    h += '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:rgba(248,81,73,.06);border-radius:8px;margin-bottom:4px;font-family:-apple-system,system-ui,sans-serif">';
-    h += '<div style="font-size:16px">💼</div>';
-    h += '<div style="flex:1;min-width:0">';
-    h += '<div style="font-size:13px;color:#e6edf3;font-weight:600">Долг партнёрам</div>';
-    h += '<div style="font-size:10px;color:#8b949e;margin-top:1px">расходы из своих, не возвращены</div>';
-    h += '</div>';
-    var dispD = debtToPartners >= 1000000 ? fmt(Math.round(debtToPartners/1000000))+' M' : fmt(Math.round(debtToPartners/1000))+' K';
-    h += '<div style="font-family:-apple-system,system-ui,sans-serif;font-size:16px;font-weight:800;color:#ff7b72;font-feature-settings:\'tnum\'">'+dispD+'</div>';
-    h += '</div>';
-  } else {
-    h += '<div style="padding:10px;color:#8b949e;font-size:12px;text-align:center;font-family:-apple-system,system-ui,sans-serif">никому не должны</div>';
-  }
-  
-  h += '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:rgba(248,81,73,.15);border-radius:8px;margin-top:6px;font-family:-apple-system,system-ui,sans-serif">';
-  h += '<div style="font-size:12px;color:#ff7b72;font-weight:700;letter-spacing:1px">ИТОГО ОБЯЗАТЕЛЬСТВ</div>';
-  var liabDisp = totalLiab >= 1000000 ? fmt(Math.round(totalLiab/1000000))+' M' : fmt(totalLiab);
-  h += '<div style="font-size:20px;font-weight:800;color:#ff7b72;font-feature-settings:\'tnum\'">'+liabDisp+'</div>';
-  h += '</div>';
-  h += '</div>';
-  
-  // КАПИТАЛ (АКТИВЫ - ОБЯЗАТЕЛЬСТВА)
-  var eqColor = equity > 0 ? '#7ee787' : (equity < 0 ? '#ff7b72' : '#ffd166');
-  var eqSign = equity > 0 ? '+' : (equity < 0 ? '−' : '');
-  var eqDisp = Math.abs(equity) >= 1000000 ? fmt(Math.round(Math.abs(equity)/1000000))+' M' : fmt(Math.abs(equity));
-  
-  h += '<div style="padding:14px;background:linear-gradient(135deg,rgba(212,167,58,.15),rgba(255,179,32,.05));border:1.5px solid rgba(212,167,58,.4);border-radius:12px;text-align:center;font-family:-apple-system,system-ui,sans-serif">';
-  h += '<div style="font-size:11px;color:#d4a73a;letter-spacing:2px;font-weight:700;margin-bottom:6px">💎 КАПИТАЛ КОМПАНИИ</div>';
-  h += '<div style="font-size:32px;font-weight:800;color:'+eqColor+';font-feature-settings:\'tnum\';letter-spacing:-1px">'+eqSign+eqDisp+'<span style="font-size:14px;color:var(--mut);margin-left:4px;font-weight:500">тг</span></div>';
-  h += '<div style="font-size:11px;color:#8b949e;margin-top:6px">активы − обязательства</div>';
-  h += '</div>';
-  
-  h += '</div>';
-  
-  // ============================================================
-  // 💸 ДВИЖЕНИЕ ДЕНЕГ (Cash Flow)
-  // ============================================================
-  h += '<div class="yk-section">💸 ДВИЖЕНИЕ ДЕНЕГ · CASH FLOW</div>';
-  
-  // Подсчитаем поступления и расходы
-  var cfIncome = 0, cfInvest = 0, cfAdvanceOut = 0, cfExpensesCash = 0;
-  S.entries.forEach(function(e){
-    if(e.type === 'income') cfIncome += (e.amount||0);
-    if(e.type === 'invest') cfInvest += (e.amount||0);
-    if(e.type === 'advance') cfAdvanceOut += (e.amount||0);
-    if(e.type === 'expense' && e.paySource === 'cash') cfExpensesCash += (e.amount||0);
-  });
-  var cfTotalIn = cfIncome + cfInvest;
-  var cfTotalOut = cfExpensesCash;
-  var cfNet = cfTotalIn - cfTotalOut;
-  
-  h += '<div class="yk-big">';
-  h += '<div class="yk-label">💸 ОТКУДА ПРИШЛО / КУДА УШЛО</div>';
-  
-  // Поступления
-  h += '<div style="margin-top:14px;margin-bottom:14px">';
-  h += '<div style="font-size:11px;color:#7ee787;letter-spacing:1.5px;font-weight:700;margin-bottom:8px;font-family:-apple-system,system-ui,sans-serif">⬇️ ПОСТУПЛЕНИЯ</div>';
-  
-  var cfInflows = [
-    {icon:'💵', name:'От заказчика', val:cfIncome, note:'оплата КС-2'},
-    {icon:'💼', name:'Вложения партнёров', val:cfInvest, note:'из личных средств'}
-  ];
-  
-  cfInflows.forEach(function(a){
-    if(a.val === 0) return;
-    h += '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:rgba(63,185,80,.06);border-radius:8px;margin-bottom:4px;font-family:-apple-system,system-ui,sans-serif">';
-    h += '<div style="font-size:16px">'+a.icon+'</div>';
-    h += '<div style="flex:1;min-width:0">';
-    h += '<div style="font-size:13px;color:#e6edf3;font-weight:600">'+a.name+'</div>';
-    h += '<div style="font-size:10px;color:#8b949e;margin-top:1px">'+a.note+'</div>';
-    h += '</div>';
-    var dispI = a.val >= 1000000 ? fmt(Math.round(a.val/1000000))+' M' : fmt(Math.round(a.val/1000))+' K';
-    h += '<div style="font-family:-apple-system,system-ui,sans-serif;font-size:16px;font-weight:800;color:#7ee787;font-feature-settings:\'tnum\'">+'+dispI+'</div>';
-    h += '</div>';
-  });
-  if(cfTotalIn === 0){
-    h += '<div style="padding:10px;color:#8b949e;font-size:12px;text-align:center;font-family:-apple-system,system-ui,sans-serif">за выбранный период поступлений не было</div>';
-  }
-  h += '</div>';
-  
-  // Расходы
-  h += '<div style="margin-bottom:14px">';
-  h += '<div style="font-size:11px;color:#ff7b72;letter-spacing:1.5px;font-weight:700;margin-bottom:8px;font-family:-apple-system,system-ui,sans-serif">⬆️ ВЫПЛАТЫ</div>';
-  
-  // ТОП-3 категории расходов
-  var allCats = {};
-  S.entries.forEach(function(e){
-    if(e.type === 'expense'){
-      var c = e.cat || 'Без категории';
-      allCats[c] = (allCats[c]||0) + (e.amount||0);
-    }
-  });
-  var sortedCats = Object.keys(allCats).map(function(k){return {name:k, amount:allCats[k]};}).sort(function(a,b){return b.amount - a.amount;});
-  
-  sortedCats.slice(0,3).forEach(function(c){
-    h += '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:rgba(248,81,73,.06);border-radius:8px;margin-bottom:4px;font-family:-apple-system,system-ui,sans-serif">';
-    h += '<div style="font-size:16px">💸</div>';
-    h += '<div style="flex:1;min-width:0">';
-    h += '<div style="font-size:13px;color:#e6edf3;font-weight:600">'+c.name+'</div>';
-    var pctTotal = totalExpenses > 0 ? Math.round(c.amount/totalExpenses*100) : 0;
-    h += '<div style="font-size:10px;color:#8b949e;margin-top:1px">'+pctTotal+'% всех расходов</div>';
-    h += '</div>';
-    var dispE = c.amount >= 1000000 ? fmt(Math.round(c.amount/1000000))+' M' : fmt(Math.round(c.amount/1000))+' K';
-    h += '<div style="font-family:-apple-system,system-ui,sans-serif;font-size:16px;font-weight:800;color:#ff7b72;font-feature-settings:\'tnum\'">−'+dispE+'</div>';
-    h += '</div>';
-  });
-  h += '</div>';
-  
-  // ИТОГ ДВИЖЕНИЯ ДЕНЕГ
-  var cfColor = cfNet > 0 ? '#7ee787' : (cfNet < 0 ? '#ff7b72' : '#ffd166');
-  var cfSign = cfNet > 0 ? '+' : (cfNet < 0 ? '−' : '');
-  var cfDisp = Math.abs(cfNet) >= 1000000 ? fmt(Math.round(Math.abs(cfNet)/1000000))+' M' : fmt(Math.abs(cfNet));
-  h += '<div style="padding:12px 14px;background:rgba(255,255,255,.04);border-radius:10px;display:flex;justify-content:space-between;align-items:center;font-family:-apple-system,system-ui,sans-serif">';
-  h += '<div><div style="font-size:11px;color:#8b949e;letter-spacing:1px;font-weight:700">ЧИСТОЕ ДВИЖЕНИЕ</div><div style="font-size:10px;color:var(--mut);margin-top:2px">поступления − выплаты</div></div>';
-  h += '<div style="font-size:22px;font-weight:800;color:'+cfColor+';font-feature-settings:\'tnum\'">'+cfSign+cfDisp+'</div>';
-  h += '</div>';
-  
-  h += '</div>';
-  
-  // === ПЕРЕХОД К ПЕРИОДАМ ===
-  h += '<div class="yk-section">📅 ПО ПЕРИОДАМ</div>';
-  
-  // Период (общий с экраном План)
-  if(typeof window._moneyPeriod === 'undefined') window._moneyPeriod = 'month';
-  var period = window._moneyPeriod;
-  
-  var periods = [
-    {id:'day',  lbl:'День'},
-    {id:'week', lbl:'Нед'},
-    {id:'month',lbl:'Месяц'},
-    {id:'all',  lbl:'Всё'}
-  ];
-  h += '<div class="yk-tabs">';
-  periods.forEach(function(p){
-    h += '<div class="yk-tab '+(period===p.id?'active':'')+'" onclick="window._moneyPeriod=\''+p.id+'\';render()">'+p.lbl+'</div>';
-  });
-  h += '</div>';
-  
-  // Определим диапазон
-  var now = new Date();
-  var startD = new Date(0);
-  var periodLabel = 'ВСЁ ВРЕМЯ';
-  if(period === 'day'){
-    startD = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    periodLabel = 'СЕГОДНЯ';
-  } else if(period === 'week'){
-    var dayW = now.getDay()||7;
-    startD = new Date(now); startD.setDate(now.getDate()-dayW+1); startD.setHours(0,0,0,0);
-    periodLabel = 'ЭТА НЕДЕЛЯ';
-  } else if(period === 'month'){
-    startD = new Date(now.getFullYear(), now.getMonth(), 1);
-    var mn = ['ЯНВАРЬ','ФЕВРАЛЬ','МАРТ','АПРЕЛЬ','МАЙ','ИЮНЬ','ИЮЛЬ','АВГУСТ','СЕНТЯБРЬ','ОКТЯБРЬ','НОЯБРЬ','ДЕКАБРЬ'];
-    periodLabel = mn[now.getMonth()];
-  }
-  
-  // Расценка заказчика
+  // Расценка
   var custRate = 38437.76;
   var meta = (S.objMeta && S.objects && S.objects[0] && S.objMeta[S.objects[0]]) || {};
   if(meta.custRates && meta.custRates.length > 0){
@@ -7864,778 +7196,969 @@ function rPL(){
     custRate = cntR > 0 ? sumR/cntR : 38437.76;
   }
   
-  // Считаем по периоду
-  var earned = 0, earnedPending = 0, received = 0, expenses = 0;
-  var advances = 0;
-  var expByCategory = {};
-  var debtFromClient = 0;
+  var pendingMoney = pendingVol * custRate;
   
-  S.entries.forEach(function(e){
-    if(!e.date) return;
-    var d = new Date(e.date);
-    if(d < startD) return;
-    if(e.type === 'vol'){
-      var amt = (e.volume||0) * custRate;
-      if(e.accepted) earned += amt;
-      else earnedPending += amt;
-    } else if(e.type === 'income') {
-      received += (e.amount||0);
-    } else if(e.type === 'expense') {
-      expenses += (e.amount||0);
-      var cat = e.cat || 'Без категории';
-      expByCategory[cat] = (expByCategory[cat]||0) + (e.amount||0);
-    } else if(e.type === 'advance') {
-      advances += (e.amount||0);
-    }
+  var h = '<div style="padding:14px 14px 30px;font-family:-apple-system,system-ui,sans-serif">';
+  
+  // ============= ЗАГОЛОВОК =============
+  h += '<div style="margin-bottom:16px">';
+  h += '<div style="font-size:28px;color:var(--gold);font-weight:800;letter-spacing:1.5px;font-family:var(--fd)">🔥 ПУЛЬС</div>';
+  h += '<div style="font-size:14px;color:#8b949e;margin-top:4px">'+today.toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long'})+'</div>';
+  h += '</div>';
+  
+  // ============= 🚨 ТРЕВОГИ (если есть) =============
+  var alerts = [];
+  
+  if(C.cash < 500000){
+    alerts.push({
+      icon:'💰',
+      color:'#ff7b72',
+      title:'Касса критически низкая',
+      desc:'Осталось '+fmt(C.cash)+' ₸ — срочно нужны деньги',
+      action:'partners'
+    });
+  }
+  
+  if(daysSinceIncome > 30 && entries.length > 5){
+    alerts.push({
+      icon:'⏰',
+      color:'#ff7b72',
+      title:daysSinceIncome+' дней без поступлений',
+      desc:'Последний доход от заказчика давно',
+      action:null
+    });
+  } else if(daysSinceIncome > 14 && entries.length > 5){
+    alerts.push({
+      icon:'⚠️',
+      color:'#ffa657',
+      title:daysSinceIncome+' дней без КС-2',
+      desc:'Пора подписывать акт у Sensata',
+      action:null
+    });
+  }
+  
+  if(pendingVol > 50){
+    alerts.push({
+      icon:'📋',
+      color:'#ffa657',
+      title:'КС-2 не подписан: '+pendingVol.toFixed(1)+' м³',
+      desc:'Дебиторка ≈ '+fmt(pendingMoney)+' ₸ — звоните заказчику',
+      action:null
+    });
+  }
+  
+  // Долги партнёров (компании)
+  var partnerDebts = [];
+  ['Бекжан','Евгений','Нурсултан','Сергей'].forEach(function(p){
+    var ai=0, sa=0, ao=0;
+    entries.forEach(function(e){
+      if(e.type==='advance' && e.to===p) ai += (e.amount||0);
+      else if(e.type==='advance' && e.from===p) ao += (e.amount||0);
+      else if(e.type==='expense' && e.who===p){
+        var psrc = e.paySource || 'advance';
+        if(psrc === 'advance') sa += (e.amount||0);
+      }
+    });
+    var debt = ai - sa - ao;
+    if(debt > 500000) partnerDebts.push({name:p, debt:debt});
   });
+  if(partnerDebts.length > 0){
+    var biggest = partnerDebts.sort(function(a,b){return b.debt-a.debt;})[0];
+    alerts.push({
+      icon:'⚠️',
+      color:'#ffa657',
+      title:biggest.name+' должен отчитаться',
+      desc:'Подотчёт '+fmt(biggest.debt)+' ₸ без отчёта',
+      action:'partners'
+    });
+  }
   
-  // Дебиторка = принято но не получено (за всё время)
-  debtFromClient = goal.earned - goal.received;
+  // Черновики на сверке
+  var draftsCount = (typeof _drafts !== 'undefined' && _drafts) ? 
+    _drafts.filter(function(d){return !(typeof _deletedIds !== 'undefined' && _deletedIds[d.id]);}).length : 0;
   
-  var profit = earned - expenses;
-  
-  // === ГЛАВНАЯ КАРТОЧКА: КАССА ===
-  var cashColor = C.cash > 5000000 ? 'green' : (C.cash > 0 ? 'orange' : 'red');
-  var cashSign = C.cash >= 0 ? '' : '−';
-  var cashVal = Math.abs(C.cash);
-  var cashDisplay = cashVal >= 1000000 ? fmt(Math.round(cashVal/1000000))+'<span class="yk-unit">млн ₸</span>' : 
-                    cashVal >= 1000 ? fmt(Math.round(cashVal/1000))+'<span class="yk-unit">тыс ₸</span>' :
-                    fmt(cashVal)+'<span class="yk-unit">тг</span>';
-  
-  h += '<div class="yk-big '+(C.cash > 0 ? 'green' : 'red')+'" onclick="openDrill(\'cash\',\'all\')" style="cursor:pointer">';
-  h += '<div class="yk-label">💰 КАССА СЕЙЧАС</div>';
-  h += '<div class="yk-value '+cashColor+'">'+cashSign+cashDisplay+'</div>';
-  h += '<div class="yk-sub">';
-  h += '<span class="yk-chip">'+(C.cash>=0?'в плюсе':'в минусе')+'</span>';
-  if(advances > 0) h += '<span>авансы '+fmt(Math.round(advances/1000000))+'M</span>';
-  h += '</div>';
-  
-  // Подсказка про дебиторку
-  if(debtFromClient > 0){
-    h += '<div style="margin-top:14px;padding:10px 12px;background:rgba(88,166,255,.08);border:1px solid rgba(88,166,255,.2);border-radius:10px;font-size:12px;color:var(--blue);font-family:-apple-system,system-ui,sans-serif;line-height:1.4">';
-    h += '<b>💡 Заказчик должен: '+fmt(Math.round(debtFromClient/1000000))+' млн ₸</b><br>';
-    h += '<span style="color:var(--mut)">Объёмы приняты, ждём перевод от Sensata</span>';
+  if(draftsCount > 0 && canEditNow){
+    // Черновики — отдельной плашкой сверху
+    h += '<div onclick="if(typeof openDraftsModal===\'function\')openDraftsModal()" style="background:linear-gradient(90deg,#ffd166,#ffa657);border-radius:14px;padding:14px 16px;margin-bottom:14px;cursor:pointer;display:flex;align-items:center;gap:12px;box-shadow:0 4px 14px rgba(255,179,32,.25)">';
+    h += '<div style="font-size:34px;line-height:1">📥</div>';
+    h += '<div style="flex:1;color:#0d1117">';
+    h += '<div style="font-size:16px;font-weight:800;letter-spacing:.3px">'+draftsCount+' '+(draftsCount===1?'ЧЕРНОВИК':(draftsCount<5?'ЧЕРНОВИКА':'ЧЕРНОВИКОВ'))+' НА СВЕРКЕ</div>';
+    h += '<div style="font-size:13px;opacity:.75;margin-top:2px">от Telegram бота · нажмите чтобы открыть</div>';
+    h += '</div>';
+    h += '<div style="font-size:26px;color:#0d1117;font-weight:800">›</div>';
     h += '</div>';
   }
-  h += '</div>';
   
-  // === ПРИБЫЛЬ ЗА ПЕРИОД ===
-  var profitColor = profit > 0 ? 'green' : (profit < 0 ? 'red' : 'gold');
-  var profitSign = profit > 0 ? '+' : (profit < 0 ? '−' : '');
-  
-  h += '<div class="yk-big '+(profit > 0 ? 'green' : 'gold')+'" onclick="openDrill(\'profit\',\''+period+'\')" style="cursor:pointer">';
-  h += '<div class="yk-label">💎 ПРИБЫЛЬ — '+periodLabel+'</div>';
-  h += '<div class="yk-value '+profitColor+'">'+profitSign+fmt(Math.abs(Math.round(profit/1000000)))+'<span class="yk-unit">млн ₸</span></div>';
-  h += '<div class="yk-sub">';
-  h += '<span class="yk-chip">заработано − расходы</span>';
-  h += '</div>';
-  
-  // 3 подцифры
-  h += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:14px;padding-top:14px;border-top:1px solid var(--brd)">';
-  h += '<div style="text-align:center"><div style="font-size:10px;color:var(--mut);font-weight:600">ЗАРАБОТАНО</div><div style="font-family:-apple-system,system-ui,sans-serif;font-size:22px;font-weight:800;color:var(--gold);margin-top:4px">'+fmt(Math.round(earned/1000000))+'<span style="font-size:11px;color:var(--mut);font-weight:500">M</span></div><div style="font-size:9px;color:var(--mut);margin-top:2px">принято КС-2</div></div>';
-  h += '<div style="text-align:center"><div style="font-size:10px;color:var(--mut);font-weight:600">ПОЛУЧЕНО</div><div style="font-family:-apple-system,system-ui,sans-serif;font-size:22px;font-weight:800;color:var(--blue);margin-top:4px">'+fmt(Math.round(received/1000000))+'<span style="font-size:11px;color:var(--mut);font-weight:500">M</span></div><div style="font-size:9px;color:var(--mut);margin-top:2px">в кассу</div></div>';
-  h += '<div style="text-align:center"><div style="font-size:10px;color:var(--mut);font-weight:600">РАСХОДЫ</div><div style="font-family:-apple-system,system-ui,sans-serif;font-size:22px;font-weight:800;color:var(--red);margin-top:4px">'+fmt(Math.round(expenses/1000000))+'<span style="font-size:11px;color:var(--mut);font-weight:500">M</span></div><div style="font-size:9px;color:var(--mut);margin-top:2px">потрачено</div></div>';
-  h += '</div>';
-  
-  // Объёмы на сверке
-  if(earnedPending > 0){
-    h += '<div style="margin-top:14px;padding:10px 12px;background:rgba(240,136,62,.08);border:1px solid rgba(240,136,62,.25);border-radius:10px;font-size:11px;color:var(--orange);font-family:-apple-system,system-ui,sans-serif;line-height:1.4">';
-    h += '<b>⚠️ Объёмы на сверке: '+fmt(Math.round(earnedPending/1000000))+' млн ₸</b><br>';
-    h += '<span style="color:var(--mut)">Когда КС-2 подпишут — прибыль станет +'+fmt(Math.round((profit+earnedPending)/1000000))+' млн ₸</span>';
-    h += '</div>';
-  }
-  h += '</div>';
-  
-  // === ТОП-5 КАТЕГОРИЙ РАСХОДОВ ===
-  var catEntries = Object.keys(expByCategory).map(function(k){return {name:k, amount:expByCategory[k]};});
-  catEntries.sort(function(a,b){return b.amount - a.amount;});
-  
-  if(catEntries.length > 0){
-    var maxCat = catEntries[0].amount;
-    h += '<div class="yk-section red">💸 ТОП РАСХОДОВ — '+periodLabel+'</div>';
-    catEntries.slice(0,5).forEach(function(c, idx){
-      var pctOfMax = maxCat > 0 ? Math.round(c.amount/maxCat*100) : 0;
-      var pctOfTotal = expenses > 0 ? Math.round(c.amount/expenses*100) : 0;
-      // Регистрируем категорию для drill
-      if(!window._drillCats) window._drillCats = {};
-      var catKey = 'money_cat_'+idx;
-      window._drillCats[catKey] = c.name;
-      h += '<div class="yk-alert" onclick="drillGoToCategory(\''+catKey+'\',\''+period+'\')" style="cursor:pointer">';
-      h += '<div class="yk-alert-icon" style="background:rgba(248,81,73,.15);color:var(--red)">💸</div>';
-      h += '<div class="yk-alert-body">';
-      h += '<div class="yk-alert-title">'+c.name+'</div>';
-      h += '<div class="yk-alert-meta">'+pctOfTotal+'% всех расходов</div>';
-      h += '<div class="yk-pbar" style="height:5px;margin:6px 0 0"><div class="yk-pbar-fill red" style="width:'+pctOfMax+'%"></div></div>';
+  // Тревоги
+  if(alerts.length > 0){
+    h += '<div style="font-size:13px;color:var(--mut);letter-spacing:2px;font-weight:800;margin:6px 4px 10px">🚨 ВНИМАНИЕ</div>';
+    alerts.slice(0, 3).forEach(function(a){
+      h += '<div style="background:#161b22;border:1px solid '+a.color+'60;border-left:4px solid '+a.color+';border-radius:12px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:12px">';
+      h += '<div style="font-size:28px;line-height:1;flex-shrink:0">'+a.icon+'</div>';
+      h += '<div style="flex:1;min-width:0">';
+      h += '<div style="font-size:15px;color:'+a.color+';font-weight:800">'+a.title+'</div>';
+      h += '<div style="font-size:13px;color:#8b949e;margin-top:3px">'+a.desc+'</div>';
       h += '</div>';
-      h += '<div class="yk-alert-num red">'+(c.amount>=1000000?fmt(Math.round(c.amount/1000000))+'M':fmt(Math.round(c.amount/1000))+'K')+'</div>';
+      if(a.action){
+        h += '<div onclick="setTab(\''+a.action+'\');event.stopPropagation()" style="cursor:pointer;font-size:22px;color:'+a.color+'">›</div>';
+      }
       h += '</div>';
     });
   }
   
-  // === ПАРТНЁРЫ — БАЛАНСЫ ===
-  h += '<div class="yk-section blue">👥 БАЛАНСЫ ПАРТНЁРОВ</div>';
-  var partners = PARTNERS || ['Дмитрий','Бекжан','Евгений','Нурсултан','Сергей'];
-  var partnerColors = {'Дмитрий':'#ffb320','Бекжан':'#3fb950','Евгений':'#58a6ff','Нурсултан':'#a371f7','Сергей':'#39d3bb'};
+  // ============= 💰 ГЛАВНЫЕ ЦИФРЫ =============
+  h += '<div style="font-size:13px;color:var(--mut);letter-spacing:2px;font-weight:800;margin:16px 4px 10px">💰 ФИНАНСЫ</div>';
   
-  partners.forEach(function(p){
-    var P = calcPar(p);
-    var net = P.debtFromCompany - P.debtToCompany; // + компания должна, - партнёр должен
-    var clr = partnerColors[p];
-    var valClr = net > 0 ? 'var(--green)' : (net < 0 ? 'var(--red)' : 'var(--mut)');
-    var sign = net > 0 ? '+' : (net < 0 ? '−' : '');
-    var valFmt = Math.abs(net) >= 1000000 ? fmt(Math.round(Math.abs(net)/1000000))+'M' : fmt(Math.round(Math.abs(net)/1000))+'K';
+  // Большая карточка — касса (как главный индикатор здоровья)
+  var cashColor = C.cash < 500000 ? '#ff7b72' : C.cash < 2000000 ? '#ffd166' : '#7ee787';
+  var cashStatus = C.cash < 500000 ? 'критически мало' : C.cash < 2000000 ? 'осторожно' : 'нормально';
+  
+  h += '<div style="background:linear-gradient(135deg,#161b22,#0d1117);border:1.5px solid '+cashColor+';border-radius:16px;padding:16px;margin-bottom:10px;position:relative;overflow:hidden">';
+  h += '<div style="position:absolute;top:-30px;right:-30px;width:120px;height:120px;background:radial-gradient(circle,'+cashColor+'20,transparent);border-radius:50%"></div>';
+  h += '<div style="position:relative;display:flex;align-items:center;gap:14px">';
+  h += '<div style="font-size:48px;line-height:1">💰</div>';
+  h += '<div style="flex:1">';
+  h += '<div style="font-size:13px;color:#8b949e;letter-spacing:1.5px;font-weight:700">КАССА СЕЙЧАС</div>';
+  h += '<div style="font-size:34px;color:'+cashColor+';font-weight:800;line-height:1;margin-top:4px">'+fmt(C.cash)+' ₸</div>';
+  h += '<div style="font-size:13px;color:'+cashColor+';margin-top:5px;font-weight:600">'+cashStatus+'</div>';
+  h += '</div>';
+  h += '</div>';
+  h += '</div>';
+  
+  // 4 мини-карточки: доходы / расходы / прибыль / объём
+  h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">';
+  
+  // Доходы месяца
+  h += '<div style="background:#161b22;border:1px solid rgba(63,185,80,.4);border-radius:12px;padding:12px">';
+  h += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">';
+  h += '<div style="font-size:24px">📈</div>';
+  h += '<div style="font-size:11px;color:#8b949e;letter-spacing:1.5px;font-weight:700">ДОХОДЫ МЕСЯЦА</div>';
+  h += '</div>';
+  h += '<div style="font-size:19px;color:#7ee787;font-weight:800">'+fmt(monthIncome)+'</div>';
+  h += '<div style="font-size:12px;color:#8b949e;margin-top:2px">тг</div>';
+  h += '</div>';
+  
+  // Расходы месяца
+  h += '<div style="background:#161b22;border:1px solid rgba(255,123,114,.4);border-radius:12px;padding:12px">';
+  h += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">';
+  h += '<div style="font-size:24px">📉</div>';
+  h += '<div style="font-size:11px;color:#8b949e;letter-spacing:1.5px;font-weight:700">РАСХОДЫ МЕСЯЦА</div>';
+  h += '</div>';
+  h += '<div style="font-size:19px;color:#ff7b72;font-weight:800">'+fmt(monthExpense)+'</div>';
+  h += '<div style="font-size:12px;color:#8b949e;margin-top:2px">тг</div>';
+  h += '</div>';
+  
+  // Объём м³
+  h += '<div style="background:#161b22;border:1px solid rgba(88,166,255,.4);border-radius:12px;padding:12px">';
+  h += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">';
+  h += '<div style="font-size:24px">🏗</div>';
+  h += '<div style="font-size:11px;color:#8b949e;letter-spacing:1.5px;font-weight:700">ОБЪЁМ МЕСЯЦА</div>';
+  h += '</div>';
+  h += '<div style="font-size:19px;color:#58a6ff;font-weight:800">'+monthVol.toFixed(1)+'</div>';
+  h += '<div style="font-size:12px;color:#8b949e;margin-top:2px">м³</div>';
+  h += '</div>';
+  
+  // Дебиторка (не подписанный КС-2)
+  h += '<div style="background:#161b22;border:1px solid rgba(255,179,32,.4);border-radius:12px;padding:12px">';
+  h += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">';
+  h += '<div style="font-size:24px">⏳</div>';
+  h += '<div style="font-size:11px;color:#8b949e;letter-spacing:1.5px;font-weight:700">НА СВЕРКЕ КС-2</div>';
+  h += '</div>';
+  h += '<div style="font-size:19px;color:#ffd166;font-weight:800">'+pendingVol.toFixed(1)+' м³</div>';
+  h += '<div style="font-size:12px;color:#8b949e;margin-top:2px">≈ '+(pendingMoney>=1000000?(pendingMoney/1000000).toFixed(1)+'M':fmt(pendingMoney))+' тг</div>';
+  h += '</div>';
+  
+  h += '</div>';
+  
+  // ============= 📋 ЗАДАЧИ НА СЕГОДНЯ =============
+  // Используем generateTodayTasks если есть, иначе делаем простые задачи
+  var tasks = [];
+  
+  if(typeof generateTodayTasks === 'function'){
+    try { tasks = generateTodayTasks() || []; } catch(e){ tasks = []; }
+  }
+  
+  // Если функция не вернула задач — генерируем сами
+  if(tasks.length === 0){
+    if(pendingVol > 50){
+      tasks.push({
+        icon:'📋',
+        title:'Подписать КС-2',
+        desc:pendingVol.toFixed(0)+' м³ ждут подписания',
+        priority:'high'
+      });
+    }
+    if(C.cash < 500000){
+      tasks.push({
+        icon:'💰',
+        title:'Найти деньги',
+        desc:'Касса '+fmt(C.cash)+' ₸ — критично',
+        priority:'high'
+      });
+    }
+    var dow = today.getDay(); // 0=Вс, 1=Пн
+    if(dow === 1){
+      tasks.push({
+        icon:'📊',
+        title:'Понедельник: совещание',
+        desc:'Подведи итоги недели с командой',
+        priority:'med'
+      });
+    }
+    if(today.getDate() === 15 || today.getDate() === 30){
+      tasks.push({
+        icon:'💵',
+        title:'День зарплаты',
+        desc:'Выплаты бригадам',
+        priority:'high'
+      });
+    }
+    if(dow === 3){
+      tasks.push({
+        icon:'🔍',
+        title:'Среда: контроль качества',
+        desc:'Обход объекта с Нурсултаном',
+        priority:'med'
+      });
+    }
+    if(draftsCount > 0 && canEditNow){
+      tasks.push({
+        icon:'📥',
+        title:'Разобрать черновики',
+        desc:draftsCount+' в очереди от бота',
+        priority:'med'
+      });
+    }
+  }
+  
+  if(tasks.length > 0){
+    h += '<div style="font-size:13px;color:var(--mut);letter-spacing:2px;font-weight:800;margin:16px 4px 10px">📋 ЗАДАЧИ НА СЕГОДНЯ</div>';
     
-    h += '<div class="yk-alert" onclick="if(typeof openPartnerCard===\'function\')openPartnerCard(\''+p+'\')" style="cursor:pointer">';
-    h += '<div class="yk-alert-icon" style="background:'+clr+';color:#000;font-weight:800;font-family:-apple-system,system-ui,sans-serif;font-size:16px">'+p.charAt(0)+'</div>';
-    h += '<div class="yk-alert-body">';
-    h += '<div class="yk-alert-title">'+p+'</div>';
-    h += '<div class="yk-alert-meta">'+(net>0?'компания должна':(net<0?'партнёр должен':'расчёты закрыты'))+'</div>';
-    h += '</div>';
-    h += '<div class="yk-alert-num" style="color:'+valClr+'">'+sign+valFmt+'</div>';
-    h += '</div>';
-  });
+    tasks.slice(0, 5).forEach(function(t){
+      var pColor = t.priority==='high' ? '#ff7b72' : t.priority==='med' ? '#ffd166' : '#7ee787';
+      h += '<div style="background:#161b22;border:1px solid #30363d;border-left:3px solid '+pColor+';border-radius:10px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:12px">';
+      h += '<div style="font-size:26px;line-height:1;flex-shrink:0">'+(t.icon||'•')+'</div>';
+      h += '<div style="flex:1;min-width:0">';
+      h += '<div style="font-size:15px;color:#e6edf3;font-weight:700">'+(t.title||'Задача')+'</div>';
+      if(t.desc){
+        h += '<div style="font-size:13px;color:#8b949e;margin-top:2px">'+t.desc+'</div>';
+      }
+      h += '</div>';
+      h += '</div>';
+    });
+  }
   
-  // === БЫСТРЫЕ КНОПКИ (только для редактора) ===
-  if(canEdit()){
-    h += '<div class="yk-section">📋 ВСЕ ОПЕРАЦИИ</div>';
-    h += '<div class="yk-mini" onclick="setTab(\'journal\');" style="cursor:pointer">';
-    h += '<div style="display:flex;align-items:center;gap:14px">';
-    h += '<div style="font-size:30px">📋</div>';
-    h += '<div style="flex:1">';
-    h += '<div style="font-size:14px;font-weight:700;color:var(--text);font-family:-apple-system,system-ui,sans-serif">Журнал операций</div>';
-    h += '<div style="font-size:11px;color:var(--mut);margin-top:2px;font-family:-apple-system,system-ui,sans-serif">'+(S.entries||[]).length+' записей · поиск · фильтры</div>';
+  // ============= 👷 БРИГАДЫ СЕЙЧАС (мини-блок) =============
+  if(brigades.length > 0){
+    h += '<div style="font-size:13px;color:var(--mut);letter-spacing:2px;font-weight:800;margin:16px 4px 10px">👷 БРИГАДЫ</div>';
+    
+    h += '<div onclick="setTab(\'objects\')" style="background:#161b22;border:1px solid var(--brd);border-radius:14px;padding:14px;margin-bottom:14px;cursor:pointer">';
+    
+    var totalWorkers = brigades.reduce(function(s,b){return s+(b.workers||0);},0);
+    h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">';
+    h += '<div style="font-size:15px;color:#e6edf3;font-weight:700">'+brigades.length+' бригад на объекте</div>';
+    h += '<div style="font-size:22px;color:#7ee787;font-weight:800">'+totalWorkers+' чел</div>';
     h += '</div>';
-    h += '<div style="font-size:24px;color:var(--mut)">›</div>';
-    h += '</div>';
+    
+    brigades.forEach(function(b){
+      var bcolor = '#58a6ff';
+      if(b.name && b.name.indexOf('Шынгыс')>=0) bcolor = '#7ee787';
+      else if(b.name && b.name.indexOf('Нурсултан')>=0) bcolor = '#ffd166';
+      else if(b.name && b.name.indexOf('Штатная')>=0) bcolor = '#a371f7';
+      
+      var bVol = entries.filter(function(e){return e.type==='vol' && e.brigade===b.id;})
+                       .reduce(function(s,e){return s+(e.volume||0);},0);
+      
+      h += '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid #21262d">';
+      h += '<div style="width:28px;height:28px;border-radius:50%;background:'+bcolor+'20;border:1.5px solid '+bcolor+';display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px;color:'+bcolor+';font-weight:800">'+(b.name||'?').charAt(b.name.indexOf('Бригада')>=0?8:0)+'</div>';
+      h += '<div style="flex:1;font-size:14px;color:#e6edf3;font-weight:700">'+(b.name||'Бригада').replace('Бригада ','')+'</div>';
+      h += '<div style="font-size:13px;color:#8b949e">'+(b.workers||0)+' чел · '+bVol.toFixed(0)+' м³</div>';
+      h += '</div>';
+    });
+    
+    h += '<div style="text-align:center;font-size:13px;color:#58a6ff;margin-top:10px;font-weight:600">Подробнее в Объектах →</div>';
     h += '</div>';
   }
   
+  // ============= 📊 ПОСЛЕДНИЕ ОПЕРАЦИИ =============
+  var recent = entries.slice().sort(function(a,b){return (b.date||'').localeCompare(a.date||'');}).slice(0, 5);
+  
+  if(recent.length > 0){
+    h += '<div style="font-size:13px;color:var(--mut);letter-spacing:2px;font-weight:800;margin:16px 4px 10px">📜 ПОСЛЕДНИЕ ОПЕРАЦИИ</div>';
+    h += '<div style="background:#161b22;border:1px solid var(--brd);border-radius:14px;padding:14px;margin-bottom:14px">';
+    
+    var typeIcons = {expense:'💸',income:'💰',advance:'🔄',invest:'💼',vol:'🏗',payout:'↩️'};
+    var typeColors = {expense:'#ff7b72',income:'#7ee787',advance:'#58a6ff',invest:'#a371f7',vol:'#39d3bb',payout:'#ffd166'};
+    
+    recent.forEach(function(e, i){
+      var icon = typeIcons[e.type] || '•';
+      var color = typeColors[e.type] || '#8b949e';
+      var amt = e.type==='vol' ? (e.volume||0).toFixed(1)+' м³' : fmt(e.amount||0)+' ₸';
+      
+      h += '<div style="display:flex;align-items:center;gap:10px;padding:10px 0'+(i<recent.length-1?';border-bottom:1px solid #21262d':'')+'">';
+      h += '<div style="font-size:24px;line-height:1;flex-shrink:0">'+icon+'</div>';
+      h += '<div style="flex:1;min-width:0">';
+      h += '<div style="font-size:14px;color:#e6edf3;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+((e.note||e.cat||e.type)||'').substring(0,50)+'</div>';
+      h += '<div style="font-size:12px;color:#8b949e;margin-top:1px">'+(e.date||'')+(e.who?' · '+e.who:'')+(e.from?' · '+e.from+'→'+e.to:'')+'</div>';
+      h += '</div>';
+      h += '<div style="font-size:14px;color:'+color+';font-weight:800;white-space:nowrap">'+amt+'</div>';
+      h += '</div>';
+    });
+    
+    h += '<div onclick="setTab(\'journal\')" style="text-align:center;font-size:13px;color:#58a6ff;margin-top:10px;font-weight:600;cursor:pointer">Все операции в Журнале →</div>';
+    h += '</div>';
+  }
+  
+  // ============= 🎯 ЦЕЛЬ 2030 =============
+  var goal2030 = 1000000000; // $ — это символическая цель
+  // Считаем в долларах примерно по курсу
+  var USDKZT = 470; // приблизительно
+  var profitUSD = (C.profit || 0) / USDKZT;
+  var goalPct = Math.max(0, Math.min(100, (profitUSD / goal2030 * 100)));
+  
+  h += '<div style="background:linear-gradient(135deg,rgba(240,165,0,.10),#0d1117);border:1.5px solid var(--gold);border-radius:16px;padding:16px;margin-bottom:14px">';
+  h += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">';
+  h += '<div style="font-size:28px">🎯</div>';
+  h += '<div style="flex:1">';
+  h += '<div style="font-size:15px;color:var(--gold);font-weight:800">ЦЕЛЬ 2030: 1 МЛРД $</div>';
+  h += '<div style="font-size:12px;color:#8b949e;margin-top:2px">Долгосрочный курс LIONGATE</div>';
+  h += '</div>';
+  h += '<div style="font-size:19px;color:var(--gold);font-weight:800">'+goalPct.toFixed(2)+'%</div>';
+  h += '</div>';
+  
+  h += '<div style="background:#0d1117;border-radius:6px;height:6px;overflow:hidden">';
+  h += '<div style="background:linear-gradient(90deg,var(--gold),#ffd166);height:100%;width:'+goalPct.toFixed(2)+'%;transition:width .5s"></div>';
+  h += '</div>';
+  
+  h += '<div style="font-size:12px;color:#8b949e;margin-top:8px;text-align:center">Шаг за шагом каждый день →</div>';
+  h += '</div>';
+  
+  h += '</div>';
   return h;
 }
-function dcPL(){
-  // Недельные расходы
-  var bw={};S.entries.filter(function(e){return e.type==='expense';}).forEach(function(e){var d=new Date(e.date),dy=d.getDay()||7;d.setDate(d.getDate()-dy+1);var w=d.toISOString().slice(5,10);bw[w]=(bw[w]||0)+e.amount;});var wk=Object.keys(bw).sort();if(wk.length>0)drawBar('ch-exp',wk,[{data:wk.map(function(w){return Math.round(bw[w]/1000);}),color:'#da3633'}],170,false);
-  // Помесячный доход/расход
-  var mInc={},mExp={};
-  S.entries.forEach(function(e){
-    var m=e.date?e.date.slice(0,7):'';if(!m)return;
-    if(e.type==='income')mInc[m]=(mInc[m]||0)+e.amount;
-    if(e.type==='expense')mExp[m]=(mExp[m]||0)+e.amount;
-  });
-  var months=Array.from(new Set(Object.keys(mInc).concat(Object.keys(mExp)))).sort();
-  if(months.length>0){
-    drawBar('ch-monthly',months.map(function(m){return m.slice(2);}),
-      [{data:months.map(function(m){return Math.round((mInc[m]||0)/1000);}),color:'#2ea043',label:T('revenues')},
-       {data:months.map(function(m){return Math.round((mExp[m]||0)/1000);}),color:'#da3633',label:T('expenses')}],
-      180,true);
-  }
-}
-function rMyPartnerCard(){
-  // Полная личная карточка для партнёра который вошёл
-  var name=getPartnerName();
-  var C=calcCo();
-  var P=calcPar(name);
-  var i=PARTNERS.indexOf(name);
-  var color=PC[i]||'var(--gold)';
-  var ops=S.entries.filter(function(e){return e.who===name||e.from===name||e.to===name;}).sort(function(a,b){return b.date.localeCompare(a.date);});
-  // === НОВАЯ МОДЕЛЬ ===
-  var totalContrib=P.investedCash+P.advancedOut+P.spentFromOwn;
-  var shareVal=C.share||0;
-  var netBalance=P.debtFromCompany-P.debtToCompany;
 
-  var h='<div style="text-align:center;padding:20px 0 16px">';
-  h+='<div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,'+color+','+color+'88);display:inline-flex;align-items:center;justify-content:center;font-family:var(--fd);font-size:28px;color:#0d1117;margin-bottom:12px;box-shadow:0 4px 20px '+color+'55">'+name[0]+'</div>';
-  h+='<div style="font-family:var(--fd);font-size:26px;letter-spacing:2px;color:'+color+'">'+name+'</div>';
-  h+='<div style="font-size:10px;color:var(--mut);letter-spacing:3px;margin-top:4px">ПАРТНЁР · 1/5 ДОЛЯ</div>';
-  h+='</div>';
-
-  // Главные цифры
-  h+='<div class="kgrid" style="grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">';
-  h+='<div class="kc" style="--cbar:var(--blue)"><div class="kc-l">💼 Вложил всего</div><div class="kc-v" style="color:var(--blue);font-size:18px">'+fmt(totalContrib)+'</div><div class="kc-s">тг</div></div>';
-  h+='<div class="kc" style="--cbar:var(--green)"><div class="kc-l">💰 Доля прибыли</div><div class="kc-v" style="color:var(--green);font-size:18px">'+fmt(shareVal)+'</div><div class="kc-s">тг</div></div>';
-  h+='<div class="kc" style="--cbar:var(--purple)"><div class="kc-l">📥 Получил под отчёт</div><div class="kc-v" style="color:var(--purple);font-size:18px">'+fmt(P.received)+'</div><div class="kc-s">тг</div></div>';
-  h+='<div class="kc" style="--cbar:'+(netBalance>=0?'var(--gold)':'var(--red)')+'"><div class="kc-l">📊 '+(netBalance>=0?'К получению':'Должен')+'</div><div class="kc-v" style="color:'+(netBalance>=0?'var(--gold)':'var(--red)')+';font-size:18px">'+fmt(Math.abs(netBalance))+'</div><div class="kc-s">тг</div></div>';
-  h+='</div>';
-
-  // Прогресс к цели года
-  var goalShare=9200000/5; // 920 млн / 5 партнёров
-  var pct=Math.min(Math.round(shareVal/goalShare*100),100)||0;
-  h+='<div class="dcard" style="margin-bottom:14px">';
-  h+='<div style="display:flex;justify-content:space-between;margin-bottom:8px"><span style="font-size:11px;color:var(--mut)">Прогресс к цели (доля 920 млн)</span><span style="font-size:11px;color:'+color+'">'+pct+'%</span></div>';
-  h+='<div class="ptrack"><div class="pfill" style="width:'+pct+'%;background:linear-gradient(90deg,'+color+','+color+'88)"></div></div>';
-  h+='<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--mut);margin-top:6px"><span>0</span><span style="color:'+color+'">'+fmt(shareVal)+' тг</span><span>'+fmt(goalShare)+' тг</span></div>';
-  h+='</div>';
-
-  // Детальный баланс
-  h+='<div class="dcard" style="margin-bottom:14px">';
-  h+='<div class="ctit">Детальный расчёт</div>';
-  if(P.investedCash>0)h+='<div class="r2"><span class="lb">Вложил в кассу</span><span class="vl" style="color:var(--blue)">+'+fmt(P.investedCash)+' тг</span></div>';
-  if(P.advancedOut>0)h+='<div class="r2"><span class="lb">Передал другим под отчёт</span><span class="vl" style="color:var(--teal)">+'+fmt(P.advancedOut)+' тг</span></div>';
-  if(P.spentFromOwn>0)h+='<div class="r2"><span class="lb">Заплатил из своих</span><span class="vl" style="color:var(--blue)">+'+fmt(P.spentFromOwn)+' тг</span></div>';
-  if(P.received>0)h+='<div class="r2"><span class="lb">Получил под отчёт</span><span class="vl" style="color:var(--purple)">−'+fmt(P.received)+' тг</span></div>';
-  if(P.spentFromAdvance>0)h+='<div class="r2"><span class="lb">Потратил из подотчёта</span><span class="vl" style="color:var(--green)">+'+fmt(P.spentFromAdvance)+' тг</span></div>';
-  if(P.returned>0)h+='<div class="r2"><span class="lb">Компания выплатила</span><span class="vl" style="color:var(--gold)">−'+fmt(P.returned)+' тг</span></div>';
-  h+='<div class="r2"><span class="lb">Доля прибыли (когда будет)</span><span class="vl" style="color:var(--green)">+'+fmt(shareVal)+' тг</span></div>';
-  h+='<div class="divider"></div>';
-  h+='<div class="r2"><span class="lb" style="font-weight:700">'+(netBalance>=0?'КОМПАНИЯ ДОЛЖНА':'ДОЛГ КОМПАНИИ')+'</span><span class="vl" style="color:'+(netBalance>=0?'var(--gold)':'var(--red)')+';font-size:16px">'+fmt(Math.abs(netBalance))+' тг</span></div>';
-  h+='</div>';
-
-  // История операций
-  h+='<div class="sect">История операций</div>';
-  h+='<div class="dcard" style="padding:0 14px">';
-  if(ops.length===0){
-    h+='<div style="padding:20px;text-align:center;color:var(--mut)">Операций пока нет</div>';
-  } else {
-    ops.slice(0,20).forEach(function(e){
-      var T2=TYPES[e.type]||{color:'var(--mut)',ico:'·',lbl:e.type};
-      var subline=e.date;
-      if(e.type==='advance'){
-        if(e.from===name) subline += ' · → '+e.to;
-        else if(e.to===name) subline += ' · от '+e.from;
+function rPL(){
+  // ============================================================
+  // 💰 ДЕНЬГИ — Финансовая аналитика
+  // ============================================================
+  var entries = S.entries || [];
+  var C = calcCo();
+  var today = new Date();
+  var ym = today.toISOString().slice(0,7); // 2026-05
+  var prevMonth = new Date(today.getFullYear(), today.getMonth()-1, 1);
+  var prevYm = prevMonth.toISOString().slice(0,7);
+  
+  // Считаем за текущий месяц
+  var curMonthEntries = entries.filter(function(e){return (e.date||'').startsWith(ym);});
+  var prevMonthEntries = entries.filter(function(e){return (e.date||'').startsWith(prevYm);});
+  
+  function calcPeriod(arr){
+    var inc=0, exp=0, vol=0;
+    var cats = {};
+    arr.forEach(function(e){
+      var amt = Number(e.amount)||0;
+      if(e.type === 'income') inc += amt;
+      else if(e.type === 'expense'){
+        exp += amt;
+        var c = e.cat || 'Прочее';
+        cats[c] = (cats[c]||0) + amt;
       }
-      if(e.note) subline += ' · '+e.note.slice(0,30);
-      h+='<div class="oprow"><div class="opbody">';
-      h+='<div style="font-size:11px;font-weight:700;color:'+T2.color+'">'+T2.ico+' '+T2.lbl+'</div>';
-      h+='<div style="font-size:10px;color:var(--mut)">'+subline+'</div>';
-      h+='</div><div style="font-family:var(--fd);font-size:14px;color:'+T2.color+'">'+fmt(e.amount)+'</div></div>';
+      else if(e.type === 'vol') vol += (Number(e.volume)||0);
     });
-    if(ops.length>20)h+='<div style="padding:8px;text-align:center;color:var(--mut);font-size:10px">+ещё '+(ops.length-20)+' операций</div>';
+    return {income:inc, expense:exp, profit:inc-exp, volume:vol, cats:cats};
   }
-  h+='</div>';
+  
+  var cur = calcPeriod(curMonthEntries);
+  var prev = calcPeriod(prevMonthEntries);
+  
+  var h = '<div style="padding:14px 14px 30px;font-family:-apple-system,system-ui,sans-serif">';
+  
+  // ============= ЗАГОЛОВОК =============
+  h += '<div style="margin-bottom:16px">';
+  h += '<div style="font-size:28px;color:var(--gold);font-weight:800;letter-spacing:1.5px;font-family:var(--fd)">💰 ДЕНЬГИ</div>';
+  h += '<div style="font-size:14px;color:var(--mut);margin-top:4px">Финансовая аналитика</div>';
+  h += '</div>';
+  
+  // ============= 3 БОЛЬШИЕ КАРТОЧКИ ИТОГОВ =============
+  h += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:18px">';
+  
+  // Доходы
+  h += '<div style="background:#161b22;border:1.5px solid rgba(63,185,80,.5);border-radius:14px;padding:14px 10px;text-align:center;box-shadow:0 2px 8px rgba(63,185,80,.10)">';
+  h += '<div style="font-size:26px;line-height:1;margin-bottom:6px">📈</div>';
+  h += '<div style="font-size:11px;color:#8b949e;letter-spacing:1.5px;font-weight:700;margin-bottom:6px">ДОХОДЫ</div>';
+  h += '<div style="font-size:22px;color:#7ee787;font-weight:800;line-height:1.1">'+(cur.income>=1000000?(cur.income/1000000).toFixed(1)+'M':fmt(cur.income))+'</div>';
+  h += '<div style="font-size:11px;color:#8b949e;margin-top:4px">тг · месяц</div>';
+  h += '</div>';
+  
+  // Расходы
+  h += '<div style="background:#161b22;border:1.5px solid rgba(255,123,114,.5);border-radius:14px;padding:14px 10px;text-align:center;box-shadow:0 2px 8px rgba(255,123,114,.10)">';
+  h += '<div style="font-size:26px;line-height:1;margin-bottom:6px">📉</div>';
+  h += '<div style="font-size:11px;color:#8b949e;letter-spacing:1.5px;font-weight:700;margin-bottom:6px">РАСХОДЫ</div>';
+  h += '<div style="font-size:22px;color:#ff7b72;font-weight:800;line-height:1.1">'+(cur.expense>=1000000?(cur.expense/1000000).toFixed(1)+'M':fmt(cur.expense))+'</div>';
+  h += '<div style="font-size:11px;color:#8b949e;margin-top:4px">тг · месяц</div>';
+  h += '</div>';
+  
+  // Прибыль
+  var profitColor = cur.profit >= 0 ? '#7ee787' : '#ff7b72';
+  var profitIcon = cur.profit >= 0 ? '💎' : '⚠️';
+  h += '<div style="background:#161b22;border:1.5px solid '+profitColor+'80;border-radius:14px;padding:14px 10px;text-align:center;box-shadow:0 2px 8px '+profitColor+'15">';
+  h += '<div style="font-size:26px;line-height:1;margin-bottom:6px">'+profitIcon+'</div>';
+  h += '<div style="font-size:11px;color:#8b949e;letter-spacing:1.5px;font-weight:700;margin-bottom:6px">ПРИБЫЛЬ</div>';
+  h += '<div style="font-size:22px;color:'+profitColor+';font-weight:800;line-height:1.1">'+(Math.abs(cur.profit)>=1000000?(cur.profit/1000000).toFixed(1)+'M':fmt(cur.profit))+'</div>';
+  h += '<div style="font-size:11px;color:#8b949e;margin-top:4px">тг · месяц</div>';
+  h += '</div>';
+  
+  h += '</div>';
+  
+  // ============= СВОДНАЯ КАРТОЧКА ИТОГА =============
+  h += '<div style="background:linear-gradient(135deg,#161b22,#0d1117);border:1.5px solid var(--gold);border-radius:18px;padding:16px;margin-bottom:18px">';
+  
+  h += '<div style="font-size:13px;color:var(--mut);letter-spacing:2px;font-weight:800;margin-bottom:12px">📊 ИТОГО С НАЧАЛА</div>';
+  
+  // 2x2 grid
+  h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">';
+  
+  h += '<div>';
+  h += '<div style="font-size:12px;color:var(--mut);letter-spacing:1px;font-weight:700">💰 КАССА СЕЙЧАС</div>';
+  var cashColor = C.cash < 500000 ? '#ff7b72' : C.cash < 2000000 ? '#ffd166' : '#7ee787';
+  h += '<div style="font-size:24px;color:'+cashColor+';font-weight:800;margin-top:4px">'+fmt(C.cash)+'</div>';
+  h += '<div style="font-size:12px;color:var(--mut);margin-top:2px">тг наличными</div>';
+  h += '</div>';
+  
+  h += '<div>';
+  h += '<div style="font-size:12px;color:var(--mut);letter-spacing:1px;font-weight:700">💎 ИТОГ ПРИБЫЛЬ</div>';
+  var totalProfitColor = C.profit >= 0 ? '#7ee787' : '#ff7b72';
+  h += '<div style="font-size:24px;color:'+totalProfitColor+';font-weight:800;margin-top:4px">'+fmt(C.profit)+'</div>';
+  h += '<div style="font-size:12px;color:var(--mut);margin-top:2px">за всё время</div>';
+  h += '</div>';
+  
+  h += '<div>';
+  h += '<div style="font-size:12px;color:var(--mut);letter-spacing:1px;font-weight:700">📈 ВЫРУЧКА</div>';
+  h += '<div style="font-size:24px;color:#58a6ff;font-weight:800;margin-top:4px">'+fmt(C.income)+'</div>';
+  h += '<div style="font-size:12px;color:var(--mut);margin-top:2px">всего получено</div>';
+  h += '</div>';
+  
+  h += '<div>';
+  h += '<div style="font-size:12px;color:var(--mut);letter-spacing:1px;font-weight:700">📉 РАСХОДЫ</div>';
+  h += '<div style="font-size:24px;color:#ffa657;font-weight:800;margin-top:4px">'+fmt(C.expense)+'</div>';
+  h += '<div style="font-size:12px;color:var(--mut);margin-top:2px">всего потрачено</div>';
+  h += '</div>';
+  
+  h += '</div>';
+  h += '</div>';
+  
+  // ============= СРАВНЕНИЕ С ПРОШЛЫМ МЕСЯЦЕМ =============
+  if(prev.expense > 0 || prev.income > 0){
+    h += '<div style="font-size:13px;color:var(--mut);letter-spacing:2px;font-weight:800;margin:18px 4px 12px">📈 СРАВНЕНИЕ С ПРОШЛЫМ МЕСЯЦЕМ</div>';
+    h += '<div style="background:#161b22;border:1px solid var(--brd);border-radius:14px;padding:14px;margin-bottom:14px">';
+    
+    function diffBlock(label, curVal, prevVal, positive){
+      var diff = curVal - prevVal;
+      var pct = prevVal > 0 ? Math.round((diff/prevVal)*100) : 0;
+      var isPositive = positive ? diff > 0 : diff < 0;
+      var color = isPositive ? '#7ee787' : diff === 0 ? '#8b949e' : '#ff7b72';
+      var arrow = diff > 0 ? '↑' : diff < 0 ? '↓' : '→';
+      
+      var html = '<div style="padding:10px 0;border-bottom:1px solid #21262d">';
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">';
+      html += '<div style="font-size:14px;color:#b9c3d0;font-weight:700">'+label+'</div>';
+      html += '<div style="font-size:14px;color:'+color+';font-weight:800">'+arrow+' '+Math.abs(pct)+'%</div>';
+      html += '</div>';
+      html += '<div style="display:flex;justify-content:space-between;font-size:13px;color:var(--mut)">';
+      html += '<div>Сейчас: <b style="color:#e6edf3">'+fmt(curVal)+'</b></div>';
+      html += '<div>Было: <b style="color:#8b949e">'+fmt(prevVal)+'</b></div>';
+      html += '</div>';
+      html += '</div>';
+      return html;
+    }
+    
+    h += diffBlock('💰 Доходы', cur.income, prev.income, true);
+    h += diffBlock('💸 Расходы', cur.expense, prev.expense, false);
+    h += diffBlock('💎 Прибыль', cur.profit, prev.profit, true);
+    
+    h += '</div>';
+  }
+  
+  // ============= РАСХОДЫ ПО КАТЕГОРИЯМ =============
+  // Берём все расходы за всё время
+  var allCats = {};
+  entries.filter(function(e){return e.type === 'expense';}).forEach(function(e){
+    var c = e.cat || 'Прочее';
+    allCats[c] = (allCats[c]||0) + (Number(e.amount)||0);
+  });
+  var catList = Object.keys(allCats).map(function(k){return {cat:k, amt:allCats[k]};});
+  catList.sort(function(a,b){return b.amt - a.amt;});
+  var totalAllExpense = catList.reduce(function(s,c){return s+c.amt;},0);
+  
+  if(catList.length > 0){
+    h += '<div style="font-size:13px;color:var(--mut);letter-spacing:2px;font-weight:800;margin:18px 4px 12px">📂 РАСХОДЫ ПО КАТЕГОРИЯМ</div>';
+    h += '<div style="background:#161b22;border:1px solid var(--brd);border-radius:14px;padding:14px;margin-bottom:14px">';
+    
+    // Топ-10 с прогресс-барами
+    var catColors = ['#7ee787','#58a6ff','#ffa657','#a371f7','#39d3bb','#ffd166','#ff7b72','#79c0ff','#d29922','#ff8000'];
+    
+    catList.slice(0, 10).forEach(function(c, i){
+      var pct = totalAllExpense > 0 ? (c.amt / totalAllExpense * 100) : 0;
+      var color = catColors[i % catColors.length];
+      
+      h += '<div style="margin-bottom:'+(i<9?'12px':'4px')+'">';
+      h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">';
+      h += '<div style="font-size:14px;color:#e6edf3;font-weight:700">'+c.cat+'</div>';
+      h += '<div style="font-size:14px;color:'+color+';font-weight:800">'+fmt(c.amt)+' <span style="color:var(--mut);font-size:12px;font-weight:600">('+pct.toFixed(0)+'%)</span></div>';
+      h += '</div>';
+      
+      h += '<div style="background:#0d1117;border-radius:4px;height:6px;overflow:hidden">';
+      h += '<div style="background:'+color+';height:100%;width:'+pct.toFixed(1)+'%;transition:width .5s"></div>';
+      h += '</div>';
+      h += '</div>';
+    });
+    
+    h += '<div style="margin-top:14px;padding-top:12px;border-top:1px solid #21262d;display:flex;justify-content:space-between;align-items:center">';
+    h += '<div style="font-size:13px;color:var(--mut);font-weight:700">ИТОГО</div>';
+    h += '<div style="font-size:16px;color:#ffd166;font-weight:800">'+fmt(totalAllExpense)+' ₸</div>';
+    h += '</div>';
+    
+    h += '</div>';
+  }
+  
+  // ============= САМЫЕ КРУПНЫЕ ОПЕРАЦИИ =============
+  var bigOps = entries.filter(function(e){return e.type === 'expense' && (e.amount||0) > 0;})
+                     .sort(function(a,b){return (b.amount||0) - (a.amount||0);})
+                     .slice(0, 10);
+  
+  if(bigOps.length > 0){
+    h += '<div style="font-size:13px;color:var(--mut);letter-spacing:2px;font-weight:800;margin:18px 4px 12px">🏆 ТОП-10 РАСХОДОВ</div>';
+    h += '<div style="background:#161b22;border:1px solid var(--brd);border-radius:14px;padding:14px;margin-bottom:14px">';
+    
+    bigOps.forEach(function(e, i){
+      var rank = i+1;
+      var rankColor = rank === 1 ? '#ffd166' : rank === 2 ? '#c0c0c0' : rank === 3 ? '#cd7f32' : '#8b949e';
+      
+      h += '<div style="display:flex;align-items:center;gap:10px;padding:10px 0'+(i<bigOps.length-1?';border-bottom:1px solid #21262d':'')+'">';
+      
+      h += '<div style="width:28px;height:28px;border-radius:50%;background:'+rankColor+'20;border:1.5px solid '+rankColor+';display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:13px;color:'+rankColor+';font-weight:800">'+rank+'</div>';
+      
+      h += '<div style="flex:1;min-width:0">';
+      h += '<div style="font-size:14px;color:#e6edf3;font-weight:700">'+(e.cat || 'Прочее')+'</div>';
+      h += '<div style="font-size:12px;color:var(--mut);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(e.date||'')+' · '+(e.note || '—').substring(0, 40)+'</div>';
+      h += '</div>';
+      
+      h += '<div style="font-size:15px;color:#ff7b72;font-weight:800;white-space:nowrap">'+fmt(e.amount)+' ₸</div>';
+      h += '</div>';
+    });
+    
+    h += '</div>';
+  }
+  
+  // ============= ИСТОЧНИКИ РАСХОДОВ =============
+  var sources = {own:0, advance:0, cash:0};
+  var sourceLabels = {own:'Из своих', advance:'Из подотчётных', cash:'Из кассы'};
+  var sourceColors = {own:'#58a6ff', advance:'#ffa657', cash:'#7ee787'};
+  
+  entries.filter(function(e){return e.type === 'expense';}).forEach(function(e){
+    var src = e.paySource || (e.who === 'Дмитрий' ? 'own' : 'advance');
+    if(sources[src] !== undefined) sources[src] += (Number(e.amount)||0);
+  });
+  
+  var totalSrc = sources.own + sources.advance + sources.cash;
+  if(totalSrc > 0){
+    h += '<div style="font-size:13px;color:var(--mut);letter-spacing:2px;font-weight:800;margin:18px 4px 12px">💳 ИСТОЧНИКИ ОПЛАТЫ</div>';
+    h += '<div style="background:#161b22;border:1px solid var(--brd);border-radius:14px;padding:14px;margin-bottom:14px">';
+    
+    Object.keys(sources).forEach(function(k){
+      if(sources[k] === 0) return;
+      var pct = (sources[k]/totalSrc*100);
+      h += '<div style="margin-bottom:10px">';
+      h += '<div style="display:flex;justify-content:space-between;font-size:14px;margin-bottom:5px">';
+      h += '<span style="color:#b9c3d0;font-weight:700">'+sourceLabels[k]+'</span>';
+      h += '<span style="color:'+sourceColors[k]+';font-weight:800">'+fmt(sources[k])+' ('+pct.toFixed(0)+'%)</span>';
+      h += '</div>';
+      h += '<div style="background:#0d1117;border-radius:4px;height:6px;overflow:hidden">';
+      h += '<div style="background:'+sourceColors[k]+';height:100%;width:'+pct.toFixed(1)+'%"></div>';
+      h += '</div>';
+      h += '</div>';
+    });
+    
+    h += '</div>';
+  }
+  
+  h += '</div>';
   return h;
 }
 
 function rPartners(){
   // ============================================================
-  // ЭКРАН РОСТ — СТРАТЕГИЯ К 1 МЛРД $
-  // Прогресс глобально · Партнёры по 164М · 5 направлений · IPO Roadmap
+  // 👥 ПАРТНЁРЫ — Финансовая сверка по каждому партнёру
   // ============================================================
-  var h = '';
-  var goal = calcGoalProgress();
-  
-  // === ГЛАВНАЯ КАРТОЧКА: ЦЕЛЬ 1 МЛРД $ К 2030 ===
-  var globalTarget = 500000000000; // 500 млрд тг ≈ 1 МЛРД $
-  var globalPct = Math.max(0, Math.min(100, goal.current/globalTarget*100));
-  var monthsToIPO = 56; // ~4.6 лет до Q4 2030
-  
-  var profitSign = goal.current > 0 ? '+' : (goal.current < 0 ? '−' : '');
-  
-  h += '<div class="yk-big" onclick="openDrill(\'goal820\',\'year\')" style="cursor:pointer">';
-  h += '<div class="yk-label">🎯 ЦЕЛЬ 1 МЛРД $ К 2030</div>';
-  h += '<div class="yk-value gold">'+profitSign+fmt(Math.abs(Math.round(goal.current/1000000)))+'<span class="yk-unit">млн ₸</span></div>';
-  h += '<div class="yk-sub">';
-  h += '<span class="yk-chip">'+globalPct.toFixed(3)+'% от 500 млрд</span>';
-  h += '<span>'+monthsToIPO+' мес до IPO</span>';
-  h += '</div>';
-  h += '<div class="yk-pbar"><div class="yk-pbar-fill" style="width:'+Math.max(0.5,globalPct)+'%"></div></div>';
-  h += '<div class="yk-pbar-info">';
-  h += '<span>5 направлений</span>';
-  h += '<span>Q4 2030 → IPO</span>';
-  h += '</div>';
-  h += '</div>';
-  
-  // === КАРТОЧКА: ГОДОВАЯ ЦЕЛЬ 820 МЛН + РАЗБИВКА ПО ПАРТНЁРАМ ===
-  var partners = PARTNERS || ['Дмитрий','Бекжан','Евгений','Нурсултан','Сергей'];
+  var partners = (typeof PARTNERS !== 'undefined' && PARTNERS) ? PARTNERS : ['Дмитрий','Бекжан','Евгений','Нурсултан','Сергей'];
   var partnerColors = {'Дмитрий':'#ffb320','Бекжан':'#3fb950','Евгений':'#58a6ff','Нурсултан':'#a371f7','Сергей':'#39d3bb'};
-  var roles = {
-    'Дмитрий':'CEO · Стратегия · Финансы',
-    'Бекжан':'Производство · Бригады · Темп',
-    'Евгений':'Заказчики · КС-2 · Деньги',
-    'Нурсултан':'Качество · Контроль работ',
-    'Сергей':'Финансы · Операционное управление'
-  };
+  var entries = S.entries || [];
+  var C = calcCo();
   
-  h += '<div class="yk-big '+(goal.current > 0 ? 'green' : 'gold')+'" onclick="openDrill(\'goal820\',\'year\')" style="cursor:pointer">';
-  h += '<div class="yk-label">💎 ГОДОВАЯ ЦЕЛЬ — 820 МЛН ₸</div>';
-  h += '<div class="yk-value '+(goal.current>0?'green':'gold')+'">'+profitSign+fmt(Math.abs(Math.round(goal.current/1000000)))+'<span class="yk-unit">млн ₸</span></div>';
-  h += '<div class="yk-sub">';
-  h += '<span class="yk-chip">'+goal.pct+'% годового плана</span>';
-  h += '<span>осталось '+fmt(Math.round(goal.remaining/1000000))+' млн</span>';
-  h += '</div>';
-  h += '<div class="yk-pbar"><div class="yk-pbar-fill" style="width:'+Math.max(2,goal.pct)+'%"></div></div>';
+  var h = '<div style="padding:14px 14px 30px;font-family:-apple-system,system-ui,sans-serif">';
+  
+  // ============= ЗАГОЛОВОК =============
+  h += '<div style="margin-bottom:16px">';
+  h += '<div style="font-size:28px;color:var(--gold);font-weight:800;letter-spacing:1.5px;font-family:var(--fd)">👥 ПАРТНЁРЫ</div>';
+  h += '<div style="font-size:14px;color:var(--mut);margin-top:4px">Сверка вложений и расчётов</div>';
   h += '</div>';
   
-  // === КАРТОЧКИ ПАРТНЁРОВ — 164 млн каждому ===
-  h += '<div class="yk-section">👥 КАЖДОМУ ПАРТНЁРУ — 164 МЛН</div>';
+  // ============= СЧИТАЕМ ПО КАЖДОМУ ПАРТНЁРУ =============
+  // Балансы:
+  //   invested  — вложил в кассу
+  //   ownPaid   — потратил из своих
+  //   advanceIn — получил под отчёт
+  //   advanceOut — отдал под отчёт
+  //   spentAdv  — потратил подотчётных
+  //   payouts   — получил выплаты от компании
+  var P = {};
+  partners.forEach(function(p){
+    P[p] = {invested:0, ownPaid:0, advanceIn:0, advanceOut:0, spentAdv:0, payouts:0, entries:[]};
+  });
+  
+  entries.forEach(function(e){
+    if(!e || !e.type) return;
+    var amt = Number(e.amount) || 0;
+    
+    if(e.type === 'invest' && P[e.who]){
+      P[e.who].invested += amt;
+      P[e.who].entries.push(e);
+    }
+    else if(e.type === 'advance'){
+      if(P[e.from]) { P[e.from].advanceOut += amt; P[e.from].entries.push(e); }
+      if(P[e.to])   { P[e.to].advanceIn += amt; P[e.to].entries.push(e); }
+    }
+    else if(e.type === 'expense' && P[e.who]){
+      var pay = e.paySource || (e.who === 'Дмитрий' ? 'own' : 'advance');
+      if(pay === 'own')      P[e.who].ownPaid += amt;
+      else if(pay === 'advance') P[e.who].spentAdv += amt;
+      P[e.who].entries.push(e);
+    }
+    else if(e.type === 'payout' && P[e.who]){
+      P[e.who].payouts += amt;
+      P[e.who].entries.push(e);
+    }
+  });
+  
+  // Считаем итоговый баланс для каждого партнёра
+  partners.forEach(function(p){
+    var d = P[p];
+    // Компания должна партнёру = (вложил + из своих) − (выплачено)
+    d.debtFromCompany = d.invested + d.ownPaid - d.payouts;
+    // Партнёр должен компании = (получил под отчёт) − (потратил под отчёт) − (отдал под отчёт обратно)
+    d.debtToCompany = Math.max(0, d.advanceIn - d.spentAdv - d.advanceOut);
+    // Чистый баланс (+ = к получению партнёром, - = должен компании)
+    d.netBalance = d.debtFromCompany - d.debtToCompany;
+    d.totalActivity = d.invested + d.ownPaid + d.advanceIn + d.spentAdv + d.payouts;
+  });
+  
+  // ============= ОБЩАЯ СВОДКА =============
+  var totalInvested = partners.reduce(function(s,p){return s+P[p].invested;},0);
+  var totalOwnPaid  = partners.reduce(function(s,p){return s+P[p].ownPaid;},0);
+  var totalDebtFromCompany = partners.reduce(function(s,p){return s+Math.max(0, P[p].netBalance);},0);
+  var totalDebtToCompany = partners.reduce(function(s,p){return s+Math.max(0, -P[p].netBalance);},0);
+  
+  h += '<div style="background:linear-gradient(135deg,#161b22,#0d1117);border:1.5px solid var(--gold);border-radius:18px;padding:16px;margin-bottom:18px;position:relative;overflow:hidden">';
+  h += '<div style="position:absolute;top:-30px;right:-30px;width:120px;height:120px;background:radial-gradient(circle,rgba(240,165,0,.12),transparent);border-radius:50%"></div>';
+  h += '<div style="position:relative">';
+  h += '<div style="font-size:13px;color:var(--mut);letter-spacing:2px;font-weight:800;margin-bottom:14px">📊 ОБЩАЯ КАРТИНА</div>';
+  
+  h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">';
+  
+  h += '<div style="background:rgba(63,185,80,.08);border:1px solid rgba(63,185,80,.30);border-radius:12px;padding:12px">';
+  h += '<div style="font-size:11px;color:var(--mut);letter-spacing:1.5px;font-weight:700">ВЛОЖЕНО В КАССУ</div>';
+  h += '<div style="font-size:22px;color:#7ee787;font-weight:800;margin-top:4px">'+fmt(totalInvested)+' ₸</div>';
+  h += '</div>';
+  
+  h += '<div style="background:rgba(88,166,255,.08);border:1px solid rgba(88,166,255,.30);border-radius:12px;padding:12px">';
+  h += '<div style="font-size:11px;color:var(--mut);letter-spacing:1.5px;font-weight:700">ИЗ СВОИХ</div>';
+  h += '<div style="font-size:22px;color:#58a6ff;font-weight:800;margin-top:4px">'+fmt(totalOwnPaid)+' ₸</div>';
+  h += '</div>';
+  
+  h += '<div style="background:rgba(255,179,32,.08);border:1px solid rgba(255,179,32,.30);border-radius:12px;padding:12px">';
+  h += '<div style="font-size:11px;color:var(--mut);letter-spacing:1.5px;font-weight:700">КОМПАНИЯ ДОЛЖНА</div>';
+  h += '<div style="font-size:22px;color:#ffd166;font-weight:800;margin-top:4px">'+fmt(totalDebtFromCompany)+' ₸</div>';
+  h += '<div style="font-size:12px;color:var(--mut);margin-top:2px">партнёрам</div>';
+  h += '</div>';
+  
+  h += '<div style="background:rgba(255,123,114,.08);border:1px solid rgba(255,123,114,.30);border-radius:12px;padding:12px">';
+  h += '<div style="font-size:11px;color:var(--mut);letter-spacing:1.5px;font-weight:700">ДОЛЖНЫ КОМПАНИИ</div>';
+  h += '<div style="font-size:22px;color:#ff7b72;font-weight:800;margin-top:4px">'+fmt(totalDebtToCompany)+' ₸</div>';
+  h += '<div style="font-size:12px;color:var(--mut);margin-top:2px">партнёры</div>';
+  h += '</div>';
+  
+  h += '</div>';
+  
+  // Информация о долях
+  h += '<div style="margin-top:14px;padding:10px 12px;background:rgba(255,255,255,.03);border-radius:10px;display:flex;justify-content:space-between;align-items:center">';
+  h += '<div style="font-size:13px;color:var(--mut);font-weight:700">⚖ ДОЛИ В КОМПАНИИ</div>';
+  h += '<div style="font-size:15px;color:#e6edf3;font-weight:800">5 партнёров × 20%</div>';
+  h += '</div>';
+  
+  h += '</div></div>';
+  
+  // ============= КАРТОЧКИ ПАРТНЁРОВ =============
+  h += '<div style="font-size:13px;color:var(--mut);letter-spacing:2px;font-weight:800;margin:18px 4px 12px">👥 ПЕРСОНАЛЬНЫЕ БАЛАНСЫ</div>';
   
   partners.forEach(function(p){
-    var share = calcPartnerShare(p);
-    var color = partnerColors[p] || '#888';
-    var initial = p.charAt(0);
-    var actualPct = share.actualShare > 0 ? Math.min(100, share.actualShare / 164000000 * 100) : 0;
-    var actualSign = share.actualShare >= 0 ? '' : '−';
+    var d = P[p];
+    var pcolor = partnerColors[p] || '#8b949e';
     
-    // 3 счётчика: жизнь / на руки / реинвест
-    var lifePct = Math.max(0, Math.min(100, share.actualShare * 0.085 / share.targetLife * 100));
-    var cashOutPct = Math.max(0, Math.min(100, share.actualShare * 0.305 / share.targetCashOut * 100));
-    var reinvPct = Math.max(0, Math.min(100, share.actualShare * 0.61 / share.targetReinvest * 100));
+    // Карточка
+    h += '<div onclick="window.openPartnerDetails && window.openPartnerDetails(\''+p+'\')" style="background:#161b22;border:1.5px solid '+pcolor+'40;border-radius:16px;padding:14px;margin-bottom:12px;cursor:pointer;transition:all .2s" ontouchstart="this.style.background=\'#21262d\'" ontouchend="this.style.background=\'#161b22\'">';
     
-    h += '<div class="yk-big" style="margin-bottom:10px;cursor:pointer" onclick="if(typeof openPartnerCard===\'function\')openPartnerCard(\''+p+'\')">';
-    h += '<div style="display:flex;align-items:center;gap:14px;margin-bottom:14px">';
-    h += '<div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,'+color+',rgba(0,0,0,.2));display:flex;align-items:center;justify-content:center;font-family:-apple-system,system-ui,sans-serif;font-size:24px;color:#000;font-weight:800">'+initial+'</div>';
-    h += '<div style="flex:1">';
-    h += '<div style="font-size:16px;font-weight:700;color:var(--text);font-family:-apple-system,system-ui,sans-serif">'+p+'</div>';
-    h += '<div style="font-size:11px;color:var(--mut);margin-top:2px">'+(roles[p]||'')+'</div>';
-    h += '</div>';
-    h += '<div style="font-family:-apple-system,system-ui,sans-serif;font-size:24px;font-weight:800;color:'+color+'">'+actualSign+fmt(Math.abs(Math.round(share.actualShare/1000000)))+'<span style="font-size:11px;color:var(--mut);margin-left:2px;font-weight:500">/164M</span></div>';
+    // Шапка с аватаром и итогом
+    h += '<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">';
+    
+    // Аватар
+    h += '<div style="width:48px;height:48px;border-radius:50%;background:'+pcolor+'20;border:2px solid '+pcolor+';display:flex;align-items:center;justify-content:center;flex-shrink:0">';
+    h += '<div style="font-size:26px;color:'+pcolor+';font-weight:800">'+p.charAt(0)+'</div>';
     h += '</div>';
     
-    // 3 полоски
-    h += '<div style="margin-bottom:10px">';
-    h += '<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px;font-family:-apple-system,system-ui,sans-serif">';
-    h += '<span style="color:var(--text)">🍞 На жизнь</span>';
-    h += '<span style="color:var(--mut)">'+Math.round(lifePct)+'% / 14M</span>';
-    h += '</div>';
-    h += '<div class="yk-pbar" style="height:6px;margin:0"><div class="yk-pbar-fill green" style="width:'+Math.max(2,lifePct)+'%"></div></div>';
+    // Имя и активность
+    h += '<div style="flex:1;min-width:0">';
+    h += '<div style="font-size:19px;color:'+pcolor+';font-weight:800">'+p+'</div>';
+    h += '<div style="font-size:13px;color:var(--mut);margin-top:2px">'+d.entries.length+' операций · 20% доля</div>';
     h += '</div>';
     
-    h += '<div style="margin-bottom:10px">';
-    h += '<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px;font-family:-apple-system,system-ui,sans-serif">';
-    h += '<span style="color:var(--text)">💵 На руки</span>';
-    h += '<span style="color:var(--mut)">'+Math.round(cashOutPct)+'% / 50M</span>';
-    h += '</div>';
-    h += '<div class="yk-pbar" style="height:6px;margin:0"><div class="yk-pbar-fill" style="width:'+Math.max(2,cashOutPct)+'%"></div></div>';
+    // Итоговый баланс
+    var balColor = d.netBalance > 0 ? '#7ee787' : d.netBalance < 0 ? '#ff7b72' : '#8b949e';
+    var balLabel = d.netBalance > 0 ? 'к получению' : d.netBalance < 0 ? 'должен' : '0';
+    h += '<div style="text-align:right">';
+    h += '<div style="font-size:19px;color:'+balColor+';font-weight:800;line-height:1">'+(d.netBalance >= 0 ? '+' : '')+fmt(d.netBalance)+'</div>';
+    h += '<div style="font-size:11px;color:var(--mut);letter-spacing:1px;font-weight:700;margin-top:3px">'+balLabel.toUpperCase()+'</div>';
     h += '</div>';
     
-    h += '<div>';
-    h += '<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px;font-family:-apple-system,system-ui,sans-serif">';
-    h += '<span style="color:var(--text)">📈 Реинвест</span>';
-    h += '<span style="color:var(--mut)">'+Math.round(reinvPct)+'% / 100M</span>';
     h += '</div>';
-    h += '<div class="yk-pbar" style="height:6px;margin:0"><div class="yk-pbar-fill" style="width:'+Math.max(2,reinvPct)+'%;background:linear-gradient(90deg,'+color+','+color+')"></div></div>';
+    
+    // 4 ключевые цифры
+    h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">';
+    
+    h += '<div style="background:#0d1117;border-radius:8px;padding:8px 10px">';
+    h += '<div style="font-size:11px;color:var(--mut);letter-spacing:1px;font-weight:700">💼 ВЛОЖИЛ</div>';
+    h += '<div style="font-size:15px;color:#e6edf3;font-weight:800;margin-top:2px">'+fmt(d.invested)+'</div>';
     h += '</div>';
+    
+    h += '<div style="background:#0d1117;border-radius:8px;padding:8px 10px">';
+    h += '<div style="font-size:11px;color:var(--mut);letter-spacing:1px;font-weight:700">💳 ИЗ СВОИХ</div>';
+    h += '<div style="font-size:15px;color:#e6edf3;font-weight:800;margin-top:2px">'+fmt(d.ownPaid)+'</div>';
+    h += '</div>';
+    
+    h += '<div style="background:#0d1117;border-radius:8px;padding:8px 10px">';
+    h += '<div style="font-size:11px;color:var(--mut);letter-spacing:1px;font-weight:700">📥 ВЗЯЛ ПОД ОТЧЁТ</div>';
+    h += '<div style="font-size:15px;color:#e6edf3;font-weight:800;margin-top:2px">'+fmt(d.advanceIn)+'</div>';
+    h += '</div>';
+    
+    h += '<div style="background:#0d1117;border-radius:8px;padding:8px 10px">';
+    h += '<div style="font-size:11px;color:var(--mut);letter-spacing:1px;font-weight:700">📤 ОТЧИТАЛСЯ</div>';
+    h += '<div style="font-size:15px;color:#e6edf3;font-weight:800;margin-top:2px">'+fmt(d.spentAdv)+'</div>';
+    h += '</div>';
+    
+    h += '</div>';
+    
+    // Если есть выплаты — показываем
+    if(d.payouts > 0){
+      h += '<div style="background:rgba(255,179,32,.06);border:1px solid rgba(255,179,32,.25);border-radius:8px;padding:6px 10px;margin-top:6px">';
+      h += '<span style="font-size:12px;color:#ffa657">↩️ Получено от компании: <b>'+fmt(d.payouts)+' ₸</b></span>';
+      h += '</div>';
+    }
+    
+    // Подсказка "тап для подробностей"
+    h += '<div style="text-align:center;font-size:12px;color:'+pcolor+'80;margin-top:8px;font-weight:600">Тап для подробной истории →</div>';
     
     h += '</div>';
   });
   
-  // === БРИГАДЫ — быстрый доступ ===
-  var totalWorkers = (S.brigades||[]).reduce(function(s,b){return s+(b.workers||0);},0);
-  var totalBrigades = (S.brigades||[]).length;
-  
-  h += '<div class="yk-section">👷 ПРОИЗВОДСТВО</div>';
-  h += '<div class="yk-big" onclick="setTab(\'brigades\')" style="cursor:pointer;background:linear-gradient(160deg,rgba(57,211,187,.10),#0d1117);border:1.5px solid rgba(57,211,187,.4)">';
-  h += '<div class="yk-label" style="color:#39d3bb">👷 БРИГАДЫ И РАБОЧИЕ</div>';
-  h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px">';
-  
-  // Бригад
-  h += '<div style="text-align:center;padding:12px;background:rgba(57,211,187,.08);border-radius:12px">';
-  h += '<div style="font-family:-apple-system,system-ui,sans-serif;font-size:36px;font-weight:800;color:#39d3bb;line-height:1">'+totalBrigades+'</div>';
-  h += '<div style="font-size:12px;color:#b9c3d0;font-weight:600;margin-top:6px;font-family:-apple-system,system-ui,sans-serif">бригад</div>';
-  h += '</div>';
-  
-  // Рабочих
-  h += '<div style="text-align:center;padding:12px;background:rgba(255,179,32,.08);border-radius:12px">';
-  h += '<div style="font-family:-apple-system,system-ui,sans-serif;font-size:36px;font-weight:800;color:#ffd166;line-height:1">'+totalWorkers+'</div>';
-  h += '<div style="font-size:12px;color:#b9c3d0;font-weight:600;margin-top:6px;font-family:-apple-system,system-ui,sans-serif">рабочих</div>';
-  h += '</div>';
-  
-  h += '</div>';
-  
-  // Список бригад
-  h += '<div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--brd)">';
-  (S.brigades||[]).forEach(function(b){
-    h += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;font-family:-apple-system,system-ui,sans-serif">';
-    h += '<div style="font-size:14px;color:#e6edf3;font-weight:600">'+b.name+'</div>';
-    h += '<div style="font-size:14px;color:#ffd166;font-weight:700">'+(b.workers||0)+' чел.</div>';
-    h += '</div>';
-  });
-  h += '</div>';
-  
-  h += '<div style="margin-top:12px;text-align:center;font-size:12px;color:#39d3bb;font-weight:700;font-family:-apple-system,system-ui,sans-serif">тапни → детали бригад ›</div>';
-  h += '</div>';
-  
-  // === 5 НАПРАВЛЕНИЙ К 1 МЛРД $ ===
-  h += '<div class="yk-section">📊 5 НАПРАВЛЕНИЙ</div>';
-  
-  var directions = [
-    {icon:'🏗', clr:'#39d3bb', name:'Подряд (labor-only)', stars:'★★★', value:fmt(Math.round(Math.max(0,goal.current)/1000000))+' M', pct:globalPct, desc:'Sensata 95 домов · 38437₸/м³ · 26% маржа'},
-    {icon:'⬢', clr:'#ffb320', name:'Опалубка-аренда',     stars:'○○○', value:'0', pct:0, desc:'Москва б/у 15k₸/м² · план 2000м² к 30.06'},
-    {icon:'🛒', clr:'#a371f7', name:'Торговля (Каспи→Озон)', stars:'○○○', value:'0', pct:0, desc:'Старт август 2026 · стройматериалы'},
-    {icon:'⚖', clr:'#f85149', name:'Тендеры',             stars:'○○○', value:'0', pct:0, desc:'После лицензии 1 категории · Q1 2027'},
-    {icon:'🏢', clr:'#58a6ff', name:'Девелопмент',        stars:'○○○', value:'0', pct:0, desc:'Свой ЖК · 2028 · главный множитель'}
-  ];
-  
-  directions.forEach(function(d){
-    h += '<div class="yk-alert">';
-    h += '<div class="yk-alert-icon" style="background:'+d.clr+'33;color:'+d.clr+';font-size:20px">'+d.icon+'</div>';
-    h += '<div class="yk-alert-body">';
-    h += '<div class="yk-alert-title">'+d.name+'</div>';
-    h += '<div class="yk-alert-meta">'+d.value+' ₸ · '+d.desc+'</div>';
-    h += '</div>';
-    h += '<div class="yk-alert-num" style="color:'+d.clr+';font-size:16px;letter-spacing:1px">'+d.stars+'</div>';
-    h += '</div>';
+  // ============= ВЗАИМОРАСЧЁТЫ (КТО КОМУ ДОЛЖЕН) =============
+  // Считаем матрицу: сколько каждый дал каждому минус сколько вернул
+  var matrix = {};
+  partners.forEach(function(from){
+    matrix[from] = {};
+    partners.forEach(function(to){
+      matrix[from][to] = 0;
+    });
   });
   
-  // === IPO ROADMAP ===
-  h += '<div class="yk-section blue">🚀 ROADMAP К IPO</div>';
-  var ipoRoadmap = (typeof IPO_ROADMAP !== 'undefined') ? IPO_ROADMAP : [];
-  
-  ipoRoadmap.forEach(function(step, idx){
-    var isCritical = step.critical;
-    h += '<div class="yk-alert"'+(isCritical?' style="border-color:rgba(212,167,58,.3);background:linear-gradient(180deg,rgba(212,167,58,.06),var(--sur))"':'')+'>';
-    h += '<div class="yk-alert-icon" style="background:'+(isCritical?'rgba(255,179,32,.2)':'var(--s2)')+';color:'+(isCritical?'var(--gold)':'var(--mut)')+';font-family:-apple-system,system-ui,sans-serif;font-size:11px;font-weight:800;line-height:1.2;text-align:center">';
-    h += '<div>'+step.year+'</div>';
-    h += '<div style="font-size:9px;opacity:.7">'+step.q+'</div>';
-    h += '</div>';
-    h += '<div class="yk-alert-body">';
-    h += '<div class="yk-alert-title"'+(isCritical?' style="color:var(--gold)"':'')+'>'+step.name+'</div>';
-    h += '<div class="yk-alert-meta" style="line-height:1.4">'+step.desc+'</div>';
-    h += '<div style="display:inline-block;background:var(--s2);padding:3px 8px;border-radius:6px;font-size:10px;color:var(--blue);margin-top:6px;font-family:-apple-system,system-ui,sans-serif">'+step.owner+'</div>';
-    h += '</div>';
-    h += '</div>';
+  entries.forEach(function(e){
+    if(e.type === 'advance' && e.from && e.to && matrix[e.from] && matrix[e.from][e.to] !== undefined){
+      matrix[e.from][e.to] += (Number(e.amount)||0);
+    }
   });
   
-  // === ПРОГНОЗ КАПИТАЛИЗАЦИИ ===
-  h += '<div class="yk-section">📈 ПРОГНОЗ КАПИТАЛИЗАЦИИ</div>';
-  var years = [
-    {y:2026, profit:0.55, cap:'2-3',   note:'старт labor-only'},
-    {y:2027, profit:3.15, cap:'12-15', note:'+ опалубка + торговля'},
-    {y:2028, profit:8.70, cap:'22-28', note:'+ свой ЖК'},
-    {y:2029, profit:17.80,cap:'35-45', note:'Pre-IPO раунд'},
-    {y:2030, profit:33.20,cap:'500',   note:'IPO Q4 → 1 МЛРД $', highlight:true}
-  ];
-  
-  years.forEach(function(yr){
-    h += '<div class="yk-alert"'+(yr.highlight?' style="border-color:rgba(255,179,32,.3);background:linear-gradient(180deg,rgba(255,179,32,.06),var(--sur))"':'')+'>';
-    h += '<div class="yk-alert-icon" style="background:'+(yr.highlight?'rgba(255,179,32,.2)':'var(--s2)')+';color:'+(yr.highlight?'var(--gold)':'var(--text)')+';font-family:-apple-system,system-ui,sans-serif;font-size:14px;font-weight:800">'+yr.y+'</div>';
-    h += '<div class="yk-alert-body">';
-    h += '<div class="yk-alert-title">Прибыль '+yr.profit+' млрд ₸</div>';
-    h += '<div class="yk-alert-meta">'+yr.note+'</div>';
-    h += '</div>';
-    h += '<div class="yk-alert-num"'+(yr.highlight?' style="color:var(--gold)"':'')+'>'+yr.cap+'<span style="font-size:10px;color:var(--mut);margin-left:2px">млрд</span></div>';
-    h += '</div>';
-  });
-  
-  return h;
-}
-function openPartnerCard(name){
-  var idx=PARTNERS.indexOf(name);
-  var color=PC[idx]||'var(--gold)';
-  var C=calcCo();
-  var P=calcPar(name);
-  // Все операции связанные с этим партнёром (по любому из полей)
-  var ops=S.entries.filter(function(e){
-    return e.who===name || e.from===name || e.to===name;
-  }).sort(function(a,b){return b.date.localeCompare(a.date);});
-
-  // === НОВАЯ МОДЕЛЬ ===
-  // P.investedCash — вложил в кассу
-  // P.advancedOut  — выдал другим под отчёт
-  // P.received     — получил под отчёт
-  // P.spent        — потратил (всего)
-  // P.spentFromOwn — из своих
-  // P.spentFromAdvance — из подотчётных
-  // P.debtToCompany — он должен компании
-  // P.debtFromCompany — компания должна ему
-  // P.returned     — компания выплатила
-
-  // Чистый баланс: положительное = компания должна, отрицательное = он должен
-  var netBalance = P.debtFromCompany - P.debtToCompany;
-  var share=C.share||0;
-  var goalShare=Math.round(920/5*10)/10; // 184 млн на партнёра
-
-  document.getElementById('mtit').textContent=name;
-  var h='';
-
-  // Шапка партнёра
-  h+='<div style="text-align:center;padding:12px 0 16px;border-bottom:1px solid rgba(255,255,255,.07);margin-bottom:16px">';
-  h+='<div style="width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,'+color+','+color+'99);display:inline-flex;align-items:center;justify-content:center;font-family:var(--fd);font-size:26px;color:#0d1117;margin-bottom:10px;box-shadow:0 4px 20px '+color+'44">'+name[0]+'</div>';
-  h+='<div style="font-family:var(--fd);font-size:24px;letter-spacing:2px;color:'+color+'">'+name+'</div>';
-  h+='<div style="font-size:9px;color:var(--mut);letter-spacing:3px;margin-top:4px">ПАРТНЁР · ДОЛЯ 1/5 · 20%</div>';
-  h+='</div>';
-
-  // 4 главные цифры
-  // "Вложил" = сумма всех денег которые партнёр положил В КАССУ + выдал ДРУГИМ под отчёт + потратил из СВОИХ
-  // Это всё то, что компания ему должна вернуть (без зачёта его собственного долга)
-  var totalContrib = P.investedCash + P.advancedOut + P.spentFromOwn;
-  
-  h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">';
-  h+='<div style="background:linear-gradient(145deg,rgba(88,166,255,.12),rgba(88,166,255,.06));border:1px solid rgba(88,166,255,.25);border-radius:12px;padding:12px;text-align:center">';
-  h+='<div style="font-size:9px;color:var(--mut);letter-spacing:1px;margin-bottom:4px">💼 ВЛОЖИЛ ВСЕГО</div>';
-  h+='<div style="font-family:var(--fd);font-size:20px;color:var(--blue)">'+fmt(totalContrib)+'</div>';
-  h+='<div style="font-size:9px;color:var(--mut)">тг</div></div>';
-
-  h+='<div style="background:linear-gradient(145deg,rgba(63,185,80,.12),rgba(63,185,80,.06));border:1px solid rgba(63,185,80,.25);border-radius:12px;padding:12px;text-align:center">';
-  h+='<div style="font-size:9px;color:var(--mut);letter-spacing:1px;margin-bottom:4px">💰 ДОЛЯ ПРИБЫЛИ</div>';
-  h+='<div style="font-family:var(--fd);font-size:20px;color:var(--green)">'+fmt(share)+'</div>';
-  h+='<div style="font-size:9px;color:var(--mut)">тг</div></div>';
-
-  h+='<div style="background:linear-gradient(145deg,rgba(163,113,247,.12),rgba(163,113,247,.06));border:1px solid rgba(163,113,247,.25);border-radius:12px;padding:12px;text-align:center">';
-  h+='<div style="font-size:9px;color:var(--mut);letter-spacing:1px;margin-bottom:4px">📥 ПОЛУЧИЛ ПОД ОТЧЁТ</div>';
-  h+='<div style="font-family:var(--fd);font-size:20px;color:var(--purple)">'+fmt(P.received)+'</div>';
-  h+='<div style="font-size:9px;color:var(--mut)">тг</div></div>';
-
-  // К получению / К возврату — на основе чистого баланса
-  var balColor=netBalance>=0?'var(--gold)':'var(--red)';
-  var balLbl=netBalance>=0?'📊 КОМПАНИЯ ДОЛЖНА':'📊 ДОЛГ КОМПАНИИ';
-  h+='<div style="background:linear-gradient(145deg,rgba(255,179,32,.15),rgba(255,179,32,.06));border:1px solid rgba(255,179,32,.3);border-radius:12px;padding:12px;text-align:center">';
-  h+='<div style="font-size:9px;color:var(--mut);letter-spacing:1px;margin-bottom:4px">'+balLbl+'</div>';
-  h+='<div style="font-family:var(--fd);font-size:20px;color:'+balColor+'">'+fmt(Math.abs(netBalance))+'</div>';
-  h+='<div style="font-size:9px;color:var(--mut)">тг</div></div>';
-  h+='</div>';
-
-  // Прогресс к цели года
-  var goalPct=Math.min(Math.round(share/(goalShare*1000000)*100),100)||0;
-  h+='<div style="background:var(--s2);border-radius:12px;padding:12px 14px;margin-bottom:14px">';
-  h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">';
-  h+='<span style="font-size:10px;color:var(--mut)">Прогресс к цели</span>';
-  h+='<span style="font-size:11px;color:'+color+';font-weight:700">'+goalPct+'% из 184 млн тг</span>';
-  h+='</div>';
-  h+='<div style="height:8px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden">';
-  h+='<div style="height:100%;width:'+goalPct+'%;background:linear-gradient(90deg,'+color+','+color+'88);border-radius:4px;transition:width .8s"></div>';
-  h+='</div></div>';
-
-  // === 📋 СВЕРКА С ПАРТНЁРОМ ===
-  // По всем потокам денег: что пришло (получил под отчёт), что ушло (потратил/передал/вложил)
-  // Долг = пришло - ушло
-  
-  // Записи где партнёр ПОЛУЧИЛ что-то (advance to=name)
-  var receivedOps = S.entries.filter(function(e){return e.type==='advance' && e.to===name;}).sort(function(a,b){return a.date.localeCompare(b.date);});
-  // Записи где партнёр ПОТРАТИЛ из подотчётных (expense who=name paySource=advance)
-  // или потратил из своих/из кассы — это тоже "ушло из его рук"
-  var spentOps = S.entries.filter(function(e){return e.type==='expense' && e.who===name;}).sort(function(a,b){return a.date.localeCompare(b.date);});
-  // Записи где партнёр ОТДАЛ под отчёт другим (advance from=name)
-  var advancedOps = S.entries.filter(function(e){return e.type==='advance' && e.from===name;}).sort(function(a,b){return a.date.localeCompare(b.date);});
-  // Вложения в кассу (invest who=name)
-  var investOps = S.entries.filter(function(e){return e.type==='invest' && e.who===name;}).sort(function(a,b){return a.date.localeCompare(b.date);});
-  // Выплаты (payout who=name)
-  var payoutOps = S.entries.filter(function(e){return (e.type==='payout'||e.type==='return') && e.who===name;}).sort(function(a,b){return a.date.localeCompare(b.date);});
-
-  if(receivedOps.length>0 || spentOps.length>0 || advancedOps.length>0 || investOps.length>0){
-    h+='<div style="background:linear-gradient(145deg,rgba(255,179,32,.06),rgba(255,179,32,.02));border:1px solid rgba(255,179,32,.2);border-radius:12px;padding:14px;margin-bottom:14px">';
-    h+='<div style="font-size:11px;color:var(--gold);letter-spacing:2px;font-weight:700;margin-bottom:8px">📋 СВЕРКА</div>';
-    h+='<div style="font-size:10px;color:var(--mut);margin-bottom:14px;line-height:1.5">Все потоки денег партнёра. Положительные — пришли к нему, отрицательные — ушли от него.</div>';
-
-    // Что получил под отчёт
-    if(receivedOps.length>0){
-      h+='<div style="background:rgba(163,113,247,.06);border:1px solid rgba(163,113,247,.2);border-radius:8px;padding:10px;margin-bottom:10px">';
-      h+='<div style="font-size:10px;color:var(--purple);letter-spacing:1px;font-weight:700;margin-bottom:8px">📥 ПОЛУЧИЛ ПОД ОТЧЁТ</div>';
-      receivedOps.forEach(function(e){
-        h+='<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:10px;gap:8px;border-bottom:1px solid rgba(255,255,255,.04)">';
-        h+='<div style="color:var(--mut);flex:1"><b style="color:var(--text)">'+e.date+'</b> · от '+(e.from||'?')+(e.note?' · '+e.note.slice(0,40):'')+'</div>';
-        h+='<div style="color:var(--purple);font-family:var(--fd);white-space:nowrap">+'+fmt(e.amount)+'</div>';
-        h+='</div>';
-      });
-      h+='<div style="display:flex;justify-content:space-between;padding:8px 0 2px;font-size:11px;font-weight:700"><span style="color:var(--text)">ВСЕГО ПОЛУЧИЛ</span><span style="color:var(--purple);font-family:var(--fd)">+'+fmt(P.received)+'</span></div>';
-      h+='</div>';
-    }
-
-    // Что потратил (все расходы, с разбивкой по источнику)
-    if(spentOps.length>0){
-      h+='<div style="background:rgba(248,81,73,.06);border:1px solid rgba(248,81,73,.2);border-radius:8px;padding:10px;margin-bottom:10px">';
-      h+='<div style="font-size:10px;color:var(--red);letter-spacing:1px;font-weight:700;margin-bottom:8px">💸 ПОТРАТИЛ НА СТРОЙКУ</div>';
-      spentOps.slice(0,30).forEach(function(e){
-        var srcLbl='';
-        if(e.paySource==='own') srcLbl=' [из своих]';
-        else if(e.paySource==='cash') srcLbl=' [из кассы]';
-        else srcLbl=' [подотчёт]';
-        h+='<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:10px;gap:8px;border-bottom:1px solid rgba(255,255,255,.04)">';
-        h+='<div style="color:var(--mut);flex:1"><b style="color:var(--text)">'+e.date+'</b> · '+(e.cat||'')+(e.note?' · '+e.note.slice(0,30):'')+srcLbl+'</div>';
-        h+='<div style="color:var(--red);font-family:var(--fd);white-space:nowrap">−'+fmt(e.amount)+'</div>';
-        h+='</div>';
-      });
-      h+='<div style="display:flex;justify-content:space-between;padding:8px 0 2px;font-size:11px;font-weight:700"><span style="color:var(--text)">ВСЕГО ПОТРАТИЛ</span><span style="color:var(--red);font-family:var(--fd)">−'+fmt(P.spent)+'</span></div>';
-      h+='</div>';
-    }
-
-    // Что отдал под отчёт другим
-    if(advancedOps.length>0){
-      h+='<div style="background:rgba(57,211,187,.06);border:1px solid rgba(57,211,187,.2);border-radius:8px;padding:10px;margin-bottom:10px">';
-      h+='<div style="font-size:10px;color:var(--teal);letter-spacing:1px;font-weight:700;margin-bottom:8px">🔄 ОТДАЛ ДРУГИМ ПОД ОТЧЁТ</div>';
-      advancedOps.forEach(function(e){
-        h+='<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:10px;gap:8px;border-bottom:1px solid rgba(255,255,255,.04)">';
-        h+='<div style="color:var(--mut);flex:1"><b style="color:var(--text)">'+e.date+'</b> · → '+(e.to||'?')+(e.note?' · '+e.note.slice(0,40):'')+'</div>';
-        h+='<div style="color:var(--teal);font-family:var(--fd);white-space:nowrap">−'+fmt(e.amount)+'</div>';
-        h+='</div>';
-      });
-      h+='<div style="display:flex;justify-content:space-between;padding:8px 0 2px;font-size:11px;font-weight:700"><span style="color:var(--text)">ВСЕГО ОТДАЛ</span><span style="color:var(--teal);font-family:var(--fd)">−'+fmt(P.advancedOut)+'</span></div>';
-      h+='</div>';
-    }
-
-    // Что вложил в кассу
-    if(investOps.length>0){
-      h+='<div style="background:rgba(56,139,253,.06);border:1px solid rgba(56,139,253,.2);border-radius:8px;padding:10px;margin-bottom:10px">';
-      h+='<div style="font-size:10px;color:var(--blue);letter-spacing:1px;font-weight:700;margin-bottom:8px">💼 ВЛОЖИЛ В КАССУ</div>';
-      investOps.forEach(function(e){
-        h+='<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:10px;gap:8px;border-bottom:1px solid rgba(255,255,255,.04)">';
-        h+='<div style="color:var(--mut);flex:1"><b style="color:var(--text)">'+e.date+'</b> · '+(e.note||'').slice(0,50)+'</div>';
-        h+='<div style="color:var(--blue);font-family:var(--fd);white-space:nowrap">+'+fmt(e.amount)+'</div>';
-        h+='</div>';
-      });
-      h+='<div style="display:flex;justify-content:space-between;padding:8px 0 2px;font-size:11px;font-weight:700"><span style="color:var(--text)">ВСЕГО ВЛОЖИЛ В КАССУ</span><span style="color:var(--blue);font-family:var(--fd)">+'+fmt(P.investedCash)+'</span></div>';
-      h+='</div>';
-    }
-
-    // ИТОГ
-    h+='<div style="background:rgba(255,179,32,.12);border:2px solid rgba(255,179,32,.35);border-radius:10px;padding:14px;margin-top:12px">';
-    h+='<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0"><span style="color:var(--mut)">📥 Получил под отчёт</span><span style="color:var(--purple);font-family:var(--fd)">+'+fmt(P.received)+'</span></div>';
-    if(P.spentFromAdvance>0){
-      h+='<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0"><span style="color:var(--mut)">💸 Потратил из подотчётных</span><span style="color:var(--red);font-family:var(--fd)">−'+fmt(P.spentFromAdvance)+'</span></div>';
-    }
-    if(P.spentFromOwn>0){
-      h+='<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0"><span style="color:var(--mut)">💸 Потратил из своих</span><span style="color:var(--green);font-family:var(--fd)">+'+fmt(P.spentFromOwn)+'</span></div>';
-    }
-    if(P.investedCash>0){
-      h+='<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0"><span style="color:var(--mut)">💼 Вложил в кассу</span><span style="color:var(--green);font-family:var(--fd)">+'+fmt(P.investedCash)+'</span></div>';
-    }
-    if(P.advancedOut>0){
-      h+='<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0"><span style="color:var(--mut)">🔄 Отдал другим под отчёт</span><span style="color:var(--green);font-family:var(--fd)">+'+fmt(P.advancedOut)+'</span></div>';
-    }
-    if(P.returned>0){
-      h+='<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0"><span style="color:var(--mut)">↩️ Компания выплатила</span><span style="color:var(--gold);font-family:var(--fd)">−'+fmt(P.returned)+'</span></div>';
-    }
-    h+='<div style="height:1px;background:rgba(255,255,255,.15);margin:10px 0"></div>';
-    var resColor = netBalance>=0 ? 'var(--green)' : 'var(--red)';
-    var resLbl = netBalance>=0 ? '💚 КОМПАНИЯ ДОЛЖНА' : '⚠️ ДОЛГ КОМПАНИИ';
-    if(Math.abs(netBalance)<1) { resColor='var(--text)'; resLbl='✅ СОШЛОСЬ В НОЛЬ'; }
-    h+='<div style="display:flex;justify-content:space-between;font-size:16px;font-weight:700"><span style="color:var(--text)">'+resLbl+'</span><span style="color:'+resColor+';font-family:var(--fd)">'+fmt(Math.abs(netBalance))+' тг</span></div>';
-    h+='</div>';
-    h+='</div>';
-  }
-
-  // История операций
-  h+='<div style="font-size:10px;color:var(--mut);letter-spacing:2px;margin-bottom:8px">ИСТОРИЯ ОПЕРАЦИЙ ('+ops.length+')</div>';
-  if(ops.length===0){
-    h+='<div style="text-align:center;padding:20px;color:var(--mut);font-size:11px">Операций пока нет</div>';
-  } else {
-    h+='<div style="background:var(--s2);border-radius:12px;padding:0 14px">';
-    ops.slice(0,30).forEach(function(e,ei){
-      var T2=TYPES[e.type]||{color:'var(--mut)',ico:'·',lbl:e.type};
-      // Подпись для операции
-      var labelBits=[];
-      if(e.type==='advance'){
-        if(e.from===name) labelBits.push('→ '+e.to);
-        else if(e.to===name) labelBits.push('от '+e.from);
+  // Чистые передачи (если от A→B было 100к, и от B→A 30к, то A→B = 70к)
+  var transfers = [];
+  for(var i=0; i<partners.length; i++){
+    for(var j=i+1; j<partners.length; j++){
+      var a = partners[i], b = partners[j];
+      var net = matrix[a][b] - matrix[b][a];
+      if(Math.abs(net) > 1000){
+        transfers.push({
+          from: net > 0 ? a : b,
+          to: net > 0 ? b : a,
+          amount: Math.abs(net)
+        });
       }
-      if(e.cat) labelBits.push(e.cat);
-      if(e.paySource==='own') labelBits.push('из своих');
-      else if(e.paySource==='cash') labelBits.push('из кассы');
-      if(e.note) labelBits.push(e.note.slice(0,20));
-      var label = labelBits.join(' · ');
-      h+='<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;cursor:pointer;'+(ei<Math.min(ops.length,30)-1?'border-bottom:1px solid rgba(255,255,255,.05)':'')+'" onclick="closeModal();openEntryCard('+e.id+')">';
-      h+='<div><div style="font-size:11px;color:'+T2.color+'">'+T2.ico+' '+T2.lbl+'</div>';
-      h+='<div style="font-size:9px;color:var(--mut);margin-top:2px">'+e.date+(label?' · '+label:'')+'</div></div>';
-      h+='<div style="font-family:var(--fd);font-size:14px;color:'+T2.color+'">'+fmt(e.amount||0)+'</div>';
-      h+='</div>';
-    });
-    if(ops.length>30) h+='<div style="padding:8px;text-align:center;color:var(--mut);font-size:10px">ещё '+(ops.length-30)+' операций в Журнале</div>';
-    h+='</div>';
+    }
   }
-
-  h+='<button class="fcanc" onclick="closeModal()" style="margin-top:14px">Закрыть</button>';
-  document.getElementById('mbody').innerHTML=h;
-  document.getElementById('modal').style.display='flex';
-}
-
-// Оставляем для обратной совместимости
-function openPartnerHistory(name){openPartnerCard(name);}
-
-function dcPartners(){
-  // Пирог: вклад каждого партнёра (вложил в кассу + отдал под отчёт + платил из своих)
-  var pd=PARTNERS.map(function(p,i){
-    var P=calcPar(p);
-    var total = P.investedCash + P.advancedOut + P.spentFromOwn;
-    return {label:p.slice(0,4), val:total, color:PC[i]};
-  }).filter(function(d){return d.val>0;});
-  drawPie('ch-pie',pd);
-  var L=PARTNERS.map(function(p){return p.slice(0,3);});
-  var iv=PARTNERS.map(function(p){
-    var P=calcPar(p);
-    return Math.round((P.investedCash + P.advancedOut + P.spentFromOwn)/1000);
-  });
-  var pe=PARTNERS.map(function(p){
-    var P=calcPar(p);
-    return Math.round(P.debtToCompany/1000);
-  });
-  drawBar('ch-par',L,[{data:iv,color:'#388bfd',label:'Вложил'},{data:pe,color:'#8957e5',label:'Должен'}],160,true);
-}
-function rBrigadierCabinet(b){
-  // Кабинет бригадира — только его бригада (СИСТЕМА ЯНКОВСКОГО)
-  var B=calcBrig(b);
-  var workers=b.workers||0;
-  var h='';
+  transfers.sort(function(x,y){return y.amount - x.amount;});
   
-  // === ГЛАВНАЯ КАРТОЧКА: МОЯ БРИГАДА ===
-  h+='<div class="yk-big" style="text-align:center">';
-  h+='<div class="yk-label">МОЯ БРИГАДА</div>';
-  h+='<div class="yk-value gold" style="font-size:32px;letter-spacing:1px;margin-top:4px">'+b.name+'</div>';
-  h+='<div class="yk-sub" style="justify-content:center;margin-top:6px">';
-  h+='<span class="yk-chip">👷 '+workers+' человек</span>';
-  h+='</div>';
-  h+='</div>';
-  
-  // === ОБЪЁМ — ГЛАВНАЯ ЦИФРА ===
-  h+='<div class="yk-big">';
-  h+='<div class="yk-label">📐 ВЫПОЛНЕННЫЙ ОБЪЁМ</div>';
-  h+='<div class="yk-value gold">'+fmtD(B.vol)+'<span class="yk-unit">м³</span></div>';
-  h+='<div class="yk-sub"><span>'+T('volume_done')+'</span></div>';
-  h+='</div>';
-  
-  // === НАЧИСЛЕНО / ВЫПЛАЧЕНО / БАЛАНС ===
-  h+='<div class="yk-grid2">';
-  
-  // Начислено
-  h+='<div class="yk-mini">';
-  h+='<div class="yk-mini-label">💰 НАЧИСЛЕНО</div>';
-  h+='<div class="yk-mini-value gold">'+(B.earned>=1000000 ? fmt(Math.round(B.earned/1000000))+'<span class="yk-mini-unit">M</span>' : fmt(B.earned)+'<span class="yk-mini-unit">тг</span>')+'</div>';
-  h+='<div class="yk-mini-sub">за все работы</div>';
-  h+='</div>';
-  
-  // Выплачено
-  h+='<div class="yk-mini">';
-  h+='<div class="yk-mini-label">✓ ВЫПЛАЧЕНО</div>';
-  h+='<div class="yk-mini-value green">'+(B.paid>=1000000 ? fmt(Math.round(B.paid/1000000))+'<span class="yk-mini-unit">M</span>' : fmt(B.paid)+'<span class="yk-mini-unit">тг</span>')+'</div>';
-  h+='<div class="yk-mini-sub">всего получено</div>';
-  h+='</div>';
-  
-  h+='</div>';
-  
-  // === БАЛАНС — БОЛЬШАЯ КАРТОЧКА ===
-  var balanceColor = B.balance>0?'red':(B.balance<0?'green':'mut');
-  var balanceLabel = B.balance>0?'Должны бригаде':(B.balance<0?'Переплата':'Закрыто');
-  h+='<div class="yk-big '+(B.balance>0?'red':'green')+'">';
-  h+='<div class="yk-label">⚖️ '+balanceLabel.toUpperCase()+'</div>';
-  h+='<div class="yk-value '+balanceColor+'">'+(Math.abs(B.balance)>=1000000 ? fmt(Math.round(Math.abs(B.balance)/1000000))+'<span class="yk-unit">M</span>' : fmt(Math.abs(B.balance))+'<span class="yk-unit">тг</span>')+'</div>';
-  h+='<div class="yk-sub">';
-  if(B.balance>0) h+='<span>Нужно выплатить</span>';
-  else if(B.balance<0) h+='<span>Переплата авансом</span>';
-  else h+='<span>Расчёты закрыты</span>';
-  h+='</div>';
-  h+='</div>';
-  // Баланс
-  var bc=B.balance>0?'var(--red)':B.balance<0?'var(--green)':'var(--mut)';
-  h+='<div class="dcard" style="margin-bottom:14px">';
-  h+='<div class="r2"><span class="lb">Долг / переплата</span><span class="vl" style="color:'+bc+'font-weight:700">'+(B.balance>0?'Долг '+fmt(B.balance):B.balance<0?'Переплата '+fmt(Math.abs(B.balance)):'Закрыт')+'</span></div>';
-  h+='</div>';
-  // Управление людьми
-  h+='<div class="sect">Состав бригады</div>';
-  if(!b.people||b.people.length===0){
-    h+='<div class="dcard" style="text-align:center;color:var(--mut);padding:20px">Нет рабочих. Добавьте людей.</div>';
-  } else {
-    h+='<div class="dcard" style="padding:0 14px">';
-    (b.people||[]).forEach(function(p,i){
-      h+='<div class="oprow"><div class="opbody"><div style="font-size:13px">'+p.name+'</div><div style="font-size:10px;color:var(--mut)">'+p.spec+' · '+fmt(p.rate||0)+' тг/день</div></div>';
-      h+='<button onclick="removePerson(\''+b.id+'\',\''+p.id+'\')" style="background:transparent;border:1px solid rgba(248,81,73,.3);color:var(--red);border-radius:6px;padding:4px 10px;font-size:10px;cursor:pointer">Удалить</button>';
-      h+='</div>';
+  if(transfers.length > 0){
+    h += '<div style="font-size:13px;color:var(--mut);letter-spacing:2px;font-weight:800;margin:22px 4px 12px">🔄 ПЕРЕДАЧИ МЕЖДУ ПАРТНЁРАМИ</div>';
+    
+    h += '<div style="background:#161b22;border:1px solid var(--brd);border-radius:14px;padding:14px;margin-bottom:14px">';
+    h += '<div style="font-size:13px;color:var(--mut);margin-bottom:10px">Чистые передачи под отчёт</div>';
+    
+    transfers.slice(0, 10).forEach(function(t, i){
+      var fromColor = partnerColors[t.from] || '#8b949e';
+      var toColor   = partnerColors[t.to]   || '#8b949e';
+      h += '<div style="display:flex;align-items:center;gap:10px;padding:10px 0'+(i<transfers.length-1?';border-bottom:1px solid #21262d':'')+'">';
+      h += '<div style="display:flex;align-items:center;gap:6px;flex:1;min-width:0">';
+      h += '<div style="width:28px;height:28px;border-radius:50%;background:'+fromColor+'20;border:1.5px solid '+fromColor+';display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:13px;color:'+fromColor+';font-weight:800">'+t.from.charAt(0)+'</div>';
+      h += '<span style="font-size:14px;color:#b9c3d0;font-weight:700">'+t.from+'</span>';
+      h += '<span style="font-size:19px;color:var(--mut)">→</span>';
+      h += '<div style="width:28px;height:28px;border-radius:50%;background:'+toColor+'20;border:1.5px solid '+toColor+';display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:13px;color:'+toColor+';font-weight:800">'+t.to.charAt(0)+'</div>';
+      h += '<span style="font-size:14px;color:#b9c3d0;font-weight:700">'+t.to+'</span>';
+      h += '</div>';
+      h += '<div style="font-size:16px;color:#ffd166;font-weight:800;white-space:nowrap">'+fmt(t.amount)+' ₸</div>';
+      h += '</div>';
     });
-    h+='</div>';
+    h += '</div>';
   }
-  // Кнопки бригадира
-  h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px">';
-  h+='<button onclick="addPerson(\''+b.id+'\')" style="background:var(--bllt);border:1px solid var(--blue);color:var(--blue);border-radius:10px;padding:11px;font-family:var(--fm);font-size:11px;cursor:pointer">+ Добавить рабочего</button>';
-  h+='<button onclick="openAttendance(\''+b.id+'\')" style="background:var(--plt);border:1px solid var(--purple);color:var(--purple);border-radius:10px;padding:11px;font-family:var(--fm);font-size:11px;cursor:pointer">📅 Табель</button>';
-  h+='</div>';
+  
+  // ============= ВЛОЖЕНИЯ В КАССУ (история) =============
+  var invests = entries.filter(function(e){return e.type === 'invest';})
+                       .sort(function(a,b){return (b.date||'').localeCompare(a.date||'');});
+  if(invests.length > 0){
+    h += '<div style="font-size:13px;color:var(--mut);letter-spacing:2px;font-weight:800;margin:22px 4px 12px">💼 ИСТОРИЯ ВЛОЖЕНИЙ В КАССУ</div>';
+    h += '<div style="background:#161b22;border:1px solid var(--brd);border-radius:14px;padding:14px;margin-bottom:14px">';
+    invests.slice(0, 10).forEach(function(e, i){
+      var pcolor = partnerColors[e.who] || '#8b949e';
+      h += '<div style="display:flex;align-items:center;gap:10px;padding:10px 0'+(i<Math.min(invests.length,10)-1?';border-bottom:1px solid #21262d':'')+'">';
+      h += '<div style="width:32px;height:32px;border-radius:50%;background:'+pcolor+'20;border:1.5px solid '+pcolor+';display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:15px;color:'+pcolor+';font-weight:800">'+(e.who||'?').charAt(0)+'</div>';
+      h += '<div style="flex:1;min-width:0">';
+      h += '<div style="font-size:15px;color:#e6edf3;font-weight:700">'+(e.who||'?')+'</div>';
+      h += '<div style="font-size:12px;color:var(--mut);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(e.date||'')+(e.note ? ' · '+e.note : '')+'</div>';
+      h += '</div>';
+      h += '<div style="font-size:16px;color:#7ee787;font-weight:800;white-space:nowrap">+'+fmt(e.amount)+' ₸</div>';
+      h += '</div>';
+    });
+    if(invests.length > 10){
+      h += '<div style="text-align:center;padding-top:10px;font-size:13px;color:var(--mut)">и ещё '+(invests.length-10)+'…</div>';
+    }
+    h += '</div>';
+  }
+  
+  h += '</div>';
   return h;
 }
 
-function removePerson(bId,personId){
-  if(!confirmSafe('Удалить этого рабочего из бригады?')) return;
-  var b=S.brigades.find(function(x){return x.id===bId;});
-  if(!b||!b.people) return;
-  b.people=b.people.filter(function(p){return p.id!==personId;});
-  b.workers=b.people.length;
-  save();render();
-}
+// ============================================================
+// Подробная история одного партнёра
+// ============================================================
+window.openPartnerDetails = function(partner){
+  if(typeof haptic === 'function') haptic('medium');
+  var partnerColors = {'Дмитрий':'#ffb320','Бекжан':'#3fb950','Евгений':'#58a6ff','Нурсултан':'#a371f7','Сергей':'#39d3bb'};
+  var pcolor = partnerColors[partner] || '#8b949e';
+  var entries = S.entries || [];
+  
+  // Собираем все операции связанные с партнёром
+  var related = entries.filter(function(e){
+    if(!e || !e.type) return false;
+    if(e.type === 'invest') return e.who === partner;
+    if(e.type === 'advance') return e.from === partner || e.to === partner;
+    if(e.type === 'expense') return e.who === partner;
+    if(e.type === 'payout') return e.who === partner;
+    return false;
+  }).sort(function(a,b){return (b.date||'').localeCompare(a.date||'');});
+  
+  var titleEl = document.getElementById('drillTitle');
+  var bodyEl = document.getElementById('drillBody');
+  if(titleEl) titleEl.textContent = '👤 ' + partner.toUpperCase();
+  
+  var h = '<div style="font-family:-apple-system,system-ui,sans-serif">';
+  
+  // Краткая сводка
+  var inv=0, op=0, ai=0, sa=0, ao=0, pay=0;
+  related.forEach(function(e){
+    var amt = Number(e.amount) || 0;
+    if(e.type === 'invest') inv += amt;
+    else if(e.type === 'advance' && e.from === partner) ao += amt;
+    else if(e.type === 'advance' && e.to === partner) ai += amt;
+    else if(e.type === 'expense'){
+      var psrc = e.paySource || (partner === 'Дмитрий' ? 'own' : 'advance');
+      if(psrc === 'own') op += amt;
+      else if(psrc === 'advance') sa += amt;
+    }
+    else if(e.type === 'payout') pay += amt;
+  });
+  var net = (inv + op) - pay - Math.max(0, ai - sa - ao);
+  
+  h += '<div style="background:linear-gradient(135deg,'+pcolor+'15,#0d1117);border:1.5px solid '+pcolor+';border-radius:14px;padding:14px;margin-bottom:14px">';
+  h += '<div style="display:flex;align-items:center;gap:12px">';
+  h += '<div style="width:48px;height:48px;border-radius:50%;background:'+pcolor+'30;border:2px solid '+pcolor+';display:flex;align-items:center;justify-content:center;font-size:22px;color:'+pcolor+';font-weight:800">'+partner.charAt(0)+'</div>';
+  h += '<div style="flex:1">';
+  h += '<div style="font-size:18px;color:'+pcolor+';font-weight:800">'+partner+'</div>';
+  h += '<div style="font-size:11px;color:var(--mut);margin-top:2px">'+related.length+' операций · доля 20%</div>';
+  h += '</div>';
+  h += '<div style="text-align:right">';
+  var balColor = net > 0 ? '#7ee787' : net < 0 ? '#ff7b72' : '#8b949e';
+  h += '<div style="font-size:16px;color:'+balColor+';font-weight:800">'+(net>=0?'+':'')+fmt(net)+'</div>';
+  h += '<div style="font-size:9px;color:var(--mut);letter-spacing:1px;font-weight:700;margin-top:2px">ИТОГ</div>';
+  h += '</div>';
+  h += '</div>';
+  h += '</div>';
+  
+  // Список операций
+  if(related.length === 0){
+    h += '<div style="text-align:center;padding:40px 20px;color:var(--mut)">Нет операций</div>';
+  } else {
+    h += '<div style="font-size:11px;color:var(--mut);letter-spacing:2px;font-weight:700;margin-bottom:10px">📋 ВСЕ ОПЕРАЦИИ ('+related.length+')</div>';
+    
+    related.forEach(function(e){
+      var amt = Number(e.amount)||0;
+      var icon = '', color = '#8b949e', sign = '', subtitle = '';
+      
+      if(e.type === 'invest'){
+        icon = '💼'; color = '#7ee787'; sign = '+';
+        subtitle = 'Вложение в кассу';
+      } else if(e.type === 'advance' && e.from === partner){
+        icon = '📤'; color = '#ffa657'; sign = '-';
+        subtitle = 'Передал ' + (e.to||'?');
+      } else if(e.type === 'advance' && e.to === partner){
+        icon = '📥'; color = '#58a6ff'; sign = '+';
+        subtitle = 'Получил от ' + (e.from||'?');
+      } else if(e.type === 'expense'){
+        var psrc = e.paySource || (partner === 'Дмитрий' ? 'own' : 'advance');
+        if(psrc === 'own'){
+          icon = '💳'; color = '#a371f7'; sign = '-';
+          subtitle = 'Заплатил из своих · ' + (e.cat || 'Прочее');
+        } else {
+          icon = '🧾'; color = '#39d3bb'; sign = '';
+          subtitle = 'Из подотчёта · ' + (e.cat || 'Прочее');
+        }
+      } else if(e.type === 'payout'){
+        icon = '↩️'; color = '#ffd166'; sign = '-';
+        subtitle = 'Выплата от компании';
+      }
+      
+      h += '<div style="background:#161b22;border:1px solid var(--brd);border-radius:10px;padding:10px 12px;margin-bottom:6px">';
+      h += '<div style="display:flex;align-items:center;gap:10px">';
+      h += '<div style="font-size:20px;flex-shrink:0">'+icon+'</div>';
+      h += '<div style="flex:1;min-width:0">';
+      h += '<div style="font-size:12px;color:#e6edf3;font-weight:700">'+subtitle+'</div>';
+      h += '<div style="font-size:10px;color:var(--mut);margin-top:1px">'+(e.date||'')+(e.note ? ' · '+e.note.substring(0,40) : '')+'</div>';
+      h += '</div>';
+      h += '<div style="font-size:13px;color:'+color+';font-weight:800;white-space:nowrap">'+sign+fmt(amt)+'</div>';
+      h += '</div>';
+      h += '</div>';
+    });
+  }
+  
+  h += '</div>';
+  
+  if(bodyEl) bodyEl.innerHTML = h;
+  document.getElementById('drillModal').style.display='flex';
+};
 
 function rBrigades(){
   var tv=getTotalVol(),vd=totalVolDone(),vp=Math.min(Math.round(vd/tv*100),100);
@@ -8648,7 +8171,7 @@ function rBrigades(){
   }
 
   var h='<div class="shdr"><h2>БРИГАДЫ</h2>'+(canEdit()?'<button class="fedit" onclick="openAddBrig()">+ Бригада</button>':'')+'</div>';
-h+='<div class="dcard" style="border-color:var(--teal);cursor:pointer" onclick="openVolAnalytics()"><div class="dtop"><div><div class="bn-label">Общий прогресс</div><div class="dbig" style="color:var(--teal)">'+fmtD(vd)+' <span style="font-size:16px">м³</span></div></div><div style="text-align:right"><div class="dpct">'+vp+'%</div><div style="font-size:9px;color:var(--mut)">из '+tv.toLocaleString('ru')+'</div></div></div><div class="ptrack"><div class="pfill" style="width:'+vp+'%;background:linear-gradient(90deg,#2dd4bf,#2ea043)"></div></div></div>';
+h+='<div class="dcard" style="border-color:var(--teal);cursor:pointer" onclick="openVolAnalytics()"><div class="dtop"><div><div class="bn-label">Общий прогресс</div><div class="dbig" style="color:var(--teal)">'+fmtD(vd)+' <span style="font-size:19px">м³</span></div></div><div style="text-align:right"><div class="dpct">'+vp+'%</div><div style="font-size:11px;color:var(--mut)">из '+tv.toLocaleString('ru')+'</div></div></div><div class="ptrack"><div class="pfill" style="width:'+vp+'%;background:linear-gradient(90deg,#2dd4bf,#2ea043)"></div></div></div>';
 // Простой список по бригадам вместо нечитаемого графика
 h+='<div class="dcard"><div class="ctit">'+T('volByBrig')+'</div>';
 S.brigades.forEach(function(b,i){
@@ -8658,34 +8181,34 @@ S.brigades.forEach(function(b,i){
   var clr = i===0?'var(--teal)':(i===1?'var(--gold)':'var(--blue)');
   h+='<div style="padding:8px 0;'+(i<S.brigades.length-1?'border-bottom:1px solid rgba(255,255,255,.05)':'')+'">';
   h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">';
-  h+='<span style="font-size:11px;color:var(--text);font-weight:600">'+b.name+'</span>';
-  h+='<span style="font-family:var(--fd);font-size:14px;color:'+clr+'">'+fmtD(B.vol)+' м³</span>';
+  h+='<span style="font-size:13px;color:var(--text);font-weight:600">'+b.name+'</span>';
+  h+='<span style="font-family:var(--fd);font-size:16px;color:'+clr+'">'+fmtD(B.vol)+' м³</span>';
   h+='</div>';
   h+='<div style="height:6px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden">';
   h+='<div style="height:100%;width:'+pctOfMax+'%;background:'+clr+';border-radius:3px"></div></div>';
   if(B.earned>0){
-    h+='<div style="font-size:9px;color:var(--mut);margin-top:3px">начислено '+fmt(B.earned)+' ₸ · выплачено '+fmt(B.paid)+' ₸</div>';
+    h+='<div style="font-size:11px;color:var(--mut);margin-top:3px">начислено '+fmt(B.earned)+' ₸ · выплачено '+fmt(B.paid)+' ₸</div>';
   }
   h+='</div>';
 });
 h+='</div>';
-S.brigades.forEach(function(b){var B=calcBrig(b);var bc=B.balance>0?'var(--red)':B.balance<0?'var(--green)':'var(--mut)';var pct=B.earned?Math.min(Math.round(B.paid/B.earned*100),100):0;var workers=b.workers||0;var prodH='';if(workers>0&&B.vol>0){var days=new Set(B.vols.map(function(e){return e.date;})).size||1;prodH='<div class="r2" style="font-size:10px"><span class="lb">Рабочих: '+workers+' чел</span><span class="vl" style="color:var(--teal)">'+fmtD(B.vol/workers/days)+' м³/чел/день</span></div>';}
- h+='<div class="bcard" style="cursor:pointer;transition:transform .15s" onclick="openBrigCard(\''+b.id+'\')"><div class="bhdr"><div><div class="bname">'+b.name+'</div><div style="font-size:10px;color:var(--mut)">'+(workers?workers+' чел':'без людей')+'</div></div>';
+S.brigades.forEach(function(b){var B=calcBrig(b);var bc=B.balance>0?'var(--red)':B.balance<0?'var(--green)':'var(--mut)';var pct=B.earned?Math.min(Math.round(B.paid/B.earned*100),100):0;var workers=b.workers||0;var prodH='';if(workers>0&&B.vol>0){var days=new Set(B.vols.map(function(e){return e.date;})).size||1;prodH='<div class="r2" style="font-size:12px"><span class="lb">Рабочих: '+workers+' чел</span><span class="vl" style="color:var(--teal)">'+fmtD(B.vol/workers/days)+' м³/чел/день</span></div>';}
+ h+='<div class="bcard" style="cursor:pointer;transition:transform .15s" onclick="openBrigCard(\''+b.id+'\')"><div class="bhdr"><div><div class="bname">'+b.name+'</div><div style="font-size:12px;color:var(--mut)">'+(workers?workers+' чел':'без людей')+'</div></div>';
  if(canEdit()){
    h+='<div style="display:flex;gap:6px">';
-   h+='<button class="fedit" onclick="event.stopPropagation();viewAsBrigadier(\''+b.id+'\')" title="Смотреть как бригадир" style="background:rgba(57,211,187,.12);border:1px solid rgba(57,211,187,.4);color:var(--teal);font-size:11px">👁 Кабинет</button>';
+   h+='<button class="fedit" onclick="event.stopPropagation();viewAsBrigadier(\''+b.id+'\')" title="Смотреть как бригадир" style="background:rgba(57,211,187,.12);border:1px solid rgba(57,211,187,.4);color:var(--teal);font-size:13px">👁 Кабинет</button>';
    h+='<button class="fedit" onclick="event.stopPropagation();openEditBrig(\''+b.id+'\')">ред</button>';
    h+='</div>';
  }
  h+='</div><div class="bbody">';
- h+='<div class="kg3"><div class="kpi" style="border-color:var(--teal);padding:8px"><div class="klbl">Объём</div><div class="kval" style="font-size:16px;color:var(--teal)">'+fmtD(B.vol)+'</div><div class="ksub">м³</div></div><div class="kpi" style="border-color:var(--gold);padding:8px"><div class="klbl">Начислено</div><div class="kval" style="font-size:16px;color:var(--gold)">'+fmt(B.earned)+'</div><div class="ksub">тг</div></div><div class="kpi" style="border-color:var(--green);padding:8px"><div class="klbl">Выплачено</div><div class="kval" style="font-size:16px;color:var(--green)">'+fmt(B.paid)+'</div><div class="ksub">тг</div></div></div>';
- h+='<div class="bar" style="height:7px;margin-bottom:4px"><div class="barfill" style="width:'+pct+'%;background:var(--teal)"></div></div><div style="display:flex;justify-content:space-between;font-size:9px;margin-bottom:'+(prodH?'6':'10')+'px"><span style="color:var(--mut)">выплачено '+pct+'%</span><span style="color:'+bc+';font-weight:700">'+(B.balance>0?T('debt')+' '+fmt(B.balance):B.balance<0?T('overpaid')+' '+fmt(Math.abs(B.balance)):T('closed'))+'</span></div>';
+ h+='<div class="kg3"><div class="kpi" style="border-color:var(--teal);padding:8px"><div class="klbl">Объём</div><div class="kval" style="font-size:19px;color:var(--teal)">'+fmtD(B.vol)+'</div><div class="ksub">м³</div></div><div class="kpi" style="border-color:var(--gold);padding:8px"><div class="klbl">Начислено</div><div class="kval" style="font-size:19px;color:var(--gold)">'+fmt(B.earned)+'</div><div class="ksub">тг</div></div><div class="kpi" style="border-color:var(--green);padding:8px"><div class="klbl">Выплачено</div><div class="kval" style="font-size:19px;color:var(--green)">'+fmt(B.paid)+'</div><div class="ksub">тг</div></div></div>';
+ h+='<div class="bar" style="height:7px;margin-bottom:4px"><div class="barfill" style="width:'+pct+'%;background:var(--teal)"></div></div><div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:'+(prodH?'6':'10')+'px"><span style="color:var(--mut)">выплачено '+pct+'%</span><span style="color:'+bc+';font-weight:700">'+(B.balance>0?T('debt')+' '+fmt(B.balance):B.balance<0?T('overpaid')+' '+fmt(Math.abs(B.balance)):T('closed'))+'</span></div>';
  if(prodH)h+=prodH;
- if(canEdit())h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:12px" onclick="event.stopPropagation()"><button onclick="event.stopPropagation();openVol(\''+b.id+'\')" style="background:var(--tlt);border:1px solid var(--teal);color:var(--teal);border-radius:8px;padding:9px;font-family:var(--fm);font-size:11px;cursor:pointer">Объём</button><button onclick="event.stopPropagation();openPay(\''+b.id+'\')" style="background:var(--grlt);border:1px solid var(--green);color:var(--green);border-radius:8px;padding:9px;font-family:var(--fm);font-size:11px;cursor:pointer">Выплатить</button><button onclick="event.stopPropagation();openPeople(\''+b.id+'\')" style="background:var(--bllt);border:1px solid var(--blue);color:var(--blue);border-radius:8px;padding:9px;font-family:var(--fm);font-size:11px;cursor:pointer">👥 Люди ('+( (b.people&&b.people.length)||0 )+')</button><button onclick="event.stopPropagation();openAttendance(\''+b.id+'\')" style="background:var(--plt);border:1px solid var(--purple);color:var(--purple);border-radius:8px;padding:9px;font-family:var(--fm);font-size:11px;cursor:pointer">📅 Табель</button></div>';
+ if(canEdit())h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:12px" onclick="event.stopPropagation()"><button onclick="event.stopPropagation();openVol(\''+b.id+'\')" style="background:var(--tlt);border:1px solid var(--teal);color:var(--teal);border-radius:8px;padding:9px;font-family:var(--fm);font-size:13px;cursor:pointer">Объём</button><button onclick="event.stopPropagation();openPay(\''+b.id+'\')" style="background:var(--grlt);border:1px solid var(--green);color:var(--green);border-radius:8px;padding:9px;font-family:var(--fm);font-size:13px;cursor:pointer">Выплатить</button><button onclick="event.stopPropagation();openPeople(\''+b.id+'\')" style="background:var(--bllt);border:1px solid var(--blue);color:var(--blue);border-radius:8px;padding:9px;font-family:var(--fm);font-size:13px;cursor:pointer">👥 Люди ('+( (b.people&&b.people.length)||0 )+')</button><button onclick="event.stopPropagation();openAttendance(\''+b.id+'\')" style="background:var(--plt);border:1px solid var(--purple);color:var(--purple);border-radius:8px;padding:9px;font-family:var(--fm);font-size:13px;cursor:pointer">📅 Табель</button></div>';
  h+='</div></div>';});
 // Zalivki journal
 var av=[].concat(S.entries).filter(function(e){return e.type==='vol';}).sort(function(a,b){return b.date.localeCompare(a.date);});
-if(av.length){h+='<div class="sect">'+T('pouringJournal')+' ('+av.length+')</div><div class="dcard" style="padding:0"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:10px"><tr style="background:var(--s2)"><th style="padding:7px 6px;text-align:left;color:var(--mut)">Дата</th><th style="padding:7px 6px;text-align:left;color:var(--mut)">Конструкция</th><th style="padding:7px 6px;text-align:left;color:var(--mut)">Пятно</th><th style="padding:7px 6px;text-align:left;color:var(--mut)">Этаж</th><th style="padding:7px 6px;text-align:right;color:var(--mut)">м³</th></tr>';
+if(av.length){h+='<div class="sect">'+T('pouringJournal')+' ('+av.length+')</div><div class="dcard" style="padding:0"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><tr style="background:var(--s2)"><th style="padding:7px 6px;text-align:left;color:var(--mut)">Дата</th><th style="padding:7px 6px;text-align:left;color:var(--mut)">Конструкция</th><th style="padding:7px 6px;text-align:left;color:var(--mut)">Пятно</th><th style="padding:7px 6px;text-align:left;color:var(--mut)">Этаж</th><th style="padding:7px 6px;text-align:right;color:var(--mut)">м³</th></tr>';
 av.forEach(function(e,i){h+='<tr style="border-bottom:1px solid var(--brd);background:'+(i%2?'var(--s2)':'transparent')+'"><td style="padding:6px;color:var(--mut)">'+e.date.slice(5)+'</td><td style="padding:6px;color:var(--teal)">'+(e.struct||'-')+'</td><td style="padding:6px">'+(e.zone||'-')+'</td><td style="padding:6px;color:var(--mut)">'+(e.floor||'-')+'</td><td style="padding:6px;text-align:right;font-weight:700;color:var(--teal)">'+fmtD(e.volume||0)+'</td></tr>';});
 h+='<tr style="background:var(--tlt)"><td colspan="4" style="padding:7px 6px;font-weight:700;color:var(--teal)">ИТОГО</td><td style="padding:7px 6px;text-align:right;font-weight:700;color:var(--teal)">'+fmtD(vd)+'</td></tr></table></div></div>';}
 return h;}
@@ -9199,6 +8722,486 @@ function deleteKS2(id){
   render();
 }
 // ============ КОНЕЦ КС-2 ============
+
+// 🏗 ОБЪЕКТЫ — список + детальная информация
+function rObjects(){
+  var objects = S.objects || [];
+  var meta = S.objMeta || {};
+  var entries = S.entries || [];
+  var brigades = S.brigades || [];
+  
+  var h = '<div style="padding:16px;font-family:-apple-system,system-ui,sans-serif">';
+  
+  // Заголовок
+  h += '<div style="margin-bottom:16px">';
+  h += '<div style="font-size:28px;color:var(--gold);font-weight:800;letter-spacing:1.5px;font-family:var(--fd)">🏗 ОБЪЕКТЫ</div>';
+  h += '<div style="font-size:14px;color:var(--mut);margin-top:4px">Стройки и пятна работ</div>';
+  h += '</div>';
+  
+  if(objects.length === 0){
+    h += '<div style="text-align:center;padding:40px 20px;color:var(--mut)">Нет объектов</div></div>';
+    return h;
+  }
+  
+  objects.forEach(function(objName){
+    var m = meta[objName] || {};
+    var customer = m.customer || '—';
+    var spots = m.spots || [];
+    var custRates = m.custRates || [];
+    
+    // Считаем по этому объекту
+    var objEntries = entries.filter(function(e){ return e.obj === objName; });
+    var totalExpense = objEntries.filter(function(e){return e.type==='expense';}).reduce(function(s,e){return s+(e.amount||0);},0);
+    var totalIncome = objEntries.filter(function(e){return e.type==='income';}).reduce(function(s,e){return s+(e.amount||0);},0);
+    var totalVol = objEntries.filter(function(e){return e.type==='vol';}).reduce(function(s,e){return s+(e.volume||0);},0);
+    var brigadesOnObj = brigades.filter(function(b){return b.obj===objName;});
+    
+    // Считаем плановый объём (всех пятен)
+    var planVol = 0;
+    spots.forEach(function(s){
+      (s.constructions||[]).forEach(function(c){
+        planVol += (c.volume||0);
+      });
+    });
+    
+    var pct = planVol > 0 ? Math.round(totalVol/planVol*100) : 0;
+    
+    // === ГЛАВНАЯ КАРТОЧКА ОБЪЕКТА ===
+    h += '<div style="background:linear-gradient(135deg,#161b22,#0d1117);border:1.5px solid var(--gold);border-radius:18px;padding:16px;margin-bottom:14px;position:relative;overflow:hidden">';
+    
+    // Декоративный элемент
+    h += '<div style="position:absolute;top:-30px;right:-30px;width:100px;height:100px;background:radial-gradient(circle,rgba(240,165,0,.15),transparent);border-radius:50%"></div>';
+    
+    h += '<div style="position:relative">';
+    
+    // Название и заказчик
+    h += '<div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:14px">';
+    h += '<div style="font-size:42px;line-height:1">🏗</div>';
+    h += '<div style="flex:1">';
+    h += '<div style="font-size:19px;color:#e6edf3;font-weight:800;line-height:1.2">'+objName+'</div>';
+    h += '<div style="font-size:13px;color:var(--mut);margin-top:4px">Заказчик: <b style="color:#7ee787">'+customer+'</b></div>';
+    h += '</div>';
+    h += '</div>';
+    
+    // 4 показателя
+    h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">';
+    
+    h += '<div style="background:rgba(63,185,80,.08);border:1px solid rgba(63,185,80,.25);border-radius:10px;padding:10px">';
+    h += '<div style="font-size:11px;color:var(--mut);letter-spacing:1.5px;font-weight:700">ОБЪЁМ ВЫПОЛНЕН</div>';
+    h += '<div style="font-size:22px;color:#7ee787;font-weight:800;margin-top:4px">'+totalVol.toFixed(1)+' м³</div>';
+    if(planVol > 0){
+      h += '<div style="font-size:12px;color:var(--mut);margin-top:2px">из '+planVol.toFixed(0)+' плана ('+pct+'%)</div>';
+    }
+    h += '</div>';
+    
+    h += '<div style="background:rgba(255,123,114,.08);border:1px solid rgba(255,123,114,.25);border-radius:10px;padding:10px">';
+    h += '<div style="font-size:11px;color:var(--mut);letter-spacing:1.5px;font-weight:700">РАСХОДЫ</div>';
+    h += '<div style="font-size:22px;color:#ff7b72;font-weight:800;margin-top:4px">'+fmt(totalExpense)+' ₸</div>';
+    h += '<div style="font-size:12px;color:var(--mut);margin-top:2px">по объекту</div>';
+    h += '</div>';
+    
+    h += '<div style="background:rgba(88,166,255,.08);border:1px solid rgba(88,166,255,.25);border-radius:10px;padding:10px">';
+    h += '<div style="font-size:11px;color:var(--mut);letter-spacing:1.5px;font-weight:700">БРИГАД</div>';
+    h += '<div style="font-size:22px;color:#58a6ff;font-weight:800;margin-top:4px">'+brigadesOnObj.length+'</div>';
+    var totalWorkers = brigadesOnObj.reduce(function(s,b){return s+(b.workers||0);},0);
+    h += '<div style="font-size:12px;color:var(--mut);margin-top:2px">'+totalWorkers+' рабочих</div>';
+    h += '</div>';
+    
+    h += '<div style="background:rgba(163,113,247,.08);border:1px solid rgba(163,113,247,.25);border-radius:10px;padding:10px">';
+    h += '<div style="font-size:11px;color:var(--mut);letter-spacing:1.5px;font-weight:700">ПЯТЕН</div>';
+    h += '<div style="font-size:22px;color:#a371f7;font-weight:800;margin-top:4px">'+spots.length+'</div>';
+    h += '<div style="font-size:12px;color:var(--mut);margin-top:2px">блоков</div>';
+    h += '</div>';
+    
+    h += '</div>'; // конец grid
+    
+    // Прогресс-бар
+    if(planVol > 0){
+      h += '<div style="margin-bottom:10px">';
+      h += '<div style="display:flex;justify-content:space-between;margin-bottom:6px">';
+      h += '<div style="font-size:13px;color:var(--mut);font-weight:700">ОБЩИЙ ПРОГРЕСС</div>';
+      h += '<div style="font-size:13px;color:#ffd166;font-weight:800">'+pct+'%</div>';
+      h += '</div>';
+      h += '<div style="background:#0d1117;border-radius:6px;height:8px;overflow:hidden">';
+      h += '<div style="background:linear-gradient(90deg,#7ee787,#ffd166);height:100%;width:'+Math.min(pct,100)+'%;transition:width .5s"></div>';
+      h += '</div>';
+      h += '</div>';
+    }
+    
+    h += '</div>'; // конец relative
+    h += '</div>'; // конец карточки
+    
+    // === ПЯТНА (БЛОКИ) ===
+    if(spots.length > 0){
+      h += '<div style="font-size:13px;color:var(--mut);letter-spacing:2px;font-weight:700;margin:18px 4px 10px">🟦 ПЯТНА</div>';
+      
+      spots.forEach(function(spot){
+        // Считаем выполненный объём по этому пятну (по brigade vol entries)
+        // Пока берём ОБЩИЙ объём пятна (т.к. в entries нет привязки к spot)
+        var spotPlan = (spot.constructions||[]).reduce(function(s,c){return s+(c.volume||0);},0);
+        
+        // Заливки по этому пятну (по дате старта)
+        var spotStarted = spot.started || '';
+        var spotCompleted = spot.completed;
+        
+        // Цвет статуса
+        var statusColor = '#8b949e', statusText = '—';
+        if(spotCompleted){
+          statusColor = '#7ee787';
+          statusText = '✓ Завершён';
+        } else if(spotStarted){
+          statusColor = '#ffd166';
+          statusText = '⚒ В работе';
+        }
+        
+        h += '<div style="background:#161b22;border:1px solid var(--brd);border-radius:14px;padding:14px;margin-bottom:10px">';
+        
+        h += '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">';
+        h += '<div>';
+        h += '<div style="font-size:17px;color:#e6edf3;font-weight:800">'+(spot.name||'Пятно')+'</div>';
+        h += '<div style="font-size:12px;color:'+statusColor+';font-weight:700;margin-top:4px">'+statusText+'</div>';
+        h += '</div>';
+        h += '<div style="text-align:right">';
+        h += '<div style="font-size:19px;color:#ffd166;font-weight:800">'+spotPlan.toFixed(1)+' м³</div>';
+        h += '<div style="font-size:11px;color:var(--mut);letter-spacing:1px;font-weight:700">ОБЪЁМ ПЛАН</div>';
+        h += '</div>';
+        h += '</div>';
+        
+        // Сроки
+        if(spotStarted || spot.deadline){
+          h += '<div style="display:flex;gap:14px;margin-bottom:10px;padding:8px 10px;background:#0d1117;border-radius:8px">';
+          if(spotStarted){
+            h += '<div style="flex:1"><div style="font-size:11px;color:var(--mut);letter-spacing:1px;font-weight:700">НАЧАЛО</div>';
+            h += '<div style="font-size:14px;color:#7ee787;font-weight:700;margin-top:2px">'+spotStarted+'</div></div>';
+          }
+          if(spot.deadline){
+            var daysLeft = Math.ceil((new Date(spot.deadline) - new Date())/(1000*60*60*24));
+            var deadlineColor = daysLeft < 0 ? '#ff7b72' : daysLeft < 30 ? '#ffa657' : '#7ee787';
+            h += '<div style="flex:1"><div style="font-size:11px;color:var(--mut);letter-spacing:1px;font-weight:700">ДЕДЛАЙН</div>';
+            h += '<div style="font-size:14px;color:'+deadlineColor+';font-weight:700;margin-top:2px">'+spot.deadline+'</div>';
+            if(daysLeft >= 0){
+              h += '<div style="font-size:11px;color:var(--mut);margin-top:1px">'+daysLeft+' дней</div>';
+            } else {
+              h += '<div style="font-size:11px;color:#ff7b72;margin-top:1px">просрочка</div>';
+            }
+            h += '</div>';
+          }
+          h += '</div>';
+        }
+        
+        // Конструкции (виды работ)
+        if((spot.constructions||[]).length > 0){
+          h += '<div style="font-size:12px;color:var(--mut);letter-spacing:1.5px;font-weight:700;margin-bottom:6px">ВИДЫ РАБОТ:</div>';
+          spot.constructions.forEach(function(c){
+            h += '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #21262d;font-size:14px">';
+            h += '<div style="color:#b9c3d0">';
+            h += (c.wtype||'?');
+            if(c.heights) h += '<div style="font-size:12px;color:var(--mut);margin-top:1px">отм. '+c.heights+'</div>';
+            h += '</div>';
+            h += '<div style="color:#e6edf3;font-weight:700;text-align:right">'+(c.volume||0)+' '+(c.unit||'м³')+'</div>';
+            h += '</div>';
+          });
+        }
+        
+        h += '</div>';
+      });
+    }
+    
+    // === БРИГАДЫ НА ОБЪЕКТЕ ===
+    if(brigadesOnObj.length > 0){
+      h += '<div style="font-size:13px;color:var(--mut);letter-spacing:2px;font-weight:700;margin:18px 4px 10px">👷 БРИГАДЫ НА ОБЪЕКТЕ</div>';
+      
+      brigadesOnObj.forEach(function(b){
+        // Считаем по этой бригаде
+        var bEntries = entries.filter(function(e){return e.brigade===b.id && e.obj===objName;});
+        var bVol = bEntries.filter(function(e){return e.type==='vol';}).reduce(function(s,e){return s+(e.volume||0);},0);
+        var bPaid = bEntries.filter(function(e){return e.type==='expense' && e.cat && e.cat.indexOf('Аванс')>=0;}).reduce(function(s,e){return s+(e.amount||0);},0);
+        
+        // Цвет бригады
+        var brigColor = '#58a6ff';
+        if(b.name.indexOf('Шынгыс')>=0) brigColor = '#7ee787';
+        else if(b.name.indexOf('Нурсултан')>=0) brigColor = '#ffd166';
+        else if(b.name.indexOf('Штатная')>=0) brigColor = '#a371f7';
+        
+        h += '<div onclick="if(typeof openBrigadeDetails===\'function\'){openBrigadeDetails(\''+b.id+'\');}" style="background:#161b22;border:1px solid '+brigColor+'40;border-radius:14px;padding:14px;margin-bottom:10px;cursor:pointer;transition:all .2s" ontouchstart="this.style.background=\'#21262d\'" ontouchend="this.style.background=\'#161b22\'">';
+        
+        h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">';
+        h += '<div>';
+        h += '<div style="font-size:17px;color:'+brigColor+';font-weight:800">'+b.name+'</div>';
+        h += '<div style="font-size:13px;color:var(--mut);margin-top:2px">'+(b.workers||0)+' человек</div>';
+        h += '</div>';
+        h += '<div style="color:'+brigColor+';font-size:24px">›</div>';
+        h += '</div>';
+        
+        // 3 показателя бригады
+        h += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">';
+        
+        h += '<div style="background:#0d1117;border-radius:8px;padding:8px;text-align:center">';
+        h += '<div style="font-size:11px;color:var(--mut);letter-spacing:1px;font-weight:700">ОБЪЁМ</div>';
+        h += '<div style="font-size:16px;color:#e6edf3;font-weight:800;margin-top:3px">'+bVol.toFixed(1)+'</div>';
+        h += '<div style="font-size:11px;color:var(--mut)">м³</div>';
+        h += '</div>';
+        
+        h += '<div style="background:#0d1117;border-radius:8px;padding:8px;text-align:center">';
+        h += '<div style="font-size:11px;color:var(--mut);letter-spacing:1px;font-weight:700">ВЫПЛАЧЕНО</div>';
+        h += '<div style="font-size:16px;color:#e6edf3;font-weight:800;margin-top:3px">'+fmt(bPaid)+'</div>';
+        h += '<div style="font-size:11px;color:var(--mut)">тг</div>';
+        h += '</div>';
+        
+        h += '<div style="background:#0d1117;border-radius:8px;padding:8px;text-align:center">';
+        h += '<div style="font-size:11px;color:var(--mut);letter-spacing:1px;font-weight:700">ОПЕРАЦИЙ</div>';
+        h += '<div style="font-size:16px;color:#e6edf3;font-weight:800;margin-top:3px">'+bEntries.length+'</div>';
+        h += '<div style="font-size:11px;color:var(--mut)">записей</div>';
+        h += '</div>';
+        
+        h += '</div>';
+        
+        h += '</div>';
+      });
+    }
+    
+    // === РАСЦЕНКИ ЗАКАЗЧИКА ===
+    if(custRates.length > 0){
+      h += '<div style="font-size:13px;color:var(--mut);letter-spacing:2px;font-weight:700;margin:18px 4px 10px">💵 РАСЦЕНКИ ЗАКАЗЧИКА</div>';
+      h += '<div style="background:#161b22;border:1px solid var(--brd);border-radius:14px;padding:14px;margin-bottom:10px">';
+      custRates.forEach(function(r, i){
+        h += '<div style="display:flex;justify-content:space-between;padding:8px 0'+(i<custRates.length-1?';border-bottom:1px solid #21262d':'')+';font-size:15px">';
+        h += '<div style="color:#b9c3d0">'+(r.wtype||'?')+'</div>';
+        h += '<div style="color:#7ee787;font-weight:700">'+fmt(r.rate)+' ₸/'+(r.unit||'м³')+'</div>';
+        h += '</div>';
+      });
+      h += '</div>';
+    }
+  });
+  
+  h += '</div>';
+  return h;
+}
+
+// Helper: открыть детали бригады
+if(typeof window.openBrigadeDetails === 'undefined'){
+  window.openBrigadeDetails = function(brigadeId){
+    if(typeof haptic === 'function') haptic('medium');
+    var brig = (S.brigades||[]).find(function(b){return b.id===brigadeId;});
+    if(!brig){
+      if(typeof showToast === 'function') showToast('Бригада не найдена', 'error');
+      return;
+    }
+    
+    var entries = (S.entries||[]).filter(function(e){return e.brigade===brigadeId;});
+    var totalVol = entries.filter(function(e){return e.type==='vol';}).reduce(function(s,e){return s+(e.volume||0);},0);
+    var totalPaid = entries.filter(function(e){return e.type==='expense';}).reduce(function(s,e){return s+(e.amount||0);},0);
+    
+    var msg = '👷 ' + brig.name + '\n\n';
+    msg += '• Рабочих: ' + (brig.workers||0) + '\n';
+    msg += '• Объём выполнен: ' + totalVol.toFixed(1) + ' м³\n';
+    msg += '• Выплачено: ' + (totalPaid).toLocaleString('ru-RU') + ' ₸\n';
+    msg += '• Операций: ' + entries.length + '\n\n';
+    
+    if(brig.prices && Object.keys(brig.prices).length > 0){
+      msg += 'РАСЦЕНКИ:\n';
+      Object.keys(brig.prices).forEach(function(k){
+        msg += '• ' + k + ': ' + (brig.prices[k]||0).toLocaleString('ru-RU') + ' ₸\n';
+      });
+    }
+    alert(msg);
+  };
+}
+
+// ⚙️ ЕЩЁ — плитка всех функций (вместо старой "Об")
+function rMore(){
+  var canEditNow = (typeof canEdit === 'function') ? canEdit() : false;
+  
+  var h = '<div style="padding:20px 16px;font-family:-apple-system,system-ui,sans-serif">';
+  
+  // Заголовок
+  h += '<div style="margin-bottom:20px">';
+  h += '<div style="font-size:28px;color:var(--gold);font-weight:800;letter-spacing:1.5px;font-family:var(--fd)">⚙ ЕЩЁ</div>';
+  h += '<div style="font-size:14px;color:var(--mut);margin-top:4px">Все функции приложения</div>';
+  h += '</div>';
+  
+  // Helper для плитки
+  function tile(icon, color, title, subtitle, onclick){
+    return '<button onclick="'+onclick+'" style="background:#161b22;border:1px solid var(--brd);border-radius:14px;padding:14px 10px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;font-family:-apple-system,system-ui,sans-serif;transition:all .15s;min-height:104px;justify-content:center" ontouchstart="this.style.background=\'#21262d\'" ontouchend="this.style.background=\'#161b22\'">'
+    + '<div style="font-size:34px;line-height:1">'+icon+'</div>'
+    + '<div style="font-size:15px;color:'+color+';font-weight:700;line-height:1.2">'+title+'</div>'
+    + (subtitle ? '<div style="font-size:12px;color:var(--mut);line-height:1.2">'+subtitle+'</div>' : '')
+    + '</button>';
+  }
+  
+  // === ОТЧЁТЫ И ДАННЫЕ ===
+  h += '<div style="font-size:13px;color:var(--mut);letter-spacing:1.5px;font-weight:700;margin:8px 4px 10px">ОТЧЁТЫ И ДАННЫЕ</div>';
+  h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px">';
+  h += tile('📊', '#7ee787', 'Отчёт', 'для партнёров', 'shareDailySummary()');
+  h += tile('📤', '#7ee787', 'Поделиться', 'сводкой', 'shareDailySummary()');
+  h += tile('📋', '#39d3bb', 'Журнал', 'все операции', "setTab('journal')");
+  h += tile('🎯', '#ffd166', 'План', 'недели', "setTab('plan')");
+  h += '</div>';
+  
+  // === УМНЫЕ ВОЗМОЖНОСТИ ===
+  h += '<div style="font-size:13px;color:var(--mut);letter-spacing:1.5px;font-weight:700;margin:8px 4px 10px">УМНЫЕ ВОЗМОЖНОСТИ</div>';
+  h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px">';
+  h += tile('🤖', '#ffd166', 'AI-CFO', 'спросить Claude', 'openAIChat()');
+  h += tile('✨', '#a371f7', 'Возможности', 'KPI · Прогноз', 'openMoreFeatures()');
+  h += tile('🏗', '#39d3bb', 'Объекты', 'настройки', 'openObjectsModal()');
+  h += tile('📦', '#7ee787', 'Бэкап', 'JSON-файл', 'exportJSON()');
+  h += '</div>';
+  
+  // === ЗАЩИТА ДАННЫХ ===
+  h += '<div style="font-size:13px;color:var(--mut);letter-spacing:1.5px;font-weight:700;margin:8px 4px 10px">ЗАЩИТА ДАННЫХ</div>';
+  h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px">';
+  h += tile('🛡', '#39d3bb', 'Защита', 'Снапшоты · Корзина', 'openDataProtection()');
+  if(canEditNow){
+    h += tile('☁️↑', '#7ee787', 'В облако', 'залить локальное', 'forceUploadLocal()');
+  } else {
+    h += tile('☁️', '#8b949e', 'Облако', 'только редактор', 'showToast(\'Доступно учётчице\',\'info\')');
+  }
+  h += '</div>';
+  
+  // === ОБСЛУЖИВАНИЕ ===
+  h += '<div style="font-size:13px;color:var(--mut);letter-spacing:1.5px;font-weight:700;margin:8px 4px 10px">ОБСЛУЖИВАНИЕ</div>';
+  h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px">';
+  h += tile('🔄', '#ffd166', 'Обновить', 'перезагрузить', 'forceReload()');
+  h += tile('🔧', '#a371f7', 'Диагностика', 'облако · версия', 'openDiagnostic()');
+  if(canEditNow){
+    h += tile('⚠️', '#ff7b72', 'Сброс', 'к эталонным', 'resetToClean()');
+  }
+  h += tile('🚪', '#ff7b72', 'Выйти', 'сменить логин', 'doLogout()');
+  h += '</div>';
+  
+  // === Информация о версии (внизу мелким) ===
+  h += '<div style="margin-top:24px;padding:14px;background:#0d1117;border:1px solid var(--brd);border-radius:12px;text-align:center">';
+  h += '<div style="font-size:13px;color:var(--mut)">LIONGATE Construction</div>';
+  h += '<div style="font-size:12px;color:var(--mut);margin-top:4px">Цель: 1 МЛРД $ к 2030</div>';
+  h += '<div style="font-size:12px;color:var(--mut);margin-top:2px">Записей: <b style="color:#e6edf3">'+(S.entries||[]).length+'</b> · Бригад: <b style="color:#e6edf3">'+(S.brigades||[]).length+'</b></div>';
+  h += '</div>';
+  
+  h += '</div>';
+  return h;
+}
+
+// Helper-функции которые могут отсутствовать
+if(typeof window.forceReload === 'undefined'){
+  window.forceReload = function(){
+    if(typeof haptic === 'function') haptic('medium');
+    try {
+      if('serviceWorker' in navigator){
+        navigator.serviceWorker.getRegistrations().then(function(regs){
+          regs.forEach(function(r){r.unregister();});
+        });
+      }
+      if('caches' in window){
+        caches.keys().then(function(keys){
+          keys.forEach(function(k){caches.delete(k);});
+        });
+      }
+    } catch(e){}
+    setTimeout(function(){location.reload(true);}, 300);
+  };
+}
+
+if(typeof window.doLogout === 'undefined'){
+  window.doLogout = function(){
+    if(typeof confirmSafe === 'function' && !confirmSafe('Выйти из приложения и вернуться к экрану входа?')) return;
+    try {
+      localStorage.removeItem('lg_role');
+      sessionStorage.clear();
+    } catch(e){}
+    location.reload();
+  };
+}
+
+if(typeof window.openDiagnostic === 'undefined'){
+  window.openDiagnostic = function(){
+    if(typeof haptic === 'function') haptic('medium');
+    
+    // Делаем проверку Cloudflare
+    var statusText = '⏳ Проверяю облако...';
+    if(typeof showToast === 'function') showToast(statusText, 'info');
+    
+    if(typeof AI_WORKER_URL !== 'undefined' && AI_WORKER_URL){
+      fetch(AI_WORKER_URL.replace(/\/$/,'') + '/api/health', {
+        method: 'GET',
+        headers: {'X-LG-Token': (typeof AI_SHARED_TOKEN !== 'undefined') ? AI_SHARED_TOKEN : ''}
+      }).then(function(r){return r.json();}).then(function(d){
+        var msg = '☁️ Cloudflare Worker\n\n';
+        msg += 'Версия: ' + (d.version || '?') + '\n';
+        msg += 'Время: ' + new Date(d.time || Date.now()).toLocaleString('ru-RU') + '\n\n';
+        if(d.endpoints){
+          msg += '✅ KV хранилище: ' + (d.endpoints.kv ? 'работает' : 'нет') + '\n';
+          msg += '✅ Telegram бот: ' + (d.endpoints.telegram ? 'работает' : 'нет') + '\n';
+          msg += '✅ AI (Claude): ' + (d.endpoints.ai ? 'работает' : 'нет') + '\n';
+        }
+        msg += '\n📱 Приложение\n';
+        msg += 'Записей: ' + (S.entries||[]).length + '\n';
+        msg += 'Бригад: ' + (S.brigades||[]).length + '\n';
+        msg += 'Версия: 4.7\n';
+        alert(msg);
+      }).catch(function(err){
+        alert('❌ Cloudflare недоступен\n\n' + (err.message || err) + '\n\nДанные работают через jsonbin (резерв) и локально.');
+      });
+    } else {
+      alert('Worker URL не настроен. Данные хранятся локально + в jsonbin.');
+    }
+  };
+}
+
+if(typeof window.openObjectsModal === 'undefined'){
+  window.openObjectsModal = function(){
+    if(typeof haptic === 'function') haptic('medium');
+    alert('Управление объектами — пока через настройки.\n\nТекущий объект: ' + (S.objects && S.objects[0] || 'не задан'));
+  };
+}
+
+if(typeof window.exportJSON === 'undefined'){
+  window.exportJSON = function(){
+    if(typeof haptic === 'function') haptic('medium');
+    try {
+      var data = JSON.stringify(S, null, 2);
+      var blob = new Blob([data], {type:'application/json'});
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'LIONGATE_backup_' + new Date().toISOString().slice(0,10) + '.json';
+      a.click();
+      setTimeout(function(){URL.revokeObjectURL(url);}, 1000);
+      if(typeof showToast === 'function') showToast('✅ Бэкап скачан', 'success');
+    } catch(e){
+      alert('Ошибка экспорта: ' + e.message);
+    }
+  };
+}
+
+if(typeof window.openAIChat === 'undefined'){
+  window.openAIChat = function(){
+    if(typeof haptic === 'function') haptic('medium');
+    var q = prompt('Спросите AI-CFO (Claude):\n\nПример: "Хватит ли денег на зарплату?"');
+    if(!q) return;
+    
+    if(typeof AI_WORKER_URL === 'undefined' || !AI_WORKER_URL){
+      alert('AI не настроен');
+      return;
+    }
+    
+    if(typeof showToast === 'function') showToast('🤖 AI думает...', 'info');
+    
+    var C = (typeof calcCo === 'function') ? calcCo() : {};
+    var context = {
+      cash: C.cash, profit: C.profit, expense: C.expense,
+      entries: (S.entries||[]).length
+    };
+    
+    fetch(AI_WORKER_URL.replace(/\/$/,'') + '/api/ask', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-LG-Token': AI_SHARED_TOKEN},
+      body: JSON.stringify({question: q, context: context})
+    }).then(function(r){return r.json();}).then(function(d){
+      alert('🤖 AI-CFO:\n\n' + (d.answer || d.advice || JSON.stringify(d)));
+    }).catch(function(e){
+      alert('❌ ' + e.message);
+    });
+  };
+}
 
 function rHistory(){
   // === НОВЫЙ ЭКРАН "ОБ" — настройки + действия + история ===
@@ -11161,7 +11164,7 @@ document.getElementById('modal').addEventListener('click',function(e){if(e.targe
 // tab-pl → pl (ДЕНЬГИ — переиспользуем P&L)
 // tab-partners → partners (РОСТ — переиспользуем партнёров)
 // tab-history → history (ОБ — настройки)
-['main','plan','pl','partners','history'].forEach(function(t){var el=document.getElementById('tab-'+t);if(el)el.addEventListener('click',function(){setTab(t);});});
+['main','plan','pl','partners','brigades','objects','history','more','journal'].forEach(function(t){var el=document.getElementById('tab-'+t);if(el)el.addEventListener('click',function(){setTab(t);});});
 
 // === AI CHAT (Claude API через Worker) ===
 window.openAIChat = function(){
@@ -11733,7 +11736,7 @@ setInterval(function(){
 
 // === СВАЙП-НАВИГАЦИЯ МЕЖДУ ЭКРАНАМИ ===
 // Свайп влево → следующий экран, свайп вправо → предыдущий
-var SCREENS_ORDER = ['main','plan','pl','partners','brigades','history'];
+var SCREENS_ORDER = ['main','pl','partners','objects','more'];
 var _touchStartX = 0, _touchStartY = 0, _touchMoved = false;
 var contentEl = document.getElementById('content');
 if(contentEl){
