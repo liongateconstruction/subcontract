@@ -1,4 +1,4 @@
-const CACHE = 'liongate-v91-newicon';
+const CACHE = 'liongate-v92-cloudflare-only';
 const ASSETS = ['./', './index.html', './manifest.json', './icon192.png', './icon512.png'];
 
 self.addEventListener('install', function(e) {
