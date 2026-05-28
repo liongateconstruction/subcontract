@@ -15509,33 +15509,60 @@ function showAnalyticsAI(a){
   var el=document.getElementById('analytics-ai-block');
   if(!el || !a) return;
   var h='';
-  // Вердикт
+
+  // Определяем уровень тревоги по тексту вердикта (для цвета)
+  var vtext=(a.verdict||'').toLowerCase();
+  var level='ok', accent='var(--green)', vIcon='\u2705', vlabel='ХОРОШО';
+  if(/критич|тревож|опасн|кризис|разрыв|срочн|угроз|остановк|неплатёж|дефицит/.test(vtext)){
+    level='danger'; accent='var(--red)'; vIcon='\u{1F6A8}'; vlabel='КРИТИЧНО';
+  } else if(/внимани|риск|следить|осторож|снижен|падени|отстава/.test(vtext)){
+    level='warn'; accent='var(--orange)'; vIcon='\u26A0\uFE0F'; vlabel='ВНИМАНИЕ';
+  }
+
+  // ===== ВЕРДИКТ — крупная карточка с цветной полосой слева =====
   if(a.verdict){
-    h+='<div style="background:rgba(163,113,247,.10);border:1px solid var(--purple);border-radius:12px;padding:14px;margin-bottom:12px">';
-    h+='<div style="font-size:13px;color:var(--text);line-height:1.6;font-weight:600">'+escapeHtml(a.verdict)+'</div></div>';
+    h+='<div style="position:relative;background:linear-gradient(135deg,'+accent+'18,'+accent+'08);border-radius:16px;padding:18px 18px 18px 22px;margin-bottom:18px;overflow:hidden">';
+    // цветная полоса слева
+    h+='<div style="position:absolute;left:0;top:0;bottom:0;width:5px;background:'+accent+'"></div>';
+    // метка уровня
+    h+='<div style="display:flex;align-items:center;gap:7px;margin-bottom:10px">';
+    h+='<span style="font-size:16px">'+vIcon+'</span>';
+    h+='<span style="font-size:11px;font-weight:800;letter-spacing:1.5px;color:'+accent+'">'+vlabel+'</span></div>';
+    // текст вердикта — КРУПНЫЙ
+    h+='<div style="font-size:16px;color:var(--text);line-height:1.5;font-weight:600">'+escapeHtml(a.verdict)+'</div>';
+    h+='</div>';
   }
-  // Наблюдения
+
+  // ===== ВАЖНОЕ — карточки с иконками =====
   if(a.points && a.points.length){
-    h+='<div style="font-size:11px;color:var(--mut);letter-spacing:1px;font-weight:700;margin:8px 4px 8px">📌 ВАЖНОЕ</div>';
+    h+='<div style="display:flex;align-items:center;gap:7px;margin:0 2px 12px">';
+    h+='<span style="font-size:16px">\u{1F4CC}</span>';
+    h+='<span style="font-size:13px;color:var(--teal);letter-spacing:1.5px;font-weight:800">ВАЖНОЕ</span></div>';
     a.points.forEach(function(p){
-      h+='<div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid rgba(61,70,85,.25)">';
-      h+='<span style="color:var(--teal);flex-shrink:0">•</span>';
-      h+='<span style="font-size:12px;color:var(--text);line-height:1.5">'+escapeHtml(p)+'</span></div>';
+      h+='<div style="display:flex;gap:12px;background:var(--s2);border-radius:12px;padding:14px;margin-bottom:10px;align-items:flex-start">';
+      h+='<div style="width:8px;height:8px;border-radius:50%;background:var(--teal);flex-shrink:0;margin-top:7px;box-shadow:0 0 8px var(--teal)"></div>';
+      h+='<span style="font-size:14.5px;color:var(--text);line-height:1.55">'+escapeHtml(p)+'</span></div>';
     });
   }
-  // Действия
+
+  // ===== ЧТО ДЕЛАТЬ — карточки с крупными номерами в кружках =====
   if(a.actions && a.actions.length){
-    h+='<div style="font-size:11px;color:var(--mut);letter-spacing:1px;font-weight:700;margin:14px 4px 8px">🎯 ЧТО ДЕЛАТЬ</div>';
+    h+='<div style="display:flex;align-items:center;gap:7px;margin:22px 2px 12px">';
+    h+='<span style="font-size:16px">\u{1F3AF}</span>';
+    h+='<span style="font-size:13px;color:var(--gold);letter-spacing:1.5px;font-weight:800">ЧТО ДЕЛАТЬ</span></div>';
     a.actions.forEach(function(act,i){
-      h+='<div style="display:flex;gap:10px;padding:8px 0">';
-      h+='<span style="color:var(--gold);flex-shrink:0;font-weight:700">'+(i+1)+'.</span>';
-      h+='<span style="font-size:12px;color:var(--text);line-height:1.5">'+escapeHtml(act)+'</span></div>';
+      h+='<div style="display:flex;gap:13px;background:linear-gradient(135deg,rgba(255,179,32,.10),rgba(255,179,32,.03));border:1px solid rgba(255,179,32,.25);border-radius:12px;padding:14px;margin-bottom:10px;align-items:flex-start">';
+      // крупный номер в кружке
+      h+='<div style="width:30px;height:30px;border-radius:50%;background:var(--gold);color:#0d1117;font-family:var(--fd);font-size:17px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0">'+(i+1)+'</div>';
+      h+='<span style="font-size:14.5px;color:var(--text);line-height:1.55;padding-top:3px">'+escapeHtml(act)+'</span></div>';
     });
   }
+
+  // футер
   var ago=Math.round((Date.now()-_analyticsAITime)/60000);
-  h+='<div style="font-size:9px;color:var(--mut);margin-top:12px;display:flex;justify-content:space-between;align-items:center">';
-  h+='<span style="cursor:pointer;color:var(--purple)" onclick="loadAnalyticsAI(true)">↻ обновить анализ</span>';
-  h+='<span>'+(a._local?'локальный · ':'')+(ago<1?'только что':ago+' мин назад')+'</span></div>';
+  h+='<div style="font-size:11px;color:var(--mut);margin-top:16px;display:flex;justify-content:space-between;align-items:center">';
+  h+='<button onclick="loadAnalyticsAI(true)" style="background:rgba(163,113,247,.15);border:1px solid var(--purple);color:var(--purple);border-radius:8px;padding:8px 14px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer">\u21BB Обновить</button>';
+  h+='<span>'+(a._local?'локальный \u00b7 ':'')+(ago<1?'только что':ago+' мин назад')+'</span></div>';
   el.innerHTML=h;
 }
 // ============ КОНЕЦ ИИ-АНАЛИЗА ДАШБОРДА ============
