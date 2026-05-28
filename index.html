@@ -15417,13 +15417,7 @@ function loadAnalyticsAI(force){
     return r.json();
   }).then(function(d){
     _analyticsAILoading=false;
-    // Worker может вернуть в d.advice (строка/массив) или d.text — разбираем гибко
-    var parsed=null;
-    var raw = d.advice || d.text || d.result || d;
-    if(typeof raw==='string'){
-      try{ parsed=JSON.parse(raw.replace(/```json|```/g,'').trim()); }catch(e){ parsed={verdict:raw, points:[], actions:[]}; }
-    } else if(raw && (raw.verdict||raw.points)){ parsed=raw; }
-    else if(Array.isArray(raw)){ parsed={verdict:'', points:raw, actions:[]}; }
+    var parsed=parseAnalyticsResponse(d);
     if(parsed){ _analyticsAICache=parsed; _analyticsAITime=Date.now(); showAnalyticsAI(parsed); }
     else showAnalyticsAIError();
   }).catch(function(){
@@ -15431,6 +15425,33 @@ function loadAnalyticsAI(force){
     // Локальный fallback — простой анализ без ИИ
     showAnalyticsAI(localAnalyticsInsight(burn, wf, spotsInfo, trends));
   });
+}
+
+// Надёжный разбор ответа ИИ (Worker может обернуть JSON в строку/массив/```)
+function parseAnalyticsResponse(d){
+  // 1) Собираем "сырой" текст из любого поля
+  var raw = d;
+  if(d && typeof d==='object'){
+    raw = d.advice!==undefined ? d.advice : (d.text!==undefined ? d.text : (d.result!==undefined ? d.result : d));
+  }
+  // Если массив — склеиваем элементы (часто JSON приходит первым элементом)
+  if(Array.isArray(raw)) raw = raw.join('\n');
+  // Если уже объект с нужными полями — готово
+  if(raw && typeof raw==='object' && (raw.verdict||raw.points||raw.actions)) return raw;
+  // Если строка — ищем JSON внутри
+  if(typeof raw==='string'){
+    var s = raw.replace(/```json/gi,'').replace(/```/g,'').trim();
+    // Пытаемся распарсить целиком
+    try{ var p=JSON.parse(s); if(p&&(p.verdict||p.points||p.actions)) return p; }catch(e){}
+    // Ищем фигурные скобки {...} в тексте
+    var m = s.match(/\{[\s\S]*\}/);
+    if(m){
+      try{ var p2=JSON.parse(m[0]); if(p2&&(p2.verdict||p2.points||p2.actions)) return p2; }catch(e){}
+    }
+    // Не JSON — показываем как простой вердикт
+    if(s.length>0) return {verdict:s, points:[], actions:[]};
+  }
+  return null;
 }
 
 // Локальный анализ (если Worker недоступен)
