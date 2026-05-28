@@ -15400,11 +15400,11 @@ function loadAnalyticsAI(force){
     '• Расходы по категориям: '+topCats+'\n'+
     '• Прогресс по пятнам: '+(spotsInfo.join('; ')||'нет данных')+'\n'+
     '• Тренды (8 недель): темп заливки '+dir(trends.pace)+', выручка '+dir(trends.revenue)+', расход '+dir(trends.expense)+'\n\n'+
-    'Напиши анализ в формате JSON-объекта с полями:\n'+
+    'Напиши анализ СТРОГО в формате JSON-объекта (без markdown, без обратных кавычек, без текста до или после):\n'+
     '{"verdict":"одно предложение — общая оценка ситуации (тревожно/нормально/хорошо и почему)",'+
     '"points":["3-4 важных наблюдения с конкретными цифрами"],'+
     '"actions":["2-3 конкретных действия что делать прямо сейчас"]}\n'+
-    'Пиши по-деловому, коротко, с цифрами. Только JSON, без пояснений.';
+    'ВАЖНО: верни ТОЛЬКО валидный JSON-объект, начинающийся с { и заканчивающийся }. Без пояснений, без ```. Пиши по-деловому, коротко, с цифрами на русском.';
 
   if(typeof aiRateLimit==='function' && !aiRateLimit()){ _analyticsAILoading=false; showAnalyticsAIError(); return; }
 
@@ -15448,9 +15448,34 @@ function parseAnalyticsResponse(d){
     if(m){
       try{ var p2=JSON.parse(m[0]); if(p2&&(p2.verdict||p2.points||p2.actions)) return p2; }catch(e){}
     }
-    // Не JSON — показываем как простой вердикт
+    // РЕЗЕРВ: JSON битый (неэкранированные кавычки) — вытащим поля вручную
+    var extracted=extractFieldsManually(s);
+    if(extracted) return extracted;
+    // Совсем не JSON — показываем как простой вердикт
     if(s.length>0) return {verdict:s, points:[], actions:[]};
   }
+  return null;
+}
+
+// Ручное извлечение verdict/points/actions из битого JSON-текста
+function extractFieldsManually(s){
+  if(s.indexOf('verdict')<0 && s.indexOf('points')<0) return null;
+  var result={verdict:'', points:[], actions:[]};
+  // verdict: "..." — берём до следующего "points" или "actions"
+  var vm=s.match(/"verdict"\s*:\s*"([^"]*(?:\\.[^"]*)*)"/);
+  if(vm) result.verdict=vm[1].replace(/\\"/g,'"');
+  // Извлекаем массивы points и actions
+  function arr(key){
+    var re=new RegExp('"'+key+'"\\s*:\\s*\\[([\\s\\S]*?)\\]');
+    var mm=s.match(re);
+    if(!mm) return [];
+    // Разбиваем по "," между строками в кавычках
+    var items=mm[1].match(/"([^"]*(?:\\.[^"]*)*)"/g)||[];
+    return items.map(function(x){return x.replace(/^"|"$/g,'').replace(/\\"/g,'"').trim();}).filter(function(x){return x.length>0;});
+  }
+  result.points=arr('points');
+  result.actions=arr('actions');
+  if(result.verdict || result.points.length || result.actions.length) return result;
   return null;
 }
 
