@@ -6838,6 +6838,42 @@ function barChartGrouped(groups, h){
   return s;
 }
 
+// Круговая диаграмма-кольцо (donut) для долей/вкладов — чистый SVG
+// segments: [{label, value, color}], size — диаметр
+function donutChart(segments, size, centerLabel, centerValue){
+  size=size||160;
+  var stroke=Math.round(size*0.16); // толщина кольца
+  var r=(size-stroke)/2;
+  var cx=size/2, cy=size/2;
+  var circ=2*Math.PI*r;
+  var total=segments.reduce(function(s,x){return s+Math.max(0,x.value);},0)||1;
+  var offset=0;
+  var svg='<svg width="'+size+'" height="'+size+'" viewBox="0 0 '+size+' '+size+'" style="display:block">';
+  // фоновое кольцо
+  svg+='<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="none" stroke="var(--s2)" stroke-width="'+stroke+'"/>';
+  // сегменты
+  segments.forEach(function(seg){
+    var frac=Math.max(0,seg.value)/total;
+    var len=frac*circ;
+    var gap=circ-len;
+    // dashoffset поворачивает начало; -90deg чтобы стартовать сверху
+    svg+='<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="none" stroke="'+seg.color+'" stroke-width="'+stroke+'" '+
+      'stroke-dasharray="'+len.toFixed(2)+' '+gap.toFixed(2)+'" '+
+      'stroke-dashoffset="'+(-offset).toFixed(2)+'" '+
+      'transform="rotate(-90 '+cx+' '+cy+')" stroke-linecap="butt"/>';
+    offset+=len;
+  });
+  // центр
+  if(centerValue!==undefined){
+    svg+='<text x="'+cx+'" y="'+(cy-2)+'" text-anchor="middle" dominant-baseline="middle" fill="var(--text)" font-size="'+Math.round(size*0.15)+'" font-weight="800" font-family="var(--fd)">'+centerValue+'</text>';
+  }
+  if(centerLabel){
+    svg+='<text x="'+cx+'" y="'+(cy+Math.round(size*0.13))+'" text-anchor="middle" dominant-baseline="middle" fill="var(--mut)" font-size="'+Math.round(size*0.075)+'">'+centerLabel+'</text>';
+  }
+  svg+='</svg>';
+  return svg;
+}
+
 function calcCo(){
   // === НОВАЯ МОДЕЛЬ v2 ===
   // Касса = доход + вложения_в_кассу - расходы_из_кассы - выплаты
@@ -9320,6 +9356,140 @@ function rPartners(){
   
   h += '</div></div>';
   
+
+  // ============= 🥧 БЛОК 1: ДОЛИ И ВКЛАДЫ (круговые диаграммы) =============
+  (function(){
+    // Фактический вклад каждого = свои деньги в дело
+    var contribs=partners.map(function(p){
+      var d=P[p];
+      var ownAdvOut=Math.max(0, d.advanceOut - d.advanceIn);
+      var totalIn=d.invested + d.ownPaid + ownAdvOut;
+      return {label:p, value:totalIn, color:partnerColors[p]||'#8b949e'};
+    });
+    var totalContrib=contribs.reduce(function(s,x){return s+x.value;},0);
+    // Доли — равные 20%
+    var shares=partners.map(function(p){return {label:p, value:20, color:partnerColors[p]||'#8b949e'};});
+
+    h += '<div style="background:var(--sur);border:1px solid var(--brd);border-radius:18px;padding:18px;margin-bottom:18px">';
+    h += '<div style="font-size:13px;color:var(--mut);letter-spacing:2px;font-weight:800;margin-bottom:16px">🥧 ДОЛИ И ВКЛАДЫ</div>';
+
+    // Две диаграммы рядом
+    h += '<div style="display:flex;gap:12px;justify-content:space-around;align-items:center;margin-bottom:16px">';
+    // Доли (равные)
+    h += '<div style="text-align:center;flex:1">';
+    h += donutChart(shares, 130, 'поровну', '20%');
+    h += '<div style="font-size:11px;color:var(--mut);margin-top:8px;font-weight:700">ДОЛИ В КОМПАНИИ</div>';
+    h += '</div>';
+    // Вклады (фактические)
+    h += '<div style="text-align:center;flex:1">';
+    if(totalContrib>0){
+      h += donutChart(contribs, 130, 'всего', (typeof fmtShort==='function'?fmtShort(totalContrib):totalContrib));
+    } else {
+      h += donutChart([{label:'нет',value:1,color:'var(--s2)'}], 130, 'нет', '0');
+    }
+    h += '<div style="font-size:11px;color:var(--mut);margin-top:8px;font-weight:700">ФАКТИЧЕСКИЕ ВКЛАДЫ</div>';
+    h += '</div>';
+    h += '</div>';
+
+    // Легенда — кто сколько вложил vs доля
+    h += '<div style="border-top:1px solid var(--brd);padding-top:12px">';
+    contribs.slice().sort(function(a,b){return b.value-a.value;}).forEach(function(c){
+      var pctContrib=totalContrib>0?Math.round(c.value/totalContrib*100):0;
+      var diff=pctContrib-20; // насколько вклад отличается от равной доли
+      h += '<div style="display:flex;align-items:center;gap:10px;padding:7px 0">';
+      h += '<div style="width:10px;height:10px;border-radius:3px;background:'+c.color+';flex-shrink:0"></div>';
+      h += '<div style="flex:1;font-size:13px;color:var(--text);font-weight:600">'+c.label+'</div>';
+      h += '<div style="font-size:13px;color:var(--text);font-weight:700;font-family:var(--fd)">'+(typeof fmtShort==='function'?fmtShort(c.value):c.value)+'</div>';
+      // Метка дисбаланса
+      if(Math.abs(diff)>=8){
+        var dc=diff>0?'#ffa657':'var(--mut)';
+        h += '<div style="font-size:10px;color:'+dc+';width:54px;text-align:right">'+(diff>0?'+':'')+diff+'% к доле</div>';
+      } else {
+        h += '<div style="font-size:10px;color:var(--mut);width:54px;text-align:right">~ по доле</div>';
+      }
+      h += '</div>';
+    });
+    h += '</div>';
+    h += '</div>';
+  })();
+
+  // ============= 🔄 БЛОК 2: КТО КОМУ ДОЛЖЕН (взаимозачёт) =============
+  (function(){
+    // netBalance > 0 — компания должна партнёру; < 0 — партнёр должен компании
+    var creditors=[], debtors=[];
+    partners.forEach(function(p){
+      var nb=P[p].netBalance;
+      if(nb>1000) creditors.push({name:p, amt:nb, color:partnerColors[p]});
+      else if(nb<-1000) debtors.push({name:p, amt:-nb, color:partnerColors[p]});
+    });
+    if(creditors.length===0 && debtors.length===0) return;
+    creditors.sort(function(a,b){return b.amt-a.amt;});
+    debtors.sort(function(a,b){return b.amt-a.amt;});
+
+    h += '<div style="background:var(--sur);border:1px solid var(--brd);border-radius:18px;padding:18px;margin-bottom:18px">';
+    h += '<div style="font-size:13px;color:var(--mut);letter-spacing:2px;font-weight:800;margin-bottom:6px">🔄 КТО КОМУ ДОЛЖЕН</div>';
+    h += '<div style="font-size:11px;color:var(--mut);margin-bottom:16px">взаиморасчёты с компанией</div>';
+
+    // Компания должна (кредиторы)
+    if(creditors.length>0){
+      h += '<div style="font-size:11px;color:#7ee787;letter-spacing:1px;font-weight:700;margin-bottom:8px">💚 КОМПАНИЯ ДОЛЖНА ВЕРНУТЬ</div>';
+      creditors.forEach(function(c){
+        h += '<div style="display:flex;align-items:center;gap:10px;background:rgba(63,185,80,.08);border-radius:10px;padding:11px 13px;margin-bottom:8px">';
+        h += '<div style="width:34px;height:34px;border-radius:50%;background:'+c.color+'20;border:1.5px solid '+c.color+';display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:15px;font-weight:800;color:'+c.color+'">'+c.name.charAt(0)+'</div>';
+        h += '<div style="flex:1;font-size:14px;color:var(--text);font-weight:600">'+c.name+'</div>';
+        h += '<div style="font-size:16px;color:#7ee787;font-weight:800;font-family:var(--fd)">'+fmt(c.amt)+' ₸</div>';
+        h += '</div>';
+      });
+    }
+    // Должны компании (дебиторы)
+    if(debtors.length>0){
+      h += '<div style="font-size:11px;color:#ffa657;letter-spacing:1px;font-weight:700;margin:14px 0 8px">🟠 ДОЛЖНЫ КОМПАНИИ (подотчёт)</div>';
+      debtors.forEach(function(c){
+        h += '<div style="display:flex;align-items:center;gap:10px;background:rgba(240,136,62,.08);border-radius:10px;padding:11px 13px;margin-bottom:8px">';
+        h += '<div style="width:34px;height:34px;border-radius:50%;background:'+c.color+'20;border:1.5px solid '+c.color+';display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:15px;font-weight:800;color:'+c.color+'">'+c.name.charAt(0)+'</div>';
+        h += '<div style="flex:1;font-size:14px;color:var(--text);font-weight:600">'+c.name+'</div>';
+        h += '<div style="font-size:16px;color:#ffa657;font-weight:800;font-family:var(--fd)">'+fmt(c.amt)+' ₸</div>';
+        h += '</div>';
+      });
+    }
+    h += '</div>';
+  })();
+
+  // ============= 💎 БЛОК 3: РАСПРЕДЕЛЕНИЕ ПРИБЫЛИ =============
+  (function(){
+    var profit = (typeof C !== 'undefined' && C.profit) ? C.profit : 0;
+    var perPartner = profit * 0.20;
+    var goalTotal = (typeof GOAL_TOTAL!=='undefined'?GOAL_TOTAL:820)*1000000;
+    var goalPer = goalTotal*0.20;
+
+    h += '<div style="background:linear-gradient(135deg,rgba(255,179,32,.10),rgba(57,211,187,.05));border:1px solid var(--gold);border-radius:18px;padding:18px;margin-bottom:18px">';
+    h += '<div style="font-size:13px;color:var(--gold);letter-spacing:2px;font-weight:800;margin-bottom:6px">💎 РАСПРЕДЕЛЕНИЕ ПРИБЫЛИ</div>';
+    h += '<div style="font-size:11px;color:var(--mut);margin-bottom:16px">каждому партнёру по 20%</div>';
+
+    // Текущая прибыль на каждого
+    var pc = profit>=0?'#7ee787':'#ff7b72';
+    h += '<div style="display:flex;justify-content:space-between;align-items:center;background:var(--s2);border-radius:12px;padding:14px;margin-bottom:10px">';
+    h += '<div><div style="font-size:11px;color:var(--mut)">Прибыль сейчас</div>';
+    h += '<div style="font-size:20px;color:'+pc+';font-weight:800;font-family:var(--fd)">'+(profit<0?'−':'')+fmt(Math.abs(profit))+' ₸</div></div>';
+    h += '<div style="text-align:right"><div style="font-size:11px;color:var(--mut)">каждому (20%)</div>';
+    h += '<div style="font-size:20px;color:'+pc+';font-weight:800;font-family:var(--fd)">'+(perPartner<0?'−':'')+fmt(Math.abs(Math.round(perPartner)))+' ₸</div></div>';
+    h += '</div>';
+
+    // Цель 2026
+    h += '<div style="display:flex;justify-content:space-between;align-items:center;background:var(--s2);border-radius:12px;padding:14px">';
+    h += '<div><div style="font-size:11px;color:var(--mut)">Цель компании</div>';
+    h += '<div style="font-size:18px;color:var(--gold);font-weight:800;font-family:var(--fd)">'+(typeof fmtShort==='function'?fmtShort(goalTotal):goalTotal)+' ₸</div></div>';
+    h += '<div style="text-align:right"><div style="font-size:11px;color:var(--mut)">мечта каждого</div>';
+    h += '<div style="font-size:18px;color:var(--gold);font-weight:800;font-family:var(--fd)">'+(typeof fmtShort==='function'?fmtShort(goalPer):goalPer)+' ₸</div></div>';
+    h += '</div>';
+
+    if(profit<0){
+      h += '<div style="font-size:11px;color:var(--mut);margin-top:12px;text-align:center;line-height:1.5">Пока компания в убытке — прибыли к распределению нет.<br>Подпишите КС-2 чтобы выручка стала деньгами.</div>';
+    }
+    h += '</div>';
+  })();
+
+
   // ============= КАРТОЧКИ ПАРТНЁРОВ =============
   h += '<div style="font-size:13px;color:var(--mut);letter-spacing:2px;font-weight:800;margin:18px 4px 12px">👥 ПЕРСОНАЛЬНЫЕ БАЛАНСЫ</div>';
   
