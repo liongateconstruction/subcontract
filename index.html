@@ -613,6 +613,9 @@ canvas{display:block;width:100%;border-radius:8px}
     <button class="nb" id="tab-objects">
       <span style="font-size:20px;line-height:1">🏗</span>
       <span>Объекты</span></button>
+    <button class="nb" id="tab-analytics">
+      <span style="font-size:20px;line-height:1">📊</span>
+      <span>Аналитика</span></button>
     <button class="nb" id="tab-more">
       <span style="font-size:20px;line-height:1">⚙</span>
       <span>Ещё</span></button>
@@ -6588,6 +6591,253 @@ function lifecycleSummary(obj){
   return sum;
 }
 
+// ============================================================
+// 📊 АНАЛИТИКА — расчётные функции для дашборда
+// ============================================================
+
+// Burn rate (скорость сжигания денег) + Runway (сколько дней до нуля)
+function calcBurnRate(){
+  var entries=S.entries||[];
+  var today=new Date();
+  // Берём расходы за последние 14 дней
+  var since=new Date(today); since.setDate(since.getDate()-14);
+  var sinceStr=since.toISOString().slice(0,10);
+  var recentExp=0, daysCovered={};
+  entries.forEach(function(e){
+    if(e.type==='expense' && e.date>=sinceStr){
+      recentExp+=(e.amount||0);
+      daysCovered[e.date]=true;
+    }
+  });
+  var activeDays=Math.max(1, Object.keys(daysCovered).length);
+  var burnPerDay=Math.round(recentExp/14); // усреднённо на календарный день
+  var C=(typeof calcCo==='function')?calcCo():{cash:0};
+  var cash=C.cash||0;
+  var runwayDays=burnPerDay>0 ? Math.floor(cash/burnPerDay) : 999;
+  return {burnPerDay:burnPerDay, runwayDays:runwayDays, cash:cash, recentExp:recentExp, period:14};
+}
+
+// Прогресс vs Деньги по пятну (% работ vs % бюджета)
+function progressVsCash(objName, spotId){
+  var meta=(S.objMeta||{})[objName]||{};
+  var sp=(meta.spots||[]).find(function(x){return x.id===spotId;});
+  if(!sp) return null;
+  // Плановый объём пятна (сумма конструкций)
+  var planVol=0;
+  (sp.constructions||[]).forEach(function(c){ planVol+=(c.volume||0); });
+  // Фактически выполнено (любой объём по пятну)
+  var doneVol=0;
+  (S.entries||[]).forEach(function(e){
+    if(e.type!=='vol') return;
+    if(e.spotId!==spotId && e.spot!==spotId && e.zone!==sp.name) return;
+    doneVol+=(e.volume||0);
+  });
+  var progressPct=planVol>0 ? Math.round(doneVol/planVol*100) : 0;
+
+  // === УМНОЕ РАСПРЕДЕЛЕНИЕ РАСХОДОВ ПО ПЯТНУ ===
+  // 1) Прямые расходы (есть spotId/spot/zone == это пятно)
+  // 2) Расходы по бригаде, которая работала на этом пятне → доля по объёму бригады на пятне
+  // 3) Общие расходы (без пятна и бригады) → пропорционально объёму работ пятна
+  var allEntries=(S.entries||[]).filter(function(e){return e.obj===objName;});
+
+  // Объём по каждому пятну (для пропорций)
+  var spotVol={}, totalVol=0;
+  (meta.spots||[]).forEach(function(s){ spotVol[s.id]=0; });
+  allEntries.forEach(function(e){
+    if(e.type!=='vol') return;
+    var sid=e.spotId||e.spot;
+    if(!sid){ // по zone
+      var byName=(meta.spots||[]).find(function(s){return s.name===e.zone;});
+      if(byName) sid=byName.id;
+    }
+    if(sid && spotVol[sid]!==undefined){ spotVol[sid]+=(e.volume||0); totalVol+=(e.volume||0); }
+  });
+
+  // Объём по бригаде на КАЖДОМ пятне (для распределения расходов бригады)
+  function brigVolOnSpot(brigId, sid){
+    var v=0;
+    allEntries.forEach(function(e){
+      if(e.type!=='vol'||e.brigade!==brigId) return;
+      var es=e.spotId||e.spot;
+      if(!es){var bn=(meta.spots||[]).find(function(s){return s.name===e.zone;}); if(bn)es=bn.id;}
+      if(es===sid) v+=(e.volume||0);
+    });
+    return v;
+  }
+  function brigVolTotal(brigId){
+    var v=0;
+    allEntries.forEach(function(e){ if(e.type==='vol'&&e.brigade===brigId) v+=(e.volume||0); });
+    return v;
+  }
+
+  var spent=0;
+  allEntries.forEach(function(e){
+    if(e.type!=='expense') return;
+    var amt=(e.amount||0);
+    // 1) Прямая привязка к пятну
+    var esid=e.spotId||e.spot;
+    if(!esid && e.zone){var bn=(meta.spots||[]).find(function(s){return s.name===e.zone;});if(bn)esid=bn.id;}
+    if(esid){ if(esid===spotId) spent+=amt; return; }
+    // 2) По бригаде — доля объёма этой бригады на нашем пятне
+    if(e.brigade){
+      var bvTotal=brigVolTotal(e.brigade);
+      if(bvTotal>0){
+        var bvSpot=brigVolOnSpot(e.brigade, spotId);
+        spent += amt * (bvSpot/bvTotal);
+        return;
+      }
+      // бригада есть но объёмов нет — упадёт в общие ниже
+    }
+    // 3) Общий расход — пропорционально объёму работ пятна
+    if(totalVol>0){
+      spent += amt * ((spotVol[spotId]||0)/totalVol);
+    }
+  });
+  spent=Math.round(spent);
+
+  // Бюджет пятна = плановая выручка (planVol * ставка заказчика)
+  var rate=0;
+  var cr=(meta.custRates||[]);
+  if(cr.length) rate=cr[0].rate;
+  var budget=planVol*rate;
+  var cashPct=budget>0 ? Math.round(spent/budget*100) : 0;
+  // Здоровье: потрачено сильно больше чем сделано — тревога
+  var health='ok';
+  if(cashPct > progressPct + 20) health='danger';
+  else if(cashPct > progressPct + 8) health='warn';
+  return {planVol:planVol, doneVol:doneVol, progressPct:progressPct, budget:budget, spent:spent, cashPct:cashPct, health:health, name:sp.name};
+}
+
+// Waterfall маржи: выручка → минус категории расходов → прибыль
+function marginWaterfall(objName){
+  var m=(typeof marginObject==='function')?marginObject(objName):{revenue:0,cost:0,profit:0};
+  // Группируем расходы по укрупнённым категориям
+  var cats={'Зарплата':0,'Инструменты':0,'Материалы':0,'Питание':0,'Транспорт':0,'Админ':0,'Прочее':0};
+  (S.entries||[]).forEach(function(e){
+    if(e.type!=='expense') return;
+    if(objName && e.obj!==objName) return;
+    var c=(e.cat||'').toLowerCase();
+    var amt=(e.amount||0);
+    if(c.indexOf('аванс')>=0||c.indexOf('зарплат')>=0) cats['Зарплата']+=amt;
+    else if(c.indexOf('инструмент')>=0||c.indexOf('инвентар')>=0) cats['Инструменты']+=amt;
+    else if(c.indexOf('материал')>=0) cats['Материалы']+=amt;
+    else if(c.indexOf('питание')>=0) cats['Питание']+=amt;
+    else if(c.indexOf('транспорт')>=0||c.indexOf('топлив')>=0) cats['Транспорт']+=amt;
+    else if(c.indexOf('админ')>=0||c.indexOf('связь')>=0) cats['Админ']+=amt;
+    else cats['Прочее']+=amt;
+  });
+  return {revenue:m.revenue, cats:cats, profit:m.profit, cost:m.cost};
+}
+
+// Тренды по неделям (для спарклайнов): касса, темп заливки, расход
+function weeklyTrends(weeks){
+  weeks=weeks||8;
+  var today=new Date();
+  var result={cash:[], pace:[], expense:[], revenue:[], labels:[]};
+  for(var w=weeks-1; w>=0; w--){
+    var end=new Date(today); end.setDate(end.getDate()-w*7);
+    var start=new Date(end); start.setDate(start.getDate()-6);
+    var ss=start.toISOString().slice(0,10), es=end.toISOString().slice(0,10);
+    var exp=0, pace=0, rev=0;
+    (S.entries||[]).forEach(function(e){
+      if(!e.date || e.date<ss || e.date>es) return;
+      if(e.type==='expense') exp+=(e.amount||0);
+      if(e.type==='vol'){
+        var b=(S.brigades||[]).find(function(x){return x.id===e.brigade;});
+        var work=(b?b.work:'').toLowerCase();
+        var isConcrete=work.indexOf('опалубка+бетон')===0||work==='комплекс монолит'||(e.wtype||'').toLowerCase().indexOf('бетон')>=0;
+        if(isConcrete){ pace+=(e.volume||0); rev+=(e.volume||0)*38437.76; }
+      }
+    });
+    result.expense.push(exp);
+    result.pace.push(Math.round(pace*10)/10);
+    result.revenue.push(Math.round(rev));
+    result.labels.push(es.slice(5)); // MM-DD
+  }
+  return result;
+}
+
+// Дебиторка по срокам (aging) — сколько и как давно должен заказчик
+function debtorAging(objName){
+  var lc=(typeof lifecycleSummary==='function')?lifecycleSummary(objName):{totalRev:0,acceptedRev:0,paidRev:0};
+  var debt=lc.totalRev - lc.paidRev;
+  // Пока КС-2 не подписан — срок 0. После подписания считать от acceptedDate
+  return {total:debt, accepted:lc.acceptedRev, unsigned:lc.totalRev-lc.acceptedRev, paid:lc.paidRev};
+}
+
+// SVG спарклайн (мини-график) — чистый SVG без библиотек
+function sparkline(data, color, w, h){
+  w=w||100; h=h||30;
+  if(!data || data.length<2) return '<svg width="'+w+'" height="'+h+'"></svg>';
+  var max=Math.max.apply(null, data), min=Math.min.apply(null, data);
+  var range=max-min||1;
+  var step=w/(data.length-1);
+  var pts=data.map(function(v,i){
+    var x=i*step;
+    var y=h-((v-min)/range)*(h-4)-2;
+    return x.toFixed(1)+','+y.toFixed(1);
+  }).join(' ');
+  var lastX=(data.length-1)*step;
+  var lastY=h-((data[data.length-1]-min)/range)*(h-4)-2;
+  return '<svg width="'+w+'" height="'+h+'" style="display:block">'+
+    '<polyline points="'+pts+'" fill="none" stroke="'+color+'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'+
+    '<circle cx="'+lastX.toFixed(1)+'" cy="'+lastY.toFixed(1)+'" r="2.5" fill="'+color+'"/>'+
+    '</svg>';
+}
+
+// Вертикальные столбики (для сравнения величин: категории, недели когда мало точек)
+// items: [{label, value, color}]
+function barChartV(items, h){
+  h=h||120;
+  if(!items || !items.length) return '';
+  var max=Math.max.apply(null, items.map(function(x){return Math.abs(x.value);}))||1;
+  var barH=h-26; // место под подписи снизу
+  var s='<div style="display:flex;align-items:flex-end;justify-content:space-around;gap:6px;height:'+h+'px">';
+  items.forEach(function(it){
+    var pct=Math.abs(it.value)/max*100;
+    var bh=Math.max(2, pct/100*barH);
+    var col=it.color||'var(--gold)';
+    s+='<div style="flex:1;display:flex;flex-direction:column;align-items:center;height:100%;justify-content:flex-end;min-width:0">';
+    // значение сверху столбика
+    s+='<div style="font-size:9px;color:'+col+';font-weight:700;font-family:var(--fd);margin-bottom:3px;white-space:nowrap">'+(typeof fmtShort==='function'?fmtShort(it.value):it.value)+'</div>';
+    // столбик
+    s+='<div style="width:100%;max-width:38px;height:'+bh+'px;background:'+col+';border-radius:4px 4px 0 0"></div>';
+    // подпись снизу
+    s+='<div style="font-size:8.5px;color:var(--mut);margin-top:5px;text-align:center;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%">'+escapeHtml(it.label)+'</div>';
+    s+='</div>';
+  });
+  s+='</div>';
+  return s;
+}
+
+// Сгруппированные столбики (две серии рядом — для сравнения пятен: работа vs деньги)
+// groups: [{label, bars:[{value,color,name}]}]
+function barChartGrouped(groups, h){
+  h=h||130;
+  if(!groups || !groups.length) return '';
+  var allVals=[];
+  groups.forEach(function(g){g.bars.forEach(function(b){allVals.push(Math.abs(b.value));});});
+  var max=Math.max.apply(null, allVals)||1;
+  var barH=h-30;
+  var s='<div style="display:flex;align-items:flex-end;justify-content:space-around;gap:10px;height:'+h+'px">';
+  groups.forEach(function(g){
+    s+='<div style="flex:1;display:flex;flex-direction:column;align-items:center;height:100%;justify-content:flex-end;min-width:0">';
+    s+='<div style="display:flex;align-items:flex-end;gap:4px;height:'+barH+'px">';
+    g.bars.forEach(function(b){
+      var bh=Math.max(2, Math.abs(b.value)/max*barH);
+      s+='<div style="display:flex;flex-direction:column;align-items:center;justify-content:flex-end">';
+      s+='<div style="font-size:8px;color:'+b.color+';font-weight:700;margin-bottom:2px">'+(b.suffix||'')+'</div>';
+      s+='<div style="width:18px;height:'+bh+'px;background:'+b.color+';border-radius:3px 3px 0 0"></div>';
+      s+='</div>';
+    });
+    s+='</div>';
+    s+='<div style="font-size:9px;color:var(--mut);margin-top:6px;text-align:center;white-space:nowrap">'+escapeHtml(g.label)+'</div>';
+    s+='</div>';
+  });
+  s+='</div>';
+  return s;
+}
+
 function calcCo(){
   // === НОВАЯ МОДЕЛЬ v2 ===
   // Касса = доход + вложения_в_кассу - расходы_из_кассы - выплаты
@@ -7142,7 +7392,7 @@ function objSwitcherHTML(){
   return h;
 }
 var volPeriod='day',volObj='all',volBrig='all';
-function setTab(t){curTab=t;document.querySelectorAll('.nb').forEach(function(b){b.classList.remove('active');});var el=document.getElementById('tab-'+t);if(el)el.classList.add('active');render();}
+function setTab(t){curTab=t;document.querySelectorAll('.nb').forEach(function(b){b.classList.remove('active');});var el=document.getElementById('tab-'+t);if(el)el.classList.add('active');render();if(t==='analytics'&&_analyticsAICache){setTimeout(function(){showAnalyticsAI(_analyticsAICache);},50);}}
 // Защита от моргания — храним последний рендер и не обновляем DOM если HTML не изменился
 window._lastRenderTab = null;
 window._lastRenderHTML = null;
@@ -7161,7 +7411,7 @@ function render(){
   
   var el=document.getElementById('content');
   if(!el)return;
-  var map={main:rMain,pl:rPL,partners:rPartners,brigades:rBrigades,plan:rPlan,journal:rJournal,history:rHistory,more:rMore,objects:rObjects};
+  var map={main:rMain,pl:rPL,partners:rPartners,brigades:rBrigades,plan:rPlan,journal:rJournal,history:rHistory,more:rMore,objects:rObjects,analytics:rAnalytics};
   if(map[curTab]){
     try{
       var newHTML = map[curTab]();
@@ -12476,6 +12726,186 @@ function ks2SignAll(objName){
   if(typeof render==='function') render();
 }
 
+function rAnalytics(){
+  var C=(typeof calcCo==='function')?calcCo():{cash:0,income:0,expense:0,profit:0};
+  var obj=(typeof effCurObj==='function')?effCurObj():'all';
+  var objName=(obj==='all')?null:obj;
+  var burn=calcBurnRate();
+  var wf=marginWaterfall(objName);
+  var trends=weeklyTrends(8);
+  var objs=S.objects||[];
+
+  var h='<div style="padding:16px;font-family:-apple-system,system-ui,sans-serif">';
+
+  // Заголовок
+  h+='<div style="margin-bottom:16px">';
+  h+='<div style="font-size:30px;color:var(--gold);font-weight:800;letter-spacing:2px;font-family:var(--fd)">\u{1F4CA} АНАЛИТИКА</div>';
+  h+='<div style="font-size:14px;color:var(--mut);margin-top:4px">Здоровье · деньги · тренды</div>';
+  h+='</div>';
+
+  // Переключатель объектов (если >1)
+  if(typeof objSwitcherHTML==='function'){ h+=objSwitcherHTML(); }
+
+  // ===== БЛОК 1: ЗДОРОВЬЕ БИЗНЕСА (светофор + runway) =====
+  var runwayColor, runwayIcon, runwayMsg;
+  if(burn.runwayDays>=60){ runwayColor='var(--green)'; runwayIcon='\u{1F7E2}'; runwayMsg='Запас прочности'; }
+  else if(burn.runwayDays>=21){ runwayColor='var(--orange)'; runwayIcon='\u{1F7E1}'; runwayMsg='Следить за кассой'; }
+  else { runwayColor='var(--red)'; runwayIcon='\u{1F534}'; runwayMsg='Срочно нужны деньги'; }
+
+  h+='<div style="background:var(--sur);border:2px solid '+runwayColor+';border-radius:16px;padding:18px;margin-bottom:14px;box-shadow:0 4px 18px '+runwayColor+'22">';
+  h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">';
+  h+='<span style="font-size:18px">'+runwayIcon+'</span>';
+  h+='<span style="font-size:13px;color:var(--mut);letter-spacing:2px;font-weight:800">ЗДОРОВЬЕ БИЗНЕСА</span></div>';
+  h+='<div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:6px">';
+  h+='<div><div style="font-size:11px;color:var(--mut)">Хватит денег на</div>';
+  h+='<div style="font-family:var(--fd);font-size:38px;color:'+runwayColor+';font-weight:800;line-height:1">'+(burn.runwayDays>=999?'∞':burn.runwayDays)+'<span style="font-size:18px"> дней</span></div></div>';
+  h+='<div style="text-align:right"><div style="font-size:11px;color:var(--mut)">'+runwayMsg+'</div></div>';
+  h+='</div>';
+  h+='</div>';
+
+  // ===== БЛОК 2: BURN RATE (скорость трат) =====
+  h+='<div style="background:var(--sur);border:1px solid var(--brd);border-radius:16px;padding:18px;margin-bottom:14px">';
+  h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">';
+  h+='<span style="font-size:13px;color:var(--mut);letter-spacing:2px;font-weight:800">\u{1F525} СКОРОСТЬ ТРАТ</span></div>';
+  h+='<div style="display:flex;justify-content:space-between;align-items:flex-end">';
+  h+='<div><div style="font-family:var(--fd);font-size:30px;color:var(--orange);font-weight:800;line-height:1">'+(typeof fmtShort==='function'?fmtShort(burn.burnPerDay):burn.burnPerDay)+'</div>';
+  h+='<div style="font-size:11px;color:var(--mut);margin-top:3px">в день (среднее за 14 дней)</div></div>';
+  h+='<div style="text-align:right"><div style="font-family:var(--fd);font-size:18px;color:var(--text)">'+(typeof fmtShort==='function'?fmtShort(burn.cash):burn.cash)+' \u20b8</div>';
+  h+='<div style="font-size:10px;color:var(--mut)">в кассе</div></div>';
+  h+='</div>';
+  // спарклайн расходов по неделям
+  h+='<div style="margin-top:12px;display:flex;align-items:center;gap:10px">';
+  h+='<span style="font-size:10px;color:var(--mut)">расход/нед</span>';
+  h+=sparkline(trends.expense, '#f0883e', 200, 36);
+  h+='</div>';
+  h+='</div>';
+
+  // ===== БЛОК 3: WATERFALL МАРЖИ =====
+  h+='<div style="background:var(--sur);border:1px solid var(--brd);border-radius:16px;padding:18px;margin-bottom:14px">';
+  h+='<div style="font-size:13px;color:var(--mut);letter-spacing:2px;font-weight:800;margin-bottom:14px">\u{1F4A7} ОТКУДА ПРИБЫЛЬ (водопад)</div>';
+  // Шкала: максимум = выручка (или сумма расходов если выручки нет)
+  var totalCost=wf.cost||0;
+  var scaleMax=Math.max(wf.revenue, totalCost, 1);
+  function wfBar(label, value, color, isTotal){
+    var pct=Math.min(100, Math.abs(value)/scaleMax*100);
+    var s='<div style="margin-bottom:'+(isTotal?'0':'9px')+'">';
+    s+='<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px">';
+    s+='<span style="color:'+(isTotal?color:'var(--mut)')+';font-weight:'+(isTotal?'800':'600')+'">'+label+'</span>';
+    s+='<span style="color:'+color+';font-weight:700;font-family:var(--fd)">'+(value<0?'\u2212':'')+(typeof fmtShort==='function'?fmtShort(value):Math.abs(value))+'</span></div>';
+    s+='<div style="height:'+(isTotal?'10':'7')+'px;background:var(--s2);border-radius:4px;overflow:hidden">';
+    s+='<div style="height:100%;width:'+pct+'%;background:'+color+';border-radius:4px"></div></div></div>';
+    return s;
+  }
+  h+=wfBar('Выручка (готовое)', wf.revenue, 'var(--teal)', false);
+  // Расходы по категориям (только ненулевые, по убыванию)
+  var catArr=Object.keys(wf.cats).map(function(k){return {name:k,val:wf.cats[k]};}).filter(function(x){return x.val>0;}).sort(function(a,b){return b.val-a.val;});
+  catArr.forEach(function(c){ h+=wfBar('\u2212 '+c.name, -c.val, '#f0883e', false); });
+  // Итог прибыль
+  var profitColor=wf.profit>=0?'var(--green)':'var(--red)';
+  h+='<div style="border-top:1px dashed var(--brd);margin:10px 0 10px;padding-top:10px"></div>';
+  h+=wfBar(wf.profit>=0?'= ПРИБЫЛЬ':'= УБЫТОК', wf.profit, profitColor, true);
+  h+='</div>';
+
+  // ===== БЛОК 3.5: РАСХОДЫ ПО КАТЕГОРИЯМ (столбики — сравнение) =====
+  var catBars=Object.keys(wf.cats).map(function(k){return {label:k,value:wf.cats[k],color:'#f0883e'};}).filter(function(x){return x.value>0;}).sort(function(a,b){return b.value-a.value;}).slice(0,6);
+  if(catBars.length>0){
+    // Топ-категория красным (самая большая трата)
+    catBars[0].color='var(--red)';
+    h+='<div style="background:var(--sur);border:1px solid var(--brd);border-radius:16px;padding:18px;margin-bottom:14px">';
+    h+='<div style="font-size:13px;color:var(--mut);letter-spacing:2px;font-weight:800;margin-bottom:4px">\u{1F4CA} РАСХОДЫ ПО КАТЕГОРИЯМ</div>';
+    h+='<div style="font-size:10px;color:var(--mut);margin-bottom:14px">что больше всего съедает деньги</div>';
+    h+=barChartV(catBars, 130);
+    h+='</div>';
+  }
+
+  // ===== БЛОК 4: ПРОГРЕСС vs ДЕНЬГИ (по пятнам) =====
+  var spotsToShow=[];
+  (objs).forEach(function(o){
+    if(objName && o!==objName) return;
+    var meta=(S.objMeta||{})[o]||{};
+    (meta.spots||[]).forEach(function(sp){
+      var pc=progressVsCash(o, sp.id);
+      if(pc) spotsToShow.push(pc);
+    });
+  });
+  if(spotsToShow.length>0){
+    h+='<div style="background:var(--sur);border:1px solid var(--brd);border-radius:16px;padding:18px;margin-bottom:14px">';
+    h+='<div style="font-size:13px;color:var(--mut);letter-spacing:2px;font-weight:800;margin-bottom:6px">\u{1F4D0} ПРОГРЕСС vs ДЕНЬГИ</div>';
+    h+='<div style="font-size:10px;color:var(--mut);margin-bottom:14px">сколько сделано против сколько потрачено</div>';
+    spotsToShow.forEach(function(pc){
+      var hc=pc.health==='danger'?'var(--red)':(pc.health==='warn'?'var(--orange)':'var(--green)');
+      var hicon=pc.health==='danger'?'\u{1F534}':(pc.health==='warn'?'\u{1F7E1}':'\u{1F7E2}');
+      h+='<div style="margin-bottom:16px">';
+      h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">';
+      h+='<span style="font-size:13px;color:var(--text);font-weight:700">'+escapeHtml(pc.name)+' '+hicon+'</span>';
+      h+='<span style="font-size:11px;color:'+hc+';font-weight:700">'+pc.progressPct+'% работ / '+pc.cashPct+'% денег</span></div>';
+      // Две полоски: прогресс (teal) и деньги (orange)
+      h+='<div style="margin-bottom:4px"><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Готово работ</div>';
+      h+='<div style="height:8px;background:var(--s2);border-radius:4px;overflow:hidden"><div style="height:100%;width:'+Math.min(100,pc.progressPct)+'%;background:var(--teal);border-radius:4px"></div></div></div>';
+      h+='<div><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Потрачено денег</div>';
+      h+='<div style="height:8px;background:var(--s2);border-radius:4px;overflow:hidden"><div style="height:100%;width:'+Math.min(100,pc.cashPct)+'%;background:#f0883e;border-radius:4px"></div></div></div>';
+      h+='</div>';
+    });
+    // Сравнение пятен столбиками рядом (работа% vs деньги%) — если пятен 2+
+    if(spotsToShow.length>=2){
+      h+='<div style="border-top:1px solid var(--brd);margin-top:6px;padding-top:14px">';
+      h+='<div style="font-size:10px;color:var(--mut);margin-bottom:10px;text-align:center">сравнение: <span style="color:var(--teal)">\u25AE</span> работа · <span style="color:#f0883e">\u25AE</span> деньги</div>';
+      var grp=spotsToShow.map(function(pc){
+        return {label:pc.name, bars:[
+          {value:Math.max(pc.progressPct,1), color:'var(--teal)', suffix:pc.progressPct+'%'},
+          {value:Math.max(pc.cashPct,1), color:'#f0883e', suffix:pc.cashPct+'%'}
+        ]};
+      });
+      h+=barChartGrouped(grp, 130);
+      h+='</div>';
+    }
+    h+='</div>';
+  }
+
+  // ===== БЛОК 5: ТРЕНДЫ 8 НЕДЕЛЬ =====
+  h+='<div style="background:var(--sur);border:1px solid var(--brd);border-radius:16px;padding:18px;margin-bottom:14px">';
+  h+='<div style="font-size:13px;color:var(--mut);letter-spacing:2px;font-weight:800;margin-bottom:14px">\u{1F4C8} ТРЕНДЫ 8 НЕДЕЛЬ</div>';
+  function trendRow(label, data, color, unit){
+    var last=data[data.length-1]||0;
+    var prev=data[data.length-2]||0;
+    var arrow=last>prev?'\u2191':(last<prev?'\u2193':'\u2192');
+    var arrowColor=last>prev?'var(--green)':(last<prev?'var(--red)':'var(--mut)');
+    var s='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">';
+    s+='<div style="flex:1"><div style="font-size:11px;color:var(--mut)">'+label+'</div>';
+    s+='<div style="font-family:var(--fd);font-size:16px;color:'+color+'">'+(typeof fmtShort==='function'?fmtShort(last):last)+' '+unit+' <span style="color:'+arrowColor+';font-size:13px">'+arrow+'</span></div></div>';
+    s+='<div style="flex-shrink:0">'+sparkline(data, color, 120, 32)+'</div>';
+    s+='</div>';
+    return s;
+  }
+  h+=trendRow('Темп заливки', trends.pace, 'var(--teal)', 'м³/нед');
+  h+=trendRow('Выручка', trends.revenue, 'var(--green)', '');
+  h+=trendRow('Расход', trends.expense, '#f0883e', '');
+  h+='</div>';
+
+  // ===== БЛОК 6: ДЕБИТОРКА =====
+  var ag=debtorAging(objName);
+  if(ag.total>0 || ag.paid>0){
+    h+='<div style="background:var(--sur);border:1px solid var(--brd);border-radius:16px;padding:18px;margin-bottom:14px">';
+    h+='<div style="font-size:13px;color:var(--mut);letter-spacing:2px;font-weight:800;margin-bottom:14px">\u{1F4B0} ДЕНЬГИ ЗАКАЗЧИКА</div>';
+    h+='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">';
+    h+='<div style="text-align:center"><div style="font-size:10px;color:var(--mut)">НЕ ПОДПИСАНО</div><div style="font-family:var(--fd);font-size:18px;color:var(--orange);font-weight:800;margin-top:4px">'+(typeof fmtShort==='function'?fmtShort(ag.unsigned):ag.unsigned)+'</div></div>';
+    h+='<div style="text-align:center;border-left:1px solid var(--brd);border-right:1px solid var(--brd)"><div style="font-size:10px;color:var(--mut)">ЖДЁМ ОПЛАТУ</div><div style="font-family:var(--fd);font-size:18px;color:var(--red);font-weight:800;margin-top:4px">'+(typeof fmtShort==='function'?fmtShort(ag.total):ag.total)+'</div></div>';
+    h+='<div style="text-align:center"><div style="font-size:10px;color:var(--mut)">ОПЛАЧЕНО</div><div style="font-family:var(--fd);font-size:18px;color:var(--green);font-weight:800;margin-top:4px">'+(typeof fmtShort==='function'?fmtShort(ag.paid):ag.paid)+'</div></div>';
+    h+='</div></div>';
+  }
+
+  // ===== БЛОК 7: 🤖 ИИ-АНАЛИЗ (итог по всем данным) =====
+  h+='<div style="background:linear-gradient(135deg,rgba(163,113,247,.08),rgba(57,211,187,.05));border:1px solid var(--purple);border-radius:16px;padding:18px;margin-bottom:14px">';
+  h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">';
+  h+='<span style="font-size:18px">🤖</span>';
+  h+='<span style="font-size:13px;color:var(--purple);letter-spacing:2px;font-weight:800">ИИ-АНАЛИЗ</span></div>';
+  h+='<div id="analytics-ai-block"><div style="font-size:12px;color:var(--mut);padding:10px;text-align:center">Нажмите чтобы получить анализ от ИИ<br><button onclick="loadAnalyticsAI(true)" style="margin-top:10px;background:var(--purple);border:none;color:#fff;border-radius:8px;padding:9px 18px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer">🤖 Проанализировать</button></div></div>';
+  h+='</div>';
+
+  h+='</div>';
+  return h;
+}
+
 function rMore(){
   var canEditNow = (typeof canEdit === 'function') ? canEdit() : false;
   
@@ -14924,6 +15354,146 @@ function showAIInsight(advice){
   el.innerHTML=h;
 }
 // ============ КОНЕЦ ИИ ПРОГНОЗОВ ============
+
+// ============ 📊 ИИ-АНАЛИЗ ДАШБОРДА ============
+var _analyticsAICache=null, _analyticsAITime=0, _analyticsAILoading=false;
+
+function loadAnalyticsAI(force){
+  if(_analyticsAILoading) return;
+  if(!force && _analyticsAICache && Date.now()-_analyticsAITime<1800000){ showAnalyticsAI(_analyticsAICache); return; }
+  _analyticsAILoading=true;
+  showAnalyticsAILoading();
+
+  // Собираем ВСЕ метрики дашборда
+  var obj=(typeof effCurObj==='function')?effCurObj():'all';
+  var objName=(obj==='all')?null:obj;
+  var burn=calcBurnRate();
+  var wf=marginWaterfall(objName);
+  var trends=weeklyTrends(8);
+
+  // Прогресс по пятнам
+  var spotsInfo=[];
+  (S.objects||[]).forEach(function(o){
+    if(objName && o!==objName) return;
+    var meta=(S.objMeta||{})[o]||{};
+    (meta.spots||[]).forEach(function(sp){
+      var pc=progressVsCash(o, sp.id);
+      if(pc) spotsInfo.push(pc.name+': работ '+pc.progressPct+'%, потрачено '+Math.round(pc.spent/1000)+'тыс ('+pc.cashPct+'% бюджета)');
+    });
+  });
+
+  // Топ-категории расходов
+  var catArr=Object.keys(wf.cats).map(function(k){return {n:k,v:wf.cats[k]};}).filter(function(x){return x.v>0;}).sort(function(a,b){return b.v-a.v;});
+  var topCats=catArr.slice(0,4).map(function(c){return c.n+' '+Math.round(c.v/1000)+'тыс';}).join(', ');
+
+  // Тренды (направление)
+  function dir(arr){var l=arr[arr.length-1]||0,p=arr[arr.length-2]||0;return l>p?'растёт':(l<p?'падает':'ровно');}
+
+  var prompt='Ты опытный финансовый директор строительной компании LIONGATE (Казахстан, монолит, 2026). '+
+    'Проанализируй данные дашборда и напиши краткий деловой разбор для собственника.\n\n'+
+    'ДАННЫЕ ДАШБОРДА:\n'+
+    '• Денег в кассе: '+Math.round(burn.cash/1000)+' тыс ₸\n'+
+    '• Тратим в день: '+Math.round(burn.burnPerDay/1000)+' тыс ₸ (среднее за 14 дней)\n'+
+    '• Хватит денег на: '+(burn.runwayDays>=999?'много':burn.runwayDays+' дней')+'\n'+
+    '• Выручка (готовое): '+Math.round(wf.revenue/1000)+' тыс ₸\n'+
+    '• Прибыль/убыток: '+Math.round(wf.profit/1000)+' тыс ₸\n'+
+    '• Расходы по категориям: '+topCats+'\n'+
+    '• Прогресс по пятнам: '+(spotsInfo.join('; ')||'нет данных')+'\n'+
+    '• Тренды (8 недель): темп заливки '+dir(trends.pace)+', выручка '+dir(trends.revenue)+', расход '+dir(trends.expense)+'\n\n'+
+    'Напиши анализ в формате JSON-объекта с полями:\n'+
+    '{"verdict":"одно предложение — общая оценка ситуации (тревожно/нормально/хорошо и почему)",'+
+    '"points":["3-4 важных наблюдения с конкретными цифрами"],'+
+    '"actions":["2-3 конкретных действия что делать прямо сейчас"]}\n'+
+    'Пиши по-деловому, коротко, с цифрами. Только JSON, без пояснений.';
+
+  if(typeof aiRateLimit==='function' && !aiRateLimit()){ _analyticsAILoading=false; showAnalyticsAIError(); return; }
+
+  fetch(AI_WORKER_URL.replace(/\/$/,'')+'/api/ai-forecast',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','X-LG-Token':AI_SHARED_TOKEN},
+    body:JSON.stringify({prompt:prompt})
+  }).then(function(r){
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    return r.json();
+  }).then(function(d){
+    _analyticsAILoading=false;
+    // Worker может вернуть в d.advice (строка/массив) или d.text — разбираем гибко
+    var parsed=null;
+    var raw = d.advice || d.text || d.result || d;
+    if(typeof raw==='string'){
+      try{ parsed=JSON.parse(raw.replace(/```json|```/g,'').trim()); }catch(e){ parsed={verdict:raw, points:[], actions:[]}; }
+    } else if(raw && (raw.verdict||raw.points)){ parsed=raw; }
+    else if(Array.isArray(raw)){ parsed={verdict:'', points:raw, actions:[]}; }
+    if(parsed){ _analyticsAICache=parsed; _analyticsAITime=Date.now(); showAnalyticsAI(parsed); }
+    else showAnalyticsAIError();
+  }).catch(function(){
+    _analyticsAILoading=false;
+    // Локальный fallback — простой анализ без ИИ
+    showAnalyticsAI(localAnalyticsInsight(burn, wf, spotsInfo, trends));
+  });
+}
+
+// Локальный анализ (если Worker недоступен)
+function localAnalyticsInsight(burn, wf, spotsInfo, trends){
+  var points=[], actions=[], verdict='';
+  if(burn.runwayDays<21){
+    verdict='Тревожно: денег хватит всего на '+burn.runwayDays+' дней при текущих тратах.';
+    actions.push('Срочно подписать КС-2 у заказчика или привлечь заём — касса критична.');
+  } else verdict='Касса под контролем, но прибыль требует внимания.';
+  if(wf.profit<0) points.push('Сейчас убыток '+Math.round(Math.abs(wf.profit)/1000)+' тыс ₸ — расходы выше выручки по готовым работам.');
+  var topCat=Object.keys(wf.cats).map(function(k){return {n:k,v:wf.cats[k]};}).sort(function(a,b){return b.v-a.v;})[0];
+  if(topCat) points.push('Больше всего съедает: '+topCat.n+' ('+Math.round(topCat.v/1000)+' тыс ₸).');
+  points.push('Тратим '+Math.round(burn.burnPerDay/1000)+' тыс ₸ в день.');
+  actions.push('Контролировать пятна где денег потрачено больше чем сделано работ.');
+  return {verdict:verdict, points:points, actions:actions, _local:true};
+}
+
+function showAnalyticsAILoading(){
+  var el=document.getElementById('analytics-ai-block');
+  if(!el) return;
+  el.innerHTML='<div style="display:flex;align-items:center;gap:10px;padding:14px;color:var(--mut);font-size:12px"><span style="font-size:18px">🤖</span> Анализирую данные…</div>';
+}
+function showAnalyticsAIError(){
+  var el=document.getElementById('analytics-ai-block');
+  if(!el) return;
+  el.innerHTML='<div style="font-size:11px;color:var(--mut);padding:14px;text-align:center">ИИ-анализ временно недоступен. <span style="color:var(--purple);cursor:pointer" onclick="loadAnalyticsAI(true)">↻ Повторить</span></div>';
+}
+
+function showAnalyticsAI(a){
+  var el=document.getElementById('analytics-ai-block');
+  if(!el || !a) return;
+  var h='';
+  // Вердикт
+  if(a.verdict){
+    h+='<div style="background:rgba(163,113,247,.10);border:1px solid var(--purple);border-radius:12px;padding:14px;margin-bottom:12px">';
+    h+='<div style="font-size:13px;color:var(--text);line-height:1.6;font-weight:600">'+escapeHtml(a.verdict)+'</div></div>';
+  }
+  // Наблюдения
+  if(a.points && a.points.length){
+    h+='<div style="font-size:11px;color:var(--mut);letter-spacing:1px;font-weight:700;margin:8px 4px 8px">📌 ВАЖНОЕ</div>';
+    a.points.forEach(function(p){
+      h+='<div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid rgba(61,70,85,.25)">';
+      h+='<span style="color:var(--teal);flex-shrink:0">•</span>';
+      h+='<span style="font-size:12px;color:var(--text);line-height:1.5">'+escapeHtml(p)+'</span></div>';
+    });
+  }
+  // Действия
+  if(a.actions && a.actions.length){
+    h+='<div style="font-size:11px;color:var(--mut);letter-spacing:1px;font-weight:700;margin:14px 4px 8px">🎯 ЧТО ДЕЛАТЬ</div>';
+    a.actions.forEach(function(act,i){
+      h+='<div style="display:flex;gap:10px;padding:8px 0">';
+      h+='<span style="color:var(--gold);flex-shrink:0;font-weight:700">'+(i+1)+'.</span>';
+      h+='<span style="font-size:12px;color:var(--text);line-height:1.5">'+escapeHtml(act)+'</span></div>';
+    });
+  }
+  var ago=Math.round((Date.now()-_analyticsAITime)/60000);
+  h+='<div style="font-size:9px;color:var(--mut);margin-top:12px;display:flex;justify-content:space-between;align-items:center">';
+  h+='<span style="cursor:pointer;color:var(--purple)" onclick="loadAnalyticsAI(true)">↻ обновить анализ</span>';
+  h+='<span>'+(a._local?'локальный · ':'')+(ago<1?'только что':ago+' мин назад')+'</span></div>';
+  el.innerHTML=h;
+}
+// ============ КОНЕЦ ИИ-АНАЛИЗА ДАШБОРДА ============
+
 document.addEventListener('DOMContentLoaded',function(){
 document.getElementById('btn-login').addEventListener('click',tryLogin);
 document.getElementById('btn-view').addEventListener('click',viewOnly);
@@ -14997,7 +15567,7 @@ document.getElementById('modal').addEventListener('click',function(e){if(e.targe
 // tab-pl → pl (ДЕНЬГИ — переиспользуем P&L)
 // tab-partners → partners (РОСТ — переиспользуем партнёров)
 // tab-history → history (ОБ — настройки)
-['main','plan','pl','partners','brigades','objects','history','more','journal'].forEach(function(t){var el=document.getElementById('tab-'+t);if(el)el.addEventListener('click',function(){setTab(t);});});
+['main','plan','pl','partners','brigades','objects','analytics','history','more','journal'].forEach(function(t){var el=document.getElementById('tab-'+t);if(el)el.addEventListener('click',function(){setTab(t);});});
 
 // === AI CHAT (Claude API через Worker) ===
 window.openAIChat = function(){
