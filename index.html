@@ -6915,6 +6915,176 @@ function costToComplete(objName){
   return result;
 }
 
+
+// ============================================================
+// 📅 ПРОГНОЗ СРОКОВ — успеваем ли по графику (Schedule vs Actual)
+// ============================================================
+// ============================================================
+// 🔗 ПРИВЯЗКА РАСХОДОВ К ПЯТНАМ — авто-определение
+// ============================================================
+
+// Определить пятно для записи (расхода/объёма) — возвращает {spotId, spotName} или null
+function detectSpotForEntry(e){
+  var objName = e.obj || (S.objects||[])[0] || '';
+  var meta = (S.objMeta||{})[objName] || {};
+  var spots = meta.spots || [];
+  if(!spots.length) return null;
+
+  // 1) Уже привязано явно
+  if(e.spotId){
+    var s0 = spots.find(function(x){return x.id===e.spotId;});
+    if(s0) return {spotId:s0.id, spotName:s0.name};
+  }
+  if(e.spot){
+    var s1 = spots.find(function(x){return x.id===e.spot || x.name===e.spot;});
+    if(s1) return {spotId:s1.id, spotName:s1.name};
+  }
+  if(e.zone){
+    var s2 = spots.find(function(x){return x.name===e.zone;});
+    if(s2) return {spotId:s2.id, spotName:s2.name};
+  }
+
+  // 2) Через связанный объём (linkedId) — если это расход, связанный с объёмом
+  if(e.linkedId){
+    var linkedVol = (S.entries||[]).find(function(x){
+      return x.linkedId===e.linkedId && x.type==='vol' && (x.spotId||x.spot||x.zone);
+    });
+    if(linkedVol){
+      var ls = linkedVol.spotId || linkedVol.spot;
+      var found = spots.find(function(x){return x.id===ls || x.name===linkedVol.zone;});
+      if(found) return {spotId:found.id, spotName:found.name};
+    }
+  }
+
+  // 3) По тексту примечания — ищем "Блок 48", "пятно 49" и т.п.
+  var text = ((e.note||'')+' '+(e.floor||'')+' '+(e.struct||'')).toLowerCase();
+  var hit = null;
+  spots.forEach(function(s){
+    var nm = (s.name||'').toLowerCase();
+    var num = nm.replace(/[^0-9]/g,'');
+    if(nm && text.indexOf(nm)>=0){ hit = s; return; }
+    if(num && (text.indexOf('блок '+num)>=0 || text.indexOf('пятно '+num)>=0 || text.indexOf('блок'+num)>=0 || text.indexOf('пятно'+num)>=0)){ hit = s; }
+  });
+  if(hit) return {spotId:hit.id, spotName:hit.name};
+
+  return null; // не удалось определить — это "общий" расход
+}
+
+// Массовая привязка всех записей к пятнам (одноразовая кнопка)
+function linkAllExpensesToSpots(){
+  if(typeof closeMainMenu==='function') closeMainMenu();
+  var entries = S.entries || [];
+  var linked = 0, already = 0, skipped = 0;
+  entries.forEach(function(e){
+    if(e.type!=='expense' && e.type!=='vol') return;
+    // Уже привязано?
+    if(e.spotId){ already++; return; }
+    var det = detectSpotForEntry(e);
+    if(det){
+      e.spotId = det.spotId;
+      e.spot = det.spotId;
+      e.zone = det.spotName;
+      linked++;
+    } else {
+      skipped++;
+    }
+  });
+  if(linked>0){
+    if(typeof save==='function') save();
+    else if(typeof persist==='function') persist();
+    if(typeof render==='function') render();
+  }
+  var msg = '🔗 ПРИВЯЗКА К ПЯТНАМ\n\n';
+  msg += '✅ Привязано новых: '+linked+'\n';
+  msg += '✔️ Уже были привязаны: '+already+'\n';
+  msg += '⚪ Общие (без пятна): '+skipped+'\n\n';
+  if(linked>0) msg += 'Маржа и прогресс по пятнам теперь точнее!';
+  else msg += 'Новых привязок не найдено. Общие расходы (админ, аванс впрок) распределяются по объёму автоматически.';
+  alert(msg);
+}
+
+function scheduleStatus(objName, spotId){
+  var meta = (S.objMeta||{})[objName] || {};
+  var sp = (meta.spots||[]).find(function(x){return x.id===spotId;});
+  if(!sp || !sp.deadline) return null;
+
+  var now = new Date();
+  var deadline = new Date(sp.deadline);
+  var started = sp.started ? new Date(sp.started) : null;
+
+  // Плановый объём пятна
+  var planVol = 0;
+  (sp.constructions||[]).forEach(function(c){ planVol += (c.volume||0); });
+  if(planVol<=0) return null;
+
+  // Выполнено по пятну
+  var doneVol = 0;
+  var firstWorkDate = null;
+  (S.entries||[]).forEach(function(e){
+    if(e.type!=='vol') return;
+    var s = e.spotId || e.spot || e.zone || '';
+    if(s!==spotId && s!==sp.name) return;
+    doneVol += (e.volume||0);
+    if(e.date && (!firstWorkDate || e.date<firstWorkDate)) firstWorkDate = e.date;
+  });
+
+  var progressPct = Math.round(doneVol/planVol*100);
+  var daysToDeadline = Math.ceil((deadline - now)/86400000);
+
+  // Темп: сколько м³/нед делаем фактически
+  // Считаем от даты старта работ (или первой записи) до сегодня
+  var startWork = started || (firstWorkDate ? new Date(firstWorkDate) : null);
+  var weeksWorked = startWork ? Math.max(0.5, (now - startWork)/(7*86400000)) : 1;
+  var pacePerWeek = doneVol / weeksWorked; // факт темп
+
+  // Где должны быть по графику (линейный план от старта до дедлайна)
+  var expectedPct = 0;
+  if(startWork && deadline > startWork){
+    var totalDays = (deadline - startWork)/86400000;
+    var passedDays = (now - startWork)/86400000;
+    expectedPct = Math.round(Math.min(100, Math.max(0, passedDays/totalDays*100)));
+  }
+
+  // Прогноз даты завершения по текущему темпу
+  var remainVol = Math.max(0, planVol - doneVol);
+  var forecastDate = null, forecastDays = null;
+  if(pacePerWeek > 0.1){
+    var weeksLeft = remainVol / pacePerWeek;
+    forecastDays = Math.ceil(weeksLeft*7);
+    forecastDate = new Date(now.getTime() + forecastDays*86400000);
+  }
+
+  // Нужный темп чтобы успеть к дедлайну
+  var weeksToDeadline = Math.max(0.1, daysToDeadline/7);
+  var neededPace = daysToDeadline>0 ? remainVol/weeksToDeadline : Infinity;
+
+  // Статус: успеваем / отстаём / срыв
+  var status = 'ok';
+  var delayDays = 0;
+  if(forecastDate){
+    delayDays = Math.ceil((forecastDate - deadline)/86400000);
+    if(delayDays > 14) status = 'late';
+    else if(delayDays > 0) status = 'risk';
+  }
+  if(daysToDeadline < 0) status = 'overdue';
+
+  return {
+    name: sp.name,
+    deadline: sp.deadline,
+    daysToDeadline: daysToDeadline,
+    progressPct: progressPct,
+    expectedPct: expectedPct,
+    behindPct: expectedPct - progressPct, // насколько отстаём
+    doneVol: doneVol, planVol: planVol, remainVol: remainVol,
+    pacePerWeek: Math.round(pacePerWeek*10)/10,
+    neededPace: neededPace===Infinity?null:Math.round(neededPace*10)/10,
+    forecastDate: forecastDate,
+    forecastDays: forecastDays,
+    delayDays: delayDays,
+    status: status
+  };
+}
+
 // 2) ПРОГНОЗ КАССОВЫХ РАЗРЫВОВ — кассовый календарь вперёд
 function cashForecast(weeksAhead){
   weeksAhead = weeksAhead || 6;
@@ -7588,6 +7758,9 @@ var curTab='main',searchQ='',fType='all',fObj='all',fSpot='all',fWho='all',fSour
 // Глобальный выбор объекта для Пульса/Денег (когда объектов >1)
 // 'all' = все объекты суммарно, иначе — имя конкретного объекта
 var curObj = (typeof localStorage!=='undefined' && localStorage.getItem('lg_curObj')) || 'all';
+// Drill-down навигация в Объектах: уровни customer → object → (пятна внутри объекта)
+var objNavCustomer = null; // выбранный заказчик (null = показать список заказчиков)
+var objNavObject = null;   // выбранный объект (null = показать объекты заказчика)
 function setCurObj(v){ curObj=v; try{localStorage.setItem('lg_curObj',v);}catch(e){} if(typeof render==='function')render(); }
 // Применимо ли значение — если объект удалён, сбрасываем
 function effCurObj(){
@@ -8914,6 +9087,41 @@ function rMain(){
     });
   }
   
+  // Напоминание об оплате от заказчика (КС-2 подписан, деньги не пришли)
+  (function(){
+    var firstObj=(S.objects||[])[0]||'';
+    if(!firstObj) return;
+    var lc=(typeof lifecycleSummary==='function')?lifecycleSummary(firstObj):{acceptedRev:0,paidRev:0,totalRev:0};
+    // Есть подписанные работы, но оплачено меньше подписанного
+    var awaitingPayment = (lc.acceptedRev||0) - (lc.paidRev||0);
+    if(awaitingPayment > 100000){
+      // сколько дней назад подписан последний акт КС-2
+      var acts=(S.ks2acts||[]).filter(function(a){return a.obj===firstObj;});
+      var daysWait=null;
+      if(acts.length){
+        var lastAct=acts.sort(function(a,b){return (b.date||'').localeCompare(a.date||'');})[0];
+        if(lastAct.date) daysWait=Math.floor((new Date()-new Date(lastAct.date))/86400000);
+      }
+      var custName=((S.objMeta||{})[firstObj]||{}).customer||'Заказчик';
+      alerts.push({
+        icon:'💵',
+        color:'#ffa657',
+        title:'Ждём оплату от '+custName,
+        desc:'КС-2 на '+fmt(awaitingPayment)+' ₸ подписан'+(daysWait!==null?', оплаты нет '+daysWait+' дн':'')+' — напомните заказчику',
+        action:'objects'
+      });
+    } else if((lc.totalRev||0)>500000 && (lc.acceptedRev||0)===0){
+      // Работы есть, но КС-2 вообще не подписан — критичнее
+      alerts.push({
+        icon:'📋',
+        color:'#ff7b72',
+        title:'Подпишите КС-2',
+        desc:'Выполнено на '+fmt(lc.totalRev)+' ₸, но ни один акт не подписан — деньги заморожены',
+        action:'objects'
+      });
+    }
+  })();
+
   // Черновики на сверке (плашка отрисована вверху, сразу после заголовка)
   
   // Тревоги
@@ -12168,26 +12376,165 @@ function deleteKS2Old(id){
 // ============ КОНЕЦ КС-2 ============
 
 // 🏗 ОБЪЕКТЫ — список + детальная информация
+// ============================================================
+// 🏗 ОБЪЕКТЫ — умный drill-down: Заказчик → Объект → Пятна
+// ============================================================
+function objNavReset(){ objNavCustomer=null; objNavObject=null; if(typeof render==='function') render(); }
+function objNavGoCustomer(c){ objNavCustomer=c; objNavObject=null; if(typeof render==='function') render(); }
+function objNavGoObject(o){ objNavObject=o; if(typeof render==='function') render(); }
+
 function rObjects(){
   var objects = S.objects || [];
   var meta = S.objMeta || {};
-  var entries = S.entries || [];
-  var brigades = S.brigades || [];
 
   var h = '<div style="padding:16px;font-family:-apple-system,system-ui,sans-serif">';
 
-  // Заголовок
-  h += '<div style="margin-bottom:16px">';
-  h += '<div style="font-size:30px;color:var(--gold);font-weight:800;letter-spacing:2px;font-family:var(--fd)">\u{1F3D7} ОБЪЕКТЫ</div>';
-  h += '<div style="font-size:14px;color:var(--mut);margin-top:4px">Стройки · деньги · прогресс</div>';
-  h += '</div>';
-
   if(objects.length === 0){
+    h += '<div style="font-size:30px;color:var(--gold);font-weight:800;letter-spacing:2px;font-family:var(--fd);margin-bottom:16px">\u{1F3D7} ОБЪЕКТЫ</div>';
     h += '<div style="text-align:center;padding:40px 20px;color:var(--mut)">Нет объектов</div></div>';
     return h;
   }
 
-  objects.forEach(function(objName, objIdx){
+  // Группируем объекты по заказчикам
+  var byCustomer = {};
+  objects.forEach(function(o){
+    var c = (meta[o]||{}).customer || 'Без заказчика';
+    if(!byCustomer[c]) byCustomer[c]=[];
+    byCustomer[c].push(o);
+  });
+  var customers = Object.keys(byCustomer);
+
+  // === АДАПТИВНОСТЬ: пропускаем пустые уровни ===
+  // Если 1 заказчик — сразу его объекты. Если у заказчика 1 объект — сразу карточка.
+  var effCustomer = objNavCustomer;
+  var effObject = objNavObject;
+  if(customers.length===1 && !effCustomer) effCustomer = customers[0];
+  if(effCustomer){
+    var custObjs = byCustomer[effCustomer]||[];
+    if(custObjs.length===1 && !effObject) effObject = custObjs[0];
+  }
+
+  // === ХЛЕБНЫЕ КРОШКИ ===
+  function crumbs(){
+    var c='<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12px;margin-bottom:14px">';
+    var multiCust = customers.length>1;
+    if(multiCust){
+      c+='<span onclick="objNavReset()" style="color:'+(effCustomer?'var(--blue)':'var(--text)')+';font-weight:700;cursor:pointer">Заказчики</span>';
+    }
+    if(effCustomer){
+      if(multiCust) c+='<span style="color:var(--mut)">\u203A</span>';
+      var custObjs2 = byCustomer[effCustomer]||[];
+      var clickable = custObjs2.length>1;
+      c+='<span '+(clickable?'onclick="objNavGoCustomer(\''+escapeAttr(effCustomer)+'\')"':'')+' style="color:'+(effObject&&clickable?'var(--blue)':'var(--text)')+';font-weight:700;'+(clickable?'cursor:pointer':'')+'">'+escapeHtml(effCustomer)+'</span>';
+    }
+    if(effObject){
+      c+='<span style="color:var(--mut)">\u203A</span>';
+      c+='<span style="color:var(--text);font-weight:700">'+escapeHtml(effObject.split(',')[0])+'</span>';
+    }
+    c+='</div>';
+    return c;
+  }
+
+  // Заголовок
+  h += '<div style="margin-bottom:12px">';
+  h += '<div style="font-size:30px;color:var(--gold);font-weight:800;letter-spacing:2px;font-family:var(--fd)">\u{1F3D7} ОБЪЕКТЫ</div>';
+  h += '</div>';
+  h += crumbs();
+
+  // === УРОВЕНЬ 3: КАРТОЧКА ОБЪЕКТА (пятна, бригады) ===
+  if(effObject){
+    h += renderObjectCard(effObject, 0, [effObject]);
+    h += '</div>';
+    return h;
+  }
+
+  // === УРОВЕНЬ 2: ОБЪЕКТЫ ЗАКАЗЧИКА ===
+  if(effCustomer){
+    var custObjs3 = byCustomer[effCustomer]||[];
+    h += '<div style="font-size:13px;color:var(--mut);letter-spacing:1px;margin-bottom:12px">'+custObjs3.length+' '+(custObjs3.length===1?'объект':'объекта/ов')+'</div>';
+    custObjs3.forEach(function(o){
+      h += objectTile(o);
+    });
+    h += '</div>';
+    return h;
+  }
+
+  // === УРОВЕНЬ 1: ЗАКАЗЧИКИ ===
+  h += '<div style="font-size:14px;color:var(--mut);margin-bottom:14px">Выберите заказчика</div>';
+  customers.forEach(function(c){
+    h += customerTile(c, byCustomer[c]);
+  });
+  h += '</div>';
+  return h;
+}
+
+// Плитка заказчика (уровень 1)
+function customerTile(customer, objList){
+  var totalDebt=0, totalRev=0, totalPaid=0;
+  objList.forEach(function(o){
+    if(typeof customerDebt==='function') totalDebt += customerDebt(o);
+    var lc = (typeof lifecycleSummary==='function') ? lifecycleSummary(o) : {totalRev:0,paidRev:0};
+    totalRev += lc.totalRev||0; totalPaid += lc.paidRev||0;
+  });
+  var h='<div onclick="objNavGoCustomer(\''+escapeAttr(customer)+'\')" style="background:var(--sur);border:1.5px solid var(--gold);border-radius:16px;padding:16px;margin-bottom:12px;cursor:pointer;box-shadow:0 2px 10px rgba(212,175,55,.12)">';
+  h+='<div style="display:flex;align-items:center;gap:12px">';
+  h+='<div style="width:48px;height:48px;border-radius:12px;background:rgba(63,185,80,.15);border:1.5px solid var(--green);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:24px">\u{1F3E2}</div>';
+  h+='<div style="flex:1;min-width:0">';
+  h+='<div style="font-size:17px;color:var(--text);font-weight:800">'+escapeHtml(customer)+'</div>';
+  h+='<div style="font-size:12px;color:var(--mut);margin-top:2px">'+objList.length+' '+(objList.length===1?'объект':'объекта/ов')+'</div>';
+  h+='</div>';
+  h+='<div style="font-size:22px;color:var(--mut)">\u203A</div>';
+  h+='</div>';
+  // мини-сводка денег
+  h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px">';
+  h+='<div style="background:rgba(248,81,73,.08);border-radius:8px;padding:9px;text-align:center"><div style="font-size:9px;color:var(--mut)">ДОЛЖЕН</div><div style="font-family:var(--fd);font-size:15px;color:#f85149;font-weight:800;margin-top:2px">'+(typeof fmtShort==='function'?fmtShort(totalDebt):totalDebt)+'</div></div>';
+  h+='<div style="background:rgba(63,185,80,.08);border-radius:8px;padding:9px;text-align:center"><div style="font-size:9px;color:var(--mut)">ОПЛАЧЕНО</div><div style="font-family:var(--fd);font-size:15px;color:var(--green);font-weight:800;margin-top:2px">'+(typeof fmtShort==='function'?fmtShort(totalPaid):totalPaid)+'</div></div>';
+  h+='</div>';
+  h+='</div>';
+  return h;
+}
+
+// Плитка объекта (уровень 2)
+function objectTile(objName){
+  var meta = (S.objMeta||{})[objName]||{};
+  var spots = meta.spots||[];
+  var lc = (typeof lifecycleSummary==='function') ? lifecycleSummary(objName) : {totalVol:0,totalRev:0};
+  var margin = (typeof marginObject==='function') ? marginObject(objName) : {profit:0,revenue:0,pct:0};
+  var debt = (typeof customerDebt==='function') ? customerDebt(objName) : 0;
+  var planVol=0; spots.forEach(function(s){(s.constructions||[]).forEach(function(c){planVol+=(c.volume||0);});});
+  var volPct = planVol>0?Math.round(lc.totalVol/planVol*100):0;
+  var mColor = margin.profit>=0?'var(--green)':'var(--red)';
+
+  var h='<div onclick="objNavGoObject(\''+escapeAttr(objName)+'\')" style="background:var(--sur);border:1.5px solid var(--gold);border-radius:16px;padding:16px;margin-bottom:12px;cursor:pointer;box-shadow:0 2px 10px rgba(212,175,55,.12)">';
+  h+='<div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:12px">';
+  h+='<div style="font-size:32px;line-height:1">\u{1F3D7}</div>';
+  h+='<div style="flex:1;min-width:0">';
+  h+='<div style="font-size:16px;color:var(--text);font-weight:800;line-height:1.2">'+escapeHtml(objName)+'</div>';
+  h+='<div style="font-size:12px;color:var(--mut);margin-top:3px">\u{1F7E6} '+spots.length+' пятен \u00b7 '+fmtD(lc.totalVol)+' м³ залито</div>';
+  h+='</div>';
+  h+='<div style="font-size:22px;color:var(--mut)">\u203A</div>';
+  h+='</div>';
+  // Прогресс
+  if(planVol>0){
+    h+='<div style="height:6px;background:var(--s2);border-radius:3px;overflow:hidden;margin-bottom:12px"><div style="height:100%;width:'+Math.min(100,Math.max(2,volPct))+'%;background:var(--teal);border-radius:3px"></div></div>';
+  }
+  // Мини-сводка
+  h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
+  h+='<div style="background:var(--bg);border-radius:8px;padding:9px;text-align:center"><div style="font-size:9px;color:var(--mut)">МАРЖА</div><div style="font-family:var(--fd);font-size:15px;color:'+mColor+';font-weight:800;margin-top:2px">'+(margin.profit<0?'\u2212':'')+(typeof fmtShort==='function'?fmtShort(Math.abs(margin.profit)):Math.abs(margin.profit))+'</div></div>';
+  h+='<div style="background:var(--bg);border-radius:8px;padding:9px;text-align:center"><div style="font-size:9px;color:var(--mut)">ДОЛЖЕН ЗАКАЗЧИК</div><div style="font-family:var(--fd);font-size:15px;color:#f85149;font-weight:800;margin-top:2px">'+(typeof fmtShort==='function'?fmtShort(debt):debt)+'</div></div>';
+  h+='</div>';
+  h+='</div>';
+  return h;
+}
+
+function renderObjectCard(objName, objIdx, objects){
+  var meta = S.objMeta || {};
+  var entries = S.entries || [];
+  var brigades = S.brigades || [];
+  objIdx = objIdx || 0;
+  objects = objects || [objName];
+  var h = '';
+  (function(){
     var m = meta[objName] || {};
     var customer = m.customer || '—';
     var spots = m.spots || [];
@@ -12402,6 +12749,57 @@ function rObjects(){
           }
         }
 
+        // === БЛОК СРОКИ — крупно и понятно ===
+        if(typeof scheduleStatus==='function' && spot.id){
+          var sch = scheduleStatus(objName, spot.id);
+          if(sch){
+            var scColor = sch.status==='ok'?'var(--green)':(sch.status==='risk'?'var(--orange)':'var(--red)');
+            var scIcon = sch.status==='ok'?'\u{1F7E2}':(sch.status==='risk'?'\u{1F7E1}':'\u{1F534}');
+            // Главная фраза — человеческим языком
+            var bigMsg='', subMsg='';
+            if(sch.status==='ok' && sch.delayDays<0){
+              bigMsg='Успеваем'; subMsg='опережаем график на '+Math.abs(sch.delayDays)+' дн';
+            } else if(sch.status==='ok'){
+              bigMsg='Идём по графику'; subMsg='в срок до дедлайна';
+            } else if(sch.status==='risk'){
+              bigMsg='Риск задержки'; subMsg='прогноз на '+sch.delayDays+' дн позже срока';
+            } else if(sch.status==='overdue'){
+              bigMsg='Срок прошёл'; subMsg='дедлайн был '+Math.abs(sch.daysToDeadline)+' дн назад';
+            } else {
+              bigMsg='Опаздываем'; subMsg='на '+sch.delayDays+' дн от дедлайна';
+            }
+            var fcText = sch.forecastDate ? sch.forecastDate.toLocaleDateString('ru-RU',{day:'numeric',month:'short'}) : '—';
+            var deadlineText = new Date(sch.deadline).toLocaleDateString('ru-RU',{day:'numeric',month:'short'});
+
+            h += '<div style="margin-top:10px;padding:14px;background:'+scColor+'10;border:1px solid '+scColor+'40;border-radius:12px">';
+            // Заголовок-вердикт крупно
+            h += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">';
+            h += '<span style="font-size:20px">'+scIcon+'</span>';
+            h += '<div><div style="font-size:15px;color:'+scColor+';font-weight:800;line-height:1.1">'+bigMsg+'</div>';
+            h += '<div style="font-size:11px;color:var(--mut);margin-top:2px">'+subMsg+'</div></div>';
+            h += '</div>';
+            // Шкала факт vs график (крупнее)
+            h += '<div style="position:relative;height:12px;background:var(--s2);border-radius:6px;overflow:visible;margin-bottom:6px">';
+            h += '<div style="height:100%;width:'+Math.min(100,Math.max(1,sch.progressPct))+'%;background:var(--teal);border-radius:6px"></div>';
+            h += '<div style="position:absolute;top:-3px;left:'+Math.min(100,sch.expectedPct)+'%;width:3px;height:18px;background:var(--gold);border-radius:2px"></div>';
+            h += '</div>';
+            h += '<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--mut);margin-bottom:12px">';
+            h += '<span><span style="color:var(--teal)">\u25CF</span> сделано '+sch.progressPct+'%</span>';
+            h += '<span><span style="color:var(--gold)">\u258F</span> по графику '+sch.expectedPct+'%</span></div>';
+            // Две крупные плитки: дата готовности + дедлайн
+            h += '<div style="display:flex;gap:8px">';
+            h += '<div style="flex:1;background:var(--bg);border-radius:10px;padding:10px;text-align:center"><div style="font-size:9px;color:var(--mut);letter-spacing:.5px">БУДЕТ ГОТОВО</div><div style="font-family:var(--fd);font-size:16px;color:'+scColor+';font-weight:800;margin-top:3px">'+fcText+'</div></div>';
+            h += '<div style="flex:1;background:var(--bg);border-radius:10px;padding:10px;text-align:center"><div style="font-size:9px;color:var(--mut);letter-spacing:.5px">ДЕДЛАЙН</div><div style="font-family:var(--fd);font-size:16px;color:var(--text);font-weight:800;margin-top:3px">'+deadlineText+'</div></div>';
+            h += '</div>';
+            // Совет по темпу (только если отстаём)
+            if(sch.neededPace && sch.pacePerWeek < sch.neededPace){
+              var boost = Math.round((sch.neededPace/sch.pacePerWeek-1)*100);
+              h += '<div style="margin-top:10px;padding:9px 11px;background:rgba(240,136,62,.12);border-radius:8px;font-size:12px;color:var(--orange);line-height:1.4">\u26A0\uFE0F Ускориться на '+boost+'%: с '+sch.pacePerWeek+' до '+sch.neededPace+' м\u00b3/нед</div>';
+            }
+            h += '</div>';
+          }
+        }
+
         if((spot.constructions||[]).length > 0){
           h += '<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--brd)">';
           spot.constructions.forEach(function(c){
@@ -12454,13 +12852,9 @@ function rObjects(){
       h += '</div></details>';
     }
 
-    // Разделитель между объектами
-    if(objIdx < objects.length-1){
-      h += '<div style="height:1px;background:var(--brd);margin:20px 0"></div>';
-    }
-  });
+    // (разделитель убран — карточка одна)
+  })();
 
-  h += '</div>';
   return h;
 }
 
@@ -13460,6 +13854,7 @@ function rMore(){
   h += tile('🔄', '#ffd166', 'Обновить', 'перезагрузить', 'forceReload()');
   h += tile('🔧', '#a371f7', 'Диагностика', 'облако · версия', 'openDiagnostic()');
   h += tile('📥', '#ffa657', 'Черновики', 'из Telegram', 'checkDraftsNow()');
+  h += tile('🔗', '#39d3bb', 'Привязать', 'расходы к пятнам', 'linkAllExpensesToSpots()');
   if(canEditNow){
     h += tile('⚠️', '#ff7b72', 'Сброс', 'к эталонным', 'resetToClean()');
   }
@@ -17734,6 +18129,11 @@ function confirmDraftGroup(linkedKey){
         if(op.category) entry.cat=op.category;
       }
       if(linkedId) entry.linkedId=linkedId;
+      // АВТО-ПРИВЯЗКА К ПЯТНУ для расходов (объёмы привязываются выше)
+      if(entry.type==='expense' && !entry.spotId && typeof detectSpotForEntry==='function'){
+        var det = detectSpotForEntry(entry);
+        if(det){ entry.spotId=det.spotId; entry.spot=det.spotId; entry.zone=det.spotName; }
+      }
       S.entries.push(entry);
       addedEntryIds.push(entry.id);
       if(!S.history) S.history=[];
