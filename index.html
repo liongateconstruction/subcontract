@@ -12961,6 +12961,7 @@ function rMore(){
   h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px">';
   h += tile('🔄', '#ffd166', 'Обновить', 'перезагрузить', 'forceReload()');
   h += tile('🔧', '#a371f7', 'Диагностика', 'облако · версия', 'openDiagnostic()');
+  h += tile('📥', '#ffa657', 'Черновики', 'из Telegram', 'checkDraftsNow()');
   if(canEditNow){
     h += tile('⚠️', '#ff7b72', 'Сброс', 'к эталонным', 'resetToClean()');
   }
@@ -16645,6 +16646,55 @@ function loadDrafts(silent){
     _drafts=data.drafts;
     render();
   }).catch(function(){});
+}
+
+// Диагностика черновиков — запрос напрямую с сервера + понятный отчёт
+function checkDraftsNow(){
+  if(typeof closeMainMenu==='function') closeMainMenu();
+  if(!AI_WORKER_URL||!AI_SHARED_TOKEN){ alert('⚠️ Облако не настроено'); return; }
+  var t0=Date.now();
+  fetch(AI_WORKER_URL.replace(/\/$/,'')+'/api/drafts',{
+    method:'GET',
+    headers:{'X-LG-Token':AI_SHARED_TOKEN}
+  }).then(function(r){
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    return r.json();
+  }).then(function(data){
+    var ping=Date.now()-t0;
+    var server=(data&&Array.isArray(data.drafts))?data.drafts:[];
+    var blacklisted=server.filter(function(d){return _deletedIds[d.id];}).length;
+    var visible=server.filter(function(d){return !_deletedIds[d.id];});
+    // Обновляем локально сразу
+    _drafts=server;
+    var serverIds={}; server.forEach(function(d){serverIds[d.id]=true;});
+    var cleaned={}; Object.keys(_deletedIds).forEach(function(id){if(serverIds[id])cleaned[id]=true;});
+    _deletedIds=cleaned; localStorage.setItem('lg_deleted_ids',JSON.stringify(_deletedIds));
+    render();
+
+    var msg='📥 ЧЕРНОВИКИ — диагностика\n\n';
+    msg+='✅ Связь с облаком: OK ('+ping+' мс)\n';
+    msg+='📊 Всего на сервере: '+server.length+'\n';
+    msg+='👁 Видимых (новых): '+visible.length+'\n';
+    if(blacklisted>0) msg+='🗑 Скрыто (уже обработаны): '+blacklisted+'\n';
+    msg+='\n';
+    if(visible.length>0){
+      msg+='НОВЫЕ ЧЕРНОВИКИ:\n';
+      visible.slice(0,5).forEach(function(d){
+        var op=d.op||{};
+        var what=op.kind||'?';
+        var amt=op.amount?(' '+op.amount+'₸'):(op.volume?(' '+op.volume+'м³'):'');
+        msg+='• '+what+amt+(op.note?' — '+op.note.slice(0,30):'')+'\n';
+      });
+      msg+='\nОни должны показаться плашкой в Пульсе.';
+      if(!(role==='editor'||(typeof isPartner==='function'&&isPartner()))) msg+='\n\n⚠️ НО: плашка видна только редактору/партнёру. Сейчас вы в режиме просмотра.';
+    } else {
+      msg+='Новых черновиков нет.\n\n';
+      msg+='Если бот в Telegram ответил что записал — \nвозможно операция уже подтверждена и попала в данные (проверьте Журнал), либо бот пишет в другой ключ.';
+    }
+    alert(msg);
+  }).catch(function(e){
+    alert('❌ Не удалось получить черновики\n\nОшибка: '+e.message+'\n\nПроверьте интернет. Worker:\n'+AI_WORKER_URL);
+  });
 }
 
 function startDraftsPolling(){
