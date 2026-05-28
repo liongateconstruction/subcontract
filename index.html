@@ -8552,6 +8552,20 @@ function rMain(){
   h += '<div style="font-size:14px;color:#8b949e;margin-top:4px;text-transform:capitalize">'+today.toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long'})+'</div>';
   h += '</div>';
 
+  // ============= 📥 ЧЕРНОВИКИ НА СВЕРКЕ (самый верх — требуют действия) =============
+  var draftsCount = (typeof _drafts !== 'undefined' && _drafts) ? 
+    _drafts.filter(function(d){return !(typeof _deletedIds !== 'undefined' && _deletedIds[d.id]);}).length : 0;
+  if(draftsCount > 0 && canEditNow){
+    h += '<div onclick="if(typeof openDraftsModal===\'function\')openDraftsModal()" style="background:linear-gradient(90deg,#ffd166,#ffa657);border-radius:14px;padding:14px 16px;margin-bottom:16px;cursor:pointer;display:flex;align-items:center;gap:12px;box-shadow:0 4px 14px rgba(255,179,32,.25)">';
+    h += '<div style="font-size:34px;line-height:1">📥</div>';
+    h += '<div style="flex:1;color:#0d1117">';
+    h += '<div style="font-size:16px;font-weight:800;letter-spacing:.3px">'+draftsCount+' '+(draftsCount===1?'ЧЕРНОВИК':(draftsCount<5?'ЧЕРНОВИКА':'ЧЕРНОВИКОВ'))+' НА СВЕРКЕ</div>';
+    h += '<div style="font-size:13px;opacity:.75;margin-top:2px">от Telegram бота · нажмите чтобы открыть</div>';
+    h += '</div>';
+    h += '<div style="font-size:26px;color:#0d1117;font-weight:800">›</div>';
+    h += '</div>';
+  }
+
   // ============= 5 КФУ — СВЕТОФОРЫ ЯНКОВСКОГО =============
   var iso = isoWeek(today);
   var kfuList = (S.kfu||[]).slice(0,5);
@@ -8678,21 +8692,7 @@ function rMain(){
     });
   }
   
-  // Черновики на сверке
-  var draftsCount = (typeof _drafts !== 'undefined' && _drafts) ? 
-    _drafts.filter(function(d){return !(typeof _deletedIds !== 'undefined' && _deletedIds[d.id]);}).length : 0;
-  
-  if(draftsCount > 0 && canEditNow){
-    // Черновики — отдельной плашкой сверху
-    h += '<div onclick="if(typeof openDraftsModal===\'function\')openDraftsModal()" style="background:linear-gradient(90deg,#ffd166,#ffa657);border-radius:14px;padding:14px 16px;margin-bottom:14px;cursor:pointer;display:flex;align-items:center;gap:12px;box-shadow:0 4px 14px rgba(255,179,32,.25)">';
-    h += '<div style="font-size:34px;line-height:1">📥</div>';
-    h += '<div style="flex:1;color:#0d1117">';
-    h += '<div style="font-size:16px;font-weight:800;letter-spacing:.3px">'+draftsCount+' '+(draftsCount===1?'ЧЕРНОВИК':(draftsCount<5?'ЧЕРНОВИКА':'ЧЕРНОВИКОВ'))+' НА СВЕРКЕ</div>';
-    h += '<div style="font-size:13px;opacity:.75;margin-top:2px">от Telegram бота · нажмите чтобы открыть</div>';
-    h += '</div>';
-    h += '<div style="font-size:26px;color:#0d1117;font-weight:800">›</div>';
-    h += '</div>';
-  }
+  // Черновики на сверке (плашка отрисована вверху, сразу после заголовка)
   
   // Тревоги
   if(alerts.length > 0){
@@ -15181,6 +15181,8 @@ function startApp(){
     render();
     checkSmartAlerts();
     if(typeof updateSyncStamp==='function') updateSyncStamp();
+    // Подтягиваем черновики сразу после данных (чтобы плашка не отставала)
+    if((role==='editor'||(typeof isPartner==='function'&&isPartner()))&&typeof loadDrafts==='function') loadDrafts(true);
   });
   setTimeout(function(){startDraftsPolling();initPushNotifications();},2000);
   setTimeout(function(){if(typeof loadAIForecast==='function')loadAIForecast();},3000);
@@ -16715,7 +16717,10 @@ function startDraftsPolling(){
 
 document.addEventListener('visibilitychange',function(){
   if(!document.hidden&&(role==='editor'||isPartner())&&AI_WORKER_URL){
+    // Надёжное обновление при возврате: сразу + повтор (телефон мог "спать", сеть не готова)
     loadDrafts(false);
+    setTimeout(function(){loadDrafts(false);}, 1500);
+    setTimeout(function(){loadDrafts(false);}, 4000);
   }
 });
 
