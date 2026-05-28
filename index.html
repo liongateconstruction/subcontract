@@ -229,7 +229,7 @@ nav{position:fixed;bottom:0;left:0;right:0;background:rgba(22,27,34,0.97);border
 .rect{font-size:9px;color:var(--mut);text-align:right}
 .ctit{font-size:12px;color:var(--mut);letter-spacing:2px;text-transform:uppercase;margin-bottom:14px;font-weight:700}
 .shdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
-.shdr h2{font-family:var(--fd);font-size:28px;letter-spacing:1px}
+.shdr h2{font-family:var(--fd);font-size:30px;letter-spacing:2px;color:var(--gold)}
 .r2{display:flex;justify-content:space-between;align-items:center;padding:9px 0;font-size:14px}
 .r2 .lb{color:var(--mut);font-size:14px}.r2 .vl{font-weight:700;font-size:15px}
 .divider{border-top:1px solid var(--brd);margin:8px 0}
@@ -1823,7 +1823,7 @@ function _pushCloudLegacy(){
       body:JSON.stringify(snap)
     }).catch(function(){});
   }
-  fetch(BURL,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':AK,'X-Bin-Versioning':'false'},body:JSON.stringify({_modified:S._modified,_schema:S._schema||3,entries:S.entries,brigades:S.brigades,objects:S.objects,objMeta:S.objMeta||{},history:S.history,weeks:S.weeks,kfu:S.kfu,settings:S.settings,goalsDone:S.goalsDone,kzDict:S.kzDict||{},workTypes:S.workTypes||[],subgoals:S.subgoals||[],cycles:S.cycles||{},ks2meta:S.ks2meta||{},ks2acts:S.ks2acts||[]})}).then(function(){ss('OK',false);}).catch(function(){ss('!',true);});
+  fetch(BURL,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':AK,'X-Bin-Versioning':'false'},body:JSON.stringify({_modified:S._modified,_schema:S._schema||3,entries:S.entries,brigades:S.brigades,objects:S.objects,objMeta:S.objMeta||{},history:S.history,weeks:S.weeks,kfu:S.kfu,settings:S.settings,goalsDone:S.goalsDone,kzDict:S.kzDict||{},workTypes:S.workTypes||[],subgoals:S.subgoals||[],cycles:S.cycles||{},ks2meta:S.ks2meta||{},ks2acts:S.ks2acts||[],ks3acts:S.ks3acts||[],directions:S.directions||[],roles:S.roles||[],milestones:S.milestones||[]})}).then(function(){ss('OK',false);}).catch(function(){ss('!',true);});
 }
 
 // Отправка события в архивную группу Telegram (через worker)
@@ -2266,6 +2266,10 @@ function processCloudData(d, cb){
         if(r.subgoals&&Array.isArray(r.subgoals))S.subgoals=r.subgoals;
         if(r.ks2meta)S.ks2meta=r.ks2meta;
         if(r.ks2acts&&Array.isArray(r.ks2acts))S.ks2acts=r.ks2acts;
+        if(r.ks3acts&&Array.isArray(r.ks3acts))S.ks3acts=r.ks3acts;
+        if(r.directions&&Array.isArray(r.directions))S.directions=r.directions;
+        if(r.roles&&Array.isArray(r.roles))S.roles=r.roles;
+        if(r.milestones&&Array.isArray(r.milestones))S.milestones=r.milestones;
         if(r.cycles)S.cycles=r.cycles;
         S._schema=Math.max(S._schema||2, r._schema||2);
         S._modified=remoteTime;
@@ -2299,7 +2303,7 @@ function defState(){return{
 };}
 
 // PRELOADED от 2026-05-25
-var PRELOADED_DATA = {"objects": ["ЖК «Алгабас», Мкр. Нуркент"], "objMeta": {"ЖК «Алгабас», Мкр. Нуркент": {"customer": "Sensata Group", "rates": {}, "custRates": [{"wtype": "Устройство стен", "unit": "м³", "rate": 38437.76}, {"wtype": "Устройство лестничного марша", "unit": "м³", "rate": 38437.76}, {"wtype": "Устройство плиты перекрытия и ригеля", "unit": "м³", "rate": 38437.76}, {"wtype": "Устройство парапета", "unit": "м³", "rate": 38437.76}], "spots": [{"id": "spot_b48", "name": "Блок 48", "deadline": "2026-10-31", "started": "2026-05-20", "completed": null, "constructions": [{"wtype": "Устройство стен", "unit": "м³", "volume": 1027.4, "heights": "-0,100 ÷ +42,850"}, {"wtype": "Устройство лестничного марша", "unit": "м³", "volume": 28.6, "heights": "-0,100 ÷ +40,550"}, {"wtype": "Устройство плиты перекрытия и ригеля", "unit": "м³", "volume": 868.8, "heights": "+4,150 ÷ +40,550"}, {"wtype": "Устройство парапета", "unit": "м³", "volume": 14.1, "heights": "+41,650 ÷ +43,950"}]}, {"id": "spot_b49", "name": "Блок 49", "deadline": "2026-11-30", "started": "2026-05-25", "completed": null, "constructions": [{"wtype": "Устройство стен", "unit": "м³", "volume": 707.5, "heights": "-0,100 ÷ +32,950"}, {"wtype": "Устройство лестничного марша", "unit": "м³", "volume": 20.8, "heights": "-0,100 ÷ +30,650"}, {"wtype": "Устройство плиты перекрытия и ригеля", "unit": "м³", "volume": 619.1, "heights": "+4,150 ÷ +33,150"}, {"wtype": "Устройство парапета", "unit": "м³", "volume": 13.6, "heights": "+31,750 ÷ +34,050"}]}]}}, "settings": {"deadline": "2026-12-31", "totalVol": 48000, "norms": {"Армирование": 0.5, "Опалубка": 0.75, "Бетонирование": 3, "Комплекс": 0.9, "Опалубка+бетон стен": 1.3, "Опалубка+бетон перекрытий": 1.3}, "workDaysPerWeek": 7, "startCash": 0, "startCashDate": ""}, "brigades": [{"id": "b1", "name": "Бригада Шынгыс", "obj": "ЖК «Алгабас», Мкр. Нуркент", "workers": 15, "started": "2026-05-18", "work": "Армирование", "norm": 0.5, "kfu_temp": true, "prices": [{"wtype": "Армирование", "unit": "м³", "rate": 14000}], "people": [], "attendance": {}}, {"id": "b2", "name": "Бригада Нурсултан", "obj": "ЖК «Алгабас», Мкр. Нуркент", "workers": 8, "started": "2026-05-18", "work": "Опалубка+бетон стен", "norm": 1.3, "kfu_temp": true, "prices": [{"wtype": "Опалубка+бетон стен", "unit": "м³", "rate": 12000}], "people": [], "attendance": {}}, {"id": "b3", "name": "Бригада Нуржан", "obj": "ЖК «Алгабас», Мкр. Нуркент", "workers": 8, "started": "2026-05-26", "work": "Опалубка+бетон перекрытий", "norm": 1.3, "kfu_temp": true, "prices": [{"wtype": "Опалубка+бетон перекрытий", "unit": "м³", "rate": 12000}], "people": [], "attendance": {}}, {"id": "b1779712091656", "name": "Штатная", "obj": "ЖК «Алгабас», Мкр. Нуркент", "workers": 1, "started": "2026-05-14", "work": "Разнорабочий", "norm": 0, "dailyRate": 20000, "kfu_temp": false, "prices": [], "people": [], "attendance": {}}], "history": [{"action": "reset_to_clean_v3", "at": "2026-05-25T12:10:29.027Z", "entries": 45}, {"action": "add", "by": "editor", "at": "2026-05-25T12:15:55.747Z", "type": "advance", "amount": 100000}, {"action": "add", "by": "editor", "at": "2026-05-25T12:17:40.539Z", "type": "expense", "amount": 80000}, {"action": "add", "by": "editor", "at": "2026-05-25T12:25:33.313Z", "type": "advance", "amount": 840000, "source": "tg-confirmed"}, {"action": "add", "by": "editor", "at": "2026-05-25T12:25:33.314Z", "type": "vol", "amount": 0, "source": "tg-confirmed"}, {"action": "add", "by": "editor", "at": "2026-05-25T12:27:27.323Z", "type": "advance", "amount": 200000, "source": "tg-confirmed"}, {"action": "add", "by": "editor", "at": "2026-05-25T13:16:19.606Z", "type": "expense", "amount": 840000}, {"action": "edit", "by": "editor", "at": "2026-05-25T13:31:17.807Z", "type": "advance", "amount": 840000}], "weeks": [], "goalsDone": {}, "ks2": [], "kzDict": {}, "workTypes": ["Армирование", "Опалубка", "Бетонирование", "Демонтаж опалубки", "Комплекс монолит", "Штукатурка", "Стяжка пола", "Шпаклёвка", "Покраска", "Кладка кирпича", "Кладка блоков", "Гипсокартон", "Плитка", "Гидроизоляция", "Утепление фасада", "Электромонтаж", "Сантехника", "Сварочные работы", "Кровельные работы", "Разнорабочие", "Уборка", "Демонтаж", "Комплекс"], "kfu": [{"id": 1, "name": "Темп заливки", "owner": "Бекжан", "target": "150 м³/нед", "auto": "temp", "light": 1, "hist": []}, {"id": 2, "name": "Деньги от заказчика", "owner": "Евгений", "target": "оплата КС-2 ≤15 дней", "auto": "money", "light": 1, "hist": []}, {"id": 3, "name": "Качество", "owner": "Нурсултан", "target": "0 переделок", "auto": "quality", "light": 1, "hist": []}, {"id": 4, "name": "Закрытие КС-2", "owner": "Евгений", "target": "акт помесячно", "auto": "ks", "light": 1, "hist": []}, {"id": 5, "name": "Безопасность", "owner": "Бекжан", "target": "0 происшествий, все в СИЗ", "light": 2, "hist": []}], "entries": [{"id": 1001, "date": "2026-05-14", "type": "advance", "amount": 400000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "Выдал Бекжану наличными на расходы"}, {"id": 1002, "date": "2026-05-15", "type": "expense", "amount": 5000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Связь", "note": "Мобильный Бекжана — оплатил Дмитрий напрямую"}, {"id": 1003, "date": "2026-05-16", "type": "expense", "amount": 53100, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Административные", "note": "Смартфон и номер для финансовых операций"}, {"id": 1004, "date": "2026-05-16", "type": "expense", "amount": 150000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Аванс / зарплата рабочим", "brigade": "b1", "note": "Аванс Бригада Шынгыс — перевод"}, {"id": 1005, "date": "2026-05-16", "type": "expense", "amount": 100000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Аванс / зарплата рабочим", "brigade": "b1", "note": "Аванс Бригада Шынгыс — наличные"}, {"id": 1006, "date": "2026-05-16", "type": "expense", "amount": 20000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Транспорт", "note": "Такси Бригада Нурсултан до объекта"}, {"id": 1007, "date": "2026-05-16", "type": "advance", "amount": 20000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Евгений", "note": "Дал Евгению (личное)"}, {"id": 1008, "date": "2026-05-17", "type": "expense", "amount": 70000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Инструменты и инвентарь", "note": "Каски, жилеты, перчатки, диски, молоток, бур"}, {"id": 1009, "date": "2026-05-17", "type": "advance", "amount": 150000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "Выдал Бекжану наличными на расходы"}, {"id": 1010, "date": "2026-05-17", "type": "advance", "amount": 110000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "Проценты за Альфард — личный расход Бекжана"}, {"id": 1012, "date": "2026-05-18", "type": "expense", "amount": 20000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Аванс / зарплата рабочим", "brigade": "b1", "note": "Аванс бригада Шынгыс"}, {"id": 1013, "date": "2026-05-18", "type": "expense", "amount": 54000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Инструменты и инвентарь", "note": "Рации 3 шт × 18 000"}, {"id": 1014, "date": "2026-05-18", "type": "invest", "amount": 170000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "note": "Закинул на счёт компании для оплаты страховки"}, {"id": 1015, "date": "2026-05-18", "type": "expense", "amount": 158100, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "cash", "cat": "Административные", "note": "Страховка компании"}, {"id": 1016, "date": "2026-05-18", "type": "expense", "amount": 4500, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "cash", "cat": "Административные", "note": "Комиссия банка — Оплата К2"}, {"id": 1017, "date": "2026-05-18", "type": "expense", "amount": 1000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "cash", "cat": "Административные", "note": "Комиссия банка — ведение счёта"}, {"id": 1018, "date": "2026-05-18", "type": "expense", "amount": 1000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "cash", "cat": "Административные", "note": "Комиссия банка — Внешний перевод"}, {"id": 1019, "date": "2026-05-19", "type": "expense", "amount": 500000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Аванс / зарплата рабочим", "brigade": "b1", "note": "Аванс наличными бригада Шынгыс"}, {"id": 1020, "date": "2026-05-19", "type": "expense", "amount": 400000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Аванс / зарплата рабочим", "brigade": "b2", "note": "Аванс наличными бригада Нурсултан"}, {"id": 1021, "date": "2026-05-19", "type": "expense", "amount": 25135, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Административные", "note": "Обед с заказчиками"}, {"id": 1022, "date": "2026-05-19", "type": "expense", "amount": 2000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Административные", "note": "Напитки заказчики на объекте"}, {"id": 1023, "date": "2026-05-19", "type": "expense", "amount": 7000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "own", "cat": "Инструменты и инвентарь", "note": "Перчатки 2 пачки, молотки 2 шт"}, {"id": 1024, "date": "2026-05-19", "type": "advance", "amount": 198000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Евгений", "note": "Дал Евгению (личное)"}, {"id": 1025, "date": "2026-05-20", "type": "expense", "amount": 80000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Инструменты и инвентарь", "note": "Пояс монтажный 8 шт"}, {"id": 1026, "date": "2026-05-20", "type": "advance", "amount": 100000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "На расходы Бекжан"}, {"id": 1027, "date": "2026-05-21", "type": "expense", "amount": 65000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Инструменты и инвентарь", "note": "Перчатка, перфоратор, бензин"}, {"id": 1028, "date": "2026-05-21", "type": "advance", "amount": 100000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "Бекжану на расходы"}, {"id": 1029, "date": "2026-05-22", "type": "expense", "amount": 45000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Инструменты и инвентарь", "note": "Вибратор"}, {"id": 1030, "date": "2026-05-22", "type": "expense", "amount": 10000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Материалы", "note": "Дождевик 5 шт"}, {"id": 1031, "date": "2026-05-22", "type": "expense", "amount": 8000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Топливо", "note": "Заправка бензина"}, {"id": 1032, "date": "2026-05-22", "type": "advance", "amount": 10000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Нурсултан", "note": "Нурсултану на личные"}, {"id": 1033, "date": "2026-05-22", "type": "advance", "amount": 75000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "Бекжану на расход отправил"}, {"id": 1034, "date": "2026-05-23", "type": "expense", "amount": 15200, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Евгений", "paySource": "advance", "cat": "Административные", "note": "Бургеры, кола, картофель фри (из подотчётных)"}, {"id": 1035, "date": "2026-05-23", "type": "advance", "amount": 100000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "На барана"}, {"id": 1036, "date": "2026-05-23", "type": "advance", "amount": 50000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Евгений", "to": "Бекжан", "note": "На барана, салаты, напитки"}, {"id": 1037, "date": "2026-05-23", "type": "advance", "amount": 60000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "На расход Шынгыс"}, {"id": 1038, "date": "2026-05-23", "type": "advance", "amount": 30000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "На расход разнорабочий"}, {"id": 1039, "date": "2026-05-23", "type": "expense", "amount": 10000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Топливо", "note": "Бензин"}, {"id": 1040, "date": "2026-05-23", "type": "advance", "amount": 25000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "На напитки"}, {"id": 1041, "date": "2026-05-23", "type": "expense", "amount": 26000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Питание", "note": "Картошка, яблоки, бананы, помидоры, огурцы"}, {"id": 1042, "date": "2026-05-23", "type": "expense", "amount": 105000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Питание", "note": "Баран"}, {"id": 1043, "date": "2026-05-23", "type": "expense", "amount": 3000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Транспорт", "note": "Такси"}, {"id": 1044, "date": "2026-05-23", "type": "expense", "amount": 34000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Питание", "note": "Напитки, пирожное, пирожки"}, {"id": 1045, "date": "2026-05-23", "type": "expense", "amount": 60000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Аванс / зарплата рабочим", "brigade": "b1", "note": "Аванс"}, {"id": 1046, "date": "2026-05-23", "type": "expense", "amount": 30000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Аванс / зарплата рабочим", "note": "Аванс разнорабочий"}, {"id": 1779711355747, "date": "2026-05-25", "type": "advance", "amount": 100000, "note": "Дал Бекжану аванс 100000 бригада Нурсултан", "from": "Дмитрий", "to": "Бекжан", "obj": "ЖК «Алгабас», Мкр. Нуркент"}, {"id": 1779711460539, "date": "2026-05-25", "type": "expense", "amount": 80000, "note": "Аванс", "obj": "ЖК «Алгабас», Мкр. Нуркент", "cat": "Аванс / зарплата рабочим", "who": "Бекжан", "paySource": "advance", "brigade": "b2"}, {"id": 1779711941102, "date": "2026-05-25", "amount": 840000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "note": "з/п за Блок 48 третий этаж отметка 7.550 стена Бригада Нурсултан", "source": "telegram", "tgAuthor": "Дмитрий Хегай", "type": "advance", "linkedId": "tg_lk1779711680923", "from": "Дмитрий", "to": "Бекжан"}, {"id": 1779711941097, "date": "2026-05-25", "amount": 0, "obj": "ЖК «Алгабас», Мкр. Нуркент", "note": "Залили 114,5 куб бетон", "source": "telegram", "tgAuthor": "Дмитрий Хегай", "type": "vol", "volume": 114.5, "unit": "м³", "wtype": "Опалубка+бетон стен", "brigade": "b2", "amountPending": true, "linkedId": "tg_lk1779711680923"}, {"id": 1779712051286, "date": "2026-05-25", "amount": 200000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "note": "лично", "source": "telegram", "tgAuthor": "Дмитрий Хегай", "type": "advance", "from": "Дмитрий", "to": "Бекжан"}, {"id": 1779714979606, "date": "2026-05-25", "type": "expense", "amount": 840000, "note": "840000 нал Бекжану дал з/п за Блок 48 третий этаж отметка  7.550 стена Бригада Нурсултан залили 114,5 куб бетон остаток долга «54000» обьем больше получился 114,5 м3", "obj": "ЖК «Алгабас», Мкр. Нуркент", "cat": "Аванс / зарплата рабочим", "who": "Бекжан", "paySource": "advance", "brigade": "b2"}, {"id": 1779714979607, "date": "2026-05-26", "type": "expense", "amount": 10000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Евгений", "paySource": "advance", "cat": "Административные", "note": "Закуп журналов"}, {"id": 1779714979608, "date": "2026-05-26", "type": "expense", "amount": 48500, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Инструменты и инвентарь", "note": "лазер перчатка намордник шлифовочный диск очки маленький болгарка"}, {"id": 1779714979609, "date": "2026-05-26", "type": "advance", "amount": 60000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "на инструменты 60000"}, {"id": 1779895004208, "date": "2026-05-26", "type": "expense", "amount": 710000, "note": "расчет за армирование 3 этаж отметка 7550 пятно 49 бригада Шынгыс", "obj": "ЖК «Алгабас», Мкр. Нуркент", "cat": "Аванс / зарплата рабочим", "who": "Бекжан", "paySource": "advance", "brigade": "b1"}, {"id": 1779895064281, "date": "2026-05-26", "type": "advance", "amount": 710000, "note": "Бекжану дал расчет за армирование 3 этаж отметка 7550 пятно 49 бригада Шынгыс", "from": "Дмитрий", "to": "Бекжан", "obj": "ЖК «Алгабас», Мкр. Нуркент"}, {"id": 1779895202221, "date": "2026-05-26", "type": "advance", "amount": 500000, "note": "Аванс бригада Нуржан плотники 500000 через Бекжана", "from": "Дмитрий", "to": "Бекжан", "obj": "ЖК «Алгабас», Мкр. Нуркент"}], "_schema": 3, "_resetAt": "2026-05-25T12:10:29.027Z", "_modified": 1779964087549, "_preloaded": true};
+var PRELOADED_DATA = {"objects": ["ЖК «Алгабас», Мкр. Нуркент"], "objMeta": {"ЖК «Алгабас», Мкр. Нуркент": {"customer": "Sensata Group", "rates": {}, "custRates": [{"wtype": "Устройство стен", "unit": "м³", "rate": 38437.76}, {"wtype": "Устройство лестничного марша", "unit": "м³", "rate": 38437.76}, {"wtype": "Устройство плиты перекрытия и ригеля", "unit": "м³", "rate": 38437.76}, {"wtype": "Устройство парапета", "unit": "м³", "rate": 38437.76}], "spots": [{"id": "spot_b48", "name": "Блок 48", "deadline": "2026-10-31", "started": "2026-05-20", "completed": null, "constructions": [{"wtype": "Устройство стен", "unit": "м³", "volume": 1027.4, "heights": "-0,100 ÷ +42,850"}, {"wtype": "Устройство лестничного марша", "unit": "м³", "volume": 28.6, "heights": "-0,100 ÷ +40,550"}, {"wtype": "Устройство плиты перекрытия и ригеля", "unit": "м³", "volume": 868.8, "heights": "+4,150 ÷ +40,550"}, {"wtype": "Устройство парапета", "unit": "м³", "volume": 14.1, "heights": "+41,650 ÷ +43,950"}]}, {"id": "spot_b49", "name": "Блок 49", "deadline": "2026-11-30", "started": "2026-05-25", "completed": null, "constructions": [{"wtype": "Устройство стен", "unit": "м³", "volume": 707.5, "heights": "-0,100 ÷ +32,950"}, {"wtype": "Устройство лестничного марша", "unit": "м³", "volume": 20.8, "heights": "-0,100 ÷ +30,650"}, {"wtype": "Устройство плиты перекрытия и ригеля", "unit": "м³", "volume": 619.1, "heights": "+4,150 ÷ +33,150"}, {"wtype": "Устройство парапета", "unit": "м³", "volume": 13.6, "heights": "+31,750 ÷ +34,050"}]}]}}, "settings": {"deadline": "2026-12-31", "totalVol": 48000, "norms": {"Армирование": 0.5, "Опалубка": 0.75, "Бетонирование": 3, "Комплекс": 0.9, "Опалубка+бетон стен": 1.3, "Опалубка+бетон перекрытий": 1.3}, "workDaysPerWeek": 7, "startCash": 0, "startCashDate": ""}, "brigades": [{"id": "b1", "name": "Бригада Шынгыс", "obj": "ЖК «Алгабас», Мкр. Нуркент", "workers": 15, "started": "2026-05-18", "work": "Армирование", "norm": 0.5, "kfu_temp": true, "prices": [{"wtype": "Армирование", "unit": "м³", "rate": 14000}], "people": [], "attendance": {}}, {"id": "b2", "name": "Бригада Нурсултан", "obj": "ЖК «Алгабас», Мкр. Нуркент", "workers": 8, "started": "2026-05-18", "work": "Опалубка+бетон стен", "norm": 1.3, "kfu_temp": true, "prices": [{"wtype": "Опалубка+бетон стен", "unit": "м³", "rate": 12000}], "people": [], "attendance": {}}, {"id": "b3", "name": "Бригада Нуржан", "obj": "ЖК «Алгабас», Мкр. Нуркент", "workers": 8, "started": "2026-05-26", "work": "Опалубка+бетон перекрытий", "norm": 1.3, "kfu_temp": true, "prices": [{"wtype": "Опалубка+бетон перекрытий", "unit": "м³", "rate": 12000}], "people": [], "attendance": {}}, {"id": "b1779712091656", "name": "Штатная", "obj": "ЖК «Алгабас», Мкр. Нуркент", "workers": 1, "started": "2026-05-14", "work": "Разнорабочий", "norm": 0, "dailyRate": 20000, "kfu_temp": false, "prices": [], "people": [], "attendance": {}}], "history": [{"action": "reset_to_clean_v3", "at": "2026-05-25T12:10:29.027Z", "entries": 45}, {"action": "add", "by": "editor", "at": "2026-05-25T12:15:55.747Z", "type": "advance", "amount": 100000}, {"action": "add", "by": "editor", "at": "2026-05-25T12:17:40.539Z", "type": "expense", "amount": 80000}, {"action": "add", "by": "editor", "at": "2026-05-25T12:25:33.313Z", "type": "advance", "amount": 840000, "source": "tg-confirmed"}, {"action": "add", "by": "editor", "at": "2026-05-25T12:25:33.314Z", "type": "vol", "amount": 0, "source": "tg-confirmed"}, {"action": "add", "by": "editor", "at": "2026-05-25T12:27:27.323Z", "type": "advance", "amount": 200000, "source": "tg-confirmed"}, {"action": "add", "by": "editor", "at": "2026-05-25T13:16:19.606Z", "type": "expense", "amount": 840000}, {"action": "edit", "by": "editor", "at": "2026-05-25T13:31:17.807Z", "type": "advance", "amount": 840000}], "weeks": [], "goalsDone": {}, "ks2": [], "kzDict": {}, "workTypes": ["Армирование", "Опалубка", "Бетонирование", "Демонтаж опалубки", "Комплекс монолит", "Штукатурка", "Стяжка пола", "Шпаклёвка", "Покраска", "Кладка кирпича", "Кладка блоков", "Гипсокартон", "Плитка", "Гидроизоляция", "Утепление фасада", "Электромонтаж", "Сантехника", "Сварочные работы", "Кровельные работы", "Разнорабочие", "Уборка", "Демонтаж", "Комплекс"], "kfu": [{"id": 1, "name": "Темп заливки", "owner": "Бекжан", "target": "150 м³/нед", "auto": "temp", "light": 1, "hist": []}, {"id": 2, "name": "Деньги от заказчика", "owner": "Евгений", "target": "оплата КС-2 ≤15 дней", "auto": "money", "light": 1, "hist": []}, {"id": 3, "name": "Качество", "owner": "Нурсултан", "target": "0 переделок", "auto": "quality", "light": 1, "hist": []}, {"id": 4, "name": "Закрытие КС-2", "owner": "Евгений", "target": "акт помесячно", "auto": "ks", "light": 1, "hist": []}, {"id": 5, "name": "Безопасность", "owner": "Бекжан", "target": "0 происшествий, все в СИЗ", "light": 2, "hist": []}], "entries": [{"id": 1001, "date": "2026-05-14", "type": "advance", "amount": 400000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "Выдал Бекжану наличными на расходы"}, {"id": 1002, "date": "2026-05-15", "type": "expense", "amount": 5000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Связь", "note": "Мобильный Бекжана — оплатил Дмитрий напрямую"}, {"id": 1003, "date": "2026-05-16", "type": "expense", "amount": 53100, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Административные", "note": "Смартфон и номер для финансовых операций"}, {"id": 1004, "date": "2026-05-16", "type": "expense", "amount": 150000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Аванс / зарплата рабочим", "brigade": "b1", "note": "Аванс Бригада Шынгыс — перевод"}, {"id": 1005, "date": "2026-05-16", "type": "expense", "amount": 100000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Аванс / зарплата рабочим", "brigade": "b1", "note": "Аванс Бригада Шынгыс — наличные"}, {"id": 1006, "date": "2026-05-16", "type": "expense", "amount": 20000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Транспорт", "note": "Такси Бригада Нурсултан до объекта"}, {"id": 1007, "date": "2026-05-16", "type": "advance", "amount": 20000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Евгений", "note": "Дал Евгению (личное)"}, {"id": 1008, "date": "2026-05-17", "type": "expense", "amount": 70000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Инструменты и инвентарь", "note": "Каски, жилеты, перчатки, диски, молоток, бур"}, {"id": 1009, "date": "2026-05-17", "type": "advance", "amount": 150000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "Выдал Бекжану наличными на расходы"}, {"id": 1010, "date": "2026-05-17", "type": "advance", "amount": 110000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "Проценты за Альфард — личный расход Бекжана"}, {"id": 1012, "date": "2026-05-18", "type": "expense", "amount": 20000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Аванс / зарплата рабочим", "brigade": "b1", "note": "Аванс бригада Шынгыс"}, {"id": 1013, "date": "2026-05-18", "type": "expense", "amount": 54000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Инструменты и инвентарь", "note": "Рации 3 шт × 18 000"}, {"id": 1014, "date": "2026-05-18", "type": "invest", "amount": 170000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "note": "Закинул на счёт компании для оплаты страховки"}, {"id": 1015, "date": "2026-05-18", "type": "expense", "amount": 158100, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "cash", "cat": "Административные", "note": "Страховка компании"}, {"id": 1016, "date": "2026-05-18", "type": "expense", "amount": 4500, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "cash", "cat": "Административные", "note": "Комиссия банка — Оплата К2"}, {"id": 1017, "date": "2026-05-18", "type": "expense", "amount": 1000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "cash", "cat": "Административные", "note": "Комиссия банка — ведение счёта"}, {"id": 1018, "date": "2026-05-18", "type": "expense", "amount": 1000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "cash", "cat": "Административные", "note": "Комиссия банка — Внешний перевод"}, {"id": 1019, "date": "2026-05-19", "type": "expense", "amount": 500000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Аванс / зарплата рабочим", "brigade": "b1", "note": "Аванс наличными бригада Шынгыс"}, {"id": 1020, "date": "2026-05-19", "type": "expense", "amount": 400000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Аванс / зарплата рабочим", "brigade": "b2", "note": "Аванс наличными бригада Нурсултан"}, {"id": 1021, "date": "2026-05-19", "type": "expense", "amount": 25135, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Административные", "note": "Обед с заказчиками"}, {"id": 1022, "date": "2026-05-19", "type": "expense", "amount": 2000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Административные", "note": "Напитки заказчики на объекте"}, {"id": 1023, "date": "2026-05-19", "type": "expense", "amount": 7000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "own", "cat": "Инструменты и инвентарь", "note": "Перчатки 2 пачки, молотки 2 шт"}, {"id": 1024, "date": "2026-05-19", "type": "advance", "amount": 198000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Евгений", "note": "Дал Евгению (личное)"}, {"id": 1025, "date": "2026-05-20", "type": "expense", "amount": 80000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Инструменты и инвентарь", "note": "Пояс монтажный 8 шт"}, {"id": 1026, "date": "2026-05-20", "type": "advance", "amount": 100000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "На расходы Бекжан"}, {"id": 1027, "date": "2026-05-21", "type": "expense", "amount": 65000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Инструменты и инвентарь", "note": "Перчатка, перфоратор, бензин"}, {"id": 1028, "date": "2026-05-21", "type": "advance", "amount": 100000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "Бекжану на расходы"}, {"id": 1029, "date": "2026-05-22", "type": "expense", "amount": 45000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Инструменты и инвентарь", "note": "Вибратор"}, {"id": 1030, "date": "2026-05-22", "type": "expense", "amount": 10000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Материалы", "note": "Дождевик 5 шт"}, {"id": 1031, "date": "2026-05-22", "type": "expense", "amount": 8000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Топливо", "note": "Заправка бензина"}, {"id": 1032, "date": "2026-05-22", "type": "advance", "amount": 10000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Нурсултан", "note": "Нурсултану на личные"}, {"id": 1033, "date": "2026-05-22", "type": "advance", "amount": 75000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "Бекжану на расход отправил"}, {"id": 1034, "date": "2026-05-23", "type": "expense", "amount": 15200, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Евгений", "paySource": "advance", "cat": "Административные", "note": "Бургеры, кола, картофель фри (из подотчётных)"}, {"id": 1035, "date": "2026-05-23", "type": "advance", "amount": 100000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "На барана"}, {"id": 1036, "date": "2026-05-23", "type": "advance", "amount": 50000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Евгений", "to": "Бекжан", "note": "На барана, салаты, напитки"}, {"id": 1037, "date": "2026-05-23", "type": "advance", "amount": 60000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "На расход Шынгыс"}, {"id": 1038, "date": "2026-05-23", "type": "advance", "amount": 30000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "На расход разнорабочий"}, {"id": 1039, "date": "2026-05-23", "type": "expense", "amount": 10000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Топливо", "note": "Бензин"}, {"id": 1040, "date": "2026-05-23", "type": "advance", "amount": 25000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "На напитки"}, {"id": 1041, "date": "2026-05-23", "type": "expense", "amount": 26000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Питание", "note": "Картошка, яблоки, бананы, помидоры, огурцы"}, {"id": 1042, "date": "2026-05-23", "type": "expense", "amount": 105000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Питание", "note": "Баран"}, {"id": 1043, "date": "2026-05-23", "type": "expense", "amount": 3000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Транспорт", "note": "Такси"}, {"id": 1044, "date": "2026-05-23", "type": "expense", "amount": 34000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Питание", "note": "Напитки, пирожное, пирожки"}, {"id": 1045, "date": "2026-05-23", "type": "expense", "amount": 60000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Аванс / зарплата рабочим", "brigade": "b1", "note": "Аванс"}, {"id": 1046, "date": "2026-05-23", "type": "expense", "amount": 30000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Аванс / зарплата рабочим", "note": "Аванс разнорабочий"}, {"id": 1779711355747, "date": "2026-05-25", "type": "advance", "amount": 100000, "note": "Дал Бекжану аванс 100000 бригада Нурсултан", "from": "Дмитрий", "to": "Бекжан", "obj": "ЖК «Алгабас», Мкр. Нуркент"}, {"id": 1779711460539, "date": "2026-05-25", "type": "expense", "amount": 80000, "note": "Аванс", "obj": "ЖК «Алгабас», Мкр. Нуркент", "cat": "Аванс / зарплата рабочим", "who": "Бекжан", "paySource": "advance", "brigade": "b2"}, {"id": 1779711941102, "date": "2026-05-25", "amount": 840000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "note": "з/п за Блок 48 третий этаж отметка 7.550 стена Бригада Нурсултан", "source": "telegram", "tgAuthor": "Дмитрий Хегай", "type": "advance", "linkedId": "tg_lk1779711680923", "from": "Дмитрий", "to": "Бекжан"}, {"id": 1779711941097, "date": "2026-05-25", "amount": 0, "obj": "ЖК «Алгабас», Мкр. Нуркент", "note": "Залили 114,5 куб бетон", "source": "telegram", "tgAuthor": "Дмитрий Хегай", "type": "vol", "volume": 114.5, "unit": "м³", "wtype": "Опалубка+бетон стен", "brigade": "b2", "amountPending": true, "linkedId": "tg_lk1779711680923"}, {"id": 1779712051286, "date": "2026-05-25", "amount": 200000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "note": "лично", "source": "telegram", "tgAuthor": "Дмитрий Хегай", "type": "advance", "from": "Дмитрий", "to": "Бекжан"}, {"id": 1779714979606, "date": "2026-05-25", "type": "expense", "amount": 840000, "note": "840000 нал Бекжану дал з/п за Блок 48 третий этаж отметка  7.550 стена Бригада Нурсултан залили 114,5 куб бетон остаток долга «54000» обьем больше получился 114,5 м3", "obj": "ЖК «Алгабас», Мкр. Нуркент", "cat": "Аванс / зарплата рабочим", "who": "Бекжан", "paySource": "advance", "brigade": "b2"}, {"id": 1779714979607, "date": "2026-05-26", "type": "expense", "amount": 10000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Евгений", "paySource": "advance", "cat": "Административные", "note": "Закуп журналов"}, {"id": 1779714979608, "date": "2026-05-26", "type": "expense", "amount": 48500, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Инструменты и инвентарь", "note": "лазер перчатка намордник шлифовочный диск очки маленький болгарка"}, {"id": 1779714979609, "date": "2026-05-26", "type": "advance", "amount": 60000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "на инструменты 60000"}, {"id": 1779895004208, "date": "2026-05-26", "type": "expense", "amount": 710000, "note": "расчет за армирование 3 этаж отметка 7550 пятно 49 бригада Шынгыс", "obj": "ЖК «Алгабас», Мкр. Нуркент", "cat": "Аванс / зарплата рабочим", "who": "Бекжан", "paySource": "advance", "brigade": "b1"}, {"id": 1779895064281, "date": "2026-05-26", "type": "advance", "amount": 710000, "note": "Бекжану дал расчет за армирование 3 этаж отметка 7550 пятно 49 бригада Шынгыс", "from": "Дмитрий", "to": "Бекжан", "obj": "ЖК «Алгабас», Мкр. Нуркент"}, {"id": 1779895202221, "date": "2026-05-26", "type": "advance", "amount": 500000, "note": "Аванс бригада Нуржан плотники 500000 через Бекжана", "from": "Дмитрий", "to": "Бекжан", "obj": "ЖК «Алгабас», Мкр. Нуркент"}], "_schema": 3, "_resetAt": "2026-05-25T12:10:29.027Z", "_modified": 1779982445194, "_preloaded": true};
 
 // loadLocal — БЕЗОПАСНАЯ загрузка
 // ПРАВИЛО: локальные данные ВСЕГДА главнее встроенных в файл
@@ -2737,7 +2741,42 @@ if(!S.subgoals || !Array.isArray(S.subgoals) || S.subgoals.length===0){
   ];
   S._modified = Date.now();
 }
+
+// === НАПРАВЛЕНИЯ (редактируемые) ===
+if(!S.directions || !Array.isArray(S.directions) || S.directions.length===0){
+  S.directions = [
+    {id:'dir_podryad', icon:'🏗', color:'teal', name:'Подряд labor-only', stars:3, status:'активный', goal:'500 млн ₸', order:1},
+    {id:'dir_opalubka', icon:'⬢', color:'gold', name:'Опалубка-аренда', stars:0, status:'план Q3 2026', goal:'2000 м² старт', order:2},
+    {id:'dir_torg', icon:'🛒', color:'purple', name:'Торговля (Каспи→Озон)', stars:0, status:'план Q4 2026', goal:'100 млн оборот', order:3},
+    {id:'dir_tender', icon:'⚖', color:'red', name:'Тендеры (госзаказ)', stars:0, status:'план 2027', goal:'после лицензии', order:4},
+    {id:'dir_develop', icon:'🏢', color:'blue', name:'Девелопмент (свой ЖК)', stars:0, status:'план 2028', goal:'к 2030', order:5}
+  ];
+  S._modified = Date.now();
+}
+
+// === ГОДОВЫЕ ВЕХИ 2027-2029 (редактируемые) ===
+if(!S.milestones || !Array.isArray(S.milestones) || S.milestones.length===0){
+  S.milestones = [
+    {id:'ms_2027', year:2027, target:'2 млрд ₸ оборот', note:'Опалубка + торговля запущены', done:false, order:1},
+    {id:'ms_2028', year:2028, target:'Свой ЖК — старт', note:'Девелопмент, первый объект', done:false, order:2},
+    {id:'ms_2029', year:2029, target:'Холдинг сформирован', note:'5 направлений работают', done:false, order:3}
+  ];
+  S._modified = Date.now();
+}
+
+// === РОЛИ ПАРТНЁРОВ (редактируемые) ===
+if(!S.roles || !Array.isArray(S.roles) || S.roles.length===0){
+  S.roles = [
+    {id:'role_dm', name:'Дмитрий', role:'CEO + Стратегия', kfu:[], color:'gold', order:1},
+    {id:'role_bk', name:'Бекжан', role:'Темп + Безопасность', kfu:[1,5], color:'teal', order:2},
+    {id:'role_ev', name:'Евгений', role:'Деньги + КС-2 + Документация', kfu:[2,4], color:'green', order:3},
+    {id:'role_nr', name:'Нурсултан', role:'Качество', kfu:[3], color:'blue', order:4},
+    {id:'role_sr', name:'Сергей', role:'Финансы + Операционное управление', kfu:[], color:'purple', order:5}
+  ];
+  S._modified = Date.now();
+}
 function fmt(n){return new Intl.NumberFormat('ru').format(Math.abs(Math.round(n||0)));}
+function fmtShort(n){n=Math.abs(Math.round(n||0));if(n>=1000000)return (n/1000000).toFixed(n>=10000000?0:1).replace('.',',')+'М';if(n>=1000)return Math.round(n/1000)+'к';return ''+n;}
 function fmtS(n){var v=Math.round(n||0);return (v<0?'−':'')+new Intl.NumberFormat('ru').format(Math.abs(v));}
 function fmtD(n){return new Intl.NumberFormat('ru',{maximumFractionDigits:2}).format(n||0);}
 function pCol(name){var i=PARTNERS.indexOf(name);return i>=0?PC[i]:'#8b949e';}
@@ -6151,7 +6190,8 @@ function marginDirect(){
 }
 function marginObject(obj){
   // Объектная: выручка по объекту - все расходы по объекту
-  var rev=0, cost=0;
+  // wip = незавершёнка (армирование без залитого бетона) — будущая выручка
+  var rev=0, cost=0, wip=0;
   (S.entries||[]).forEach(function(e){
     if(obj && e.obj!==obj) return;
     if(e.type==='vol'){
@@ -6159,19 +6199,30 @@ function marginObject(obj){
       var b=(S.brigades||[]).find(function(x){return x.id===e.brigade;});
       if(!b) return;
       var work=(b.work||'').toLowerCase();
-      if(work.indexOf('опалубка+бетон')!==0 && work!=='комплекс монолит') return;
       var rate=0;
       if(e.struct && typeof custRate==='function') rate=custRate(e.obj, e.struct);
       if(!rate && typeof custRatesList==='function'){
         var L=custRatesList(e.obj||'');
         if(L.length) rate=L[0].rate;
       }
-      rev += (e.volume||0)*rate;
+      var isConcrete = (work.indexOf('опалубка+бетон')===0 || work==='комплекс монолит' || (e.wtype||'').toLowerCase().indexOf('бетон')>=0);
+      if(isConcrete){
+        rev += (e.volume||0)*rate;  // готовая выручка
+      } else {
+        // Армирование/подготовка — незавершёнка (станет выручкой после бетона)
+        wip += (e.volume||0)*rate;
+      }
     } else if(e.type==='expense'){
       cost += (e.amount||0);
     }
   });
-  return {revenue: rev, cost: cost, profit: rev-cost, pct: rev>0?(rev-cost)/rev*100:0};
+  return {
+    revenue: rev, cost: cost, profit: rev-cost, pct: rev>0?(rev-cost)/rev*100:0,
+    wip: wip,                          // незавершёнка (будущая выручка)
+    forecastRev: rev+wip,             // прогноз выручки
+    forecastProfit: rev+wip-cost,     // прогноз прибыли
+    forecastPct: (rev+wip)>0?(rev+wip-cost)/(rev+wip)*100:0
+  };
 }
 function marginCompany(){
   // Чистая компании = объектная по всем объектам (пока 1 объект — равна объектной)
@@ -7943,12 +7994,20 @@ function rMain(){
   
   var pendingMoney = pendingVol * custRate;
   
-  var h = '<div style="padding:14px 14px 30px;font-family:-apple-system,system-ui,sans-serif">';
-  
+  var h = '<div style="padding:16px 16px 30px;font-family:-apple-system,system-ui,sans-serif">';
+
+  // Единый стиль заголовка секции (золотая полоска + текст)
+  function secHead(txt){
+    return '<div style="display:flex;align-items:center;gap:8px;margin:22px 2px 12px">'+
+      '<div style="width:3px;height:15px;background:var(--gold);border-radius:2px"></div>'+
+      '<div style="font-size:12px;color:var(--mut);letter-spacing:2.5px;font-weight:800">'+txt+'</div>'+
+    '</div>';
+  }
+
   // ============= ЗАГОЛОВОК =============
-  h += '<div style="margin-bottom:16px">';
-  h += '<div style="font-size:28px;color:var(--gold);font-weight:800;letter-spacing:1.5px;font-family:var(--fd)">🔥 ПУЛЬС</div>';
-  h += '<div style="font-size:14px;color:#8b949e;margin-top:4px">'+today.toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long'})+'</div>';
+  h += '<div style="margin-bottom:20px">';
+  h += '<div style="font-size:30px;color:var(--gold);font-weight:800;letter-spacing:2px;font-family:var(--fd)">🔥 ПУЛЬС</div>';
+  h += '<div style="font-size:14px;color:#8b949e;margin-top:4px;text-transform:capitalize">'+today.toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long'})+'</div>';
   h += '</div>';
 
   // ============= 5 КФУ — СВЕТОФОРЫ ЯНКОВСКОГО =============
@@ -7956,8 +8015,8 @@ function rMain(){
   var kfuList = (S.kfu||[]).slice(0,5);
   // Если в S.kfu меньше 5 — заглушки не делаем
   if(kfuList.length>0){
-    h += '<div style="font-size:11px;color:var(--gold);letter-spacing:2px;margin-bottom:10px;font-weight:700">5 КФУ · ХОЗЯЕВА · НЕДЕЛЯ '+iso.week+'</div>';
-    h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:18px">';
+    h += secHead('5 КФУ · НЕДЕЛЯ '+iso.week);
+    h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px">';
     kfuList.forEach(function(k, idx){
       var stat;
       try {
@@ -7976,17 +8035,17 @@ function rMain(){
       };
       var lc = lightColors[stat.light||1] || lightColors[1];
       var isWide = (idx===4); // 5-я КФУ занимает обе колонки
-      h += '<div onclick="openCycle('+k.id+',\''+iso.key+'\')" style="background:var(--sur);border:2px solid '+lc.border+';border-radius:10px;padding:11px;cursor:pointer;box-shadow:0 2px 10px '+lc.shadow+(isWide?';grid-column:1/-1':'')+'">';
+      h += '<div onclick="openCycle('+k.id+',\''+iso.key+'\')" style="background:var(--sur);border:1.5px solid '+lc.border+';border-radius:14px;padding:13px;cursor:pointer;box-shadow:0 2px 10px '+lc.shadow+';display:flex;flex-direction:column;min-height:96px'+(isWide?';grid-column:1/-1':'')+'">';
       // Шапка карточки: КФУ № · хозяин + светофор
-      h += '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px;margin-bottom:6px">';
+      h += '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px;margin-bottom:8px">';
       h += '<div style="flex:1;min-width:0">';
-      h += '<div style="font-size:9px;color:'+lc.text+';letter-spacing:.5px;font-weight:700">КФУ '+k.id+' · '+(k.owner||'—').toUpperCase()+'</div>';
-      h += '<div style="font-size:13px;color:var(--text);font-weight:700;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escapeHtml(k.name)+'</div>';
+      h += '<div style="font-size:9px;color:'+lc.text+';letter-spacing:.8px;font-weight:800">КФУ '+k.id+' · '+(k.owner||'—').toUpperCase()+'</div>';
+      h += '<div style="font-size:13px;color:var(--text);font-weight:700;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escapeHtml(k.name)+'</div>';
       h += '</div>';
-      h += '<div style="font-size:18px;flex-shrink:0">'+lc.icon+'</div>';
+      h += '<div style="width:12px;height:12px;border-radius:50%;background:'+lc.text+';flex-shrink:0;box-shadow:0 0 8px '+lc.text+'"></div>';
       h += '</div>';
       // Главная цифра
-      h += '<div style="font-family:var(--fd);font-size:18px;color:'+lc.text+';font-weight:800;line-height:1.1;margin-top:2px">'+stat.value+'</div>';
+      h += '<div style="font-family:var(--fd);font-size:20px;color:'+lc.text+';font-weight:800;line-height:1.1;margin-top:auto">'+stat.value+'</div>';
       // Деталь
       h += '<div style="font-size:10px;color:var(--mut);margin-top:4px">'+stat.detail+'</div>';
       h += '</div>';
@@ -7994,7 +8053,36 @@ function rMain(){
     h += '</div>';
   }
 
+  // ============= 💵 ДЕНЬГИ ОТ ЗАКАЗЧИКА (единый блок) =============
+  // Заменяет 5 разбросанных дублей про КС-2/оплату
+  var obj0 = (S.objects||[])[0];
+  if(obj0){
+    var lc3 = (typeof lifecycleSummary==='function') ? lifecycleSummary(obj0) : {totalRev:0,acceptedRev:0,paidRev:0};
+    var debt3 = (typeof customerDebt==='function') ? customerDebt(obj0) : 0;
+    var unsigned3 = lc3.totalRev - lc3.acceptedRev;
+    // Цвет статуса
+    var moneyLight = lc3.paidRev>=lc3.totalRev && lc3.totalRev>0 ? '#3fb950' : (lc3.acceptedRev>0 ? '#ffd166' : '#ff7b72');
+    h += secHead('💵 ДЕНЬГИ ОТ ЗАКАЗЧИКА');
+    h += '<div onclick="setTab(\'objects\')" style="background:var(--sur);border:1.5px solid '+moneyLight+';border-radius:16px;padding:16px;cursor:pointer;box-shadow:0 2px 12px '+moneyLight+'25">';
+    h += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0">';
+    // Дебиторка
+    h += '<div style="text-align:center;padding:0 4px"><div style="font-size:10px;color:var(--mut);letter-spacing:.5px;font-weight:700">ДОЛЖНЫ</div>';
+    h += '<div style="font-family:var(--fd);font-size:22px;color:#ff7b72;font-weight:800;margin-top:6px;line-height:1">'+fmtShort(debt3)+'</div>';
+    h += '<div style="font-size:9px;color:var(--mut);margin-top:4px">дебиторка</div></div>';
+    // Не подписано
+    h += '<div style="text-align:center;padding:0 4px;border-left:1px solid var(--brd);border-right:1px solid var(--brd)"><div style="font-size:10px;color:var(--mut);letter-spacing:.5px;font-weight:700">НЕ ПОДПИСАНО</div>';
+    h += '<div style="font-family:var(--fd);font-size:22px;color:#ffd166;font-weight:800;margin-top:6px;line-height:1">'+fmtShort(unsigned3)+'</div>';
+    h += '<div style="font-size:9px;color:var(--mut);margin-top:4px">нужен КС-2</div></div>';
+    // Оплачено
+    h += '<div style="text-align:center;padding:0 4px"><div style="font-size:10px;color:var(--mut);letter-spacing:.5px;font-weight:700">ОПЛАЧЕНО</div>';
+    h += '<div style="font-family:var(--fd);font-size:22px;color:#3fb950;font-weight:800;margin-top:6px;line-height:1">'+fmtShort(lc3.paidRev)+'</div>';
+    h += '<div style="font-size:9px;color:var(--mut);margin-top:4px">пришло</div></div>';
+    h += '</div>';
+    h += '</div>';
+  }
+
   // ============= 🚨 ТРЕВОГИ (если есть) =============
+  // Дубли про КС-2/деньги убраны — они показаны в отдельном блоке "Деньги от заказчика"
   var alerts = [];
   
   if(C.cash < 500000){
@@ -8004,43 +8092,6 @@ function rMain(){
       title:'Касса критически низкая',
       desc:'Осталось '+fmt(C.cash)+' ₸ — срочно нужны деньги',
       action:'partners'
-    });
-  }
-  
-  if(!lastIncomeEntry && entries.length > 5){
-    // Ни одной записи о доходе — это другой кейс, не «999 дней»
-    alerts.push({
-      icon:'⏰',
-      color:'#ff7b72',
-      title:'Пока нет ни одного поступления',
-      desc:'Заказчик ещё не оплатил — нужны подписанные КС-2',
-      action:null
-    });
-  } else if(lastIncomeEntry && daysSinceIncome > 30){
-    alerts.push({
-      icon:'⏰',
-      color:'#ff7b72',
-      title:daysSinceIncome+' дней без поступлений',
-      desc:'Последний доход от заказчика давно',
-      action:null
-    });
-  } else if(lastIncomeEntry && daysSinceIncome > 14){
-    alerts.push({
-      icon:'⚠️',
-      color:'#ffa657',
-      title:daysSinceIncome+' дней без КС-2',
-      desc:'Пора подписывать акт у Sensata',
-      action:null
-    });
-  }
-  
-  if(pendingVol > 50){
-    alerts.push({
-      icon:'📋',
-      color:'#ffa657',
-      title:'КС-2 не подписан: '+pendingVol.toFixed(1)+' м³',
-      desc:'Дебиторка ≈ '+fmt(pendingMoney)+' ₸ — звоните заказчику',
-      action:null
     });
   }
   
@@ -8088,7 +8139,7 @@ function rMain(){
   
   // Тревоги
   if(alerts.length > 0){
-    h += '<div style="font-size:13px;color:var(--mut);letter-spacing:2px;font-weight:800;margin:6px 4px 10px">🚨 ВНИМАНИЕ</div>';
+    h += secHead('🚨 ВНИМАНИЕ');
     alerts.slice(0, 3).forEach(function(a){
       h += '<div style="background:#161b22;border:1px solid '+a.color+'60;border-left:4px solid '+a.color+';border-radius:12px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:12px">';
       h += '<div style="font-size:28px;line-height:1;flex-shrink:0">'+a.icon+'</div>';
@@ -8104,66 +8155,40 @@ function rMain(){
   }
   
   // ============= 💰 ГЛАВНЫЕ ЦИФРЫ =============
-  h += '<div style="font-size:13px;color:var(--mut);letter-spacing:2px;font-weight:800;margin:16px 4px 10px">💰 ФИНАНСЫ</div>';
+  h += secHead('💰 ФИНАНСЫ');
   
   // Большая карточка — касса (как главный индикатор здоровья)
   var cashColor = C.cash < 500000 ? '#ff7b72' : C.cash < 2000000 ? '#ffd166' : '#7ee787';
   var cashStatus = C.cash < 500000 ? 'критически мало' : C.cash < 2000000 ? 'осторожно' : 'нормально';
   
-  h += '<div style="background:linear-gradient(135deg,#161b22,#0d1117);border:1.5px solid '+cashColor+';border-radius:16px;padding:16px;margin-bottom:10px;position:relative;overflow:hidden">';
+  h += '<div style="background:linear-gradient(135deg,#161b22,#0d1117);border:1.5px solid '+cashColor+';border-radius:16px;padding:18px;margin-bottom:10px;position:relative;overflow:hidden">';
   h += '<div style="position:absolute;top:-30px;right:-30px;width:120px;height:120px;background:radial-gradient(circle,'+cashColor+'20,transparent);border-radius:50%"></div>';
-  h += '<div style="position:relative;display:flex;align-items:center;gap:14px">';
+  h += '<div style="position:relative;display:flex;align-items:center;gap:16px">';
   h += '<div style="font-size:48px;line-height:1">💰</div>';
   h += '<div style="flex:1">';
-  h += '<div style="font-size:13px;color:#8b949e;letter-spacing:1.5px;font-weight:700">КАССА СЕЙЧАС</div>';
-  h += '<div style="font-size:34px;color:'+cashColor+';font-weight:800;line-height:1;margin-top:4px">'+fmt(C.cash)+' ₸</div>';
-  h += '<div style="font-size:13px;color:'+cashColor+';margin-top:5px;font-weight:600">'+cashStatus+'</div>';
+  h += '<div style="font-size:12px;color:#8b949e;letter-spacing:1.5px;font-weight:700">КАССА СЕЙЧАС</div>';
+  h += '<div style="font-family:var(--fd);font-size:36px;color:'+cashColor+';font-weight:800;line-height:1;margin-top:6px">'+fmt(C.cash)+' ₸</div>';
+  h += '<div style="font-size:13px;color:'+cashColor+';margin-top:6px;font-weight:600">'+cashStatus+'</div>';
   h += '</div>';
   h += '</div>';
   h += '</div>';
   
-  // 4 мини-карточки: доходы / расходы / прибыль / объём
-  h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">';
+  // 3 симметричные мини-карточки: доходы / расходы / объём
+  h += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">';
   
-  // Доходы месяца
-  h += '<div style="background:#161b22;border:1px solid rgba(63,185,80,.4);border-radius:12px;padding:12px">';
-  h += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">';
-  h += '<div style="font-size:24px">📈</div>';
-  h += '<div style="font-size:11px;color:#8b949e;letter-spacing:1.5px;font-weight:700">ДОХОДЫ МЕСЯЦА</div>';
-  h += '</div>';
-  h += '<div style="font-size:19px;color:#7ee787;font-weight:800">'+fmt(monthIncome)+'</div>';
-  h += '<div style="font-size:12px;color:#8b949e;margin-top:2px">тг</div>';
-  h += '</div>';
+  function miniCard(icon, label, value, unit, color, borderRgba){
+    var s = '<div style="background:#161b22;border:1px solid '+borderRgba+';border-radius:14px;padding:13px 10px;text-align:center;display:flex;flex-direction:column;align-items:center;min-height:104px">';
+    s += '<div style="font-size:26px;line-height:1;margin-bottom:8px">'+icon+'</div>';
+    s += '<div style="font-size:9px;color:#8b949e;letter-spacing:.8px;font-weight:700;line-height:1.2;margin-bottom:auto">'+label+'</div>';
+    s += '<div style="font-family:var(--fd);font-size:17px;color:'+color+';font-weight:800;margin-top:8px;line-height:1">'+value+'</div>';
+    s += '<div style="font-size:10px;color:#8b949e;margin-top:3px">'+unit+'</div>';
+    s += '</div>';
+    return s;
+  }
   
-  // Расходы месяца
-  h += '<div style="background:#161b22;border:1px solid rgba(255,123,114,.4);border-radius:12px;padding:12px">';
-  h += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">';
-  h += '<div style="font-size:24px">📉</div>';
-  h += '<div style="font-size:11px;color:#8b949e;letter-spacing:1.5px;font-weight:700">РАСХОДЫ МЕСЯЦА</div>';
-  h += '</div>';
-  h += '<div style="font-size:19px;color:#ff7b72;font-weight:800">'+fmt(monthExpense)+'</div>';
-  h += '<div style="font-size:12px;color:#8b949e;margin-top:2px">тг</div>';
-  h += '</div>';
-  
-  // Объём м³
-  h += '<div style="background:#161b22;border:1px solid rgba(88,166,255,.4);border-radius:12px;padding:12px">';
-  h += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">';
-  h += '<div style="font-size:24px">🏗</div>';
-  h += '<div style="font-size:11px;color:#8b949e;letter-spacing:1.5px;font-weight:700">ОБЪЁМ МЕСЯЦА</div>';
-  h += '</div>';
-  h += '<div style="font-size:19px;color:#58a6ff;font-weight:800">'+monthVol.toFixed(1)+'</div>';
-  h += '<div style="font-size:12px;color:#8b949e;margin-top:2px">м³</div>';
-  h += '</div>';
-  
-  // Дебиторка (не подписанный КС-2)
-  h += '<div style="background:#161b22;border:1px solid rgba(255,179,32,.4);border-radius:12px;padding:12px">';
-  h += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">';
-  h += '<div style="font-size:24px">⏳</div>';
-  h += '<div style="font-size:11px;color:#8b949e;letter-spacing:1.5px;font-weight:700">НА СВЕРКЕ КС-2</div>';
-  h += '</div>';
-  h += '<div style="font-size:19px;color:#ffd166;font-weight:800">'+pendingVol.toFixed(1)+' м³</div>';
-  h += '<div style="font-size:12px;color:#8b949e;margin-top:2px">≈ '+(pendingMoney>=1000000?(pendingMoney/1000000).toFixed(1)+'M':fmt(pendingMoney))+' тг</div>';
-  h += '</div>';
+  h += miniCard('📈', 'ДОХОД<br>МЕСЯЦА', fmtShort(monthIncome), 'тг', '#7ee787', 'rgba(63,185,80,.35)');
+  h += miniCard('📉', 'РАСХОД<br>МЕСЯЦА', fmtShort(monthExpense), 'тг', '#ff7b72', 'rgba(255,123,114,.35)');
+  h += miniCard('🏗', 'ОБЪЁМ<br>МЕСЯЦА', monthVol.toFixed(1), 'м³', '#58a6ff', 'rgba(88,166,255,.35)');
   
   h += '</div>';
   
@@ -8229,7 +8254,7 @@ function rMain(){
   }
   
   if(tasks.length > 0){
-    h += '<div style="font-size:13px;color:var(--mut);letter-spacing:2px;font-weight:800;margin:16px 4px 10px">📋 ЗАДАЧИ НА СЕГОДНЯ</div>';
+    h += secHead('📋 ЗАДАЧИ НА СЕГОДНЯ');
     
     tasks.slice(0, 5).forEach(function(t){
       var pColor = t.priority==='high' ? '#ff7b72' : t.priority==='med' ? '#ffd166' : '#7ee787';
@@ -8247,7 +8272,7 @@ function rMain(){
   
   // ============= 👷 БРИГАДЫ СЕЙЧАС (мини-блок) =============
   if(brigades.length > 0){
-    h += '<div style="font-size:13px;color:var(--mut);letter-spacing:2px;font-weight:800;margin:16px 4px 10px">👷 БРИГАДЫ</div>';
+    h += secHead('👷 БРИГАДЫ');
     
     h += '<div onclick="setTab(\'objects\')" style="background:#161b22;border:1px solid var(--brd);border-radius:14px;padding:14px;margin-bottom:14px;cursor:pointer">';
     
@@ -8278,10 +8303,10 @@ function rMain(){
   }
   
   // ============= 📊 ПОСЛЕДНИЕ ОПЕРАЦИИ =============
-  var recent = entries.slice().sort(function(a,b){return (b.date||'').localeCompare(a.date||'');}).slice(0, 5);
+  var recent = entries.slice().sort(function(a,b){return (b.date||'').localeCompare(a.date||'');}).slice(0, 3);
   
   if(recent.length > 0){
-    h += '<div style="font-size:13px;color:var(--mut);letter-spacing:2px;font-weight:800;margin:16px 4px 10px">📜 ПОСЛЕДНИЕ ОПЕРАЦИИ</div>';
+    h += secHead('📜 ПОСЛЕДНИЕ ОПЕРАЦИИ');
     h += '<div style="background:#161b22;border:1px solid var(--brd);border-radius:14px;padding:14px;margin-bottom:14px">';
     
     var typeIcons = {expense:'💸',income:'💰',advance:'🔄',invest:'💼',vol:'🏗',payout:'↩️'};
@@ -8306,28 +8331,34 @@ function rMain(){
     h += '</div>';
   }
   
-  // ============= 🎯 ЦЕЛЬ 2030 =============
-  var goal2030 = 1000000000; // $ — это символическая цель
-  // Считаем в долларах примерно по курсу
-  var USDKZT = 470; // приблизительно
-  var profitUSD = (C.profit || 0) / USDKZT;
-  var goalPct = Math.max(0, Math.min(100, (profitUSD / goal2030 * 100)));
-  
-  h += '<div style="background:linear-gradient(135deg,rgba(240,165,0,.10),#0d1117);border:1.5px solid var(--gold);border-radius:16px;padding:16px;margin-bottom:14px">';
+  // ============= 🎯 ЦЕЛЬ 2026 (живой прогресс) =============
+  var profitTarget = 820000000;
+  var profitNow = (typeof subgoalCurrent==='function') ? subgoalCurrent({source:'profit_2026'}) : (C.profit||0);
+  var goalPct = Math.max(0, Math.min(100, profitNow/profitTarget*100));
+  var perPartner = profitNow/5;
+  var goalColor = goalPct>=80?'var(--green)':(goalPct>=40?'var(--gold)':'#ff7b72');
+  var daysLeftYear = Math.ceil((new Date(2026,11,31) - today)/(86400000));
+
+  h += '<div onclick="setTab(\'plan\')" style="background:linear-gradient(135deg,rgba(240,165,0,.10),#0d1117);border:1.5px solid var(--gold);border-radius:16px;padding:16px;margin-bottom:14px;cursor:pointer">';
   h += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">';
   h += '<div style="font-size:28px">🎯</div>';
   h += '<div style="flex:1">';
-  h += '<div style="font-size:15px;color:var(--gold);font-weight:800">ЦЕЛЬ 2030: 1 МЛРД $</div>';
-  h += '<div style="font-size:12px;color:#8b949e;margin-top:2px">Долгосрочный курс LIONGATE</div>';
+  h += '<div style="font-size:15px;color:var(--gold);font-weight:800">ЦЕЛЬ 2026: 820 млн ₸</div>';
+  h += '<div style="font-size:12px;color:#8b949e;margin-top:2px">прибыль · '+daysLeftYear+' дней до конца года</div>';
   h += '</div>';
-  h += '<div style="font-size:19px;color:var(--gold);font-weight:800">'+goalPct.toFixed(2)+'%</div>';
+  h += '<div style="font-size:19px;color:'+goalColor+';font-weight:800">'+Math.round(goalPct)+'%</div>';
   h += '</div>';
-  
-  h += '<div style="background:#0d1117;border-radius:6px;height:6px;overflow:hidden">';
-  h += '<div style="background:linear-gradient(90deg,var(--gold),#ffd166);height:100%;width:'+goalPct.toFixed(2)+'%;transition:width .5s"></div>';
+
+  h += '<div style="background:#0d1117;border-radius:6px;height:8px;overflow:hidden">';
+  h += '<div style="background:linear-gradient(90deg,'+goalColor+',#ffd166);height:100%;width:'+Math.max(1,goalPct).toFixed(1)+'%;transition:width .5s"></div>';
   h += '</div>';
-  
-  h += '<div style="font-size:12px;color:#8b949e;margin-top:8px;text-align:center">Шаг за шагом каждый день →</div>';
+
+  h += '<div style="display:flex;justify-content:space-between;margin-top:10px;font-size:12px">';
+  h += '<span style="color:#8b949e">факт: <b style="color:'+(profitNow>=0?'var(--green)':'#ff7b72')+';font-family:var(--fd)">'+(profitNow>=0?'':'−')+fmtShort(Math.abs(profitNow))+' ₸</b></span>';
+  h += '<span style="color:#8b949e">каждому: <b style="color:var(--gold);font-family:var(--fd)">164М ₸</b></span>';
+  h += '</div>';
+
+  h += '<div style="font-size:11px;color:#8b949e;margin-top:8px;text-align:center;border-top:1px solid var(--brd);padding-top:8px">🦁 До 1 МЛРД $ к 2030 — шаг за шагом →</div>';
   h += '</div>';
   
   h += '</div>';
@@ -8377,7 +8408,7 @@ function rPL(){
   // Касса и партнёры
   var C = (typeof calcCo==='function') ? calcCo() : {cash:0, debtToCompany:{}, debtToPartner:{}};
 
-  var h='<div class="shdr"><h2>\u0414\u0415\u041d\u042c\u0413\u0418</h2></div>';
+  var h='<div class="shdr"><h2>\u{1F4B0} \u0414\u0415\u041d\u042c\u0413\u0418</h2></div>';
 
   // Заметная кнопка добавления оплаты от заказчика — ПЕРВАЯ на вкладке
   if(canEdit()){
@@ -8592,7 +8623,7 @@ function rPartners(){
   
   // ============= ЗАГОЛОВОК =============
   h += '<div style="margin-bottom:16px">';
-  h += '<div style="font-size:28px;color:var(--gold);font-weight:800;letter-spacing:1.5px;font-family:var(--fd)">👥 ПАРТНЁРЫ</div>';
+  h += '<div style="font-size:30px;color:var(--gold);font-weight:800;letter-spacing:2px;font-family:var(--fd)">👥 ПАРТНЁРЫ</div>';
   h += '<div style="font-size:14px;color:var(--mut);margin-top:4px">Сверка вложений и расчётов</div>';
   h += '</div>';
   
@@ -9184,7 +9215,7 @@ function rBrigades(){
     return 0;
   }
 
-  var h='<div class="shdr"><h2>БРИГАДЫ</h2>'+(canEdit()?'<button class="fedit" onclick="openAddBrig()">+ Бригада</button>':'')+'</div>';
+  var h='<div class="shdr"><h2>\u{1F477} БРИГАДЫ</h2>'+(canEdit()?'<button class="fedit" onclick="openAddBrig()">+ Бригада</button>':'')+'</div>';
 
   // ===== БЛОК 1: КФУ "ТЕМП ЗАЛИВКИ" =====
   h+='<div class="dcard" style="border-color:var(--gold);cursor:pointer" onclick="openCycle('+kfuTempo.id+',\''+iso.key+'\')">';
@@ -10475,46 +10506,100 @@ function rPlan(){
     h += '<span style="color:var(--mut)">'+pct+'%</span>';
     h += '<span style="font-family:var(--fd);color:'+iconColor+';font-weight:700">'+fmtSubgoalValue(g,current)+' / '+fmtSubgoalValue(g,g.target)+' '+escapeHtml(g.unit||'')+'</span>';
     h += '</div>';
+    // Прогресс шагов (если есть)
+    if(g.steps && g.steps.length>0){
+      var doneSteps = g.steps.filter(function(s){return s.done;}).length;
+      h += '<div style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:11px;color:var(--mut)">';
+      h += '<span style="color:var(--blue)">\u2705</span>';
+      h += '<span>шаги: '+doneSteps+' / '+g.steps.length+'</span>';
+      // мини-точки
+      h += '<div style="display:flex;gap:3px;margin-left:auto">';
+      g.steps.forEach(function(s){
+        h += '<div style="width:8px;height:8px;border-radius:2px;background:'+(s.done?'var(--green)':'var(--brd)')+'"></div>';
+      });
+      h += '</div>';
+      h += '</div>';
+    }
     h += '</div></div></div>';
   });
 
+  // === 3.5 ГОДОВЫЕ ВЕХИ (мост 2026 → 2030) ===
+  h += '<div style="display:flex;justify-content:space-between;align-items:center;margin:20px 0 10px">';
+  h += '<div style="font-size:11px;color:var(--gold);letter-spacing:2px;font-weight:700">\u{1F5FB} ПУТЬ К 2030</div>';
+  if(canEditNow){
+    h += '<button onclick="openMilestoneEdit(null)" style="background:var(--tlt);border:1px solid var(--teal);color:var(--teal);font-size:11px;border-radius:6px;padding:5px 10px;cursor:pointer;font-family:inherit;font-weight:600">+ добавить</button>';
+  }
+  h += '</div>';
+  var milestones = (S.milestones||[]).slice().sort(function(a,b){return (a.year||0)-(b.year||0);});
+  var nowY = now.getFullYear();
+  h += '<div style="position:relative;padding-left:8px">';
+  milestones.forEach(function(ms, mi){
+    var isPast = ms.year < nowY || ms.done;
+    var isCurrent = ms.year === nowY;
+    var dotColor = ms.done ? 'var(--green)' : (isCurrent ? 'var(--gold)' : 'var(--mut)');
+    var clickAttr = canEditNow ? ' onclick="openMilestoneEdit(\''+ms.id+'\')" style="cursor:pointer;' : ' style="';
+    h += '<div'+clickAttr+'display:flex;gap:12px;margin-bottom:10px;align-items:flex-start">';
+    // Линия+точка
+    h += '<div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0;padding-top:2px">';
+    h += '<div style="width:14px;height:14px;border-radius:50%;background:'+dotColor+';border:2px solid var(--bg);box-shadow:0 0 0 2px '+dotColor+'"></div>';
+    if(mi < milestones.length-1) h += '<div style="width:2px;flex:1;min-height:30px;background:var(--brd);margin-top:2px"></div>';
+    h += '</div>';
+    // Контент
+    h += '<div style="flex:1;background:var(--sur);border:1px solid '+(isCurrent?'var(--gold)':'var(--brd)')+';border-radius:10px;padding:10px;margin-bottom:2px">';
+    h += '<div style="display:flex;justify-content:space-between;align-items:baseline">';
+    h += '<span style="font-family:var(--fd);font-size:18px;color:'+dotColor+';font-weight:800">'+ms.year+'</span>';
+    if(ms.done) h += '<span style="font-size:11px;color:var(--green);font-weight:700">\u2713 достигнуто</span>';
+    h += '</div>';
+    h += '<div style="font-size:13px;color:var(--text);font-weight:700;margin-top:3px">'+escapeHtml(ms.target||'')+'</div>';
+    if(ms.note) h += '<div style="font-size:11px;color:var(--mut);margin-top:2px">'+escapeHtml(ms.note)+'</div>';
+    h += '</div></div>';
+  });
+  // Финальная точка — 2030
+  h += '<div style="display:flex;gap:12px;align-items:flex-start">';
+  h += '<div style="flex-shrink:0;padding-top:2px"><div style="width:14px;height:14px;border-radius:50%;background:var(--gold);border:2px solid var(--bg);box-shadow:0 0 0 2px var(--gold)"></div></div>';
+  h += '<div style="flex:1;background:rgba(212,175,55,.08);border:1px solid var(--gold);border-radius:10px;padding:10px">';
+  h += '<span style="font-family:var(--fd);font-size:18px;color:var(--gold);font-weight:800">2030</span>';
+  h += '<div style="font-size:13px;color:var(--gold);font-weight:700;margin-top:3px">1 МЛРД $ — миссия</div>';
+  h += '</div></div>';
+  h += '</div>';
+
   // === 4. СТРАТЕГИЧЕСКИЕ НАПРАВЛЕНИЯ ===
-  h += '<div style="font-size:11px;color:var(--gold);letter-spacing:2px;font-weight:700;margin:20px 0 10px">\u{1F4CA} 5 НАПРАВЛЕНИЙ \u00b7 ДО 2030</div>';
-  var directions = [
-    {icon:'\u{1F3D7}', clr:'teal', name:'Подряд labor-only', stars:3, status:'активный', goal:'500 млн ₸'},
-    {icon:'\u2B22', clr:'gold', name:'Опалубка-аренда', stars:0, status:'план Q3 2026', goal:'2000 м² старт'},
-    {icon:'\u{1F6D2}', clr:'purple', name:'Торговля (Каспи\u2192Озон)', stars:0, status:'план Q4 2026', goal:'100 млн оборот'},
-    {icon:'\u2696', clr:'red', name:'Тендеры (госзаказ)', stars:0, status:'план 2027', goal:'после лицензии'},
-    {icon:'\u{1F3E2}', clr:'blue', name:'Девелопмент (свой ЖК)', stars:0, status:'план 2028', goal:'к 2030'}
-  ];
+  h += '<div style="display:flex;justify-content:space-between;align-items:center;margin:20px 0 10px">';
+  h += '<div style="font-size:11px;color:var(--gold);letter-spacing:2px;font-weight:700">\u{1F4CA} НАПРАВЛЕНИЯ \u00b7 ДО 2030</div>';
+  if(canEditNow){
+    h += '<button onclick="openDirEdit(null)" style="background:var(--tlt);border:1px solid var(--teal);color:var(--teal);font-size:11px;border-radius:6px;padding:5px 10px;cursor:pointer;font-family:inherit;font-weight:600">+ добавить</button>';
+  }
+  h += '</div>';
+  var directions = (S.directions||[]).slice().sort(function(a,b){return (a.order||0)-(b.order||0);});
   directions.forEach(function(d){
     var starStr = '';
-    for(var i=0;i<3;i++) starStr += (i<d.stars?'\u2605':'\u2606');
-    h += '<div style="background:var(--sur);border:1px solid var(--brd);border-radius:10px;padding:10px;margin-bottom:6px">';
+    for(var i=0;i<3;i++) starStr += (i<(d.stars||0)?'\u2605':'\u2606');
+    var clickAttr = canEditNow ? ' onclick="openDirEdit(\''+d.id+'\')" style="cursor:pointer;' : ' style="';
+    h += '<div'+clickAttr+'background:var(--sur);border:1px solid var(--brd);border-radius:10px;padding:10px;margin-bottom:6px">';
     h += '<div style="display:flex;align-items:center;gap:10px">';
-    h += '<div style="width:34px;height:34px;border-radius:8px;background:rgba(57,211,187,.10);color:var(--'+d.clr+');display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">'+d.icon+'</div>';
+    h += '<div style="width:34px;height:34px;border-radius:8px;background:rgba(57,211,187,.10);color:var(--'+(d.color||'teal')+');display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">'+escapeHtml(d.icon||'\u25CF')+'</div>';
     h += '<div style="flex:1;min-width:0">';
-    h += '<div style="font-size:13px;color:var(--text);font-weight:700;display:flex;justify-content:space-between;align-items:baseline"><span>'+d.name+'</span><span style="color:var(--gold);font-size:13px;letter-spacing:1px">'+starStr+'</span></div>';
-    h += '<div style="font-size:10px;color:var(--mut);margin-top:2px">'+d.status+' \u00b7 цель: '+d.goal+'</div>';
+    h += '<div style="font-size:13px;color:var(--text);font-weight:700;display:flex;justify-content:space-between;align-items:baseline"><span>'+escapeHtml(d.name)+'</span><span style="color:var(--gold);font-size:13px;letter-spacing:1px">'+starStr+'</span></div>';
+    h += '<div style="font-size:10px;color:var(--mut);margin-top:2px">'+escapeHtml(d.status||'')+(d.goal?' \u00b7 цель: '+escapeHtml(d.goal):'')+'</div>';
     h += '</div></div></div>';
   });
 
   // === 5. РОЛИ ПАРТНЁРОВ (с привязкой к КФУ) ===
-  h += '<div style="font-size:11px;color:var(--gold);letter-spacing:2px;font-weight:700;margin:20px 0 10px">\u{1F465} РОЛИ ПАРТНЁРОВ</div>';
-  var partners = [
-    {name:'Дмитрий', role:'CEO + Стратегия', kfu:[], color:'gold'},
-    {name:'Бекжан',  role:'Темп + Безопасность', kfu:[1,5], color:'teal'},
-    {name:'Евгений', role:'Деньги + КС-2 + Документация', kfu:[2,4], color:'green'},
-    {name:'Нурсултан',role:'Качество', kfu:[3], color:'blue'},
-    {name:'Сергей',  role:'Финансы + Операционное управление', kfu:[], color:'purple'}
-  ];
-  partners.forEach(function(p){
-    h += '<div style="background:var(--sur);border:1px solid var(--brd);border-radius:10px;padding:10px;margin-bottom:6px">';
+  h += '<div style="display:flex;justify-content:space-between;align-items:center;margin:20px 0 10px">';
+  h += '<div style="font-size:11px;color:var(--gold);letter-spacing:2px;font-weight:700">\u{1F465} РОЛИ ПАРТНЁРОВ</div>';
+  if(canEditNow){
+    h += '<button onclick="openRoleEdit(null)" style="background:var(--tlt);border:1px solid var(--teal);color:var(--teal);font-size:11px;border-radius:6px;padding:5px 10px;cursor:pointer;font-family:inherit;font-weight:600">+ добавить</button>';
+  }
+  h += '</div>';
+  var roles = (S.roles||[]).slice().sort(function(a,b){return (a.order||0)-(b.order||0);});
+  roles.forEach(function(p){
+    var clickAttr = canEditNow ? ' onclick="openRoleEdit(\''+p.id+'\')" style="cursor:pointer;' : ' style="';
+    h += '<div'+clickAttr+'background:var(--sur);border:1px solid var(--brd);border-radius:10px;padding:10px;margin-bottom:6px">';
     h += '<div style="display:flex;justify-content:space-between;align-items:flex-start">';
-    h += '<div><div style="font-size:13px;color:var(--text);font-weight:700">'+p.name+'</div>';
-    h += '<div style="font-size:11px;color:var(--'+p.color+');margin-top:2px">'+p.role+'</div></div>';
-    if(p.kfu.length>0){
-      h += '<div style="display:flex;gap:4px;flex-shrink:0">';
+    h += '<div><div style="font-size:13px;color:var(--text);font-weight:700">'+escapeHtml(p.name)+'</div>';
+    h += '<div style="font-size:11px;color:var(--'+(p.color||'teal')+');margin-top:2px">'+escapeHtml(p.role||'')+'</div></div>';
+    if(p.kfu && p.kfu.length>0){
+      h += '<div style="display:flex;gap:4px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end">';
       p.kfu.forEach(function(kid){
         h += '<div style="background:var(--bg);border:1px solid var(--brd);color:var(--mut);border-radius:6px;padding:2px 8px;font-size:10px;font-weight:700">КФУ '+kid+'</div>';
       });
@@ -10602,6 +10687,22 @@ function openSubgoalEdit(id){
   h+='<div style="margin-bottom:14px"><div style="font-size:12px;color:var(--mut);margin-bottom:6px;font-weight:600">СТАТУС</div>';
   h+='<select id="sg-status" style="width:100%;background:var(--bg);border:1px solid var(--brd);color:var(--text);border-radius:8px;padding:10px;font-family:inherit;font-size:14px;box-sizing:border-box">'+statusOpts+'</select></div>';
 
+  // === ШАГИ / ЗАДАЧИ ===
+  h+='<div style="background:rgba(88,166,255,.06);border:1px solid var(--blue);border-radius:10px;padding:12px;margin-bottom:14px">';
+  h+='<div style="font-size:10px;color:var(--blue);letter-spacing:.5px;font-weight:700;margin-bottom:8px">\u2705 ШАГИ К ЦЕЛИ</div>';
+  h+='<div id="sg-steps-list">';
+  var steps = g.steps || [];
+  steps.forEach(function(st, si){
+    h += '<div class="sg-step-row" data-idx="'+si+'" style="display:flex;align-items:center;gap:8px;margin-bottom:6px">';
+    h += '<button onclick="this.dataset.done=this.dataset.done===\'1\'?\'0\':\'1\';this.textContent=this.dataset.done===\'1\'?\'\u2713\':\'\';this.style.background=this.dataset.done===\'1\'?\'var(--green)\':\'var(--bg)\';this.style.color=this.dataset.done===\'1\'?\'#0d1117\':\'var(--mut)\';" class="sg-step-check" data-done="'+(st.done?'1':'0')+'" style="width:28px;height:28px;flex-shrink:0;border-radius:6px;border:1px solid var(--green);background:'+(st.done?'var(--green)':'var(--bg)')+';color:'+(st.done?'#0d1117':'var(--mut)')+';font-size:14px;font-weight:800;cursor:pointer">'+(st.done?'\u2713':'')+'</button>';
+    h += '<input class="sg-step-text" value="'+escapeHtml(st.text||'')+'" style="flex:1;background:var(--bg);border:1px solid var(--brd);color:var(--text);border-radius:6px;padding:7px;font-family:inherit;font-size:13px;box-sizing:border-box">';
+    h += '<button onclick="this.closest(\'.sg-step-row\').remove()" style="width:28px;height:28px;flex-shrink:0;border-radius:6px;border:1px solid var(--red);background:rgba(248,81,73,.1);color:var(--red);font-size:14px;cursor:pointer">\u2715</button>';
+    h += '</div>';
+  });
+  h+='</div>';
+  h+='<button onclick="sgAddStep()" style="width:100%;background:rgba(88,166,255,.1);border:1px dashed var(--blue);color:var(--blue);border-radius:8px;padding:9px;font-family:inherit;font-size:13px;cursor:pointer;margin-top:4px">+ добавить шаг</button>';
+  h+='</div>';
+
   // Кнопки
   h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">';
   h+='<button onclick="closeModal()" style="background:var(--bg);border:1px solid var(--brd);color:var(--mut);border-radius:10px;padding:12px;font-family:inherit;font-size:14px;cursor:pointer">Отмена</button>';
@@ -10623,6 +10724,14 @@ function saveSubgoal(id, isNew){
   var target = parseFloat(document.getElementById('sg-target').value) || 0;
   if(target<=0){alert('Укажите целевое значение'); return;}
 
+  // Собираем шаги
+  var steps = [];
+  document.querySelectorAll('.sg-step-row').forEach(function(row){
+    var txt = row.querySelector('.sg-step-text').value.trim();
+    var done = row.querySelector('.sg-step-check').dataset.done==='1';
+    if(txt) steps.push({text:txt, done:done});
+  });
+
   var data = {
     id: id,
     name: name,
@@ -10633,7 +10742,8 @@ function saveSubgoal(id, isNew){
     unit: document.getElementById('sg-unit').value || '',
     source: document.getElementById('sg-source').value || 'manual',
     currentManual: parseFloat(document.getElementById('sg-current').value)||0,
-    status: document.getElementById('sg-status').value || 'planned'
+    status: document.getElementById('sg-status').value || 'planned',
+    steps: steps
   };
 
   if(!S.subgoals) S.subgoals=[];
@@ -10657,10 +10767,273 @@ function saveSubgoal(id, isNew){
   if(typeof render==='function') render();
 }
 
+// Добавить пустой шаг в модалке подцели
+function sgAddStep(){
+  var list = document.getElementById('sg-steps-list');
+  if(!list) return;
+  var row = document.createElement('div');
+  row.className = 'sg-step-row';
+  row.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:6px';
+  row.innerHTML = '<button onclick="this.dataset.done=this.dataset.done===\'1\'?\'0\':\'1\';this.textContent=this.dataset.done===\'1\'?\'\u2713\':\'\';this.style.background=this.dataset.done===\'1\'?\'var(--green)\':\'var(--bg)\';this.style.color=this.dataset.done===\'1\'?\'#0d1117\':\'var(--mut)\';" class="sg-step-check" data-done="0" style="width:28px;height:28px;flex-shrink:0;border-radius:6px;border:1px solid var(--green);background:var(--bg);color:var(--mut);font-size:14px;font-weight:800;cursor:pointer"></button>'+
+    '<input class="sg-step-text" placeholder="что нужно сделать" style="flex:1;background:var(--bg);border:1px solid var(--brd);color:var(--text);border-radius:6px;padding:7px;font-family:inherit;font-size:13px;box-sizing:border-box">'+
+    '<button onclick="this.closest(\'.sg-step-row\').remove()" style="width:28px;height:28px;flex-shrink:0;border-radius:6px;border:1px solid var(--red);background:rgba(248,81,73,.1);color:var(--red);font-size:14px;cursor:pointer">\u2715</button>';
+  list.appendChild(row);
+  row.querySelector('.sg-step-text').focus();
+}
+
 function deleteSubgoal(id){
   if(!confirmSafe('Удалить подцель? Это действие нельзя отменить.')) return;
   if(!S.subgoals) return;
   S.subgoals = S.subgoals.filter(function(x){return x.id!==id;});
+  S._modified = Date.now();
+  if(typeof persist==='function') persist();
+  if(typeof save==='function') save();
+  closeModal();
+  if(typeof render==='function') render();
+}
+
+// ============================================================
+// НАПРАВЛЕНИЯ — редактирование
+// ============================================================
+function openDirEdit(id){
+  if(!S.directions) S.directions=[];
+  var d = id ? S.directions.find(function(x){return x.id===id;}) : null;
+  var isNew = !d;
+  if(!d) d = {id:'dir_'+Date.now(), icon:'🏗', color:'teal', name:'', stars:0, status:'', goal:'', order:(S.directions.length+1)};
+
+  window._dirStars = d.stars;
+  window._dirColor = d.color;
+  var colors = ['teal','gold','green','blue','purple','red','orange'];
+  var h = '<div style="padding:0 4px 30px">';
+  h += '<div style="margin-bottom:10px"><div style="font-size:11px;color:var(--mut);margin-bottom:4px;font-weight:600">Название направления</div>';
+  h += '<input id="dir-name" value="'+escapeHtml(d.name)+'" placeholder="напр. Опалубка-аренда" style="width:100%;background:var(--bg);border:1px solid var(--brd);color:var(--text);border-radius:8px;padding:9px;font-family:inherit;font-size:14px;box-sizing:border-box"></div>';
+
+  h += '<div style="display:grid;grid-template-columns:1fr 2fr;gap:8px;margin-bottom:10px">';
+  h += '<div><div style="font-size:11px;color:var(--mut);margin-bottom:4px;font-weight:600">Иконка</div>';
+  h += '<input id="dir-icon" value="'+escapeHtml(d.icon)+'" maxlength="2" style="width:100%;background:var(--bg);border:1px solid var(--brd);color:var(--text);border-radius:8px;padding:9px;font-family:inherit;font-size:18px;text-align:center;box-sizing:border-box"></div>';
+  h += '<div><div style="font-size:11px;color:var(--mut);margin-bottom:4px;font-weight:600">Статус</div>';
+  h += '<input id="dir-status" value="'+escapeHtml(d.status)+'" placeholder="активный / план Q3 2026" style="width:100%;background:var(--bg);border:1px solid var(--brd);color:var(--text);border-radius:8px;padding:9px;font-family:inherit;font-size:13px;box-sizing:border-box"></div>';
+  h += '</div>';
+
+  h += '<div style="margin-bottom:10px"><div style="font-size:11px;color:var(--mut);margin-bottom:4px;font-weight:600">Цель</div>';
+  h += '<input id="dir-goal" value="'+escapeHtml(d.goal)+'" placeholder="500 млн ₸ / 2000 м²" style="width:100%;background:var(--bg);border:1px solid var(--brd);color:var(--text);border-radius:8px;padding:9px;font-family:inherit;font-size:13px;box-sizing:border-box"></div>';
+
+  // Звёзды готовности
+  h += '<div style="margin-bottom:10px"><div style="font-size:11px;color:var(--mut);margin-bottom:6px;font-weight:600">Готовность</div>';
+  h += '<div style="display:flex;gap:6px">';
+  [0,1,2,3].forEach(function(n){
+    var active = (d.stars===n);
+    var lbl = n===0?'нет':(''+n+'★');
+    h += '<button onclick="window._dirStars='+n+';document.querySelectorAll(\'.dir-star-btn\').forEach(function(b){b.style.background=\'var(--bg)\';b.style.color=\'var(--mut)\';});this.style.background=\'var(--gold)\';this.style.color=\'#0d1117\';" class="dir-star-btn" style="flex:1;background:'+(active?'var(--gold)':'var(--bg)')+';color:'+(active?'#0d1117':'var(--mut)')+';border:1px solid var(--gold);border-radius:8px;padding:9px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">'+lbl+'</button>';
+  });
+  h += '</div></div>';
+
+
+  // Цвет
+  h += '<div style="margin-bottom:14px"><div style="font-size:11px;color:var(--mut);margin-bottom:6px;font-weight:600">Цвет</div>';
+  h += '<div style="display:flex;gap:6px;flex-wrap:wrap">';
+  colors.forEach(function(c){
+    var active = (d.color===c);
+    h += '<button onclick="window._dirColor=\''+c+'\';document.querySelectorAll(\'.dir-clr-btn\').forEach(function(b){b.style.outline=\'none\';});this.style.outline=\'2px solid var(--text)\';" class="dir-clr-btn" style="width:36px;height:36px;border-radius:8px;background:var(--'+c+');border:none;cursor:pointer;outline:'+(active?'2px solid var(--text)':'none')+';outline-offset:2px"></button>';
+  });
+  h += '</div></div>';
+
+
+  h += '<button onclick="saveDir(\''+d.id+'\','+isNew+')" style="width:100%;background:var(--gold);color:#0d1117;border:none;border-radius:10px;padding:14px;font-family:inherit;font-size:14px;font-weight:800;cursor:pointer">Сохранить</button>';
+  if(!isNew){
+    h += '<button onclick="deleteDir(\''+d.id+'\')" style="width:100%;background:rgba(248,81,73,.1);border:1px solid var(--red);color:var(--red);border-radius:10px;padding:12px;font-family:inherit;font-size:13px;cursor:pointer;margin-top:8px">Удалить направление</button>';
+  }
+  h += '<button onclick="closeModal()" style="width:100%;background:var(--bg);border:1px solid var(--brd);color:var(--mut);border-radius:10px;padding:12px;font-family:inherit;font-size:13px;cursor:pointer;margin-top:8px">Отмена</button>';
+  h += '</div>';
+
+  document.getElementById('mtit').textContent = isNew?'Новое направление':'Направление';
+  document.getElementById('mbody').innerHTML = h;
+  document.getElementById('modal').style.display='flex';
+}
+
+function saveDir(id, isNew){
+  function gv(i){var el=document.getElementById(i);return el?el.value.trim():'';}
+  var name = gv('dir-name');
+  if(!name){ alert('Введите название'); return; }
+  var dir = {
+    id: id,
+    name: name,
+    icon: gv('dir-icon') || '🏗',
+    status: gv('dir-status'),
+    goal: gv('dir-goal'),
+    stars: (typeof window._dirStars==='number') ? window._dirStars : 0,
+    color: window._dirColor || 'teal'
+  };
+  if(isNew){
+    dir.order = (S.directions.length+1);
+    S.directions.push(dir);
+  } else {
+    var ex = S.directions.find(function(x){return x.id===id;});
+    if(ex){ dir.order = ex.order; Object.assign(ex, dir); }
+  }
+  S._modified = Date.now();
+  if(typeof persist==='function') persist();
+  if(typeof save==='function') save();
+  if(typeof pushCloud==='function') setTimeout(pushCloud,100);
+  closeModal();
+  if(typeof render==='function') render();
+}
+
+function deleteDir(id){
+  if(!confirmSafe('Удалить направление?')) return;
+  S.directions = (S.directions||[]).filter(function(x){return x.id!==id;});
+  S._modified = Date.now();
+  if(typeof persist==='function') persist();
+  if(typeof save==='function') save();
+  closeModal();
+  if(typeof render==='function') render();
+}
+
+// ============================================================
+// РОЛИ ПАРТНЁРОВ — редактирование
+// ============================================================
+function openRoleEdit(id){
+  if(!S.roles) S.roles=[];
+  var r = id ? S.roles.find(function(x){return x.id===id;}) : null;
+  var isNew = !r;
+  if(!r) r = {id:'role_'+Date.now(), name:'', role:'', kfu:[], color:'teal', order:(S.roles.length+1)};
+
+  window._roleColor = r.color;
+  var colors = ['gold','teal','green','blue','purple','red','orange'];
+  var h = '<div style="padding:0 4px 30px">';
+  h += '<div style="margin-bottom:10px"><div style="font-size:11px;color:var(--mut);margin-bottom:4px;font-weight:600">Партнёр</div>';
+  h += '<input id="role-name" value="'+escapeHtml(r.name)+'" placeholder="Имя" style="width:100%;background:var(--bg);border:1px solid var(--brd);color:var(--text);border-radius:8px;padding:9px;font-family:inherit;font-size:14px;box-sizing:border-box"></div>';
+
+  h += '<div style="margin-bottom:10px"><div style="font-size:11px;color:var(--mut);margin-bottom:4px;font-weight:600">Роль / зона ответственности</div>';
+  h += '<input id="role-role" value="'+escapeHtml(r.role)+'" placeholder="напр. Деньги + КС-2" style="width:100%;background:var(--bg);border:1px solid var(--brd);color:var(--text);border-radius:8px;padding:9px;font-family:inherit;font-size:13px;box-sizing:border-box"></div>';
+
+  // КФУ чекбоксы 1-5
+  h += '<div style="margin-bottom:10px"><div style="font-size:11px;color:var(--mut);margin-bottom:6px;font-weight:600">Закреплённые КФУ</div>';
+  h += '<div style="display:flex;gap:6px">';
+  [1,2,3,4,5].forEach(function(k){
+    var active = (r.kfu||[]).indexOf(k)>=0;
+    h += '<button onclick="this.dataset.on=this.dataset.on===\'1\'?\'0\':\'1\';this.style.background=this.dataset.on===\'1\'?\'var(--gold)\':\'var(--bg)\';this.style.color=this.dataset.on===\'1\'?\'#0d1117\':\'var(--mut)\';" class="role-kfu-btn" data-kfu="'+k+'" data-on="'+(active?'1':'0')+'" style="flex:1;background:'+(active?'var(--gold)':'var(--bg)')+';color:'+(active?'#0d1117':'var(--mut)')+';border:1px solid var(--gold);border-radius:8px;padding:9px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">'+k+'</button>';
+  });
+  h += '</div></div>';
+
+  // Цвет
+  h += '<div style="margin-bottom:14px"><div style="font-size:11px;color:var(--mut);margin-bottom:6px;font-weight:600">Цвет</div>';
+  h += '<div style="display:flex;gap:6px;flex-wrap:wrap">';
+  colors.forEach(function(c){
+    var active = (r.color===c);
+    h += '<button onclick="window._roleColor=\''+c+'\';document.querySelectorAll(\'.role-clr-btn\').forEach(function(b){b.style.outline=\'none\';});this.style.outline=\'2px solid var(--text)\';" class="role-clr-btn" style="width:36px;height:36px;border-radius:8px;background:var(--'+c+');border:none;cursor:pointer;outline:'+(active?'2px solid var(--text)':'none')+';outline-offset:2px"></button>';
+  });
+  h += '</div></div>';
+
+
+  h += '<button onclick="saveRole(\''+r.id+'\','+isNew+')" style="width:100%;background:var(--gold);color:#0d1117;border:none;border-radius:10px;padding:14px;font-family:inherit;font-size:14px;font-weight:800;cursor:pointer">Сохранить</button>';
+  if(!isNew){
+    h += '<button onclick="deleteRole(\''+r.id+'\')" style="width:100%;background:rgba(248,81,73,.1);border:1px solid var(--red);color:var(--red);border-radius:10px;padding:12px;font-family:inherit;font-size:13px;cursor:pointer;margin-top:8px">Удалить</button>';
+  }
+  h += '<button onclick="closeModal()" style="width:100%;background:var(--bg);border:1px solid var(--brd);color:var(--mut);border-radius:10px;padding:12px;font-family:inherit;font-size:13px;cursor:pointer;margin-top:8px">Отмена</button>';
+  h += '</div>';
+
+  document.getElementById('mtit').textContent = isNew?'Новая роль':'Роль партнёра';
+  document.getElementById('mbody').innerHTML = h;
+  document.getElementById('modal').style.display='flex';
+}
+
+function saveRole(id, isNew){
+  function gv(i){var el=document.getElementById(i);return el?el.value.trim():'';}
+  var name = gv('role-name');
+  if(!name){ alert('Введите имя'); return; }
+  var kfu = [];
+  document.querySelectorAll('.role-kfu-btn').forEach(function(b){
+    if(b.dataset.on==='1') kfu.push(parseInt(b.dataset.kfu));
+  });
+  var role = {
+    id: id, name: name, role: gv('role-role'),
+    kfu: kfu, color: window._roleColor || 'teal'
+  };
+  if(isNew){
+    role.order = (S.roles.length+1);
+    S.roles.push(role);
+  } else {
+    var ex = S.roles.find(function(x){return x.id===id;});
+    if(ex){ role.order = ex.order; Object.assign(ex, role); }
+  }
+  S._modified = Date.now();
+  if(typeof persist==='function') persist();
+  if(typeof save==='function') save();
+  if(typeof pushCloud==='function') setTimeout(pushCloud,100);
+  closeModal();
+  if(typeof render==='function') render();
+}
+
+function deleteRole(id){
+  if(!confirmSafe('Удалить роль?')) return;
+  S.roles = (S.roles||[]).filter(function(x){return x.id!==id;});
+  S._modified = Date.now();
+  if(typeof persist==='function') persist();
+  if(typeof save==='function') save();
+  closeModal();
+  if(typeof render==='function') render();
+}
+
+// ============================================================
+// ГОДОВЫЕ ВЕХИ — редактирование
+// ============================================================
+function openMilestoneEdit(id){
+  if(!S.milestones) S.milestones=[];
+  var ms = id ? S.milestones.find(function(x){return x.id===id;}) : null;
+  var isNew = !ms;
+  if(!ms) ms = {id:'ms_'+Date.now(), year:(new Date().getFullYear()+1), target:'', note:'', done:false, order:(S.milestones.length+1)};
+
+  var h = '<div style="padding:0 4px 30px">';
+  h += '<div style="margin-bottom:10px"><div style="font-size:11px;color:var(--mut);margin-bottom:4px;font-weight:600">Год</div>';
+  h += '<input id="ms-year" type="number" value="'+(ms.year||'')+'" min="2026" max="2030" style="width:100%;background:var(--bg);border:1px solid var(--brd);color:var(--text);border-radius:8px;padding:9px;font-family:inherit;font-size:16px;box-sizing:border-box"></div>';
+
+  h += '<div style="margin-bottom:10px"><div style="font-size:11px;color:var(--mut);margin-bottom:4px;font-weight:600">Цель года</div>';
+  h += '<input id="ms-target" value="'+escapeHtml(ms.target)+'" placeholder="напр. 2 млрд ₸ оборот" style="width:100%;background:var(--bg);border:1px solid var(--brd);color:var(--text);border-radius:8px;padding:9px;font-family:inherit;font-size:14px;box-sizing:border-box"></div>';
+
+  h += '<div style="margin-bottom:12px"><div style="font-size:11px;color:var(--mut);margin-bottom:4px;font-weight:600">Описание</div>';
+  h += '<input id="ms-note" value="'+escapeHtml(ms.note)+'" placeholder="что должно произойти" style="width:100%;background:var(--bg);border:1px solid var(--brd);color:var(--text);border-radius:8px;padding:9px;font-family:inherit;font-size:13px;box-sizing:border-box"></div>';
+
+  // Достигнуто
+  h += '<div style="margin-bottom:14px"><button onclick="window._msDone=!window._msDone;this.style.background=window._msDone?\'var(--green)\':\'var(--bg)\';this.style.color=window._msDone?\'#0d1117\':\'var(--mut)\';this.textContent=window._msDone?\'\u2713 Достигнуто\':\'Отметить достигнутым\';" style="width:100%;background:'+(ms.done?'var(--green)':'var(--bg)')+';color:'+(ms.done?'#0d1117':'var(--mut)')+';border:1px solid var(--green);border-radius:8px;padding:11px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">'+(ms.done?'\u2713 Достигнуто':'Отметить достигнутым')+'</button></div>';
+
+  h += '<button onclick="saveMilestone(\''+ms.id+'\','+isNew+')" style="width:100%;background:var(--gold);color:#0d1117;border:none;border-radius:10px;padding:14px;font-family:inherit;font-size:14px;font-weight:800;cursor:pointer">Сохранить</button>';
+  if(!isNew){
+    h += '<button onclick="deleteMilestone(\''+ms.id+'\')" style="width:100%;background:rgba(248,81,73,.1);border:1px solid var(--red);color:var(--red);border-radius:10px;padding:12px;font-family:inherit;font-size:13px;cursor:pointer;margin-top:8px">Удалить</button>';
+  }
+  h += '<button onclick="closeModal()" style="width:100%;background:var(--bg);border:1px solid var(--brd);color:var(--mut);border-radius:10px;padding:12px;font-family:inherit;font-size:13px;cursor:pointer;margin-top:8px">Отмена</button>';
+  h += '</div>';
+
+  window._msDone = ms.done;
+  document.getElementById('mtit').textContent = isNew?'Новая веха':'Веха '+ms.year;
+  document.getElementById('mbody').innerHTML = h;
+  document.getElementById('modal').style.display='flex';
+}
+
+function saveMilestone(id, isNew){
+  function gv(i){var el=document.getElementById(i);return el?el.value.trim():'';}
+  var year = parseInt(gv('ms-year'))||0;
+  var target = gv('ms-target');
+  if(!year || !target){ alert('Заполните год и цель'); return; }
+  var ms = {id:id, year:year, target:target, note:gv('ms-note'), done:!!window._msDone};
+  if(isNew){
+    ms.order = year;
+    S.milestones.push(ms);
+  } else {
+    var ex = S.milestones.find(function(x){return x.id===id;});
+    if(ex){ ms.order = ex.order||year; Object.assign(ex, ms); }
+  }
+  S._modified = Date.now();
+  if(typeof persist==='function') persist();
+  if(typeof save==='function') save();
+  if(typeof pushCloud==='function') setTimeout(pushCloud,100);
+  closeModal();
+  if(typeof render==='function') render();
+}
+
+function deleteMilestone(id){
+  if(!confirmSafe('Удалить веху?')) return;
+  S.milestones = (S.milestones||[]).filter(function(x){return x.id!==id;});
   S._modified = Date.now();
   if(typeof persist==='function') persist();
   if(typeof save==='function') save();
@@ -10673,7 +11046,7 @@ function dcPlan(){}
 
 function getFiltered(){return S.entries.filter(function(e){if(fType!=='all'&&e.type!==fType)return false;if(fObj!=='all'&&e.obj!==fObj)return false;if(fWho!=='all'&&e.who!==fWho)return false;if(fSource==='tg'&&e.source!=='telegram')return false;if(fSource==='manual'&&e.source==='telegram')return false;if(fAccept==='pending'&&!(e.type==='vol'&&e.accepted!==true))return false;if(fAccept==='accepted'&&!(e.type==='vol'&&e.accepted===true))return false;if(fDateFrom&&e.date<fDateFrom)return false;if(fDateTo&&e.date>fDateTo)return false;if(searchQ){var q=searchQ.toLowerCase();var t=(e.note||'')+' '+(e.who||'')+' '+(e.cat||'')+' '+(e.date||'')+' '+(e.amount||'')+' '+(e.wtype||'')+' '+(e.zone||'')+' '+(e.struct||'')+' '+(e.floor||'')+' '+(e.from||'')+' '+(e.to||'');if(t.toLowerCase().indexOf(q)<0)return false;}return true;}).sort(function(a,b){return b.date.localeCompare(a.date);});}
 function rJournal(){var oo='<option value="all">Все объекты</option>'+S.objects.map(function(o){return '<option value="'+o+'"'+(fObj===o?' selected':'')+'>'+o.split(',')[0]+'</option>';}).join('');var to=Object.keys(TYPES).map(function(t){var l=TYPES[t]?TYPES[t].lbl:t;return '<option value="'+t+'"'+(fType===t?' selected':'')+'>'+l+'</option>';});to.unshift('<option value="all"'+(fType==='all'?' selected':'')+'>Все типы</option>');var fl=getFiltered();
-var h='<div class="shdr"><h2>ЖУРНАЛ</h2><div style="display:flex;align-items:center;gap:8px">'+(canEdit()?'<button onclick="exportCSV()" style="background:var(--grlt);border:1px solid var(--green);color:var(--green);border-radius:6px;padding:5px 10px;font-size:10px;cursor:pointer;font-family:var(--fm)">Excel</button>':'')+'<span id="j-count" style="font-size:11px;color:var(--mut)">'+fl.length+' / '+S.entries.length+'</span></div></div>';
+var h='<div class="shdr"><h2>\u{1F4DC} ЖУРНАЛ</h2><div style="display:flex;align-items:center;gap:8px">'+(canEdit()?'<button onclick="exportCSV()" style="background:var(--grlt);border:1px solid var(--green);color:var(--green);border-radius:6px;padding:5px 10px;font-size:10px;cursor:pointer;font-family:var(--fm)">Excel</button>':'')+'<span id="j-count" style="font-size:11px;color:var(--mut)">'+fl.length+' / '+S.entries.length+'</span></div></div>';
 h+='<div class="dcard" style="padding:10px 14px"><div style="display:flex;gap:6px;margin-bottom:8px"><input class="fi" id="j-search" type="text" placeholder="Поиск..." value="'+searchQ+'" style="flex:1" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/><button id="j-btn-search" style="background:var(--gold);color:#0d1117;border:none;border-radius:8px;padding:0 14px;font-size:14px;cursor:pointer">Найти</button></div>'+
 // Быстрый фильтр приёмки
 '<div style="display:flex;gap:6px;margin-bottom:6px">'+
@@ -10730,7 +11103,7 @@ function openKS2Card(id){
     h+='<button onclick="closeModal();markKS2Paid(\''+k.id+'\')" style="width:100%;background:linear-gradient(135deg,var(--green),#2ea043);color:#fff;border:none;border-radius:10px;padding:12px;font-family:var(--fd);font-size:16px;cursor:pointer;letter-spacing:1px;margin-bottom:8px">✓ ОТМЕТИТЬ ОПЛАЧЕННЫМ</button>';
   }
   if(canEdit()){
-    h+='<button onclick="closeModal();deleteKS2(\''+k.id+'\')" style="width:100%;background:transparent;border:1px solid rgba(248,81,73,.3);color:var(--red);border-radius:10px;padding:10px;font-size:12px;cursor:pointer;margin-bottom:8px">Удалить акт</button>';
+    h+='<button onclick="closeModal();deleteKS2Old(\''+k.id+'\')" style="width:100%;background:transparent;border:1px solid rgba(248,81,73,.3);color:var(--red);border-radius:10px;padding:10px;font-size:12px;cursor:pointer;margin-bottom:8px">Удалить акт</button>';
   }
   h+='<button class="fcanc" onclick="closeModal()">Закрыть</button>';
   document.getElementById('mbody').innerHTML=h;
@@ -10800,7 +11173,7 @@ function rKS2section(){
       if(!k.paid){
         h+='<button onclick="markKS2Paid(\''+k.id+'\')" style="flex:2;background:linear-gradient(135deg,rgba(63,185,80,.2),rgba(63,185,80,.1));border:1px solid rgba(63,185,80,.5);color:var(--green);border-radius:8px;padding:8px;font-size:11px;cursor:pointer;font-family:var(--fm)">✓ Оплачено</button>';
       }
-      h+='<button onclick="deleteKS2(\''+k.id+'\')" style="flex:1;background:transparent;border:1px solid rgba(248,81,73,.3);color:var(--red);border-radius:8px;padding:8px;font-size:11px;cursor:pointer">Удалить</button>';
+      h+='<button onclick="deleteKS2Old(\''+k.id+'\')" style="flex:1;background:transparent;border:1px solid rgba(248,81,73,.3);color:var(--red);border-radius:8px;padding:8px;font-size:11px;cursor:pointer">Удалить</button>';
       h+='</div>';
     }
     h+='</div>';
@@ -10862,7 +11235,7 @@ function markKS2Paid(id){
   alert('✓ Акт '+k.number+' отмечен оплаченным. Доход добавлен в журнал.');
 }
 
-function deleteKS2(id){
+function deleteKS2Old(id){
   if(!confirmSafe('Удалить акт КС-2?'))return;
   saveKS2(getKS2().filter(function(k){return k.id!==id;}));
   render();
@@ -10880,7 +11253,7 @@ function rObjects(){
 
   // Заголовок
   h += '<div style="margin-bottom:16px">';
-  h += '<div style="font-size:28px;color:var(--gold);font-weight:800;letter-spacing:1.5px;font-family:var(--fd)">\u{1F3D7} ОБЪЕКТЫ</div>';
+  h += '<div style="font-size:30px;color:var(--gold);font-weight:800;letter-spacing:2px;font-family:var(--fd)">\u{1F3D7} ОБЪЕКТЫ</div>';
   h += '<div style="font-size:14px;color:var(--mut);margin-top:4px">Стройки · деньги · прогресс</div>';
   h += '</div>';
 
@@ -10943,7 +11316,24 @@ function rObjects(){
     h += moneyRow('Выполнено работ', fmt(margin.revenue)+' \u20b8', 'var(--text)', false);
     h += moneyRow('Расходы стройки', fmt(margin.cost)+' \u20b8', '#f85149', false);
     h += '<div style="height:1px;background:var(--brd);margin:4px 0"></div>';
-    h += moneyRow('МАРЖА', (margin.profit>=0?'+':'\u2212')+fmt(Math.abs(margin.profit))+' \u20b8'+(margin.revenue>0?'  '+(marginPct>=0?'+':'')+marginPct+'%':''), marginColor, true);
+    h += moneyRow('МАРЖА по готовому', (margin.profit>=0?'+':'\u2212')+fmt(Math.abs(margin.profit))+' \u20b8'+(margin.revenue>0?'  '+(marginPct>=0?'+':'')+marginPct+'%':''), marginColor, true);
+
+    // Незавершёнка + прогноз (если есть армирование без бетона)
+    if(margin.wip > 0){
+      var fPct = Math.round(margin.forecastPct);
+      var fColor = margin.forecastProfit>=0 ? '#3fb950' : '#f85149';
+      h += '<div style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--brd)">';
+      h += '<div style="display:flex;justify-content:space-between;align-items:baseline;padding:3px 0">';
+      h += '<span style="font-size:12px;color:var(--orange)">\u{1F527} В работе (армирование)</span>';
+      h += '<span style="font-family:var(--fd);font-size:14px;color:var(--orange);font-weight:700">+'+fmt(margin.wip)+' \u20b8</span>';
+      h += '</div>';
+      h += '<div style="font-size:10px;color:var(--mut);margin:2px 0 6px">станет выручкой после заливки бетона</div>';
+      h += '<div style="display:flex;justify-content:space-between;align-items:baseline;padding:3px 0">';
+      h += '<span style="font-size:13px;color:var(--text);font-weight:700">Прогноз маржи</span>';
+      h += '<span style="font-family:var(--fd);font-size:16px;color:'+fColor+';font-weight:800">'+(margin.forecastProfit>=0?'+':'\u2212')+fmt(Math.abs(margin.forecastProfit))+' \u20b8  '+(fPct>=0?'+':'')+fPct+'%</span>';
+      h += '</div>';
+      h += '</div>';
+    }
     h += '</div>';
 
     // Дебиторка / оплата
@@ -10966,8 +11356,12 @@ function rObjects(){
 
     // Архив сформированных актов КС-2 по этому объекту
     var objActs = (S.ks2acts||[]).filter(function(a){return a.obj===objName;});
+    // Кнопка КС-3 (если есть акты КС-2)
     if(objActs.length > 0){
-      h += '<details style="margin-top:6px"><summary style="font-size:12px;color:var(--mut);font-weight:700;padding:8px 4px;cursor:pointer;list-style:none">\u{1F4D1} Сформированные акты ('+objActs.length+') \u25be</summary>';
+      h += '<button onclick="if(typeof openKS3Builder===\'function\')openKS3Builder(\''+escapeAttr(objName)+'\')" style="width:100%;background:var(--teal);color:#0d1117;border:none;border-radius:10px;padding:12px;font-family:inherit;font-size:13px;font-weight:800;cursor:pointer;margin-bottom:6px">\u{1F4C3} Сформировать КС-3 (справка о стоимости)</button>';
+    }
+    if(objActs.length > 0){
+      h += '<details style="margin-top:6px"><summary style="font-size:12px;color:var(--mut);font-weight:700;padding:8px 4px;cursor:pointer;list-style:none">\u{1F4D1} Акты КС-2 ('+objActs.length+') \u25be</summary>';
       h += '<div style="margin-top:6px">';
       objActs.forEach(function(a){
         h += '<div style="background:var(--sur);border:1px solid var(--brd);border-radius:8px;padding:10px;margin-bottom:6px;display:flex;align-items:center;gap:10px">';
@@ -10977,6 +11371,24 @@ function rObjects(){
         h += '</div>';
         h += '<button onclick="openSavedKS2(\''+a.id+'\')" style="background:rgba(88,166,255,.15);border:1px solid var(--blue);color:var(--blue);border-radius:6px;padding:6px 10px;font-size:11px;cursor:pointer;font-family:inherit">\u{1F5A8} Открыть</button>';
         h += '<button onclick="deleteKS2(\''+a.id+'\')" style="background:rgba(248,81,73,.1);border:1px solid var(--red);color:var(--red);border-radius:6px;padding:6px 9px;font-size:11px;cursor:pointer;font-family:inherit">\u2715</button>';
+        h += '</div>';
+      });
+      h += '</div></details>';
+    }
+
+    // Архив справок КС-3
+    var objKs3 = (S.ks3acts||[]).filter(function(a){return a.obj===objName;});
+    if(objKs3.length > 0){
+      h += '<details style="margin-top:6px"><summary style="font-size:12px;color:var(--mut);font-weight:700;padding:8px 4px;cursor:pointer;list-style:none">\u{1F4C3} Справки КС-3 ('+objKs3.length+') \u25be</summary>';
+      h += '<div style="margin-top:6px">';
+      objKs3.forEach(function(a){
+        h += '<div style="background:var(--sur);border:1px solid var(--brd);border-radius:8px;padding:10px;margin-bottom:6px;display:flex;align-items:center;gap:10px">';
+        h += '<div onclick="openSavedKS3(\''+a.id+'\')" style="flex:1;cursor:pointer">';
+        h += '<div style="font-size:13px;color:var(--text);font-weight:700">Справка № '+escapeHtml(a.num)+' · '+escapeHtml(a.period||'')+'</div>';
+        h += '<div style="font-size:11px;color:var(--mut);margin-top:2px">'+escapeHtml(a.date)+' · <span style="color:var(--teal);font-weight:700">'+fmt(a.withVat)+' \u20b8 с НДС</span></div>';
+        h += '</div>';
+        h += '<button onclick="openSavedKS3(\''+a.id+'\')" style="background:rgba(88,166,255,.15);border:1px solid var(--blue);color:var(--blue);border-radius:6px;padding:6px 10px;font-size:11px;cursor:pointer;font-family:inherit">\u{1F5A8} Открыть</button>';
+        h += '<button onclick="deleteKS3(\''+a.id+'\')" style="background:rgba(248,81,73,.1);border:1px solid var(--red);color:var(--red);border-radius:6px;padding:6px 9px;font-size:11px;cursor:pointer;font-family:inherit">\u2715</button>';
         h += '</div>';
       });
       h += '</div></details>';
@@ -11452,6 +11864,220 @@ function deleteKS2(actId){
   if(typeof render==='function') render();
 }
 
+// ============================================================
+// КС-3 — СПРАВКА О СТОИМОСТИ (приказ №170, в паре с КС-2)
+// ============================================================
+function openKS3Builder(objName){
+  var acts = (S.ks2acts||[]).filter(function(a){return a.obj===objName;});
+  if(acts.length===0){
+    alert('Сначала сформируйте хотя бы один акт КС-2 — КС-3 обобщает их стоимость.');
+    return;
+  }
+  if(!S.ks2meta) S.ks2meta = {};
+  var km = S.ks2meta;
+  var now = new Date();
+  var defaultPeriod = now.toLocaleDateString('ru-RU',{month:'long',year:'numeric'});
+
+  // НДС ставка (Казахстан 12%)
+  var vatRate = (km.vatRate!=null) ? km.vatRate : 16;
+
+  var h = '<div style="padding:0 4px 30px">';
+  h += '<div style="background:rgba(212,175,55,.10);border:1px solid var(--gold);border-radius:10px;padding:12px;margin-bottom:14px">';
+  h += '<div style="font-size:11px;color:var(--gold);letter-spacing:.5px;font-weight:700">КС-3 · СПРАВКА О СТОИМОСТИ РАБОТ</div>';
+  h += '<div style="font-size:12px;color:var(--mut);margin-top:3px">Обобщает акты КС-2 · форма РК №170</div>';
+  h += '</div>';
+
+  // Выбор актов КС-2 для включения
+  h += '<div style="font-size:11px;color:var(--teal);letter-spacing:1px;font-weight:700;margin-bottom:8px">ВКЛЮЧИТЬ АКТЫ КС-2</div>';
+  var totalSel = 0;
+  acts.forEach(function(a, i){
+    totalSel += a.total;
+    h += '<label style="display:flex;align-items:center;gap:10px;background:var(--sur);border:1px solid var(--brd);border-radius:8px;padding:11px;margin-bottom:6px;cursor:pointer">';
+    h += '<input type="checkbox" class="ks3-act-cb" data-total="'+a.total+'" data-aktnum="'+escapeAttr(a.aktnum)+'" data-period="'+escapeAttr(a.period||'')+'" checked style="width:20px;height:20px;flex-shrink:0;accent-color:var(--gold)">';
+    h += '<div style="flex:1"><div style="font-size:13px;color:var(--text);font-weight:700">Акт № '+escapeHtml(a.aktnum)+' · '+escapeHtml(a.period||'')+'</div>';
+    h += '<div style="font-size:11px;color:var(--gold);font-weight:700;margin-top:2px">'+fmt(a.total)+' \u20b8</div></div>';
+    h += '</label>';
+  });
+
+  // Период справки
+  h += '<div style="margin:12px 0"><div style="font-size:11px;color:var(--mut);margin-bottom:4px;font-weight:600">Период справки</div>';
+  h += '<input id="ks3-period" value="'+escapeHtml(defaultPeriod)+'" style="width:100%;background:var(--bg);border:1px solid var(--brd);color:var(--text);border-radius:8px;padding:9px;font-family:inherit;font-size:14px;box-sizing:border-box"></div>';
+
+  // Номер справки
+  h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">';
+  h += '<div><div style="font-size:11px;color:var(--mut);margin-bottom:4px;font-weight:600">Справка №</div>';
+  h += '<input id="ks3-num" value="'+escapeHtml(km.ks3num||'1')+'" style="width:100%;background:var(--bg);border:1px solid var(--brd);color:var(--text);border-radius:8px;padding:9px;font-family:inherit;font-size:14px;box-sizing:border-box"></div>';
+  h += '<div><div style="font-size:11px;color:var(--mut);margin-bottom:4px;font-weight:600">НДС %</div>';
+  h += '<input id="ks3-vat" type="number" value="'+vatRate+'" style="width:100%;background:var(--bg);border:1px solid var(--brd);color:var(--text);border-radius:8px;padding:9px;font-family:inherit;font-size:14px;box-sizing:border-box"></div>';
+  h += '</div>';
+
+  // Итоги (расчёт)
+  var vatAmount = Math.round(totalSel * vatRate/100);
+  var withVat = totalSel + vatAmount;
+  h += '<div style="background:var(--bg);border:2px solid var(--gold);border-radius:10px;padding:14px;margin:12px 0">';
+  h += '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px"><span style="color:var(--mut)">Стоимость работ</span><span style="font-family:var(--fd);color:var(--text);font-weight:700">'+fmt(totalSel)+' \u20b8</span></div>';
+  h += '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px"><span style="color:var(--mut)">НДС '+vatRate+'%</span><span style="font-family:var(--fd);color:var(--text);font-weight:700">'+fmt(vatAmount)+' \u20b8</span></div>';
+  h += '<div style="height:1px;background:var(--brd);margin:6px 0"></div>';
+  h += '<div style="display:flex;justify-content:space-between;padding:4px 0"><span style="font-size:14px;color:var(--text);font-weight:700">ВСЕГО с НДС</span><span style="font-family:var(--fd);font-size:18px;color:var(--gold);font-weight:800">'+fmt(withVat)+' \u20b8</span></div>';
+  h += '</div>';
+
+  h += '<button onclick="generateKS3(\''+escapeAttr(objName)+'\')" style="width:100%;background:var(--gold);color:#0d1117;border:none;border-radius:10px;padding:14px;font-family:inherit;font-size:14px;font-weight:800;cursor:pointer;margin-top:6px">\u{1F4C4} Сформировать бланк КС-3</button>';
+  h += '<button onclick="closeModal()" style="width:100%;background:var(--bg);border:1px solid var(--brd);color:var(--mut);border-radius:10px;padding:12px;font-family:inherit;font-size:13px;cursor:pointer;margin-top:8px">Отмена</button>';
+
+  h += '<div style="font-size:11px;color:var(--mut);margin-top:12px;text-align:center;line-height:1.5">КС-3 — итоговая справка о стоимости. Подписывается вместе с КС-2 и передаётся заказчику для оплаты.</div>';
+  h += '</div>';
+
+  document.getElementById('mtit').textContent='КС-3';
+  document.getElementById('mbody').innerHTML=h;
+  document.getElementById('modal').style.display='flex';
+}
+
+function generateKS3(objName){
+  if(!S.ks2meta) S.ks2meta = {};
+  var km = S.ks2meta;
+  function gv(id){var el=document.getElementById(id);return el?el.value.trim():'';}
+  var period = gv('ks3-period');
+  km.ks3num = gv('ks3-num') || '1';
+  var vatRate = parseFloat(gv('ks3-vat')) || 0;
+  km.vatRate = vatRate;
+
+  // Собираем выбранные акты
+  var selected = [];
+  var total = 0;
+  document.querySelectorAll('.ks3-act-cb').forEach(function(cb){
+    if(cb.checked){
+      var t = parseFloat(cb.dataset.total)||0;
+      selected.push({aktnum:cb.dataset.aktnum, period:cb.dataset.period, total:t});
+      total += t;
+    }
+  });
+  if(selected.length===0){ alert('Выберите хотя бы один акт'); return; }
+
+  S._modified = Date.now();
+  if(typeof persist==='function') persist();
+  if(typeof save==='function') save();
+
+  var vatAmount = Math.round(total * vatRate/100);
+  var withVat = total + vatAmount;
+  var now = new Date();
+  var dateStr = now.toLocaleDateString('ru-RU');
+  function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+  function fmtNum(n){return new Intl.NumberFormat('ru-RU').format(Math.round(n||0));}
+
+  // Строки таблицы — по актам
+  var rows='', idx=1;
+  selected.forEach(function(s){
+    rows += '<tr>'+
+      '<td style="text-align:center">'+idx+'</td>'+
+      '<td>Строительно-монтажные работы (Акт КС-2 № '+esc(s.aktnum)+(s.period?', '+esc(s.period):'')+')</td>'+
+      '<td style="text-align:right">'+fmtNum(s.total)+'</td>'+
+      '<td style="text-align:right">'+fmtNum(s.total)+'</td>'+
+    '</tr>';
+    idx++;
+  });
+
+  var totalWords = (typeof numToWordsKz==='function') ? numToWordsKz(withVat) : '';
+
+  var doc = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>КС-3 '+esc(objName)+'</title>'+
+    '<style>'+
+    '@page{size:A4 portrait;margin:15mm}'+
+    'body{font-family:Arial,sans-serif;font-size:12px;color:#000;padding:10px}'+
+    '.r{text-align:right}.c{text-align:center}'+
+    '.head-form{text-align:right;font-size:10px;margin-bottom:8px}'+
+    '.title{text-align:center;font-size:17px;font-weight:bold;margin:16px 0 4px}'+
+    '.subtitle{text-align:center;font-size:12px;margin-bottom:16px}'+
+    '.meta{width:100%;font-size:12px;margin-bottom:6px;border-collapse:collapse}'+
+    '.meta td{padding:3px 6px;vertical-align:top}'+
+    '.meta .lbl{color:#555;width:200px}'+
+    '.meta .val{border-bottom:1px solid #000;font-weight:600}'+
+    'table.work{width:100%;border-collapse:collapse;margin:16px 0;font-size:11px}'+
+    'table.work th,table.work td{border:1px solid #000;padding:7px 8px}'+
+    'table.work th{background:#f0f0f0;text-align:center;font-weight:bold}'+
+    '.total-row td{font-weight:bold;background:#fafafa}'+
+    '.words{font-size:12px;margin:12px 0;font-style:italic}'+
+    '.signs{display:flex;justify-content:space-between;margin-top:50px;font-size:12px}'+
+    '.sign{width:45%}'+
+    '.sign-line{border-bottom:1px solid #000;height:32px;margin-bottom:4px}'+
+    '.sign-label{color:#555;font-size:10px}'+
+    '@media print{.noprint{display:none}}'+
+    '.noprint{position:fixed;top:10px;right:10px;background:#1a1f2e;color:#f0a500;padding:10px 18px;border:none;border-radius:8px;font-size:14px;cursor:pointer}'+
+    '</style></head><body>'+
+
+    '<button class="noprint" onclick="window.print()">🖨 Печать / Сохранить PDF</button>'+
+
+    '<div class="head-form">Типовая форма № КС-3<br>Утверждена приказом № 170 от 02.05.2012</div>'+
+    '<div class="title">СПРАВКА № '+esc(km.ks3num||'1')+'</div>'+
+    '<div class="subtitle">о стоимости выполненных работ и затрат за '+esc(period)+'</div>'+
+
+    '<table class="meta"><tbody>'+
+    '<tr><td class="lbl">Заказчик:</td><td class="val">'+esc(km.zakazchik||'')+(km.zakazchikAddr?', '+esc(km.zakazchikAddr):'')+'</td></tr>'+
+    '<tr><td class="lbl">Подрядчик:</td><td class="val">'+esc(km.podryad||'')+(km.podryadBin?', БИН '+esc(km.podryadBin):'')+'</td></tr>'+
+    '<tr><td class="lbl">Стройка и адрес:</td><td class="val">'+esc(km.stroyka||objName)+'</td></tr>'+
+    '<tr><td class="lbl">Договор подряда:</td><td class="val">'+esc(km.dogovor||'—')+'</td></tr>'+
+    '<tr><td class="lbl">Дата составления:</td><td class="val">'+dateStr+'</td></tr>'+
+    '</tbody></table>'+
+
+    '<table class="work"><thead><tr>'+
+    '<th style="width:40px">№<br>п/п</th>'+
+    '<th>Наименование работ и затрат</th>'+
+    '<th style="width:130px">Стоимость с начала года, тг</th>'+
+    '<th style="width:130px">в т.ч. за период, тг</th>'+
+    '</tr></thead><tbody>'+
+    rows+
+    '<tr class="total-row"><td colspan="2" class="r">Итого (без НДС):</td><td class="r">'+fmtNum(total)+'</td><td class="r">'+fmtNum(total)+'</td></tr>'+
+    '<tr><td colspan="2" class="r">НДС '+vatRate+'%:</td><td class="r">'+fmtNum(vatAmount)+'</td><td class="r">'+fmtNum(vatAmount)+'</td></tr>'+
+    '<tr class="total-row"><td colspan="2" class="r">Всего с НДС:</td><td class="r">'+fmtNum(withVat)+'</td><td class="r">'+fmtNum(withVat)+'</td></tr>'+
+    '</tbody></table>'+
+
+    '<div class="words">Всего выполнено работ и затрат на сумму: <b>'+fmtNum(withVat)+' тг</b>'+(totalWords?' ('+totalWords+', включая НДС)':'')+'</div>'+
+
+    '<div class="signs">'+
+    '<div class="sign"><div style="font-weight:bold;margin-bottom:8px">Подрядчик:</div>'+
+    '<div class="sign-line"></div><div class="sign-label">подпись, М.П.</div>'+
+    '<div style="margin-top:10px;font-weight:600">'+esc(km.podryad||'')+'</div>'+
+    (km.podryadRuk?'<div style="margin-top:4px">Руководитель: '+esc(km.podryadRuk)+'</div>':'')+'</div>'+
+    '<div class="sign"><div style="font-weight:bold;margin-bottom:8px">Заказчик:</div>'+
+    '<div class="sign-line"></div><div class="sign-label">подпись, М.П.</div>'+
+    '<div style="margin-top:10px;font-weight:600">'+esc(km.zakazchik||'')+'</div></div>'+
+    '</div>'+
+
+    '</body></html>';
+
+  // Сохраняем в архив (ks3acts)
+  if(!S.ks3acts) S.ks3acts = [];
+  var actId = 'ks3_'+Date.now();
+  S.ks3acts.unshift({
+    id: actId, obj: objName, num: km.ks3num||'1', period: period,
+    date: dateStr, total: total, vat: vatAmount, withVat: withVat,
+    html: doc, createdAt: Date.now()
+  });
+  if(S.ks3acts.length>50) S.ks3acts = S.ks3acts.slice(0,50);
+  S._modified = Date.now();
+  if(typeof persist==='function') persist();
+  if(typeof save==='function') save();
+  if(typeof pushCloud==='function') setTimeout(pushCloud,100);
+
+  if(typeof openKS2Doc==='function') openKS2Doc(doc);
+  closeModal();
+  if(typeof render==='function') render();
+}
+
+function openSavedKS3(actId){
+  var act = (S.ks3acts||[]).find(function(a){return a.id===actId;});
+  if(!act || !act.html){ alert('Справка не найдена'); return; }
+  if(typeof openKS2Doc==='function') openKS2Doc(act.html);
+}
+
+function deleteKS3(actId){
+  if(!confirmSafe('Удалить эту справку КС-3 из архива?')) return;
+  S.ks3acts = (S.ks3acts||[]).filter(function(a){return a.id!==actId;});
+  S._modified = Date.now();
+  if(typeof persist==='function') persist();
+  if(typeof save==='function') save();
+  closeModal();
+  if(typeof render==='function') render();
+}
+
 
 // Число прописью (тенге) — упрощённый русский вариант
 function numToWordsKz(n){
@@ -11513,7 +12139,7 @@ function rMore(){
   
   // Заголовок
   h += '<div style="margin-bottom:20px">';
-  h += '<div style="font-size:28px;color:var(--gold);font-weight:800;letter-spacing:1.5px;font-family:var(--fd)">⚙ ЕЩЁ</div>';
+  h += '<div style="font-size:30px;color:var(--gold);font-weight:800;letter-spacing:2px;font-family:var(--fd)">⚙ ЕЩЁ</div>';
   h += '<div style="font-size:14px;color:var(--mut);margin-top:4px">Все функции приложения</div>';
   h += '</div>';
   
@@ -13936,7 +14562,7 @@ document.getElementById('btn-refresh').addEventListener('click',function(){
   try{localStorage.setItem('lg_v9',JSON.stringify(S));}catch(e){}
   // 2. Отправить в облако и ПОДОЖДАТЬ подтверждения перед очисткой
   ss('↑ Отправка в облако...',false);
-  fetch(BURL,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':AK,'X-Bin-Versioning':'false'},body:JSON.stringify({_modified:S._modified,_schema:S._schema||3,entries:S.entries,brigades:S.brigades,objects:S.objects,objMeta:S.objMeta||{},history:S.history,weeks:S.weeks,kfu:S.kfu,settings:S.settings,goalsDone:S.goalsDone,kzDict:S.kzDict||{},workTypes:S.workTypes||[],subgoals:S.subgoals||[],cycles:S.cycles||{},ks2meta:S.ks2meta||{},ks2acts:S.ks2acts||[]})}).then(function(res){
+  fetch(BURL,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':AK,'X-Bin-Versioning':'false'},body:JSON.stringify({_modified:S._modified,_schema:S._schema||3,entries:S.entries,brigades:S.brigades,objects:S.objects,objMeta:S.objMeta||{},history:S.history,weeks:S.weeks,kfu:S.kfu,settings:S.settings,goalsDone:S.goalsDone,kzDict:S.kzDict||{},workTypes:S.workTypes||[],subgoals:S.subgoals||[],cycles:S.cycles||{},ks2meta:S.ks2meta||{},ks2acts:S.ks2acts||[],ks3acts:S.ks3acts||[],directions:S.directions||[],roles:S.roles||[],milestones:S.milestones||[]})}).then(function(res){
     if(!res.ok){
       alert('❌ Не удалось сохранить в облако! Обновление отменено чтобы не потерять данные.\n\nПроверьте интернет и попробуйте снова.');
       ss('!',true);
