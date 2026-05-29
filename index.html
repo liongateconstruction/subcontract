@@ -12444,19 +12444,21 @@ function rObjects(){
   h += '</div>';
   h += crumbs();
 
-  // Кнопка управления объектами — на первом экране вкладки (список заказчиков), только редактору
-  if(!effCustomer && !effObject && typeof canEdit==='function' && canEdit()){
-    h += '<button onclick="if(typeof openManageObjects===\'function\')openManageObjects()" style="width:100%;background:linear-gradient(135deg,rgba(57,211,187,.12),rgba(88,166,255,.06));border:1px solid var(--teal);color:var(--teal);border-radius:12px;padding:13px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;margin-bottom:16px">➕ Добавить объект или заказчика</button>';
+  // Кнопки управления (только редактору)
+  if(typeof canEdit==='function' && canEdit()){
+    // «Добавить» — всегда доступна (чтобы можно было завести 2-й объект, даже когда открыт текущий)
+    h += '<button onclick="if(typeof openManageObjects===\'function\')openManageObjects()" style="width:100%;background:linear-gradient(135deg,rgba(57,211,187,.12),rgba(88,166,255,.06));border:1px solid var(--teal);color:var(--teal);border-radius:12px;padding:12px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;margin-bottom:10px">➕ Добавить объект или заказчика</button>';
+    // «Настроить этот объект» — сразу под «Добавить», когда открыт конкретный объект
+    if(effObject){
+      var _oiTop = S.objects.indexOf(effObject);
+      h += '<button onclick="if(typeof editObjMeta===\'function\')editObjMeta('+_oiTop+')" style="width:100%;background:var(--s2);border:1px solid var(--gold);color:var(--gold);border-radius:12px;padding:12px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;margin-bottom:16px">⚙️ Настроить этот объект — расценки, пятна, фото</button>';
+    } else {
+      h += '<div style="margin-bottom:16px"></div>';
+    }
   }
+
   if(effObject){
     h += renderObjectCard(effObject, 0, [effObject]);
-    if(typeof canEdit==='function' && canEdit()){
-      var _oi = S.objects.indexOf(effObject);
-      h += '<div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--brd)">';
-      h += '<div style="font-size:10px;color:var(--mut);letter-spacing:1px;margin-bottom:8px">НАСТРОЙКИ ЭТОГО ОБЪЕКТА</div>';
-      h += '<button onclick="if(typeof editObjMeta===\'function\')editObjMeta('+_oi+')" style="width:100%;background:var(--s2);border:1px solid var(--gold);color:var(--gold);border-radius:10px;padding:12px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer">⚙️ Настроить этот объект — расценки, пятна, фото</button>';
-      h += '</div>';
-    }
     h += '</div>';
     return h;
   }
