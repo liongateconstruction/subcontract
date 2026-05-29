@@ -12387,8 +12387,9 @@ function objNavGoCustomer(c){ objNavCustomer=c; objNavObject=null; if(typeof ren
 function objNavGoObject(o){ objNavObject=o; if(typeof render==='function') render(); }
 
 function rObjects(){
-  var objects = S.objects || [];
   var meta = S.objMeta || {};
+  // прячем архивированные объекты из списка (данные сохранены, вернуть можно из Архива)
+  var objects = (S.objects || []).filter(function(o){ return !(meta[o]||{}).archived; });
 
   var h = '<div style="padding:16px;font-family:-apple-system,system-ui,sans-serif">';
 
@@ -12446,14 +12447,23 @@ function rObjects(){
 
   // Кнопки управления (только редактору)
   if(typeof canEdit==='function' && canEdit()){
-    // «Добавить» — всегда доступна (чтобы можно было завести 2-й объект, даже когда открыт текущий)
-    h += '<button onclick="if(typeof openManageObjects===\'function\')openManageObjects()" style="width:100%;background:linear-gradient(135deg,rgba(57,211,187,.12),rgba(88,166,255,.06));border:1px solid var(--teal);color:var(--teal);border-radius:12px;padding:12px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;margin-bottom:10px">➕ Добавить объект или заказчика</button>';
-    // «Настроить этот объект» — сразу под «Добавить», когда открыт конкретный объект
+    // «← Назад» — на уровнях глубже первого, возвращает на уровень выше
+    if(effObject){
+      var custObjsBack = byCustomer[effCustomer]||[];
+      var backAction = (custObjsBack.length>1) ? 'objNavGoCustomer(\''+escapeAttr(effCustomer)+'\')' : 'objNavReset()';
+      h += '<button onclick="'+backAction+'" style="background:var(--s2);border:1px solid var(--brd);color:var(--text);border-radius:10px;padding:9px 16px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;margin-bottom:12px;display:inline-flex;align-items:center;gap:6px">← Назад</button>';
+    } else if(effCustomer){
+      h += '<button onclick="objNavReset()" style="background:var(--s2);border:1px solid var(--brd);color:var(--text);border-radius:10px;padding:9px 16px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;margin-bottom:12px;display:inline-flex;align-items:center;gap:6px">← Назад</button>';
+    }
+    // «Добавить» — ТОЛЬКО на первом экране (список заказчиков)
+    if(!effCustomer && !effObject){
+      h += '<button onclick="if(typeof openManageObjects===\'function\')openManageObjects()" style="width:100%;background:linear-gradient(135deg,rgba(57,211,187,.12),rgba(88,166,255,.06));border:1px solid var(--teal);color:var(--teal);border-radius:12px;padding:13px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;margin-bottom:16px">➕ Добавить объект или заказчика</button>';
+    }
+    // На уровне объекта — «Настроить» и «Архивировать»
     if(effObject){
       var _oiTop = S.objects.indexOf(effObject);
-      h += '<button onclick="if(typeof editObjMeta===\'function\')editObjMeta('+_oiTop+')" style="width:100%;background:var(--s2);border:1px solid var(--gold);color:var(--gold);border-radius:12px;padding:12px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;margin-bottom:16px">⚙️ Настроить этот объект — расценки, пятна, фото</button>';
-    } else {
-      h += '<div style="margin-bottom:16px"></div>';
+      h += '<button onclick="if(typeof editObjMeta===\'function\')editObjMeta('+_oiTop+')" style="width:100%;background:var(--s2);border:1px solid var(--gold);color:var(--gold);border-radius:12px;padding:12px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;margin-bottom:8px">⚙️ Настроить этот объект — расценки, пятна, фото</button>';
+      h += '<button onclick="archiveObj('+_oiTop+')" style="width:100%;background:transparent;border:1px solid var(--brd);color:var(--mut);border-radius:12px;padding:10px;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;margin-bottom:16px">🗄 Архивировать объект</button>';
     }
   }
 
@@ -15874,10 +15884,11 @@ function markAllToday(bId,present){
 function openManageObjects(){
   document.getElementById('mtit').textContent='ОБЪЕКТЫ';
   function bl(){
-    if(S.objects.length===0) return '<div style="text-align:center;color:var(--mut);font-size:12px;padding:16px">Объектов пока нет. Добавьте первый ниже ⬇</div>';
+    var live=S.objects.filter(function(o){return !(objMeta(o).archived);});
+    if(live.length===0) return '<div style="text-align:center;color:var(--mut);font-size:12px;padding:16px">Объектов пока нет. Добавьте первый ниже ⬇</div>';
     // группируем по заказчику для наглядности
     var byC={};
-    S.objects.forEach(function(o,i){ var c=(objMeta(o).customer||'Без заказчика'); (byC[c]=byC[c]||[]).push(i); });
+    S.objects.forEach(function(o,i){ if(objMeta(o).archived) return; var c=(objMeta(o).customer||'Без заказчика'); (byC[c]=byC[c]||[]).push(i); });
     var out='';
     Object.keys(byC).forEach(function(c){
       out+='<div style="font-size:10px;color:var(--teal);letter-spacing:1px;font-weight:700;margin:10px 0 6px">👤 '+escapeHtml(c)+'</div>';
@@ -15889,7 +15900,7 @@ function openManageObjects(){
           '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px">'+
             '<div style="min-width:0"><div style="font-size:13px;font-weight:700;color:var(--text)">'+escapeHtml(o.split(',')[0])+'</div>'+
             '<div style="font-size:9px;color:var(--mut);margin-top:2px">'+spots+' пятен · план '+fmtD(planV)+' м³</div></div>'+
-            '<div style="display:flex;gap:5px;flex-shrink:0"><button onclick="editObjMeta('+i+')" class="fedit" style="background:var(--green);border-color:var(--green)">⚙️ Настроить</button>'+(S.objects.length>1?'<button onclick="delObj('+i+')" class="delbtn">X</button>':'')+'</div>'+
+            '<div style="display:flex;gap:5px;flex-shrink:0"><button onclick="editObjMeta('+i+')" class="fedit" style="background:var(--green);border-color:var(--green)">⚙️ Настроить</button><button onclick="archiveObj('+i+')" style="background:transparent;border:1px solid var(--mut);color:var(--mut);border-radius:6px;padding:6px 9px;font-size:11px;font-family:inherit;cursor:pointer">🗄</button></div>'+
           '</div></div>';
       });
     });
@@ -15905,6 +15916,7 @@ function openManageObjects(){
     '<div class="fg"><label class="fl">Название объекта</label><input class="fi" id="f-no" type="text" placeholder="ЖК Название, район..."/>'+hint('Полное название объекта')+'</div>'+
     '<div class="fg"><label class="fl">Заказчик</label><input class="fi" id="f-nc" type="text" placeholder="Sensata Group / Bi Group..."/>'+hint('Кто заказчик на этом объекте (можно заполнить позже)')+'</div>'+
     '<button class="fsave" style="background:var(--teal)" id="bao">+ ДОБАВИТЬ ОБЪЕКТ</button>'+
+    (S.objects.filter(function(o){return objMeta(o).archived;}).length>0 ? '<button class="fcanc" onclick="openArchivedObjects()" style="margin-top:10px;border-color:var(--mut)">🗄 Архив объектов ('+S.objects.filter(function(o){return objMeta(o).archived;}).length+')</button>' : '')+
     '<button class="fcanc" id="bco" style="margin-top:14px">Закрыть</button>';
   document.getElementById('modal').style.display='flex';
   document.getElementById('bao').addEventListener('click',function(){
@@ -16308,7 +16320,61 @@ window.vrApply=function(){
   backToObjEditor();
 };
 
-window.delObj=function(i){S.objects.splice(i,1);save();var el=document.getElementById('ol');if(el)el.innerHTML=S.objects.map(function(o,j){return '<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--brd)"><span style="font-size:12px">'+o+'</span>'+(S.objects.length>1?'<button onclick="delObj('+j+')" class="delbtn">X</button>':' ')+'</div>';}).join('');};
+// Архивирование объекта (данные сохраняются, объект прячется из списка)
+window.archiveObj=function(i){
+  var o=S.objects[i]; if(!o) return;
+  if(!confirmSafe('Архивировать объект «'+o.split(',')[0]+'»?\n\nОбъект скроется из списка, но ВСЕ данные (пятна, расценки, объёмы, расходы) сохранятся. Вернуть можно в любой момент через «Архив объектов».')) return;
+  var m=objMeta(o); m.archived=true; m.archivedAt=Date.now();
+  S.objMeta[o]=m; S._modified=Date.now();
+  objNavReset();
+  save();
+  setTimeout(function(){pushCloud();},100);
+  if(typeof showToast==='function') showToast('🗄 Объект в архиве. Вернуть — в «Архив объектов».','info');
+};
+window.restoreObj=function(o){
+  var m=objMeta(o); delete m.archived; delete m.archivedAt;
+  S.objMeta[o]=m; S._modified=Date.now();
+  save();
+  setTimeout(function(){pushCloud();},100);
+  openArchivedObjects();
+};
+// старое прямое удаление оставляем как «удалить навсегда» из архива (с двойным подтверждением)
+window.delObj=function(i){
+  var o=S.objects[i]; if(!o) return;
+  if(!confirmSafe('УДАЛИТЬ НАВСЕГДА объект «'+o.split(',')[0]+'»?\n\nЭто нельзя отменить. Лучше используйте архив.')) return;
+  if(!confirmSafe('Точно удалить безвозвратно? Все метаданные объекта будут стёрты.')) return;
+  S.objects.splice(i,1);
+  if(S.objMeta) delete S.objMeta[o];
+  S._modified=Date.now();
+  save();
+  setTimeout(function(){pushCloud();},100);
+  openArchivedObjects();
+};
+// Экран «Архив объектов»
+window.openArchivedObjects=function(){
+  var archived=(S.objects||[]).filter(function(o){return (objMeta(o).archived);});
+  document.getElementById('mtit').textContent='АРХИВ ОБЪЕКТОВ';
+  var body='';
+  if(archived.length===0){
+    body='<div style="text-align:center;color:var(--mut);font-size:13px;padding:30px 20px">Архив пуст.<br><br>Архивированные объекты появятся здесь — их можно вернуть со всеми данными.</div>';
+  } else {
+    body='<div style="font-size:11px;color:var(--mut);line-height:1.5;margin-bottom:14px">Объекты в архиве. Все данные сохранены. Можно вернуть в работу или удалить навсегда.</div>';
+    archived.forEach(function(o){
+      var i=S.objects.indexOf(o); var m=objMeta(o);
+      var dt=m.archivedAt?new Date(m.archivedAt).toLocaleDateString('ru-RU'):'';
+      body+='<div style="background:var(--s2);border-radius:10px;padding:12px;margin-bottom:10px">'+
+        '<div style="font-size:13px;font-weight:700;color:var(--text)">'+escapeHtml(o.split(',')[0])+'</div>'+
+        '<div style="font-size:10px;color:var(--mut);margin:2px 0 10px">Заказчик: '+escapeHtml(m.customer||'—')+(dt?' · в архиве с '+dt:'')+'</div>'+
+        '<div style="display:flex;gap:8px">'+
+          '<button onclick="restoreObj(\''+escapeAttr(o)+'\')" style="flex:1;background:var(--green);border:none;color:#fff;border-radius:8px;padding:9px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer">♻️ Вернуть</button>'+
+          '<button onclick="delObj('+i+')" style="background:transparent;border:1px solid var(--red);color:var(--red);border-radius:8px;padding:9px 12px;font-size:12px;font-family:inherit;cursor:pointer">Удалить навсегда</button>'+
+        '</div></div>';
+    });
+  }
+  body+='<button class="fcanc" onclick="closeModal()" style="margin-top:8px">Закрыть</button>';
+  document.getElementById('mbody').innerHTML=body;
+  document.getElementById('modal').style.display='flex';
+};
 
 function showReport(){
   var C=calcCo();
