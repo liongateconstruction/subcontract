@@ -201,7 +201,7 @@ nav{position:fixed;bottom:0;left:0;right:0;background:rgba(22,27,34,0.97);border
 .kc-v{font-family:var(--fd);font-size:34px;line-height:.95;margin-bottom:5px}
 .kc-s{font-size:11px;color:var(--mut)}
 .kc-t{font-size:12px;margin-top:6px;font-weight:600}
-.sect{font-size:13px;color:var(--mut);text-transform:uppercase;letter-spacing:3px;margin:20px 0 12px;display:flex;align-items:center;gap:8px;font-weight:700}
+.sect{font-size:13px;color:#e8edf4;text-transform:uppercase;letter-spacing:1.2px;margin:24px 0 12px;display:flex;align-items:center;gap:8px;font-weight:800}
 .sect::after{content:'';flex:1;height:1px;background:var(--brd)}
 .kfuc{background:var(--sur);border:1px solid var(--brd);border-radius:14px;padding:16px;margin-bottom:10px}
 .kfu-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
@@ -9420,11 +9420,11 @@ function rPL(){
     h+='<div style="background:rgba(63,185,80,.10);border:1.5px solid rgba(63,185,80,.40);border-radius:14px;padding:16px;margin-bottom:14px">';
     h+='<div style="font-size:13px;color:#7ee787;letter-spacing:1.5px;font-weight:700;margin-bottom:6px">\u{1F4BC} ВСЕГО ВЛОЖИЛИ ПАРТНЁРЫ</div>';
     h+='<div style="font-family:var(--fd);font-size:30px;color:#7ee787;font-weight:800;line-height:1">'+fmt(totalPartnerIn)+' \u20b8</div>';
-    h+='<div style="font-size:13px;color:var(--mut);margin-top:8px;line-height:1.6">';
+    h+='<div style="font-size:14px;color:#cdd6e2;margin-top:10px;line-height:1.7">';
     var inParts=[];
-    if(inInvest>0) inParts.push('в кассу: '+fmt(inInvest));
-    if(inOwnPaid>0) inParts.push('из своих: '+fmt(inOwnPaid));
-    if(inAdvance>0) inParts.push('под отчёт: '+fmt(inAdvance));
+    if(inInvest>0) inParts.push('в кассу: <b style="color:#e8edf4">'+fmt(inInvest)+'</b>');
+    if(inOwnPaid>0) inParts.push('из своих: <b style="color:#e8edf4">'+fmt(inOwnPaid)+'</b>');
+    if(inAdvance>0) inParts.push('под отчёт: <b style="color:#e8edf4">'+fmt(inAdvance)+'</b>');
     h+=inParts.join(' \u00b7 ');
     h+='</div></div>';
 
@@ -9439,13 +9439,13 @@ function rPL(){
     // Касса сейчас — что осталось живыми деньгами
     var ccolor=cashNow<50000?'var(--red)':(cashNow<200000?'var(--orange)':'#7ee787');
     h+='<div style="display:flex;justify-content:space-between;align-items:center;padding:13px;background:rgba(255,255,255,.03);border-radius:10px;border:1px solid '+(cashNow<50000?'rgba(248,81,73,.4)':'var(--brd)')+'">';
-    h+='<div><div style="font-size:13px;color:var(--mut)">\u{1F4B5} В КАССЕ СЕЙЧАС</div>';
-    h+='<div style="font-size:12px;color:var(--mut);margin-top:1px">живые деньги на руках</div></div>';
+    h+='<div><div style="font-size:14px;color:#cdd6e2;font-weight:600">\u{1F4B5} В КАССЕ СЕЙЧАС</div>';
+    h+='<div style="font-size:12px;color:var(--mut);margin-top:2px">живые деньги на руках</div></div>';
     h+='<div style="font-family:var(--fd);font-size:22px;color:'+ccolor+';font-weight:800">'+(cashNow<0?'\u2212':'')+fmt(Math.abs(cashNow))+' \u20b8</div>';
     h+='</div>';
 
     // Подсказка
-    h+='<div style="font-size:13px;color:var(--mut);margin-top:10px;line-height:1.5">\u2139\uFE0F Партнёры вложили '+fmt(totalPartnerIn)+' \u20b8, но в кассе мало \u2014 деньги уже потрачены на стройку (зарплаты, материалы). Полный разбор трат \u2014 в Аналитике.</div>';
+    h+='<div style="font-size:13px;color:#aab4c2;margin-top:12px;line-height:1.55">\u2139\uFE0F Партнёры вложили '+fmt(totalPartnerIn)+' \u20b8, но в кассе мало \u2014 деньги уже потрачены на стройку (зарплаты, материалы). Полный разбор трат \u2014 в Аналитике.</div>';
     h+='</div>';
   })();
 
@@ -9471,8 +9471,8 @@ function rPL(){
 
     // Выручка/Расход
     h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">';
-    h+='<div style="background:rgba(57,211,187,.06);border:1px solid var(--teal);border-radius:8px;padding:10px"><div style="font-size:13px;color:var(--mut)">\u0412\u042b\u0420\u0423\u0427\u041a\u0410</div><div style="font-family:var(--fd);font-size:16px;color:var(--teal);margin-top:2px">'+fmt(revMonth)+'</div><div style="font-size:13px;color:var(--mut);margin-top:1px">\u043f\u043b\u0430\u043d '+fmt(plan.revenue)+'</div></div>';
-    h+='<div style="background:rgba(248,81,73,.06);border:1px solid var(--red);border-radius:8px;padding:10px"><div style="font-size:13px;color:var(--mut)">\u0420\u0410\u0421\u0425\u041e\u0414</div><div style="font-family:var(--fd);font-size:16px;color:var(--red);margin-top:2px">'+fmt(expMonth)+'</div><div style="font-size:13px;color:var(--mut);margin-top:1px">\u043f\u043b\u0430\u043d '+fmt(plan.expense)+'</div></div>';
+    h+='<div style="background:rgba(57,211,187,.06);border:1px solid var(--teal);border-radius:8px;padding:10px"><div style="font-size:13px;color:#aab4c2">\u0412\u042b\u0420\u0423\u0427\u041a\u0410</div><div style="font-family:var(--fd);font-size:16px;color:var(--teal);margin-top:2px">'+fmt(revMonth)+'</div><div style="font-size:13px;color:#aab4c2;margin-top:1px">\u043f\u043b\u0430\u043d '+fmt(plan.revenue)+'</div></div>';
+    h+='<div style="background:rgba(248,81,73,.06);border:1px solid var(--red);border-radius:8px;padding:10px"><div style="font-size:13px;color:#aab4c2">\u0420\u0410\u0421\u0425\u041e\u0414</div><div style="font-family:var(--fd);font-size:16px;color:var(--red);margin-top:2px">'+fmt(expMonth)+'</div><div style="font-size:13px;color:#aab4c2;margin-top:1px">\u043f\u043b\u0430\u043d '+fmt(plan.expense)+'</div></div>';
     h+='</div>';
     h+='<div style="font-size:13px;color:var(--mut);text-align:center">'+plan.name+' '+plan.workers+' \u0447\u0435\u043b \u00b7 '+fmt(plan.weekVol)+' \u043c\u00b3/\u043d\u0435\u0434 \u00b7 \u043c\u0430\u0440\u0436\u0430 '+plan.margin.toFixed(0)+'%' + (plan.note?' \u00b7 '+plan.note:'') + '</div>';
     h+='</div>';
@@ -9488,7 +9488,7 @@ function rPL(){
   h+='<div style="display:flex;justify-content:space-between;align-items:baseline">';
   h+='<span style="font-family:var(--fd);font-size:18px;color:'+mdColor+'">'+(mDirect.profit>=0?'+':'')+fmtS(mDirect.profit)+' \u20b8</span>';
   h+='<span style="font-family:var(--fd);font-size:14px;color:'+mdColor+';font-weight:700">'+mDirect.pct.toFixed(0)+'%</span></div>';
-  h+='<div style="font-size:13px;color:var(--mut);margin-top:4px">'+fmt(mDirect.revenue)+' \u2212 '+fmt(mDirect.cost)+' = '+fmt(mDirect.profit)+'</div>';
+  h+='<div style="font-size:13px;color:#aab4c2;margin-top:4px">'+fmt(mDirect.revenue)+' \u2212 '+fmt(mDirect.cost)+' = '+fmt(mDirect.profit)+'</div>';
   h+='<div style="font-size:13px;color:var(--orange);margin-top:3px">\u26a0 \u0431\u0435\u0437 \u043c\u0430\u0442\u0435\u0440\u0438\u0430\u043b\u043e\u0432, \u0438\u043d\u0441\u0442\u0440\u0443\u043c\u0435\u043d\u0442\u0430, \u0430\u0434\u043c\u0438\u043d\u0430</div>';
   h+='</div>';
 
@@ -9499,7 +9499,7 @@ function rPL(){
   h+='<div style="display:flex;justify-content:space-between;align-items:baseline">';
   h+='<span style="font-family:var(--fd);font-size:22px;color:'+moColor+';font-weight:800">'+(mObject.profit>=0?'+':'')+fmtS(mObject.profit)+' \u20b8</span>';
   h+='<span style="font-family:var(--fd);font-size:16px;color:'+moColor+';font-weight:700">'+mObject.pct.toFixed(0)+'%</span></div>';
-  h+='<div style="font-size:13px;color:var(--mut);margin-top:4px">'+fmt(mObject.revenue)+' \u2212 '+fmt(mObject.cost)+' = '+fmt(mObject.profit)+'</div>';
+  h+='<div style="font-size:13px;color:#aab4c2;margin-top:4px">'+fmt(mObject.revenue)+' \u2212 '+fmt(mObject.cost)+' = '+fmt(mObject.profit)+'</div>';
   if(mObject.profit<0){
     h+='<div style="font-size:13px;color:var(--red);margin-top:6px;font-weight:600">\ud83d\udd34 \u041e\u0431\u044a\u0435\u043a\u0442 \u043f\u043e\u043a\u0430 \u0443\u0431\u044b\u0442\u043e\u0447\u0435\u043d \u2014 \u0440\u0430\u0441\u0445\u043e\u0434\u044b \u0432\u044b\u0448\u0435 \u0432\u044b\u0440\u0443\u0447\u043a\u0438</div>';
   }
