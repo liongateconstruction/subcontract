@@ -16718,14 +16718,14 @@ function showAIInsight(advice){
   var icons=['💡','📈','🎯'];
   var h='';
   advice.slice(0,3).forEach(function(tip,i){
-    h+='<div style="display:flex;gap:10px;padding:10px 0;'+( i<Math.min(advice.length,3)-1?'border-bottom:1px solid rgba(61,70,85,.3)':'')+'">';
+    h+='<div style="display:flex;gap:11px;padding:11px 0;'+( i<Math.min(advice.length,3)-1?'border-bottom:1px solid rgba(61,70,85,.3)':'')+'">';
     h+='<div style="font-size:20px;flex-shrink:0">'+icons[i]+'</div>';
-    h+='<div style="font-size:12px;color:var(--text);line-height:1.6">'+tip+'</div>';
+    h+='<div style="font-size:14px;color:var(--text);line-height:1.55">'+tip+'</div>';
     h+='</div>';
   });
   var ago=Math.round((Date.now()-_aiInsightTime)/60000);
-  h+='<div style="font-size:9px;color:var(--mut);margin-top:8px;display:flex;justify-content:space-between">';
-  h+='<span style="cursor:pointer;color:var(--purple)" onclick="loadAIForecast(true)">↻ обновить</span>';
+  h+='<div style="font-size:12px;color:var(--mut);margin-top:10px;display:flex;justify-content:space-between">';
+  h+='<span style="cursor:pointer;color:var(--purple);font-weight:600" onclick="loadAIForecast(true)">↻ обновить</span>';
   h+='<span>'+ago+' мин назад</span></div>';
   el.innerHTML=h;
 }
@@ -17611,12 +17611,34 @@ function showLeakAILoading(){ var el=document.getElementById('leak-ai'); if(!el)
 function showLeakAIError(){ var el=document.getElementById('leak-ai'); if(!el) return; el.innerHTML='<button onclick="loadLeakAI(true)" style="width:100%;background:var(--s2);border:1px solid var(--brd);color:var(--mut);border-radius:11px;padding:12px;font-size:14px;font-family:inherit;cursor:pointer">⚠️ ИИ недоступен — нажмите ещё раз</button>'; }
 function showLeakAI(a){
   var el=document.getElementById('leak-ai'); if(!el||!a) return;
-  var h='<div style="background:rgba(163,113,247,.08);border:1px solid rgba(163,113,247,.35);border-radius:12px;padding:13px">';
-  h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span style="font-size:13px;color:var(--purple);letter-spacing:1px;font-weight:800">🤖 ПЛАН ВОЗВРАТА'+(a._local?' (офлайн)':'')+'</span>';
-  h+='<button onclick="loadLeakAI(true)" style="background:none;border:none;color:var(--mut);font-size:14px;cursor:pointer">↻</button></div>';
-  if(a.verdict) h+='<div style="font-size:13px;color:var(--text);font-weight:700;line-height:1.4;margin-bottom:10px">'+escapeHtml(a.verdict)+'</div>';
-  if(a.points&&a.points.length){ h+='<div style="margin-bottom:10px">'; a.points.forEach(function(p){ h+='<div style="font-size:14px;color:var(--mut);line-height:1.5;padding:3px 0">• '+escapeHtml(p)+'</div>'; }); h+='</div>'; }
-  if(a.actions&&a.actions.length){ h+='<div style="background:var(--bg);border-radius:8px;padding:10px"><div style="font-size:13px;color:var(--gold);letter-spacing:1px;font-weight:800;margin-bottom:6px">⚡ ПЛАН НА НЕДЕЛЮ</div>'; a.actions.forEach(function(p,i){ h+='<div style="font-size:14px;color:var(--text);line-height:1.5;padding:3px 0">'+(i+1)+'. '+escapeHtml(p)+'</div>'; }); h+='</div>'; }
+  var h='<div style="position:relative;overflow:hidden;background:linear-gradient(155deg,rgba(163,113,247,.12),rgba(163,113,247,.04));border:1px solid rgba(163,113,247,.4);border-radius:18px;padding:18px;box-shadow:0 6px 20px rgba(163,113,247,.15)">';
+  h+='<div style="position:absolute;top:-50px;right:-30px;width:160px;height:160px;border-radius:50%;background:radial-gradient(circle,rgba(163,113,247,.18),transparent 70%);pointer-events:none"></div>';
+  // Заголовок
+  h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;position:relative">';
+  h+='<div style="display:flex;align-items:center;gap:9px"><span style="font-size:22px">\u{1F916}</span><span style="font-size:14px;color:#c9aeff;letter-spacing:.8px;font-weight:800">ПЛАН ВОЗВРАТА'+(a._local?' \u00b7 офлайн':'')+'</span></div>';
+  h+='<button onclick="loadLeakAI(true)" style="background:rgba(163,113,247,.15);border:1px solid rgba(163,113,247,.3);color:#c9aeff;width:34px;height:34px;border-radius:10px;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center">\u21bb</button></div>';
+  // Вердикт — выделенный блок
+  if(a.verdict) h+='<div style="background:rgba(255,255,255,.04);border-left:3px solid var(--purple);border-radius:10px;padding:13px 14px;margin-bottom:14px;font-size:15px;color:#f0f6fc;font-weight:600;line-height:1.5;position:relative">'+escapeHtml(a.verdict)+'</div>';
+  // Пункты анализа
+  if(a.points&&a.points.length){
+    h+='<div style="margin-bottom:14px;position:relative">';
+    a.points.forEach(function(p){
+      h+='<div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid rgba(163,113,247,.12)"><span style="color:var(--purple);font-size:15px;line-height:1.5;flex-shrink:0">\u25B8</span><span style="font-size:14px;color:#cdd6e2;line-height:1.55">'+escapeHtml(p)+'</span></div>';
+    });
+    h+='</div>';
+  }
+  // План на неделю — акцентный блок с нумерованными шагами
+  if(a.actions&&a.actions.length){
+    h+='<div style="background:rgba(255,179,32,.08);border:1px solid rgba(255,179,32,.3);border-radius:12px;padding:14px;position:relative">';
+    h+='<div style="display:flex;align-items:center;gap:7px;margin-bottom:10px"><span style="font-size:16px">\u26a1</span><span style="font-size:13px;color:var(--gold);letter-spacing:.8px;font-weight:800">ПЛАН НА НЕДЕЛЮ</span></div>';
+    a.actions.forEach(function(p,i){
+      h+='<div style="display:flex;gap:11px;align-items:flex-start;padding:7px 0">';
+      h+='<span style="flex-shrink:0;width:24px;height:24px;border-radius:8px;background:linear-gradient(135deg,var(--gold),var(--orange));color:#0d1117;font-size:13px;font-weight:800;display:flex;align-items:center;justify-content:center;font-family:var(--fd)">'+(i+1)+'</span>';
+      h+='<span style="font-size:14px;color:#f0f6fc;line-height:1.5;padding-top:2px">'+escapeHtml(p)+'</span>';
+      h+='</div>';
+    });
+    h+='</div>';
+  }
   h+='</div>';
   el.innerHTML=h;
 }
