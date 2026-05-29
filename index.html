@@ -13828,21 +13828,44 @@ function rAnalytics(){
     var hasNorms = bva.rows.some(function(r){return r.budget!==null;});
     if(!hasNorms) return;
     h+='<div style="background:var(--sur);border:1px solid var(--brd);border-radius:16px;padding:18px;margin-bottom:14px">';
-    h+='<div style="font-size:13px;color:var(--mut);letter-spacing:2px;font-weight:800;margin-bottom:6px">📋 БЮДЖЕТ vs ФАКТ</div>';
-    h+='<div style="font-size:10px;color:var(--mut);margin-bottom:14px">факт против отраслевой нормы (% от выручки)</div>';
+    h+='<div style="font-size:13px;color:#e8edf4;letter-spacing:1.2px;font-weight:800;margin-bottom:4px">\u{1F4CB} БЮДЖЕТ vs ФАКТ</div>';
+    h+='<div style="font-size:13px;color:#9aa5b4;margin-bottom:8px">факт против отраслевой нормы (% от выручки)</div>';
+    // Легенда
+    h+='<div style="display:flex;gap:16px;margin-bottom:16px;font-size:12px">';
+    h+='<span style="display:flex;align-items:center;gap:6px"><span style="width:14px;height:8px;border-radius:3px;background:var(--blue);display:inline-block"></span><span style="color:#9aa5b4">факт</span></span>';
+    h+='<span style="display:flex;align-items:center;gap:6px"><span style="width:14px;height:8px;border-radius:3px;background:#3d4655;display:inline-block"></span><span style="color:#9aa5b4">норма</span></span>';
+    h+='</div>';
     bva.rows.forEach(function(r){
-      if(r.budget===null) return; // показываем только нормируемые
+      if(r.budget===null) return;
+      var over = r.actual>r.budget;
       var col = r.status==='over'?'#ff7b72':(r.status==='warn'?'#f0883e':'#7ee787');
-      var pct = r.budget>0?Math.round(r.actual/r.budget*100):0;
-      h+='<div style="margin-bottom:12px">';
-      h+='<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:5px">';
-      h+='<span style="color:var(--text)">'+escapeHtml(r.cat.replace("Аванс / зарплата рабочим","Зарплата"))+'</span>';
-      h+='<span style="color:'+col+';font-weight:700">'+(typeof fmtShort==="function"?fmtShort(r.actual):r.actual)+' / '+(typeof fmtShort==="function"?fmtShort(r.budget):r.budget)+'</span></div>';
-      h+='<div style="height:7px;background:var(--s2);border-radius:4px;overflow:hidden">';
-      h+='<div style="height:100%;width:'+Math.min(100,pct)+'%;background:'+col+';border-radius:4px"></div></div>';
+      // масштаб: самая длинная из двух = 100%
+      var maxv = Math.max(r.actual, r.budget, 1);
+      var actW = Math.round(r.actual/maxv*100);
+      var budW = Math.round(r.budget/maxv*100);
+      var sf=(typeof fmtShort==='function'?fmtShort:function(x){return x;});
+      h+='<div style="margin-bottom:16px">';
+      h+='<div style="font-size:14px;color:var(--text);font-weight:600;margin-bottom:8px">'+escapeHtml(r.cat.replace("Аванс / зарплата рабочим","Зарплата"))+'</div>';
+      // ФАКТ — цветная полоска
+      h+='<div style="display:flex;align-items:center;gap:10px;margin-bottom:5px">';
+      h+='<div style="flex:1;height:14px;background:var(--s2);border-radius:7px;overflow:hidden"><div style="height:100%;width:'+actW+'%;background:'+col+';border-radius:7px;min-width:3px"></div></div>';
+      h+='<span style="font-family:var(--fn);font-size:13px;font-weight:700;color:'+col+';white-space:nowrap;width:54px;text-align:right">'+sf(r.actual)+'</span>';
+      h+='</div>';
+      // НОРМА — серая полоска
+      h+='<div style="display:flex;align-items:center;gap:10px">';
+      h+='<div style="flex:1;height:14px;background:var(--s2);border-radius:7px;overflow:hidden"><div style="height:100%;width:'+budW+'%;background:#3d4655;border-radius:7px;min-width:3px"></div></div>';
+      h+='<span style="font-family:var(--fn);font-size:13px;font-weight:600;color:#9aa5b4;white-space:nowrap;width:54px;text-align:right">'+sf(r.budget)+'</span>';
+      h+='</div>';
+      // подпись перерасхода/экономии
+      if(over){
+        var overPct=r.budget>0?Math.round((r.actual-r.budget)/r.budget*100):0;
+        h+='<div style="font-size:12px;color:#ff7b72;margin-top:5px">перерасход +'+overPct+'% ('+sf(r.actual-r.budget)+')</div>';
+      } else {
+        h+='<div style="font-size:12px;color:#7ee787;margin-top:5px">в норме \u2713</div>';
+      }
       h+='</div>';
     });
-    h+='<div style="font-size:10px;color:var(--mut);margin-top:6px;line-height:1.5">💡 Нормы для монолита: зарплата ~45%, материалы ~20%. Красный = перерасход.</div>';
+    h+='<div style="font-size:13px;color:#9aa5b4;margin-top:8px;line-height:1.5">\u{1F4A1} Нормы для монолита: зарплата ~45%, материалы ~20%. Красный = перерасход.</div>';
     h+='</div>';
   })();
 
