@@ -9540,6 +9540,9 @@ function rPL(){
   h+='<div style="font-size:11px;color:var(--mut)">\u041f\u043e\u043a\u0430 = \u043e\u0431\u044a\u0435\u043a\u0442\u043d\u043e\u0439 (1 \u043e\u0431\u044a\u0435\u043a\u0442). \u041f\u0440\u0438 \u0440\u043e\u0441\u0442\u0435 \u043f\u043e\u044f\u0432\u044f\u0442\u0441\u044f \u043d\u0430\u043a\u043b\u0430\u0434\u043d\u044b\u0435 \u043e\u0444\u0438\u0441\u0430, \u0431\u0443\u0445\u0433\u0430\u043b\u0442\u0435\u0440\u0438\u044f, \u043d\u0430\u043b\u043e\u0433\u0438.</div>';
   h+='</div>';
 
+  // ===== 💰 ПОИСК НЕДОЗАРАБОТАННЫХ ДЕНЕГ =====
+  if(typeof leakBlock==='function'){ h += leakBlock(); }
+
   // ===== БЛОК 4: ПЛАН ГОДА 2026 =====
   if(typeof YEAR_PLAN !== 'undefined'){
     h+='<div class="sect">\u041f\u041b\u0410\u041d \u0413\u041e\u0414\u0410 2026</div>';
@@ -12451,6 +12454,7 @@ function rObjects(){
   // === УРОВЕНЬ 2: ОБЪЕКТЫ ЗАКАЗЧИКА ===
   if(effCustomer){
     var custObjs3 = byCustomer[effCustomer]||[];
+    if(typeof customerChartBlock==='function'){ h += customerChartBlock(effCustomer, custObjs3); }
     h += '<div style="font-size:13px;color:var(--mut);letter-spacing:1px;margin-bottom:12px">'+custObjs3.length+' '+(custObjs3.length===1?'объект':'объекта/ов')+'</div>';
     custObjs3.forEach(function(o){
       h += objectTile(o);
@@ -12693,6 +12697,11 @@ function renderObjectCard(objName, objIdx, objects){
     h += '</div>'; // конец карточки объекта
 
     // ============================================================
+    // 🎯 УПРАВЛЕНИЕ ПО ОБЪЕКТУ (S-кривая, темп, узкое место, ИИ)
+    // ============================================================
+    if(typeof objMgmtBlock==='function'){ h += objMgmtBlock(objName); }
+
+    // ============================================================
     // СЛОЙ 3 — ДЕТАЛИ (сворачиваемые)
     // ============================================================
 
@@ -12802,6 +12811,8 @@ function renderObjectCard(objName, objIdx, objects){
 
         if((spot.constructions||[]).length > 0){
           h += '<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--brd)">';
+          // график план/факт по пятну
+          if(typeof spotChartBlock==='function' && spot.id){ h += spotChartBlock(objName, spot.id); }
           spot.constructions.forEach(function(c){
             h += '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px">';
             h += '<span style="color:var(--mut)">'+escapeHtml(c.wtype||'?')+(c.heights?' · отм. '+escapeHtml(c.heights):'')+'</span>';
@@ -13103,7 +13114,7 @@ function generateKS2(objName){
     '.noprint{position:fixed;top:10px;right:10px;background:#1a1f2e;color:#f0a500;padding:10px 18px;border:none;border-radius:8px;font-size:14px;cursor:pointer}'+
     '</style></head><body>'+
 
-    '<button class="noprint" onclick="window.print()">🖨 Печать / Сохранить PDF</button>'+
+    ''+
 
     '<div class="head-form">Типовая форма № КС-2<br>Утверждена приказом № 170 от 02.05.2012</div>'+
     '<div class="title">АКТ № '+esc(km.aktnum||'1')+'</div>'+
@@ -13175,15 +13186,56 @@ function generateKS2(objName){
 
 // Открыть сохранённый бланк КС-2 в новом окне
 function openKS2Doc(doc){
-  var w = window.open('', '_blank');
-  if(w){
-    w.document.write(doc);
-    w.document.close();
-  } else {
-    var blob = new Blob([doc], {type:'text/html'});
-    var url = URL.createObjectURL(blob);
-    window.location.href = url;
+  // Полноэкранный просмотр ВНУТРИ приложения — с гарантированной кнопкой «Назад».
+  // Надёжно работает в PWA standalone (где window.open часто заменяет страницу без возврата).
+  var old = document.getElementById('ks2-doc-overlay');
+  if(old) old.remove();
+
+  var ov = document.createElement('div');
+  ov.id = 'ks2-doc-overlay';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#525659;display:flex;flex-direction:column';
+
+  // Панель управления (не печатается)
+  var bar = document.createElement('div');
+  bar.style.cssText = 'flex-shrink:0;display:flex;gap:8px;padding:10px 12px;background:#1a1f2e;align-items:center;box-shadow:0 2px 8px rgba(0,0,0,.4)';
+  bar.innerHTML =
+    '<button id="ks2-doc-back" style="background:#30363d;border:1px solid #4a5568;color:#f0f6fc;border-radius:8px;padding:9px 16px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;display:flex;align-items:center;gap:6px">← Назад</button>'+
+    '<div style="flex:1;color:#f0a500;font-size:13px;font-weight:700;letter-spacing:1px;text-align:center">ДОКУМЕНТ</div>'+
+    '<button id="ks2-doc-print" style="background:#f0a500;border:none;color:#1a1f2e;border-radius:8px;padding:9px 16px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer">🖨 Печать</button>';
+
+  // Сам документ в iframe (изоляция стилей бланка от приложения)
+  var frame = document.createElement('iframe');
+  frame.id = 'ks2-doc-frame';
+  frame.style.cssText = 'flex:1;width:100%;border:none;background:#fff';
+
+  ov.appendChild(bar);
+  ov.appendChild(frame);
+  document.body.appendChild(ov);
+  // блокируем прокрутку фона
+  ov.dataset.prevOverflow = document.body.style.overflow || '';
+  document.body.style.overflow = 'hidden';
+
+  // пишем документ в iframe
+  var fdoc = frame.contentWindow.document;
+  fdoc.open(); fdoc.write(doc); fdoc.close();
+
+  function closeDoc(){
+    document.body.style.overflow = ov.dataset.prevOverflow || '';
+    ov.remove();
   }
+  document.getElementById('ks2-doc-back').addEventListener('click', closeDoc);
+  document.getElementById('ks2-doc-print').addEventListener('click', function(){
+    try{ frame.contentWindow.focus(); frame.contentWindow.print(); }
+    catch(e){ window.print(); }
+  });
+  // аппаратная кнопка «назад» на Android закрывает документ, а не выходит из приложения
+  try{
+    history.pushState({ks2doc:1}, '');
+    window.addEventListener('popstate', function onPop(){
+      window.removeEventListener('popstate', onPop);
+      var el=document.getElementById('ks2-doc-overlay'); if(el) closeDoc();
+    }, {once:true});
+  }catch(e){}
 }
 
 // Открыть акт из архива по id
@@ -13343,7 +13395,7 @@ function generateKS3(objName){
     '.noprint{position:fixed;top:10px;right:10px;background:#1a1f2e;color:#f0a500;padding:10px 18px;border:none;border-radius:8px;font-size:14px;cursor:pointer}'+
     '</style></head><body>'+
 
-    '<button class="noprint" onclick="window.print()">🖨 Печать / Сохранить PDF</button>'+
+    ''+
 
     '<div class="head-form">Типовая форма № КС-3<br>Утверждена приказом № 170 от 02.05.2012</div>'+
     '<div class="title">СПРАВКА № '+esc(km.ks3num||'1')+'</div>'+
@@ -15848,7 +15900,14 @@ window.editObjMeta=function(idx){
   
   document.getElementById('mbody').innerHTML=
     '<div class="fg"><label class="fl">Заказчик</label><input class="fi" id="om-cust" type="text" value="'+(m.customer||'')+'" placeholder="Sensata Group / Bi Group..."/>'+hint('Кто заказчик на этом объекте')+'</div>'+
+    '<div class="sect" style="margin:14px 0 8px">Пятна / блоки объекта</div>'+
+    '<div style="background:rgba(57,211,187,.06);border:1px solid rgba(57,211,187,.2);border-radius:8px;padding:11px;margin-bottom:10px">'+
+      '<div style="font-size:12px;color:var(--text);margin-bottom:4px">'+((m.spots||[]).length)+' '+(((m.spots||[]).length===1)?'пятно':'пятен/блоков')+' · план '+fmtD((m.spots||[]).reduce(function(s,sp){return s+(sp.constructions||[]).reduce(function(a,c){return a+(c.volume||0);},0);},0))+' м³</div>'+
+      '<div style="font-size:10px;color:var(--mut);margin-bottom:8px">плановый объём и сроки блоков → графики план/факт, темп, узкое место</div>'+
+      '<button onclick="openSpotManager(S.objects['+idx+'])" style="width:100%;background:var(--teal);border:none;color:#fff;border-radius:8px;padding:10px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer">🟦 Управление пятнами/блоками</button>'+
+    '</div>'+
     '<div class="sect" style="margin:14px 0 8px">Цены договора по конструкциям</div>'+
+    '<button onclick="openVisionRates(S.objects['+idx+'])" style="width:100%;background:linear-gradient(135deg,var(--purple),#7c3aed);border:none;color:#fff;border-radius:9px;padding:11px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;margin-bottom:10px">📷 Распознать расценки с фото договора</button>'+
     '<div style="background:rgba(255,179,32,.06);border:1px solid rgba(255,179,32,.2);border-radius:8px;padding:10px;margin-bottom:10px;font-size:10px;color:var(--mut);line-height:1.5">'+
       '💡 Сколько <b>заказчик</b> платит за м³ комплекса работ по конструкции (Колонны, Стены, Перекрытие...). Заполните когда удобно — для расчёта маржи по КС-2 в будущем. Сейчас не обязательно.'+
     '</div>'+
@@ -15897,6 +15956,309 @@ window.editObjMeta=function(idx){
   });
   document.getElementById('bomc').addEventListener('click',function(){_editLock=false;openManageObjects();});
 };
+// ============================================================
+// УПРАВЛЕНИЕ ПЯТНАМИ/БЛОКАМИ объекта (название, старт, дедлайн, конструкции с объёмом)
+// Открывается из editObjMeta. Всё в одном месте — вкладка «Объекты».
+// ============================================================
+window._spotMgrObj = null;
+
+window.openSpotManager = function(objName){
+  _editLock = true;
+  _spotMgrObj = objName;
+  var m = objMeta(objName);
+  if(!m.spots) m.spots = [];
+  renderSpotManager();
+  document.getElementById('modal').style.display='flex';
+};
+
+function renderSpotManager(){
+  var o=_spotMgrObj; var m=objMeta(o);
+  document.getElementById('mtit').textContent='ПЯТНА: '+o.split(',')[0];
+  var spots=m.spots||[];
+  var list='';
+  if(spots.length===0){
+    list='<div style="text-align:center;color:var(--mut);font-size:12px;padding:18px">Пятен пока нет. Добавьте первый блок ниже ⬇</div>';
+  } else {
+    spots.forEach(function(sp,i){
+      var planVol=(sp.constructions||[]).reduce(function(s,c){return s+(c.volume||0);},0);
+      var st=sp.completed?'✅ сдан':(sp.deadline?('до '+new Date(sp.deadline).toLocaleDateString('ru-RU',{day:'numeric',month:'short'})):'без срока');
+      list+='<div style="background:var(--bg);border:1px solid var(--brd);border-radius:10px;padding:11px;margin-bottom:8px">'+
+        '<div style="display:flex;justify-content:space-between;align-items:center">'+
+          '<div style="min-width:0"><div style="font-size:13px;color:var(--text);font-weight:700">'+escapeHtml(sp.name)+'</div>'+
+          '<div style="font-size:10px;color:var(--mut);margin-top:2px">'+fmtD(planVol)+' м³ · '+(sp.constructions||[]).length+' констр. · '+st+'</div></div>'+
+          '<div style="display:flex;gap:5px;flex-shrink:0">'+
+            '<button onclick="openSpotEdit('+i+')" style="background:var(--teal);border:none;color:#fff;border-radius:6px;padding:6px 10px;font-size:11px;font-family:inherit;cursor:pointer">✏️</button>'+
+            '<button onclick="delSpot('+i+')" style="background:transparent;border:1px solid var(--red);color:var(--red);border-radius:6px;padding:6px 9px;font-size:11px;font-family:inherit;cursor:pointer">✗</button>'+
+          '</div>'+
+        '</div></div>';
+    });
+  }
+  document.getElementById('mbody').innerHTML=
+    '<div style="background:rgba(57,211,187,.06);border:1px solid rgba(57,211,187,.2);border-radius:8px;padding:10px;margin-bottom:12px;font-size:10px;color:var(--mut);line-height:1.5">'+
+      '💡 Пятно (Блок) — это часть стройки со своим плановым объёмом бетона и сроком. На основе плана и срока строятся графики план/факт, темп и узкое место.'+
+    '</div>'+
+    '<div class="sect" style="margin-bottom:8px">Пятна объекта ('+spots.length+')</div>'+
+    '<div id="spot-list">'+list+'</div>'+
+    '<button onclick="openSpotEdit(-1)" style="width:100%;background:var(--gold);border:none;color:#0d1117;border-radius:9px;padding:11px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;margin-top:6px">➕ Добавить пятно/блок</button>'+
+    '<button class="fcanc" id="spotmgr-back" style="margin-top:10px">Назад к объекту</button>';
+  document.getElementById('spotmgr-back').addEventListener('click',function(){
+    var idx=S.objects.indexOf(_spotMgrObj);
+    editObjMeta(idx);
+  });
+}
+
+// редактор одного пятна (idx=-1 → новое)
+window._spotEditConstr = [];
+window.openSpotEdit = function(idx){
+  var o=_spotMgrObj; var m=objMeta(o);
+  var sp = (idx>=0) ? m.spots[idx] : {id:'spot_'+Date.now(), name:'', started:'', deadline:'', completed:null, constructions:[]};
+  _spotEditConstr = JSON.parse(JSON.stringify(sp.constructions||[]));
+  document.getElementById('mtit').textContent = (idx>=0?'ПЯТНО: '+sp.name:'НОВОЕ ПЯТНО');
+  document.getElementById('mbody').innerHTML=
+    '<div class="fg"><label class="fl">Название пятна/блока</label><input class="fi" id="sp-name" type="text" value="'+escapeAttr(sp.name||'')+'" placeholder="Напр. Блок 50"/></div>'+
+    '<div style="display:flex;gap:8px">'+
+      '<div class="fg" style="flex:1"><label class="fl">Начало работ</label><input class="fi" id="sp-start" type="date" value="'+(sp.started||'')+'"/></div>'+
+      '<div class="fg" style="flex:1"><label class="fl">Дедлайн (сдача)</label><input class="fi" id="sp-deadline" type="date" value="'+(sp.deadline||'')+'"/></div>'+
+    '</div>'+
+    '<label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--mut);margin:4px 0 12px"><input type="checkbox" id="sp-done" '+(sp.completed?'checked':'')+' style="width:16px;height:16px"/> Пятно сдано (завершено)</label>'+
+    '<div class="sect" style="margin-bottom:6px">Конструкции (плановый объём бетона)</div>'+
+    '<div style="font-size:10px;color:var(--mut);margin-bottom:8px">Стены, перекрытия, лестницы, парапет — сколько м³ по проекту. Сумма = план объёма пятна.</div>'+
+    '<div id="sp-constr"></div>'+
+    '<div style="background:var(--s2);border-radius:8px;padding:10px;margin-top:8px">'+
+      '<label class="fl">Добавить конструкцию</label>'+
+      '<input class="fi" id="sp-cname" type="text" placeholder="Напр. Устройство стен" style="margin-top:6px"/>'+
+      '<div style="display:flex;gap:6px;margin-top:6px"><input class="fi" id="sp-cvol" type="number" inputmode="decimal" placeholder="Объём м³" style="flex:1"/><input class="fi" id="sp-cheight" type="text" placeholder="Отметки (необяз.)" style="flex:1"/></div>'+
+      '<button id="sp-addc" style="width:100%;background:var(--teal);border:none;color:#fff;border-radius:8px;padding:9px;font-size:12px;cursor:pointer;font-family:inherit;margin-top:8px">➕ Добавить конструкцию</button>'+
+    '</div>'+
+    '<div id="sp-total" style="text-align:right;font-size:12px;color:var(--gold);font-weight:700;margin-top:10px"></div>'+
+    '<button class="fsave" style="background:var(--gold);margin-top:12px" id="sp-save">СОХРАНИТЬ ПЯТНО</button>'+
+    '<button class="fcanc" id="sp-cancel">Назад</button>';
+  renderSpotConstr();
+  document.getElementById('sp-addc').addEventListener('click',function(){
+    var nm=(g('sp-cname')||'').trim();
+    var vol=parseFloat(g('sp-cvol'))||0;
+    var ht=(g('sp-cheight')||'').trim();
+    if(!nm){alert('Введите название конструкции');return;}
+    if(vol<=0){alert('Введите объём м³');return;}
+    _spotEditConstr.push({wtype:nm, unit:'м³', volume:vol, heights:ht});
+    document.getElementById('sp-cname').value='';
+    document.getElementById('sp-cvol').value='';
+    document.getElementById('sp-cheight').value='';
+    renderSpotConstr();
+  });
+  document.getElementById('sp-save').addEventListener('click',function(){
+    var nm=(g('sp-name')||'').trim();
+    if(!nm){alert('Введите название пятна');return;}
+    var newSp={
+      id: sp.id || ('spot_'+Date.now()),
+      name: nm,
+      started: g('sp-start')||'',
+      deadline: g('sp-deadline')||'',
+      completed: document.getElementById('sp-done').checked ? (sp.completed||new Date().toISOString().slice(0,10)) : null,
+      constructions: _spotEditConstr
+    };
+    var m=objMeta(o);
+    if(!m.spots) m.spots=[];
+    if(idx>=0) m.spots[idx]=newSp; else m.spots.push(newSp);
+    S.objMeta[o]=m;
+    S._modified=Date.now();
+    save();
+    setTimeout(function(){pushCloud();},100);
+    renderSpotManager();
+  });
+  document.getElementById('sp-cancel').addEventListener('click',renderSpotManager);
+};
+
+function renderSpotConstr(){
+  var box=document.getElementById('sp-constr'); if(!box) return;
+  if(_spotEditConstr.length===0){
+    box.innerHTML='<div style="font-size:11px;color:var(--mut);padding:8px;text-align:center">Конструкций пока нет</div>';
+  } else {
+    box.innerHTML=_spotEditConstr.map(function(c,i){
+      return '<div style="display:flex;justify-content:space-between;align-items:center;background:var(--bg);border:1px solid var(--brd);border-radius:8px;padding:8px 10px;margin-bottom:6px">'+
+        '<div style="min-width:0"><div style="font-size:12px;color:var(--text)">'+escapeHtml(c.wtype)+'</div>'+
+        (c.heights?'<div style="font-size:9px;color:var(--mut)">'+escapeHtml(c.heights)+'</div>':'')+'</div>'+
+        '<div style="display:flex;align-items:center;gap:8px;flex-shrink:0"><span style="font-size:13px;color:var(--gold);font-weight:700">'+fmtD(c.volume)+' м³</span>'+
+        '<button onclick="delSpotConstr('+i+')" style="background:transparent;border:1px solid var(--mut);color:var(--mut);border-radius:5px;padding:4px 8px;font-size:11px;cursor:pointer">✗</button></div>'+
+      '</div>';
+    }).join('');
+  }
+  var total=_spotEditConstr.reduce(function(s,c){return s+(c.volume||0);},0);
+  var tEl=document.getElementById('sp-total'); if(tEl) tEl.textContent='План объёма пятна: '+fmtD(total)+' м³';
+}
+window.delSpotConstr=function(i){ _spotEditConstr.splice(i,1); renderSpotConstr(); };
+
+window.delSpot=function(i){
+  var o=_spotMgrObj; var m=objMeta(o);
+  var sp=m.spots[i];
+  if(!confirm('Удалить пятно «'+(sp&&sp.name||'')+'»? Объёмы (факт заливки) останутся в журнале, но график по пятну исчезнет.')) return;
+  m.spots.splice(i,1);
+  S.objMeta[o]=m; S._modified=Date.now(); save();
+  setTimeout(function(){pushCloud();},100);
+  renderSpotManager();
+};
+
+// ============================================================
+// 📷 РАСПОЗНАВАНИЕ РАСЦЕНОК С ФОТО ДОГОВОРА (vision через воркер)
+// Кнопка в editObjMeta → фото → /api/vision → таблица на проверку → применить
+// ============================================================
+window._visionRatesObj = null;
+
+window.openVisionRates = function(objName){
+  _visionRatesObj = objName;
+  var inp = document.getElementById('vision-rate-file');
+  if(!inp){
+    inp = document.createElement('input');
+    inp.type='file'; inp.accept='image/*'; inp.capture='environment';
+    inp.id='vision-rate-file'; inp.style.display='none';
+    inp.addEventListener('change', function(){ visionRatesHandle(this); });
+    document.body.appendChild(inp);
+  }
+  inp.value='';
+  inp.click();
+};
+
+function visionRatesHandle(input){
+  var file = input.files && input.files[0];
+  if(!file) return;
+  if(file.size > 8*1024*1024){ alert('Фото слишком большое (макс 8 МБ). Сожмите или сфотографируйте ближе.'); return; }
+  var reader = new FileReader();
+  reader.onload = function(){
+    var dataUrl = reader.result;
+    visionRatesSend(dataUrl, file.type||'image/jpeg');
+  };
+  reader.onerror = function(){ alert('Не удалось прочитать фото'); };
+  reader.readAsDataURL(file);
+}
+
+function visionRatesSend(dataUrl, mediaType){
+  var o = _visionRatesObj;
+  // показываем экран загрузки в модалке
+  showVisionLoading();
+  if(typeof aiRateLimit==='function' && !aiRateLimit()){ showVisionError('Лимит запросов исчерпан, попробуйте позже.'); return; }
+
+  var prompt = 'На фото — договор подряда или смета строительной компании (Казахстан, монолитные работы). '+
+    'Найди расценки ЗАКАЗЧИКА за единицу объёма по конструкциям (стены, колонны, перекрытия, лестницы, парапет, ростверк, фундамент и т.п.). '+
+    'Цена обычно в тенге за м³ (₸/м³). '+
+    'Верни СТРОГО JSON без markdown:\n'+
+    '{"items":[{"name":"Устройство стен","rate":38437,"unit":"м³"}],"note":"что распознал / сомнения"}\n'+
+    'Только реально видимые на фото позиции с ценами. Если цену не видно — не выдумывай, пропусти. '+
+    'name — название конструкции, rate — число тенге за единицу (без пробелов и валюты), unit — единица. '+
+    'Только валидный JSON от { до }.';
+
+  fetch(AI_WORKER_URL.replace(/\/$/,'')+'/api/vision',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','X-LG-Token':AI_SHARED_TOKEN},
+    body:JSON.stringify({prompt:prompt, image:dataUrl, media_type:mediaType})
+  }).then(function(r){
+    if(!r.ok){
+      if(r.status===404) throw new Error('no-endpoint');
+      throw new Error('HTTP '+r.status);
+    }
+    return r.json();
+  }).then(function(d){
+    var raw = (d && (d.text!==undefined?d.text:(d.result!==undefined?d.result:(d.advice!==undefined?d.advice:d)))) ;
+    var parsed = parseVisionRates(raw);
+    if(parsed && parsed.items && parsed.items.length){
+      showVisionReview(parsed);
+    } else {
+      showVisionError('Не удалось распознать расценки на фото. Попробуйте фото чётче / ближе, или введите вручную.');
+    }
+  }).catch(function(err){
+    if(err && err.message==='no-endpoint'){
+      showVisionError('Воркер пока не умеет распознавать фото. Нужно добавить эндпоинт /api/vision в Cloudflare (файл worker-vision-endpoint.js).');
+    } else {
+      showVisionError('Ошибка распознавания. Проверьте интернет и попробуйте снова.');
+    }
+  });
+}
+
+function parseVisionRates(raw){
+  if(raw && typeof raw==='object' && raw.items) return raw;
+  if(typeof raw!=='string') { try{ raw=JSON.stringify(raw); }catch(e){ return null; } }
+  var s = raw.replace(/```json/gi,'').replace(/```/g,'').trim();
+  try{ var p=JSON.parse(s); if(p&&p.items) return p; }catch(e){}
+  var m = s.match(/\{[\s\S]*\}/);
+  if(m){ try{ var p2=JSON.parse(m[0]); if(p2&&p2.items) return p2; }catch(e){} }
+  return null;
+}
+
+function showVisionLoading(){
+  document.getElementById('mtit').textContent='РАСПОЗНАВАНИЕ';
+  document.getElementById('mbody').innerHTML=
+    '<div style="text-align:center;padding:40px 20px">'+
+      '<div style="font-size:42px;margin-bottom:14px">📷</div>'+
+      '<div style="font-size:14px;color:var(--text);font-weight:700;margin-bottom:6px">Читаю договор…</div>'+
+      '<div style="font-size:12px;color:var(--mut)">ИИ распознаёт расценки с фото. Это занимает несколько секунд.</div>'+
+    '</div>';
+  document.getElementById('modal').style.display='flex';
+}
+function showVisionError(msg){
+  document.getElementById('mtit').textContent='РАСПОЗНАВАНИЕ';
+  document.getElementById('mbody').innerHTML=
+    '<div style="padding:10px">'+
+      '<div style="background:rgba(248,81,73,.08);border:1px solid rgba(248,81,73,.3);border-radius:10px;padding:14px;font-size:13px;color:var(--text);line-height:1.5;margin-bottom:14px">⚠️ '+escapeHtml(msg)+'</div>'+
+      '<button onclick="openVisionRates(_visionRatesObj)" style="width:100%;background:var(--gold);color:#0d1117;border:none;border-radius:10px;padding:12px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;margin-bottom:8px">📷 Сфотографировать снова</button>'+
+      '<button class="fcanc" onclick="backToObjEditor()">Назад к объекту</button>'+
+    '</div>';
+}
+function backToObjEditor(){
+  var idx = S.objects.indexOf(_visionRatesObj);
+  if(idx>=0 && typeof editObjMeta==='function') editObjMeta(idx);
+  else if(typeof closeModal==='function') closeModal();
+}
+
+// экран ПРОВЕРКИ — распознанные расценки можно поправить перед применением
+window._visionReviewItems = [];
+function showVisionReview(parsed){
+  _visionReviewItems = parsed.items.map(function(it){
+    return {name:String(it.name||'').trim(), rate:parseFloat(String(it.rate).replace(/[^\d.]/g,''))||0, unit:it.unit||'м³'};
+  }).filter(function(it){ return it.name; });
+  document.getElementById('mtit').textContent='ПРОВЕРЬТЕ РАСЦЕНКИ';
+  renderVisionReview(parsed.note||'');
+  document.getElementById('modal').style.display='flex';
+}
+function renderVisionReview(note){
+  var rows = _visionReviewItems.map(function(it,i){
+    return '<div style="display:grid;grid-template-columns:1fr 120px 30px;gap:6px;align-items:center;margin-bottom:7px">'+
+      '<input class="fi vr-name" data-i="'+i+'" value="'+escapeAttr(it.name)+'" style="font-size:12px;padding:7px 8px"/>'+
+      '<input class="fi vr-rate" data-i="'+i+'" type="number" inputmode="numeric" value="'+(it.rate||'')+'" placeholder="₸" style="font-size:13px;padding:7px 8px"/>'+
+      '<button onclick="vrRemove('+i+')" style="background:transparent;border:1px solid var(--red);color:var(--red);border-radius:5px;padding:7px 0;font-size:11px;cursor:pointer">✗</button>'+
+    '</div>';
+  }).join('');
+  document.getElementById('mbody').innerHTML=
+    '<div style="background:rgba(57,211,187,.07);border:1px solid rgba(57,211,187,.25);border-radius:10px;padding:11px;margin-bottom:12px;font-size:11px;color:var(--mut);line-height:1.5">'+
+      '✅ ИИ распознал расценки ниже. <b style="color:var(--text)">Проверьте каждую цифру</b> — это деньги, ИИ мог ошибиться. Поправьте при необходимости и нажмите «Применить».'+
+      (note?'<div style="margin-top:6px;color:var(--gold)">📝 '+escapeHtml(note)+'</div>':'')+
+    '</div>'+
+    '<div style="display:grid;grid-template-columns:1fr 120px 30px;gap:6px;font-size:9px;color:var(--mut);margin-bottom:5px;padding:0 4px"><div>КОНСТРУКЦИЯ</div><div>ЦЕНА ₸/м³</div><div></div></div>'+
+    '<div id="vr-rows">'+rows+'</div>'+
+    '<button onclick="vrAddRow()" style="width:100%;background:var(--s2);border:1px solid var(--brd);color:var(--mut);border-radius:8px;padding:9px;font-size:12px;cursor:pointer;font-family:inherit;margin-top:6px">➕ Добавить строку вручную</button>'+
+    '<button class="fsave" style="background:var(--gold);margin-top:14px" onclick="vrApply()">✓ ПРИМЕНИТЬ К ОБЪЕКТУ</button>'+
+    '<button class="fcanc" onclick="backToObjEditor()">Отмена</button>';
+}
+window.vrRemove=function(i){ vrSync(); _visionReviewItems.splice(i,1); renderVisionReview(''); };
+window.vrAddRow=function(){ vrSync(); _visionReviewItems.push({name:'',rate:0,unit:'м³'}); renderVisionReview(''); };
+function vrSync(){
+  document.querySelectorAll('.vr-name').forEach(function(inp){ var i=+inp.getAttribute('data-i'); if(_visionReviewItems[i]) _visionReviewItems[i].name=inp.value.trim(); });
+  document.querySelectorAll('.vr-rate').forEach(function(inp){ var i=+inp.getAttribute('data-i'); if(_visionReviewItems[i]) _visionReviewItems[i].rate=parseFloat(inp.value)||0; });
+}
+window.vrApply=function(){
+  vrSync();
+  var o=_visionRatesObj; var m=objMeta(o);
+  if(!m.rates) m.rates={};
+  var applied=0;
+  _visionReviewItems.forEach(function(it){
+    if(it.name && it.rate>0){ m.rates[it.name]=it.rate; applied++; }
+  });
+  if(applied===0){ alert('Нет расценок для применения. Заполните название и цену.'); return; }
+  S.objMeta[o]=m; S._modified=Date.now();
+  if(typeof save==='function') save();
+  if(typeof pushCloud==='function') setTimeout(pushCloud,100);
+  alert('✅ Применено расценок: '+applied+'. Проверьте в ценах договора и сохраните объект.');
+  backToObjEditor();
+};
+
 window.delObj=function(i){S.objects.splice(i,1);save();var el=document.getElementById('ol');if(el)el.innerHTML=S.objects.map(function(o,j){return '<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--brd)"><span style="font-size:12px">'+o+'</span>'+(S.objects.length>1?'<button onclick="delObj('+j+')" class="delbtn">X</button>':' ')+'</div>';}).join('');};
 
 function showReport(){
@@ -16462,6 +16824,606 @@ function showAnalyticsAI(a){
   el.innerHTML=h;
 }
 // ============ КОНЕЦ ИИ-АНАЛИЗА ДАШБОРДА ============
+
+// ============================================================
+// 🎯 УПРАВЛЕНИЕ ПО ОБЪЕКТУ — уникальный блок вкладки «Объекты»
+// Только то, чего НЕТ на Главной/в Аналитике:
+//   1) S-кривая (план vs факт залитого бетона по неделям)
+//   2) Темп заливки ИМЕННО этого объекта (м³/нед) + целевая линия
+//   3) Узкое место (ToC) — самый отстающий Блок (по графику)
+//   4) ИИ-анализ конкретного объекта
+// ВАЖНО (доменная модель LIONGATE): выручку/объём даёт ТОЛЬКО бетон
+//   (бригады work='Опалубка+бетон*' / 'Комплекс монолит' / wtype содержит 'бетон').
+//   Армирование объёмом сдачи НЕ считается.
+// ============================================================
+
+// бетон ли это (приносит объём сдачи) — повторяет логику volRevenue
+// ============================================================
+// 🎯 УПРАВЛЕНИЕ ПО ОБЪЕКТУ — уникальный блок вкладки «Объекты»
+// Только то, чего НЕТ на Главной/в Аналитике:
+//   1) S-кривая (план vs факт залитого бетона по неделям)
+//   2) Темп заливки ИМЕННО этого объекта (м³/нед) + целевая линия
+//   3) Узкое место (ToC) — самый отстающий Блок (по графику)
+//   4) ИИ-анализ конкретного объекта
+// ВАЖНО (доменная модель LIONGATE): выручку/объём даёт ТОЛЬКО бетон
+//   (бригады work='Опалубка+бетон*' / 'Комплекс монолит' / wtype содержит 'бетон').
+//   Армирование объёмом сдачи НЕ считается.
+// ============================================================
+
+// бетон ли это (приносит объём сдачи) — повторяет логику volRevenue
+// ============================================================
+// 🎯 УПРАВЛЕНИЕ ПО ОБЪЕКТУ — графики план/факт (неделя/месяц/год)
+// Уровни: заказчик (сравнение объектов) → объект (по периодам + пятна) → пятно
+// Домен LIONGATE: объём/выручку даёт ТОЛЬКО бетон (см. isConcreteVol).
+// ============================================================
+
+function isConcreteVol(e){
+  if(!e || e.type!=='vol') return false;
+  var b=(S.brigades||[]).find(function(x){return x.id===e.brigade;});
+  var work=(b&&b.work||'').toLowerCase();
+  return work.indexOf('опалубка+бетон')===0 || work==='комплекс монолит' || (e.wtype||'').toLowerCase().indexOf('бетон')>=0;
+}
+
+// план объёма + сроки (объект целиком ИЛИ конкретное пятно)
+function planInfoFor(objName, spotId){
+  var meta=(S.objMeta||{})[objName]||{};
+  var spots=meta.spots||[];
+  if(spotId){
+    var sp=spots.find(function(x){return x.id===spotId || x.name===spotId;});
+    if(!sp) return {planVol:0};
+    var pv=0; (sp.constructions||[]).forEach(function(c){pv+=(c.volume||0);});
+    return {planVol:pv, start:sp.started, deadline:sp.deadline};
+  }
+  var planVol=0, firstStart=null, lastDeadline=null;
+  spots.forEach(function(s){
+    (s.constructions||[]).forEach(function(c){ planVol+=(c.volume||0); });
+    if(s.started&&(!firstStart||s.started<firstStart)) firstStart=s.started;
+    if(s.deadline&&(!lastDeadline||s.deadline>lastDeadline)) lastDeadline=s.deadline;
+  });
+  return {planVol:planVol, start:firstStart, deadline:lastDeadline};
+}
+
+// ключ периода для даты
+function periodKey(dateStr, period){
+  var d=new Date(dateStr);
+  if(period==='year') return ''+d.getFullYear();
+  if(period==='month') return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+  // week
+  var iso=(typeof isoWeek==='function')?isoWeek(d):null;
+  return iso?(iso.year+'-W'+String(iso.week).padStart(2,'0')):dateStr.slice(0,7);
+}
+function periodLabel(key, period){
+  if(period==='year') return key;
+  if(period==='month'){ var m=['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек']; var p=key.split('-'); return m[parseInt(p[1],10)-1]; }
+  return 'W'+key.slice(-2); // week
+}
+// сколько таких периодов между двумя датами (для разнесения плана)
+function periodsBetween(start, end, period){
+  var s=new Date(start), e=new Date(end);
+  if(e<s) return 1;
+  if(period==='year') return Math.max(1, e.getFullYear()-s.getFullYear()+1);
+  if(period==='month') return Math.max(1,(e.getFullYear()-s.getFullYear())*12+(e.getMonth()-s.getMonth())+1);
+  return Math.max(1, Math.ceil((e-s)/(7*86400000))); // weeks
+}
+
+// данные план/факт по периодам
+function planFactData(objName, spotId, period){
+  var plan=planInfoFor(objName, spotId);
+  if(plan.planVol<=0) return {buckets:[], plan:plan};
+  // факт по периодам (только бетон, фильтр по пятну если задан)
+  var byKey={};
+  (S.entries||[]).forEach(function(e){
+    if(e.obj!==objName || !e.date || !isConcreteVol(e)) return;
+    if(spotId){ var sp=e.spotId||e.spot||e.zone||''; if(sp!==spotId){ /* match by spot name too */ var meta=(S.objMeta||{})[objName]||{}; var s=(meta.spots||[]).find(function(x){return x.id===spotId;}); if(!s||sp!==s.name) return; } }
+    var k=periodKey(e.date, period);
+    if(!byKey[k]) byKey[k]={key:k, fact:0, plan:0};
+    byKey[k].fact+=(e.volume||0);
+  });
+  // плановый темп на период (равномерно от старта до дедлайна)
+  var planPerPeriod=0;
+  if(plan.start && plan.deadline){
+    planPerPeriod = plan.planVol / periodsBetween(plan.start, plan.deadline, period);
+  }
+  // заполняем план для всех периодов от старта до max(сегодня, последний факт)
+  if(plan.start && plan.deadline){
+    var cur=new Date(plan.start), end=new Date(); // план до сегодня
+    var guard=0;
+    while(cur<=end && guard<400){
+      var k=periodKey(cur.toISOString().slice(0,10), period);
+      if(!byKey[k]) byKey[k]={key:k, fact:0, plan:0};
+      byKey[k].plan = planPerPeriod;
+      if(period==='year') cur.setFullYear(cur.getFullYear()+1);
+      else if(period==='month') cur.setMonth(cur.getMonth()+1);
+      else cur.setDate(cur.getDate()+7);
+      guard++;
+    }
+  }
+  var buckets=Object.keys(byKey).sort().map(function(k){return byKey[k];});
+  return {buckets:buckets, plan:plan, planPerPeriod:planPerPeriod};
+}
+
+// SVG парные столбцы план/факт
+function svgPlanFactBars(buckets, period){
+  if(!buckets.length) return '<div style="font-size:11px;color:var(--mut);padding:20px;text-align:center">Нет данных за этот период</div>';
+  var show=buckets.slice(-8);
+  var maxV=Math.max(1, Math.max.apply(null, show.map(function(b){return Math.max(b.plan,b.fact);})))*1.18;
+  var CH=80;
+  var h='<div style="display:flex;align-items:flex-end;gap:10px;height:'+CH+'px;padding-top:14px">';
+  show.forEach(function(b){
+    var ph=Math.max(2,Math.round(CH*b.plan/maxV));
+    var fh=Math.max(2,Math.round(CH*b.fact/maxV));
+    var factColor=b.fact>=b.plan?'var(--teal)':'var(--orange)';
+    h+='<div style="flex:1;min-width:26px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%">';
+    // подпись факта над столбцами
+    h+='<div style="font-size:8px;color:'+factColor+';font-weight:700;margin-bottom:2px">'+(b.fact>0?fmtD(b.fact):'')+'</div>';
+    h+='<div style="display:flex;align-items:flex-end;gap:3px;width:100%;justify-content:center">';
+    // план (серый контур)
+    h+='<div title="план" style="width:42%;height:'+ph+'px;background:repeating-linear-gradient(45deg,var(--brd),var(--brd) 2px,transparent 2px,transparent 4px);border:1px solid var(--brd);border-radius:3px 3px 0 0"></div>';
+    // факт (цвет)
+    h+='<div title="факт" style="width:42%;height:'+fh+'px;background:'+factColor+';border-radius:3px 3px 0 0"></div>';
+    h+='</div>';
+    h+='</div>';
+  });
+  h+='</div>';
+  // ось подписей
+  h+='<div style="display:flex;gap:10px;margin-top:4px">'+show.map(function(b){return '<div style="flex:1;min-width:26px;text-align:center;font-size:8px;color:var(--mut)">'+periodLabel(b.key,period)+'</div>';}).join('')+'</div>';
+  return h;
+}
+
+// период по умолчанию (глобальное состояние, переживает render)
+var _pfPeriod = (typeof _pfPeriod!=='undefined') ? _pfPeriod : 'week';
+function setPFPeriod(p){ _pfPeriod=p; if(typeof render==='function') render(); }
+
+// переключатель периодов
+function periodSwitcher(){
+  var opts=[['week','Неделя'],['month','Месяц'],['year','Год']];
+  var h='<div style="display:flex;gap:6px;margin-bottom:10px">';
+  opts.forEach(function(o){
+    var active=_pfPeriod===o[0];
+    h+='<button onclick="setPFPeriod(\''+o[0]+'\')" style="flex:1;background:'+(active?'var(--gold)':'var(--s2)')+';color:'+(active?'#0d1117':'var(--mut)')+';border:1px solid '+(active?'var(--gold)':'var(--brd)')+';border-radius:8px;padding:7px;font-size:11px;font-weight:700;font-family:inherit;cursor:pointer">'+o[1]+'</button>';
+  });
+  h+='</div>';
+  return h;
+}
+
+// блок графика план/факт (для объекта или пятна)
+function planFactBlock(objName, spotId, title){
+  var d=planFactData(objName, spotId, _pfPeriod);
+  if(d.plan.planVol<=0) return '';
+  var totalFact=d.buckets.reduce(function(s,b){return s+b.fact;},0);
+  var totalPlanToDate=d.buckets.reduce(function(s,b){return s+b.plan;},0);
+  var gap=totalFact-totalPlanToDate;
+  var gapColor=gap>=0?'var(--green)':'var(--red)';
+  var h='<div style="background:var(--bg);border-radius:12px;padding:12px;margin-bottom:10px">';
+  h+='<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">';
+  h+='<span style="font-size:12px;color:var(--text);font-weight:700">'+(title||'План / факт')+' · м³</span>';
+  h+='<span style="font-size:11px;color:'+gapColor+';font-weight:700">'+(gap>=0?'+':'−')+fmtD(Math.abs(gap))+' м³</span>';
+  h+='</div>';
+  h+=svgPlanFactBars(d.buckets, _pfPeriod);
+  h+='<div style="display:flex;gap:14px;margin-top:8px;font-size:10px;color:var(--mut)">';
+  h+='<span><span style="display:inline-block;width:9px;height:9px;background:repeating-linear-gradient(45deg,var(--brd),var(--brd) 2px,transparent 2px,transparent 4px);border:1px solid var(--brd);vertical-align:middle"></span> план</span>';
+  h+='<span><span style="display:inline-block;width:9px;height:9px;background:var(--teal);vertical-align:middle"></span> факт ≥ плана</span>';
+  h+='<span><span style="display:inline-block;width:9px;height:9px;background:var(--orange);vertical-align:middle"></span> факт &lt; плана</span>';
+  h+='</div></div>';
+  return h;
+}
+
+// === УРОВЕНЬ ЗАКАЗЧИК: сравнение объектов (факт vs план всего объёма) ===
+function customerChartBlock(customer, objList){
+  if(!objList || objList.length===0) return '';
+  var rows=objList.map(function(o){
+    var plan=planInfoFor(o);
+    var fact=(S.entries||[]).filter(function(e){return e.obj===o&&isConcreteVol(e);}).reduce(function(s,e){return s+(e.volume||0);},0);
+    return {name:o.split(',')[0], plan:plan.planVol, fact:fact, pct:plan.planVol>0?Math.round(fact/plan.planVol*100):0};
+  });
+  if(rows.every(function(r){return r.plan<=0;})) return '';
+  var h='<div style="background:linear-gradient(135deg,rgba(255,179,32,.06),rgba(57,211,187,.04));border:1px solid var(--gold);border-radius:16px;padding:14px;margin-bottom:14px">';
+  h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px"><span style="font-size:16px">📊</span><span style="font-size:11px;color:var(--gold);letter-spacing:1.5px;font-weight:800">ОБЪЕКТЫ ЗАКАЗЧИКА · ПРОГРЕСС</span></div>';
+  rows.forEach(function(r){
+    var bc=r.pct>=100?'var(--green)':(r.pct>=50?'var(--teal)':'var(--orange)');
+    h+='<div style="margin-bottom:12px">';
+    h+='<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:5px"><span style="color:var(--text);font-weight:700">'+escapeHtml(r.name)+'</span><span style="color:'+bc+';font-weight:700">'+r.pct+'% · '+fmtD(r.fact)+'/'+fmtD(r.plan)+' м³</span></div>';
+    h+='<div style="height:10px;background:var(--s2);border-radius:5px;overflow:hidden"><div style="height:100%;width:'+Math.min(100,Math.max(2,r.pct))+'%;background:'+bc+';border-radius:5px"></div></div>';
+    h+='</div>';
+  });
+  // ИИ-кнопка портфельного анализа заказчика
+  h+='<div id="cust-ai-'+escapeAttr(customer)+'" style="margin-top:4px">';
+  h+='<button onclick="loadCustAI(\''+escapeAttr(customer)+'\',true)" style="width:100%;background:var(--purple);border:none;color:#fff;border-radius:10px;padding:11px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer">🤖 Анализ заказчика от ИИ</button>';
+  h+='</div>';
+  h+='</div>';
+  return h;
+}
+
+// ============================================================
+// ИИ-анализ ЗАКАЗЧИКА (портфельный: между объектами)
+// ============================================================
+var _custAICache={}, _custAITime={}, _custAILoading={};
+function loadCustAI(customer, force){
+  if(_custAILoading[customer]) return;
+  // карта объектов заказчика
+  var objList=[];
+  (S.objects||[]).forEach(function(o){
+    var meta=(S.objMeta||{})[o]||{};
+    if((meta.customer||'')===customer || (meta.custRates&&(meta.custRates[0]||{}).customer===customer)) objList.push(o);
+  });
+  if(objList.length===0) objList=(S.objects||[]); // fallback
+  // при 1 объекте — не дублируем анализ объекта
+  if(objList.length<2){
+    showCustAINote(customer);
+    return;
+  }
+  if(!force && _custAICache[customer] && Date.now()-(_custAITime[customer]||0)<1800000){ showCustAI(customer,_custAICache[customer]); return; }
+  _custAILoading[customer]=true; showCustAILoading(customer);
+  // собираем портфель
+  var port=objList.map(function(o){
+    var plan=planInfoFor(o);
+    var fact=(S.entries||[]).filter(function(e){return e.obj===o&&isConcreteVol(e);}).reduce(function(s,e){return s+(e.volume||0);},0);
+    var m=(typeof marginObject==='function')?marginObject(o):{profit:0};
+    var daysLeft=plan.deadline?Math.ceil((new Date(plan.deadline)-new Date())/86400000):0;
+    return {name:o.split(',')[0], plan:plan.planVol, fact:fact, pct:plan.planVol>0?Math.round(fact/plan.planVol*100):0, profit:Math.round((m.profit||0)/1000), daysLeft:daysLeft};
+  });
+  var lines=port.map(function(p){return '• '+p.name+': '+p.pct+'% готово ('+fmtD(p.fact)+'/'+fmtD(p.plan)+' м³), маржа '+p.profit+' тыс ₸, до сдачи '+Math.max(0,p.daysLeft)+' дн';});
+  var prompt='Ты директор по развитию строительной компании LIONGATE (Казахстан, монолит, 2026). '+
+    'По системе Алекса Яновского («трепетное отношение к лидам», «расставить игроков на правильные места», «поиск недозаработанных денег») разбери ПОРТФЕЛЬ заказчика «'+customer+'» — куда направить ресурсы.\n\n'+
+    'ОБЪЕКТЫ ЗАКАЗЧИКА ('+port.length+'):\n'+lines.join('\n')+'\n\n'+
+    'Верни СТРОГО JSON без markdown:\n'+
+    '{"verdict":"одно предложение — какой объект приоритетный и почему","points":["2-3 наблюдения: где отстаём, где маржа, риски сдачи"],"actions":["2-3 действия: куда перебросить бригады/ресурсы, что дожать у заказчика"]}\n'+
+    'Только валидный JSON от { до }. По-деловому, с цифрами, на русском.';
+  if(typeof aiRateLimit==='function' && !aiRateLimit()){ _custAILoading[customer]=false; showCustAIError(customer); return; }
+  fetch(AI_WORKER_URL.replace(/\/$/,'')+'/api/ai-forecast',{
+    method:'POST', headers:{'Content-Type':'application/json','X-LG-Token':AI_SHARED_TOKEN},
+    body:JSON.stringify({prompt:prompt})
+  }).then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+  .then(function(d){
+    _custAILoading[customer]=false;
+    var parsed=(typeof parseAnalyticsResponse==='function')?parseAnalyticsResponse(d):null;
+    if(parsed){ _custAICache[customer]=parsed; _custAITime[customer]=Date.now(); showCustAI(customer,parsed); } else showCustAIError(customer);
+  }).catch(function(){ _custAILoading[customer]=false; showCustAI(customer, localCustInsight(port)); });
+}
+function localCustInsight(port){
+  var sorted=port.slice().sort(function(a,b){return a.pct-b.pct;});
+  var worst=sorted[0]||{name:'',pct:0};
+  return {verdict:'Приоритет — «'+worst.name+'» ('+worst.pct+'% готово), самый отстающий по портфелю.',
+    points:port.map(function(p){return p.name+': '+p.pct+'%, маржа '+p.profit+' тыс ₸';}),
+    actions:['Перебросить силы на «'+worst.name+'».','Дожать оплату по закрытым объёмам.'], _local:true};
+}
+function showCustAINote(customer){
+  var el=document.getElementById('cust-ai-'+customer); if(!el) return;
+  el.innerHTML='<div style="background:rgba(163,113,247,.08);border:1px solid rgba(163,113,247,.25);border-radius:10px;padding:12px;font-size:12px;color:var(--mut);line-height:1.5">🤖 Портфельный анализ заказчика появится со 2-го объекта. Сейчас у заказчика 1 объект — смотрите «🤖 Анализ объекта» в карточке стройки.</div>';
+}
+function showCustAILoading(customer){ var el=document.getElementById('cust-ai-'+customer); if(!el) return; el.innerHTML='<div style="display:flex;align-items:center;gap:10px;padding:12px;color:var(--mut);font-size:12px"><span style="font-size:18px">🤖</span> Анализирую портфель заказчика…</div>'; }
+function showCustAIError(customer){ var el=document.getElementById('cust-ai-'+customer); if(!el) return; el.innerHTML='<button onclick="loadCustAI(\''+escapeAttr(customer)+'\',true)" style="width:100%;background:var(--s2);border:1px solid var(--brd);color:var(--mut);border-radius:10px;padding:11px;font-size:12px;font-family:inherit;cursor:pointer">⚠️ ИИ недоступен — нажмите ещё раз</button>'; }
+function showCustAI(customer, a){
+  var el=document.getElementById('cust-ai-'+customer); if(!el||!a) return;
+  var h='<div style="background:rgba(163,113,247,.08);border:1px solid rgba(163,113,247,.35);border-radius:12px;padding:13px">';
+  h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span style="font-size:10px;color:var(--purple);letter-spacing:1px;font-weight:800">🤖 АНАЛИЗ ЗАКАЗЧИКА'+(a._local?' (офлайн)':'')+'</span>';
+  h+='<button onclick="loadCustAI(\''+escapeAttr(customer)+'\',true)" style="background:none;border:none;color:var(--mut);font-size:14px;cursor:pointer">↻</button></div>';
+  if(a.verdict) h+='<div style="font-size:13px;color:var(--text);font-weight:700;line-height:1.4;margin-bottom:10px">'+escapeHtml(a.verdict)+'</div>';
+  if(a.points&&a.points.length){ h+='<div style="margin-bottom:10px">'; a.points.forEach(function(p){ h+='<div style="font-size:12px;color:var(--mut);line-height:1.5;padding:3px 0">• '+escapeHtml(p)+'</div>'; }); h+='</div>'; }
+  if(a.actions&&a.actions.length){ h+='<div style="background:var(--bg);border-radius:8px;padding:10px"><div style="font-size:10px;color:var(--gold);letter-spacing:1px;font-weight:800;margin-bottom:6px">⚡ КУДА НАПРАВИТЬ РЕСУРСЫ</div>'; a.actions.forEach(function(p){ h+='<div style="font-size:12px;color:var(--text);line-height:1.5;padding:3px 0">→ '+escapeHtml(p)+'</div>'; }); h+='</div>'; }
+  h+='</div>';
+  el.innerHTML=h;
+}
+
+// === УРОВЕНЬ ОБЪЕКТ: главный блок управления ===
+function objMgmtBlock(objName){
+  var plan=planInfoFor(objName);
+  if(plan.planVol<=0) return '';
+  var h='';
+  h+='<div style="background:linear-gradient(135deg,rgba(255,179,32,.06),rgba(57,211,187,.04));border:1px solid var(--gold);border-radius:16px;padding:14px;margin-bottom:14px">';
+  h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><span style="font-size:16px">🎯</span><span style="font-size:11px;color:var(--gold);letter-spacing:1.5px;font-weight:800">УПРАВЛЕНИЕ ПО ОБЪЕКТУ</span></div>';
+  h+='<div style="font-size:10px;color:var(--mut);margin-bottom:12px">план/факт, темп и узкое место этой стройки</div>';
+  // переключатель периодов
+  h+=periodSwitcher();
+  // график план/факт по периодам
+  h+=planFactBlock(objName, null, 'План / факт залив');
+  // узкое место (самый отстающий блок)
+  var bn=objBottleneck(objName);
+  if(bn && bn.worst && bn.worst.behind>0){
+    var w=bn.worst;
+    var fc=w.sch.forecastDate?new Date(w.sch.forecastDate).toLocaleDateString('ru-RU',{day:'numeric',month:'short'}):'—';
+    h+='<div style="background:rgba(248,81,73,.07);border:1px solid rgba(248,81,73,.3);border-radius:12px;padding:12px;margin-bottom:10px">';
+    h+='<div style="font-size:10px;color:var(--red);letter-spacing:1px;font-weight:800;margin-bottom:6px">🔗 УЗКОЕ МЕСТО (тормозит сдачу)</div>';
+    h+='<div style="font-size:15px;color:var(--text);font-weight:800">'+escapeHtml(w.name)+'</div>';
+    h+='<div style="font-size:11px;color:var(--mut);margin-top:3px">отстаёт на '+Math.round(w.behind)+'% от графика · сделано '+w.pct+'% · осталось <b style="color:var(--orange)">'+fmtD(w.remain)+' м³</b></div>';
+    h+='<div style="height:6px;background:var(--s2);border-radius:3px;overflow:hidden;margin-top:8px"><div style="height:100%;width:'+Math.min(100,w.pct)+'%;background:var(--red);border-radius:3px"></div></div>';
+    if(w.sch.neededPace) h+='<div style="font-size:11px;color:var(--orange);margin-top:8px">⚠️ нужен темп '+fmtD(w.sch.neededPace)+' м³/нед (сейчас '+fmtD(w.sch.pacePerWeek)+'), прогноз готовности '+fc+'</div>';
+    h+='<div style="font-size:10px;color:var(--mut);margin-top:8px;line-height:1.5">💡 По Голдратту: скорость всей стройки = скорость этого участка.</div>';
+    h+='</div>';
+  }
+  // ИИ по объекту
+  h+='<div id="obj-ai-'+escapeAttr(objName)+'">';
+  h+='<button onclick="loadObjAI(\''+escapeAttr(objName)+'\',true)" style="width:100%;background:var(--purple);border:none;color:#fff;border-radius:10px;padding:11px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer">🤖 Анализ объекта от ИИ</button>';
+  h+='</div>';
+  h+='</div>';
+  return h;
+}
+
+// === УРОВЕНЬ ПЯТНО: компактный график план/факт для одного блока ===
+function spotChartBlock(objName, spotId){
+  var d=planFactData(objName, spotId, _pfPeriod);
+  if(d.plan.planVol<=0 || d.buckets.length===0) return '';
+  var h='<div style="margin-top:8px">';
+  h+=planFactBlock(objName, spotId, 'План / факт по пятну ('+(_pfPeriod==='week'?'нед':_pfPeriod==='month'?'мес':'год')+')');
+  h+='</div>';
+  return h;
+}
+
+// узкое место = самый отстающий Блок (по scheduleStatus)
+function objBottleneck(objName){
+  var meta=(S.objMeta||{})[objName]||{};
+  var spots=(meta.spots||[]).filter(function(s){return !s.completed;});
+  if(spots.length===0) return null;
+  var ranked=[];
+  spots.forEach(function(sp){
+    var sch=(typeof scheduleStatus==='function' && sp.id)?scheduleStatus(objName,sp.id):null;
+    if(sch) ranked.push({name:sp.name, sch:sch, behind:(sch.expectedPct-sch.progressPct), remain:sch.remainVol, pct:sch.progressPct});
+  });
+  if(ranked.length===0) return null;
+  ranked.sort(function(a,b){ return b.behind-a.behind || b.remain-a.remain; });
+  return {worst:ranked[0], all:ranked};
+}
+
+// ============================================================
+// ИИ-анализ КОНКРЕТНОГО объекта
+// ============================================================
+var _objAICache={}, _objAITime={}, _objAILoading={};
+function loadObjAI(objName, force){
+  if(_objAILoading[objName]) return;
+  if(!force && _objAICache[objName] && Date.now()-(_objAITime[objName]||0)<1800000){ showObjAI(objName,_objAICache[objName]); return; }
+  _objAILoading[objName]=true; showObjAILoading(objName);
+  var plan=planInfoFor(objName);
+  var fact=(S.entries||[]).filter(function(e){return e.obj===objName&&isConcreteVol(e);});
+  var doneAll=fact.reduce(function(s,e){return s+(e.volume||0);},0);
+  var remain=Math.max(0,plan.planVol-doneAll);
+  var daysLeft=plan.deadline?Math.ceil((new Date(plan.deadline)-new Date())/86400000):0;
+  var weeksLeft=Math.max(0.5,daysLeft/7);
+  var targetPace=daysLeft>0?Math.round(remain/weeksLeft*10)/10:0;
+  var bn=objBottleneck(objName);
+  var m=(typeof marginObject==='function')?marginObject(objName):{profit:0};
+  var brigs=(S.brigades||[]).filter(function(b){return b.obj===objName;});
+  var bnTxt=(bn&&bn.worst)?(bn.worst.name+' — отстаёт '+Math.round(bn.worst.behind)+'% от графика, осталось '+fmtD(bn.worst.remain)+' м³'):'нет данных';
+  var prompt='Ты прораб-аналитик строительной компании LIONGATE (Казахстан, монолит, 2026). '+
+    'Разбери КОНКРЕТНЫЙ объект по системе управления Алекса Яновского: найди узкое место (фанат ТПСИ, опора на твёрдые факты, конкретика, действия на эту неделю).\n\n'+
+    'ОБЪЕКТ: '+objName+'\n'+
+    '• План бетона: '+fmtD(plan.planVol)+' м³, залито: '+fmtD(doneAll)+' м³ ('+(plan.planVol>0?Math.round(doneAll/plan.planVol*100):0)+'%)\n'+
+    '• Осталось: '+fmtD(remain)+' м³ за '+Math.max(0,daysLeft)+' дней до дедлайна\n'+
+    '• Нужный темп: '+targetPace+' м³/нед\n'+
+    '• Узкое место: '+bnTxt+'\n'+
+    '• Маржа по готовому: '+Math.round(m.profit/1000)+' тыс ₸\n'+
+    '• Бригад: '+brigs.length+' ('+brigs.map(function(b){return b.name+' '+(b.workers||0)+'чел, '+(b.work||'');}).join('; ')+')\n\n'+
+    'Верни СТРОГО JSON без markdown:\n'+
+    '{"verdict":"одно предложение успеваем ли и почему","points":["2-3 наблюдения с цифрами"],"actions":["2-3 действия на эту неделю чтобы расшить узкое место"]}\n'+
+    'Только валидный JSON от { до }. По-деловому, коротко, с цифрами, на русском.';
+  if(typeof aiRateLimit==='function' && !aiRateLimit()){ _objAILoading[objName]=false; showObjAIError(objName); return; }
+  fetch(AI_WORKER_URL.replace(/\/$/,'')+'/api/ai-forecast',{
+    method:'POST', headers:{'Content-Type':'application/json','X-LG-Token':AI_SHARED_TOKEN},
+    body:JSON.stringify({prompt:prompt})
+  }).then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+  .then(function(d){
+    _objAILoading[objName]=false;
+    var parsed=(typeof parseAnalyticsResponse==='function')?parseAnalyticsResponse(d):null;
+    if(parsed){ _objAICache[objName]=parsed; _objAITime[objName]=Date.now(); showObjAI(objName,parsed); } else showObjAIError(objName);
+  }).catch(function(){
+    _objAILoading[objName]=false;
+    showObjAI(objName, localObjInsight(objName,{remain:remain,daysLeft:daysLeft,targetPace:targetPace,bn:bn}));
+  });
+}
+function localObjInsight(objName, d){
+  var points=[], actions=[], verdict='';
+  verdict='Нужный темп '+d.targetPace+' м³/нед чтобы успеть к дедлайну.';
+  if(d.bn&&d.bn.worst&&d.bn.worst.behind>0){
+    points.push('Узкое место: '+d.bn.worst.name+' — отстаёт '+Math.round(d.bn.worst.behind)+'% от графика.');
+    actions.push('Бросить силы на «'+d.bn.worst.name+'» — это участок-ограничение.');
+  }
+  points.push('До дедлайна '+Math.max(0,d.daysLeft)+' дней, остаток '+fmtD(d.remain)+' м³.');
+  actions.push('Держать темп не ниже '+d.targetPace+' м³/нед.');
+  return {verdict:verdict, points:points, actions:actions, _local:true};
+}
+function showObjAILoading(objName){ var el=document.getElementById('obj-ai-'+objName); if(!el) return; el.innerHTML='<div style="display:flex;align-items:center;gap:10px;padding:12px;color:var(--mut);font-size:12px"><span style="font-size:18px">🤖</span> Анализирую объект…</div>'; }
+function showObjAIError(objName){ var el=document.getElementById('obj-ai-'+objName); if(!el) return; el.innerHTML='<button onclick="loadObjAI(\''+escapeAttr(objName)+'\',true)" style="width:100%;background:var(--s2);border:1px solid var(--brd);color:var(--mut);border-radius:10px;padding:11px;font-size:12px;font-family:inherit;cursor:pointer">⚠️ ИИ недоступен — нажмите ещё раз</button>'; }
+function showObjAI(objName, a){
+  var el=document.getElementById('obj-ai-'+objName); if(!el||!a) return;
+  var h='<div style="background:rgba(163,113,247,.08);border:1px solid rgba(163,113,247,.35);border-radius:12px;padding:13px">';
+  h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span style="font-size:10px;color:var(--purple);letter-spacing:1px;font-weight:800">🤖 АНАЛИЗ ОБЪЕКТА'+(a._local?' (офлайн)':'')+'</span>';
+  h+='<button onclick="loadObjAI(\''+escapeAttr(objName)+'\',true)" style="background:none;border:none;color:var(--mut);font-size:14px;cursor:pointer">↻</button></div>';
+  if(a.verdict) h+='<div style="font-size:13px;color:var(--text);font-weight:700;line-height:1.4;margin-bottom:10px">'+escapeHtml(a.verdict)+'</div>';
+  if(a.points&&a.points.length){ h+='<div style="margin-bottom:10px">'; a.points.forEach(function(p){ h+='<div style="font-size:12px;color:var(--mut);line-height:1.5;padding:3px 0">• '+escapeHtml(p)+'</div>'; }); h+='</div>'; }
+  if(a.actions&&a.actions.length){ h+='<div style="background:var(--bg);border-radius:8px;padding:10px"><div style="font-size:10px;color:var(--gold);letter-spacing:1px;font-weight:800;margin-bottom:6px">⚡ ДЕЙСТВИЯ НА НЕДЕЛЮ</div>'; a.actions.forEach(function(p){ h+='<div style="font-size:12px;color:var(--text);line-height:1.5;padding:3px 0">→ '+escapeHtml(p)+'</div>'; }); h+='</div>'; }
+  h+='</div>';
+  el.innerHTML=h;
+}
+
+// ============================================================
+// 💰 ПОИСК НЕДОЗАРАБОТАННЫХ ДЕНЕГ (по Яновскому)
+// Детектор резервов: замороженная выручка (НЗП), личные авансы,
+// переплата бригадам, просроченная дебиторка.
+// Ставится в P&L под чистой маржой.
+// ============================================================
+
+function isConcreteVolE(e){
+  if(!e || e.type!=='vol') return false;
+  var b=(S.brigades||[]).find(function(x){return x.id===e.brigade;});
+  var work=(b&&b.work||'').toLowerCase();
+  return work.indexOf('опалубка+бетон')===0 || work==='комплекс монолит' || (e.wtype||'').toLowerCase().indexOf('бетон')>=0;
+}
+
+function leakFindings(){
+  var E=S.entries||[];
+  var frozen=[], lost=[]; // frozen = деньги заморожены (вернутся), lost = ушли мимо стройки
+
+  // --- 1. НЗП: армирование залито, бетон по тому же пятну не залит ---
+  var armBySpot={}, concBySpot={};
+  E.forEach(function(e){
+    if(e.type!=='vol') return;
+    var sp=e.spotId||e.zone||'?';
+    if((e.wtype||'').toLowerCase().indexOf('армир')>=0) armBySpot[sp]=(armBySpot[sp]||0)+(e.volume||0);
+    if(isConcreteVolE(e)) concBySpot[sp]=(concBySpot[sp]||0)+(e.volume||0);
+  });
+  var obj=S.objects[0]; var meta=(S.objMeta||{})[obj]||{};
+  var rate=((meta.custRates||[])[0]||{}).rate||38437;
+  var nzpSum=0, nzpItems=[];
+  Object.keys(armBySpot).forEach(function(sp){
+    var gap=armBySpot[sp]-(concBySpot[sp]||0);
+    if(gap>1){
+      nzpSum+=gap*rate;
+      var nm=((meta.spots||[]).find(function(s){return s.id===sp;})||{}).name||sp;
+      nzpItems.push(nm+' · '+fmtD(gap)+' м³');
+    }
+  });
+  if(nzpSum>0) frozen.push({icon:'🧱', sev:'high', title:'Армировано — бетон не залит',
+    sum:nzpSum, items:nzpItems,
+    desc:'Деньги вложены в арматуру, но выручки не будет, пока не зальёте бетон и не закроете КС-2.',
+    act:'Поставить бетон по этим пятнам в приоритет — разблокирует выручку.'});
+
+  // --- 2. Личные авансы (строгий фильтр) ---
+  var personalSum=0, pItems=[];
+  E.filter(function(e){return e.type==='advance';}).forEach(function(e){
+    var n=(e.note||'').toLowerCase();
+    if(/ломбард|золото|процент|альфард|\(личн|на личные|^\s*лично/.test(n)){
+      personalSum+=e.amount;
+      pItems.push(e.date.slice(5)+' '+(e.to||'')+' · '+fmt(e.amount)+' ₸');
+    }
+  });
+  if(personalSum>0) lost.push({icon:'👤', sev:'mid', title:'Авансы на личные нужды',
+    sum:personalSum, items:pItems,
+    desc:'Деньги компании ушли на личные цели команды (не на стройку).',
+    act:'Вынести в личный долг сотрудника или удержать из зарплаты.'});
+
+  // --- 3. Переплата бригадам (только тем, кто работает > 10 дней) ---
+  var overSum=0, oItems=[];
+  (S.brigades||[]).forEach(function(b){
+    var days = b.started ? Math.ceil((Date.now()-new Date(b.started))/86400000) : 999;
+    if(days < 10) return; // стартовый аванс — не утечка
+    var paid=E.filter(function(e){return e.type==='expense'&&e.brigade===b.id;}).reduce(function(s,e){return s+e.amount;},0);
+    var earned=E.filter(function(e){return e.type==='vol'&&e.brigade===b.id;}).reduce(function(s,e){var r=((b.prices||[])[0]||{}).rate||0;return s+(e.volume||0)*r;},0);
+    if(paid-earned>50000){ overSum+=(paid-earned); oItems.push(b.name+' · +'+fmt(paid-earned)+' ₸'); }
+  });
+  if(overSum>0) frozen.push({icon:'👷', sev:'mid', title:'Бригадам заплачено вперёд',
+    sum:overSum, items:oItems,
+    desc:'Авансы выданы, объём ещё не сдан. Деньги вернутся работой.',
+    act:'Дожать бригады по объёму или учесть переплату в следующем расчёте.'});
+
+  // --- 4. Просроченная дебиторка (если есть функция) ---
+  if(typeof customerDebt==='function'){
+    var debt=0; (S.objects||[]).forEach(function(o){debt+=customerDebt(o)||0;});
+    if(debt>0) frozen.push({icon:'📥', sev:'low', title:'Заказчик должен',
+      sum:debt, items:[],
+      desc:'Закрытые объёмы не оплачены заказчиком.',
+      act:'Дожать оплату КС-2 — это уже заработанные, но не полученные деньги.'});
+  }
+
+  return {frozen:frozen, lost:lost,
+    frozenSum:frozen.reduce(function(s,f){return s+f.sum;},0),
+    lostSum:lost.reduce(function(s,f){return s+f.sum;},0)};
+}
+
+function leakCard(f, accent){
+  var sevBar={high:'var(--red)',mid:'var(--orange)',low:'var(--blue)'}[f.sev]||'var(--mut)';
+  var h='<div style="background:var(--bg);border-radius:12px;padding:13px;margin-bottom:10px;position:relative;overflow:hidden">';
+  h+='<div style="position:absolute;left:0;top:0;bottom:0;width:3px;background:'+sevBar+'"></div>';
+  h+='<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:7px">';
+  h+='<div style="display:flex;gap:9px;align-items:center;min-width:0"><span style="font-size:18px;flex-shrink:0">'+f.icon+'</span><span style="font-size:13px;color:var(--text);font-weight:700;line-height:1.25">'+f.title+'</span></div>';
+  h+='<span style="font-family:var(--fd);font-size:17px;color:'+sevBar+';font-weight:800;white-space:nowrap;flex-shrink:0">'+fmt(f.sum)+'</span></div>';
+  if(f.items && f.items.length){
+    var shown=f.items.slice(0,3), rest=f.items.length-3;
+    h+='<div style="font-size:11px;color:var(--mut);line-height:1.6;margin-bottom:7px">';
+    h+=shown.map(function(x){return '• '+escapeHtml(x);}).join('<br>');
+    if(rest>0) h+='<br><span style="color:var(--mut);opacity:.7">…и ещё '+rest+'</span>';
+    h+='</div>';
+  }
+  h+='<div style="font-size:11px;color:var(--mut);line-height:1.5;margin-bottom:8px">'+escapeHtml(f.desc)+'</div>';
+  h+='<div style="background:rgba(255,179,32,.07);border-radius:7px;padding:8px 10px;font-size:11px;color:var(--gold);line-height:1.45">⚡ '+escapeHtml(f.act)+'</div>';
+  h+='</div>';
+  return h;
+}
+
+function leakBlock(){
+  var L=leakFindings();
+  if(L.frozen.length===0 && L.lost.length===0) return '';
+  var total=L.frozenSum+L.lostSum;
+  var h='';
+  h+='<div style="background:linear-gradient(150deg,rgba(240,136,62,.10),rgba(13,17,23,0) 60%);border:1px solid var(--orange);border-radius:18px;padding:16px;margin:14px 0">';
+  // заголовок
+  h+='<div style="display:flex;align-items:center;gap:9px;margin-bottom:2px"><span style="font-size:19px">💰</span><span style="font-size:12px;color:var(--orange);letter-spacing:1.5px;font-weight:800">ПОИСК НЕДОЗАРАБОТАННЫХ ДЕНЕГ</span></div>';
+  h+='<div style="font-size:10px;color:var(--mut);margin-bottom:14px">резервы прибыли · по системе Яновского</div>';
+  // итог
+  h+='<div style="background:var(--bg);border-radius:14px;padding:16px;margin-bottom:14px;text-align:center;position:relative;overflow:hidden">';
+  h+='<div style="position:absolute;inset:0;background:radial-gradient(circle at 50% 0%,rgba(240,136,62,.12),transparent 70%)"></div>';
+  h+='<div style="position:relative"><div style="font-size:10px;color:var(--mut);letter-spacing:1.5px">НАЙДЕНО РЕЗЕРВОВ</div>';
+  h+='<div style="font-family:var(--fd);font-size:38px;color:var(--orange);font-weight:800;line-height:1.1;margin:4px 0">'+fmt(total)+' <span style="font-size:24px">₸</span></div>';
+  h+='<div style="display:inline-flex;gap:14px;font-size:10px;color:var(--mut)">';
+  if(L.frozenSum>0) h+='<span>🧊 заморожено '+fmtShort(L.frozenSum)+'</span>';
+  if(L.lostSum>0) h+='<span>🔴 ушло '+fmtShort(L.lostSum)+'</span>';
+  h+='</div></div></div>';
+  // заморожено
+  if(L.frozen.length){
+    h+='<div style="font-size:10px;color:var(--teal);letter-spacing:1.5px;font-weight:800;margin-bottom:8px">🧊 ДЕНЬГИ ЗАМОРОЖЕНЫ · ВЕРНУТСЯ РАБОТОЙ</div>';
+    L.frozen.forEach(function(f){ h+=leakCard(f); });
+  }
+  // ушло
+  if(L.lost.length){
+    h+='<div style="font-size:10px;color:var(--red);letter-spacing:1.5px;font-weight:800;margin:14px 0 8px">🔴 ДЕНЬГИ УШЛИ МИМО СТРОЙКИ</div>';
+    L.lost.forEach(function(f){ h+=leakCard(f); });
+  }
+  // ИИ
+  h+='<div id="leak-ai" style="margin-top:6px">';
+  h+='<button onclick="loadLeakAI(true)" style="width:100%;background:var(--purple);border:none;color:#fff;border-radius:11px;padding:12px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer">🤖 Как вернуть эти деньги — спросить ИИ</button>';
+  h+='</div>';
+  h+='</div>';
+  return h;
+}
+
+// ИИ по утечкам
+var _leakAICache=null,_leakAITime=0,_leakAILoading=false;
+function loadLeakAI(force){
+  if(_leakAILoading) return;
+  if(!force && _leakAICache && Date.now()-_leakAITime<1800000){ showLeakAI(_leakAICache); return; }
+  _leakAILoading=true; showLeakAILoading();
+  var L=leakFindings();
+  var lines=[];
+  L.frozen.concat(L.lost).forEach(function(f){ lines.push('• '+f.title+': '+fmt(f.sum)+' ₸ — '+f.desc); });
+  var prompt='Ты финансовый директор строительной компании LIONGATE (Казахстан, монолит, 2026). '+
+    'По системе Алекса Яновского («поиск недозаработанных денег», «оптимизация», «хозяйский подход») разбери найденные резервы и дай план возврата.\n\n'+
+    'НАЙДЕННЫЕ РЕЗЕРВЫ (всего '+fmt(L.frozenSum+L.lostSum)+' ₸):\n'+lines.join('\n')+'\n\n'+
+    'Верни СТРОГО JSON без markdown:\n'+
+    '{"verdict":"одно предложение — главный резерв и сколько можно вернуть","points":["2-3 наблюдения с цифрами"],"actions":["3 конкретных действия по приоритету: что сделать на этой неделе"]}\n'+
+    'Только валидный JSON от { до }. По-деловому, с цифрами, на русском.';
+  if(typeof aiRateLimit==='function' && !aiRateLimit()){ _leakAILoading=false; showLeakAIError(); return; }
+  fetch(AI_WORKER_URL.replace(/\/$/,'')+'/api/ai-forecast',{
+    method:'POST', headers:{'Content-Type':'application/json','X-LG-Token':AI_SHARED_TOKEN},
+    body:JSON.stringify({prompt:prompt})
+  }).then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+  .then(function(d){
+    _leakAILoading=false;
+    var parsed=(typeof parseAnalyticsResponse==='function')?parseAnalyticsResponse(d):null;
+    if(parsed){ _leakAICache=parsed; _leakAITime=Date.now(); showLeakAI(parsed); } else showLeakAIError();
+  }).catch(function(){ _leakAILoading=false; showLeakAI(localLeakInsight(L)); });
+}
+function localLeakInsight(L){
+  var all=L.frozen.concat(L.lost).sort(function(a,b){return b.sum-a.sum;});
+  var top=all[0]||{title:'',sum:0};
+  return {verdict:'Главный резерв: '+top.title+' на '+fmt(top.sum)+' ₸.',
+    points:all.slice(0,3).map(function(f){return f.title+' — '+fmt(f.sum)+' ₸';}),
+    actions:all.slice(0,3).map(function(f){return f.act;}), _local:true};
+}
+function showLeakAILoading(){ var el=document.getElementById('leak-ai'); if(!el) return; el.innerHTML='<div style="display:flex;align-items:center;gap:10px;padding:12px;color:var(--mut);font-size:12px"><span style="font-size:18px">🤖</span> Считаю как вернуть деньги…</div>'; }
+function showLeakAIError(){ var el=document.getElementById('leak-ai'); if(!el) return; el.innerHTML='<button onclick="loadLeakAI(true)" style="width:100%;background:var(--s2);border:1px solid var(--brd);color:var(--mut);border-radius:11px;padding:12px;font-size:12px;font-family:inherit;cursor:pointer">⚠️ ИИ недоступен — нажмите ещё раз</button>'; }
+function showLeakAI(a){
+  var el=document.getElementById('leak-ai'); if(!el||!a) return;
+  var h='<div style="background:rgba(163,113,247,.08);border:1px solid rgba(163,113,247,.35);border-radius:12px;padding:13px">';
+  h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span style="font-size:10px;color:var(--purple);letter-spacing:1px;font-weight:800">🤖 ПЛАН ВОЗВРАТА'+(a._local?' (офлайн)':'')+'</span>';
+  h+='<button onclick="loadLeakAI(true)" style="background:none;border:none;color:var(--mut);font-size:14px;cursor:pointer">↻</button></div>';
+  if(a.verdict) h+='<div style="font-size:13px;color:var(--text);font-weight:700;line-height:1.4;margin-bottom:10px">'+escapeHtml(a.verdict)+'</div>';
+  if(a.points&&a.points.length){ h+='<div style="margin-bottom:10px">'; a.points.forEach(function(p){ h+='<div style="font-size:12px;color:var(--mut);line-height:1.5;padding:3px 0">• '+escapeHtml(p)+'</div>'; }); h+='</div>'; }
+  if(a.actions&&a.actions.length){ h+='<div style="background:var(--bg);border-radius:8px;padding:10px"><div style="font-size:10px;color:var(--gold);letter-spacing:1px;font-weight:800;margin-bottom:6px">⚡ ПЛАН НА НЕДЕЛЮ</div>'; a.actions.forEach(function(p,i){ h+='<div style="font-size:12px;color:var(--text);line-height:1.5;padding:3px 0">'+(i+1)+'. '+escapeHtml(p)+'</div>'; }); h+='</div>'; }
+  h+='</div>';
+  el.innerHTML=h;
+}
+
+
+
+
 
 document.addEventListener('DOMContentLoaded',function(){
 document.getElementById('btn-login').addEventListener('click',tryLogin);
