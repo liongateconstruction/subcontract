@@ -12449,11 +12449,13 @@ function rObjects(){
   if(typeof canEdit==='function' && canEdit()){
     // «← Назад» — на уровнях глубже первого, возвращает на уровень выше
     if(effObject){
+      // если у заказчика 1 объект — он авто-выбирается, поэтому возврат к заказчику бесполезен:
+      // идём сразу к списку заказчиков (или к объектам, если их несколько)
       var custObjsBack = byCustomer[effCustomer]||[];
-      var backAction = (custObjsBack.length>1) ? 'objNavGoCustomer(\''+escapeAttr(effCustomer)+'\')' : 'objNavReset()';
-      h += '<button onclick="'+backAction+'" style="background:var(--s2);border:1px solid var(--brd);color:var(--text);border-radius:10px;padding:9px 16px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;margin-bottom:12px;display:inline-flex;align-items:center;gap:6px">← Назад</button>';
+      var backAction = (custObjsBack.length>1 && objNavObject) ? 'objNavGoCustomer(\''+escapeAttr(effCustomer)+'\')' : 'objNavReset()';
+      h += '<button onclick="'+backAction+'" style="background:var(--s2);border:1px solid var(--brd);color:var(--text);border-radius:10px;padding:9px 16px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;margin-bottom:12px;display:inline-flex;align-items:center;gap:6px">← Назад к списку</button>';
     } else if(effCustomer){
-      h += '<button onclick="objNavReset()" style="background:var(--s2);border:1px solid var(--brd);color:var(--text);border-radius:10px;padding:9px 16px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;margin-bottom:12px;display:inline-flex;align-items:center;gap:6px">← Назад</button>';
+      h += '<button onclick="objNavReset()" style="background:var(--s2);border:1px solid var(--brd);color:var(--text);border-radius:10px;padding:9px 16px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;margin-bottom:12px;display:inline-flex;align-items:center;gap:6px">← Назад к заказчикам</button>';
     }
     // «Добавить» — ТОЛЬКО на первом экране (список заказчиков)
     if(!effCustomer && !effObject){
@@ -13907,6 +13909,7 @@ function rMore(){
   h += tile('🤖', '#ffd166', 'AI-CFO', 'спросить Claude', 'openAIChat()');
   h += tile('✨', '#a371f7', 'Возможности', 'KPI · Прогноз', 'openMoreFeatures()');
   h += tile('🏗', '#39d3bb', 'Объекты', 'настройки', 'openObjectsModal()');
+  h += tile('🗄', '#b9c3d0', 'Архив', 'объектов', 'openArchivedObjects()');
   h += tile('💰', '#ffd166', 'Касса', 'стартовая сумма', 'openCashSettings()');
   h += tile('📦', '#7ee787', 'Бэкап', 'JSON-файл', 'exportJSON()');
   h += '</div>';
