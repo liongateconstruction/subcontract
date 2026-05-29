@@ -13897,6 +13897,7 @@ function rMore(){
   h += tile('🤖', '#ffd166', 'AI-CFO', 'спросить Claude', 'openAIChat()');
   h += tile('✨', '#a371f7', 'Возможности', 'KPI · Прогноз', 'openMoreFeatures()');
   h += tile('🏗', '#39d3bb', 'Объекты', 'настройки', 'openObjectsModal()');
+  h += tile('💰', '#ffd166', 'Касса', 'стартовая сумма', 'openCashSettings()');
   h += tile('📦', '#7ee787', 'Бэкап', 'JSON-файл', 'exportJSON()');
   h += '</div>';
   
@@ -14007,6 +14008,48 @@ if(typeof window.openObjectsModal === 'undefined'){
     if(typeof haptic === 'function') haptic('medium');
     if(typeof openManageObjects === 'function'){ openManageObjects(); }
     else alert('Управление объектами недоступно. Обновите приложение.');
+  };
+}
+
+if(typeof window.openCashSettings === 'undefined'){
+  window.openCashSettings = function(){
+    if(typeof haptic === 'function') haptic('medium');
+    document.getElementById('mtit').textContent='ФАКТИЧЕСКАЯ КАССА';
+    document.getElementById('mbody').innerHTML=
+      hint('Установите фактическую сумму денег на счету компании на сегодня. Все НОВЫЕ операции (после даты) будут изменять эту цифру. Прошлые записи не пересчитываются.')+
+      '<div style="background:var(--s2);border-radius:8px;padding:12px;margin-top:8px">'+
+        '<div class="fg"><label class="fl">Касса на сегодня (тг)</label><input class="fi" id="f-startcash" type="number" inputmode="numeric" value="'+(S.settings&&S.settings.startCash||0)+'" placeholder="5400"/></div>'+
+        '<div class="fg"><label class="fl">Дата фиксации (касса на эту дату)</label><input class="fi" id="f-startdate" type="date" value="'+(S.settings&&S.settings.startCashDate||new Date().toISOString().slice(0,10))+'"/></div>'+
+        '<button class="fsave" id="bsavecash" style="background:var(--gold);color:#0d1117">💾 СОХРАНИТЬ КАССУ</button>'+
+        (S.settings&&S.settings.startCash>0?'<button class="fcanc" id="bresetcash" style="margin-top:6px;border-color:var(--red);color:var(--red)">Сбросить (вернуть авто-расчёт)</button>':'')+
+      '</div>'+
+      '<button class="fcanc" id="bcashclose" style="margin-top:14px">Закрыть</button>';
+    document.getElementById('modal').style.display='flex';
+    document.getElementById('bsavecash').addEventListener('click',function(){
+      var amt=Number(g('f-startcash'))||0;
+      var dt=g('f-startdate');
+      if(amt<=0){alert('Введите сумму больше 0');return;}
+      if(!dt){alert('Выберите дату');return;}
+      if(!S.settings)S.settings={};
+      S.settings.startCash=amt;
+      S.settings.startCashDate=dt;
+      save();
+      setTimeout(function(){pushCloud();},100);
+      alert('✅ Стартовая касса '+amt.toLocaleString()+' тг на '+dt+' сохранена. Все операции после этой даты будут изменять кассу.');
+      closeModal();
+      if(typeof renderAll==='function')renderAll();
+    });
+    var resetBtn=document.getElementById('bresetcash');
+    if(resetBtn) resetBtn.addEventListener('click',function(){
+      if(!confirmSafe('Сбросить стартовую кассу? Касса вернётся к автоматическому расчёту по формуле.'))return;
+      S.settings.startCash=0;
+      S.settings.startCashDate='';
+      save();
+      alert('Стартовая касса сброшена');
+      closeModal();
+      if(typeof renderAll==='function')renderAll();
+    });
+    document.getElementById('bcashclose').addEventListener('click',closeModal);
   };
 }
 
@@ -15831,60 +15874,53 @@ function markAllToday(bId,present){
 function openManageObjects(){
   document.getElementById('mtit').textContent='ОБЪЕКТЫ';
   function bl(){
-    return S.objects.map(function(o,i){
-      var m=objMeta(o);
-      return '<div style="background:var(--s2);border-radius:8px;padding:10px;margin-bottom:8px">'+
-        '<div style="display:flex;justify-content:space-between;align-items:center"><div><div style="font-size:12px;font-weight:700">'+o.split(',')[0]+'</div><div style="font-size:9px;color:var(--mut);margin-top:2px">Заказчик: '+(m.customer||'не указан')+'</div></div>'+
-        '<div style="display:flex;gap:4px"><button onclick="editObjMeta('+i+')" class="fedit" style="background:var(--green);border-color:var(--green)">💰 Цены</button>'+(S.objects.length>1?'<button onclick="delObj('+i+')" class="delbtn">X</button>':'')+'</div></div>'+
-      '</div>';
-    }).join('');
+    if(S.objects.length===0) return '<div style="text-align:center;color:var(--mut);font-size:12px;padding:16px">Объектов пока нет. Добавьте первый ниже ⬇</div>';
+    // группируем по заказчику для наглядности
+    var byC={};
+    S.objects.forEach(function(o,i){ var c=(objMeta(o).customer||'Без заказчика'); (byC[c]=byC[c]||[]).push(i); });
+    var out='';
+    Object.keys(byC).forEach(function(c){
+      out+='<div style="font-size:10px;color:var(--teal);letter-spacing:1px;font-weight:700;margin:10px 0 6px">👤 '+escapeHtml(c)+'</div>';
+      byC[c].forEach(function(i){
+        var o=S.objects[i]; var m=objMeta(o);
+        var spots=(m.spots||[]).length;
+        var planV=(m.spots||[]).reduce(function(s,sp){return s+(sp.constructions||[]).reduce(function(a,cc){return a+(cc.volume||0);},0);},0);
+        out+='<div style="background:var(--s2);border-radius:8px;padding:11px;margin-bottom:8px">'+
+          '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px">'+
+            '<div style="min-width:0"><div style="font-size:13px;font-weight:700;color:var(--text)">'+escapeHtml(o.split(',')[0])+'</div>'+
+            '<div style="font-size:9px;color:var(--mut);margin-top:2px">'+spots+' пятен · план '+fmtD(planV)+' м³</div></div>'+
+            '<div style="display:flex;gap:5px;flex-shrink:0"><button onclick="editObjMeta('+i+')" class="fedit" style="background:var(--green);border-color:var(--green)">⚙️ Настроить</button>'+(S.objects.length>1?'<button onclick="delObj('+i+')" class="delbtn">X</button>':'')+'</div>'+
+          '</div></div>';
+      });
+    });
+    return out;
   }
-  document.getElementById('mbody').innerHTML='<div id="ol">'+bl()+'</div>'+
-    '<div class="fg" style="margin-top:12px"><label class="fl">Новый объект</label><input class="fi" id="f-no" type="text" placeholder="ЖК Название, район..."/>'+hint('Полное название объекта')+'</div>'+
+  document.getElementById('mbody').innerHTML=
+    '<div style="background:rgba(57,211,187,.06);border:1px solid rgba(57,211,187,.2);border-radius:8px;padding:10px;margin-bottom:12px;font-size:10px;color:var(--mut);line-height:1.5">'+
+      '💡 Заказчик задаётся внутри объекта. Чтобы добавить нового заказчика — просто создайте объект и впишите его заказчика ниже.'+
+    '</div>'+
+    '<div class="sect" style="margin-bottom:8px">Объекты ('+S.objects.length+')</div>'+
+    '<div id="ol">'+bl()+'</div>'+
+    '<div class="sect" style="margin:18px 0 8px;color:var(--teal)">➕ НОВЫЙ ОБЪЕКТ</div>'+
+    '<div class="fg"><label class="fl">Название объекта</label><input class="fi" id="f-no" type="text" placeholder="ЖК Название, район..."/>'+hint('Полное название объекта')+'</div>'+
+    '<div class="fg"><label class="fl">Заказчик</label><input class="fi" id="f-nc" type="text" placeholder="Sensata Group / Bi Group..."/>'+hint('Кто заказчик на этом объекте (можно заполнить позже)')+'</div>'+
     '<button class="fsave" style="background:var(--teal)" id="bao">+ ДОБАВИТЬ ОБЪЕКТ</button>'+
-    '<div class="sect" style="margin:20px 0 8px;color:var(--gold)">💰 ФАКТИЧЕСКАЯ КАССА</div>'+
-    hint('Установите фактическую сумму денег на счету компании на сегодня. Все НОВЫЕ операции (после даты) будут изменять эту цифру. Прошлые записи не пересчитываются.')+
-    '<div style="background:var(--s2);border-radius:8px;padding:12px;margin-top:8px">'+
-      '<div class="fg"><label class="fl">Касса на сегодня (тг)</label><input class="fi" id="f-startcash" type="number" inputmode="numeric" value="'+(S.settings&&S.settings.startCash||0)+'" placeholder="5400"/></div>'+
-      '<div class="fg"><label class="fl">Дата фиксации (касса на эту дату)</label><input class="fi" id="f-startdate" type="date" value="'+(S.settings&&S.settings.startCashDate||new Date().toISOString().slice(0,10))+'"/></div>'+
-      '<button class="fsave" id="bsavecash" style="background:var(--gold);color:#0d1117">💾 СОХРАНИТЬ КАССУ</button>'+
-      (S.settings&&S.settings.startCash>0?'<button class="fcanc" id="bresetcash" style="margin-top:6px;border-color:var(--red);color:var(--red)">Сбросить (вернуть авто-расчёт)</button>':'')+
-    '</div>'+
-    '<div class="sect" style="margin:20px 0 8px;color:var(--blue)">📦 БЭКАП ДАННЫХ</div>'+
-    hint('Скачать JSON со всеми данными на устройство. Безопасно хранить как страховку от сбоев облака.')+
-    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">'+
-      '<button class="fsave" onclick="window.downloadBackup()" style="background:linear-gradient(135deg,#58a6ff,#1f6feb);font-size:13px;padding:11px">📥 СКАЧАТЬ</button>'+
-      '<button class="fcanc" onclick="window.restoreFromBackup()" style="border-color:var(--orange);color:var(--orange);font-size:11px;padding:11px">♻️ Восстановить</button>'+
-    '</div>'+
-    '<button class="fcanc" onclick="window.diagnoseCloud()" style="margin-top:8px;border-color:var(--blue);color:var(--blue);font-size:11px">🔧 Диагностика облака</button>'+
     '<button class="fcanc" id="bco" style="margin-top:14px">Закрыть</button>';
   document.getElementById('modal').style.display='flex';
   document.getElementById('bao').addEventListener('click',function(){
-    var n=g('f-no').trim();if(!n){alert('Введите название');return;}
-    S.objects.push(n);objMeta(n);save();document.getElementById('f-no').value='';document.getElementById('ol').innerHTML=bl();
-  });
-  document.getElementById('bsavecash').addEventListener('click',function(){
-    var amt=Number(g('f-startcash'))||0;
-    var dt=g('f-startdate');
-    if(amt<=0){alert('Введите сумму больше 0');return;}
-    if(!dt){alert('Выберите дату');return;}
-    if(!S.settings)S.settings={};
-    S.settings.startCash=amt;
-    S.settings.startCashDate=dt;
+    var n=g('f-no').trim();if(!n){alert('Введите название объекта');return;}
+    var cust=g('f-nc').trim();
+    S.objects.push(n);
+    var m=objMeta(n);
+    if(cust) m.customer=cust;
+    S.objMeta[n]=m;
+    S._modified=Date.now();
     save();
-    alert('✅ Стартовая касса '+amt.toLocaleString()+' тг на '+dt+' сохранена. Все операции после этой даты будут изменять кассу.');
-    closeModal();
-    if(typeof renderAll==='function')renderAll();
-  });
-  var resetBtn=document.getElementById('bresetcash');
-  if(resetBtn) resetBtn.addEventListener('click',function(){
-    if(!confirmSafe('Сбросить стартовую кассу? Касса вернётся к автоматическому расчёту по формуле.'))return;
-    S.settings.startCash=0;
-    S.settings.startCashDate='';
-    save();
-    alert('Стартовая касса сброшена');
-    closeModal();
-    if(typeof renderAll==='function')renderAll();
+    setTimeout(function(){pushCloud();},100);
+    document.getElementById('f-no').value='';
+    document.getElementById('f-nc').value='';
+    document.getElementById('ol').innerHTML=bl();
+    document.querySelector('.sect').textContent='Объекты ('+S.objects.length+')';
   });
   document.getElementById('bco').addEventListener('click',closeModal);
 }
