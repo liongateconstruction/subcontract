@@ -187,8 +187,8 @@ nav{position:fixed;bottom:0;left:0;right:0;background:rgba(22,27,34,0.97);border
 .bn-unit{font-size:9px;color:var(--mut);text-transform:uppercase;letter-spacing:2px}
 .dcard{background:linear-gradient(145deg,rgba(22,27,34,1),rgba(18,22,30,1));border:1px solid rgba(61,70,85,0.8);border-radius:16px;padding:18px;margin-bottom:14px;box-shadow:0 2px 12px rgba(0,0,0,.2),inset 0 1px 0 rgba(255,255,255,0.04)}
 /* === Унифицированные финансовые элементы (симметрия, выравнивание) === */
-.fin-kick{font-size:12px;letter-spacing:1px;font-weight:800;text-transform:uppercase;color:#aab4c2;display:flex;align-items:center;gap:7px;margin-bottom:3px}
-.fin-sub{font-size:13px;color:#8b95a4;line-height:1.5;margin-top:6px}
+.fin-kick{font-size:12px;letter-spacing:1px;font-weight:800;text-transform:uppercase;color:#9aa5b4;display:flex;align-items:center;gap:7px;margin-bottom:3px}
+.fin-sub{font-size:13px;color:#9aa5b4;line-height:1.5;margin-top:6px}
 .fin-row{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:10px 0;border-bottom:1px solid rgba(61,70,85,.35)}
 .fin-row:last-child{border-bottom:none}
 .fin-row .l{font-size:14px;color:#cdd6e2;font-weight:500}
@@ -198,8 +198,8 @@ nav{position:fixed;bottom:0;left:0;right:0;background:rgba(22,27,34,0.97);border
 .fin-tile{border-radius:12px;padding:13px 14px}
 .fin-tile .tl{font-size:12px;letter-spacing:.8px;font-weight:700;text-transform:uppercase;opacity:.85;margin-bottom:5px}
 .fin-tile .tv{font-family:var(--fn);font-size:21px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
-.fin-tile .ts{font-size:12px;color:#8b95a4;margin-top:5px;font-variant-numeric:tabular-nums}
-.fin-formula{font-family:var(--fn);font-size:13px;color:#8b95a4;font-variant-numeric:tabular-nums;margin-top:8px;letter-spacing:.2px}
+.fin-tile .ts{font-size:12px;color:#9aa5b4;margin-top:5px;font-variant-numeric:tabular-nums}
+.fin-formula{font-family:var(--fn);font-size:13px;color:#9aa5b4;font-variant-numeric:tabular-nums;margin-top:8px;letter-spacing:.2px}
 /* === Премиум-дизайн вкладки Деньги === */
 @keyframes plFade{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
 .pl-wrap{padding-bottom:8px}
@@ -218,7 +218,7 @@ nav{position:fixed;bottom:0;left:0;right:0;background:rgba(22,27,34,0.97);border
 .pl-hero .num{font-family:var(--fn);font-size:46px;font-weight:800;line-height:.95;margin-top:6px;font-variant-numeric:tabular-nums;letter-spacing:.5px}
 .pl-hero .chips{display:flex;gap:8px;flexwrap:wrap;margin-top:14px}
 .pl-chip{flex:1;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:10px 12px;min-width:0}
-.pl-chip .c1{font-size:11px;color:#8b95a4;letter-spacing:.5px;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pl-chip .c1{font-size:11px;color:#9aa5b4;letter-spacing:.5px;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pl-chip .c2{font-family:var(--fn);font-size:18px;font-weight:700;margin-top:3px;font-variant-numeric:tabular-nums}
 .pl-card{position:relative;border-radius:18px;padding:18px;margin-bottom:14px;background:linear-gradient(155deg,rgba(28,34,46,.9),rgba(18,22,30,.95));border:1px solid rgba(61,70,85,.6);box-shadow:0 4px 18px rgba(0,0,0,.22)}
 .pl-card.accent{border-left:3px solid var(--ac,var(--gold))}
@@ -227,7 +227,7 @@ nav{position:fixed;bottom:0;left:0;right:0;background:rgba(22,27,34,0.97);border
 .pl-seg{display:flex;gap:5px;background:rgba(13,17,23,.6);border:1px solid rgba(61,70,85,.5);border-radius:14px;padding:5px;margin-bottom:18px}
 .pl-seg button{flex:1;border:none;background:transparent;color:#9aa5b4;font-family:var(--fm);font-size:13px;font-weight:800;letter-spacing:.3px;padding:11px 6px;border-radius:10px;cursor:pointer;transition:all .18s}
 .pl-seg button.on{background:linear-gradient(135deg,#ffb320,#f0883e);color:#0d1117;box-shadow:0 4px 12px rgba(255,179,32,.28)}
-.pl-stmt{font-size:13px;color:#8b95a4;line-height:1.5;margin:-6px 0 16px}
+.pl-stmt{font-size:13px;color:#9aa5b4;line-height:1.5;margin:-6px 0 16px}
 .dtop{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:10px}
 .dbig{font-family:var(--fd);font-size:36px;line-height:1}
 .dpct{font-family:var(--fd);font-size:28px;color:var(--text)}
@@ -7805,7 +7805,7 @@ var curObj = (typeof localStorage!=='undefined' && localStorage.getItem('lg_curO
 // Drill-down навигация в Объектах: уровни customer → object → (пятна внутри объекта)
 var objNavCustomer = null; // выбранный заказчик (null = показать список заказчиков)
 var _plView = 'pnl'; // вкладка Деньги: 'pnl' | 'flow' | 'balance'
-function setPLView(v){ _plView = v; if(typeof haptic==='function') haptic('light'); render(); }
+function setPLView(v){ _plView = v; if(typeof haptic==='function') haptic('light'); render(); var ct=document.getElementById('content'); if(ct)ct.scrollTop=0; window.scrollTo(0,0); }
 var objNavObject = null;   // выбранный объект (null = показать объекты заказчика)
 function setCurObj(v){ curObj=v; try{localStorage.setItem('lg_curObj',v);}catch(e){} if(typeof render==='function')render(); }
 // Применимо ли значение — если объект удалён, сбрасываем
@@ -7833,7 +7833,7 @@ function objSwitcherHTML(){
   return h;
 }
 var volPeriod='day',volObj='all',volBrig='all';
-function setTab(t){curTab=t;document.querySelectorAll('.nb').forEach(function(b){b.classList.remove('active');});var el=document.getElementById('tab-'+t);if(el)el.classList.add('active');render();if(t==='analytics'&&_analyticsAICache){setTimeout(function(){showAnalyticsAI(_analyticsAICache);},50);}}
+function setTab(t){curTab=t;document.querySelectorAll('.nb').forEach(function(b){b.classList.remove('active');});var el=document.getElementById('tab-'+t);if(el)el.classList.add('active');render();var ct=document.getElementById('content');if(ct)ct.scrollTop=0;window.scrollTo(0,0);if(t==='analytics'&&_analyticsAICache){setTimeout(function(){showAnalyticsAI(_analyticsAICache);},50);}}
 // Защита от моргания — храним последний рендер и не обновляем DOM если HTML не изменился
 window._lastRenderTab = null;
 window._lastRenderHTML = null;
@@ -9468,8 +9468,8 @@ function rPL(){
       h+='<div class="sect">\u{1F4C5} '+plan.name.toUpperCase()+' \u00b7 ПЛАН \u2192 ФАКТ</div>';
       h+='<div class="pl-card">';
       h+='<div style="display:flex;justify-content:space-between;align-items:flex-end;gap:12px;margin-bottom:14px">';
-      h+='<div><div style="font-size:12px;color:#8b95a4;margin-bottom:4px">План прибыли</div><div class="fin-big" style="font-size:24px;color:var(--gold)">'+fmt(plan.profit)+'</div></div>';
-      h+='<div style="text-align:right"><div style="font-size:12px;color:#8b95a4;margin-bottom:4px">Факт сегодня</div><div class="fin-big" style="font-size:24px;color:'+profitColor+'">'+(profitMonth>=0?'+':'')+fmtS(profitMonth)+'</div></div>';
+      h+='<div><div style="font-size:12px;color:#9aa5b4;margin-bottom:4px">План прибыли</div><div class="fin-big" style="font-size:24px;color:var(--gold)">'+fmt(plan.profit)+'</div></div>';
+      h+='<div style="text-align:right"><div style="font-size:12px;color:#9aa5b4;margin-bottom:4px">Факт сегодня</div><div class="fin-big" style="font-size:24px;color:'+profitColor+'">'+(profitMonth>=0?'+':'')+fmtS(profitMonth)+'</div></div>';
       h+='</div>';
       if(gap>0) h+='<div style="background:rgba(248,81,73,.10);border:1px solid rgba(248,81,73,.45);border-radius:12px;padding:12px 14px;font-size:14px;color:#ff7b72"><b>Отставание от плана:</b> '+fmt(gap)+' \u20b8</div>';
       else h+='<div style="background:rgba(46,160,67,.10);border:1px solid rgba(46,160,67,.45);border-radius:12px;padding:12px 14px;font-size:14px;color:#7ee787"><b>\u2713 План выполнен!</b></div>';
@@ -9477,7 +9477,7 @@ function rPL(){
       h+='<div class="fin-tile" style="background:rgba(57,211,187,.08);border:1px solid rgba(57,211,187,.3)"><div class="tl" style="color:var(--teal)">Выручка</div><div class="tv" style="color:var(--teal)">'+fmt(revMonth)+'</div><div class="ts">план '+fmt(plan.revenue)+'</div></div>';
       h+='<div class="fin-tile" style="background:rgba(248,81,73,.08);border:1px solid rgba(248,81,73,.3)"><div class="tl" style="color:#ff7b72">Расход</div><div class="tv" style="color:#ff7b72">'+fmt(expMonth)+'</div><div class="ts">план '+fmt(plan.expense)+'</div></div>';
       h+='</div>';
-      h+='<div style="font-size:13px;color:#8b95a4;text-align:center;margin-top:14px;line-height:1.5">'+plan.workers+' чел \u00b7 '+fmt(plan.weekVol)+' м\u00b3/нед \u00b7 маржа '+plan.margin.toFixed(0)+'%'+(plan.note?' \u00b7 '+plan.note:'')+'</div>';
+      h+='<div style="font-size:13px;color:#9aa5b4;text-align:center;margin-top:14px;line-height:1.5">'+plan.workers+' чел \u00b7 '+fmt(plan.weekVol)+' м\u00b3/нед \u00b7 маржа '+plan.margin.toFixed(0)+'%'+(plan.note?' \u00b7 '+plan.note:'')+'</div>';
       h+='</div>';
     }
 
@@ -9601,7 +9601,7 @@ function rPL(){
     // Уравнение баланса
     h+='<div class="pl-card" style="text-align:center">';
     h+='<div class="fin-sub" style="margin:0 0 8px">Уравнение баланса</div>';
-    h+='<div style="font-family:var(--fn);font-size:16px;color:#cdd6e2;font-variant-numeric:tabular-nums;line-height:1.6">'+fmt(assets)+' <span style="color:#8b95a4">активы</span><br>\u2212 '+fmt(liabPartners)+' <span style="color:#8b95a4">обязательства</span><br>= <span style="color:'+eqColor+';font-size:20px">'+fmt(equity)+'</span> <span style="color:#8b95a4">капитал</span></div>';
+    h+='<div style="font-family:var(--fn);font-size:16px;color:#cdd6e2;font-variant-numeric:tabular-nums;line-height:1.6">'+fmt(assets)+' <span style="color:#9aa5b4">активы</span><br>\u2212 '+fmt(liabPartners)+' <span style="color:#9aa5b4">обязательства</span><br>= <span style="color:'+eqColor+';font-size:20px">'+fmt(equity)+'</span> <span style="color:#9aa5b4">капитал</span></div>';
     h+='</div>';
   }
 
@@ -17503,14 +17503,14 @@ function fixedVarBlock(){
   h+=hint('Переменные растут с объёмом работ — смотрим в % от выручки. Постоянные есть всегда — смотрим в деньгах. Точка безубыточности = сколько м³ нужно залить, чтобы покрыть постоянные.');
 
   // Переменные — в % от выручки (главная цифра — процент)
-  h+='<div class="dcard" style="margin-bottom:10px">';
+  h+='<div class="pl-card" style="margin-bottom:10px">';
   h+='<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px"><span style="font-size:14px;color:var(--orange);letter-spacing:1px;font-weight:700">📈 ПЕРЕМЕННЫЕ</span><span style="font-family:var(--fd);font-size:24px;color:var(--orange);font-weight:800">'+varPctOfRev+'%</span></div>';
   h+='<div style="font-size:13px;color:var(--mut);margin-bottom:8px">'+fmt(varSum)+' ₸ · '+varPctOfRev+'% от выручки. Чем ниже %, тем эффективнее каждый куб.</div>';
   h+=rows(varBy);
   h+='</div>';
 
   // Постоянные — в деньгах (главная цифра — сумма)
-  h+='<div class="dcard" style="margin-bottom:10px">';
+  h+='<div class="pl-card" style="margin-bottom:10px">';
   h+='<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px"><span style="font-size:14px;color:var(--blue);letter-spacing:1px;font-weight:700">📌 ПОСТОЯННЫЕ</span><span style="font-family:var(--fd);font-size:20px;color:var(--blue);font-weight:800">'+fmt(fixSum)+' ₸</span></div>';
   h+='<div style="font-size:13px;color:var(--mut);margin-bottom:8px">Есть всегда, не зависят от объёма. Их надо покрыть выручкой.</div>';
   h+=rows(fixBy);
@@ -17519,7 +17519,7 @@ function fixedVarBlock(){
   // Точка безубыточности
   if(breakEvenM3>0){
     var beColor = doneM3>=breakEvenM3 ? 'var(--green)' : 'var(--gold)';
-    h+='<div class="dcard" style="border:1px solid '+beColor+'">';
+    h+='<div class="pl-card" style="border:1px solid '+beColor+'">';
     h+='<div style="font-size:14px;color:'+beColor+';letter-spacing:1px;font-weight:700;margin-bottom:6px">🎯 ТОЧКА БЕЗУБЫТОЧНОСТИ</div>';
     h+='<div style="font-size:15px;color:var(--text);margin-bottom:8px">Нужно залить <b style="color:'+beColor+'">'+fmt(breakEvenM3)+' м³</b> бетона, чтобы покрыть постоянные расходы.</div>';
     h+='<div style="font-size:13px;color:var(--mut);margin-bottom:6px">Залито: <b style="color:var(--text)">'+fmtD(doneM3)+' м³</b> из '+fmt(breakEvenM3)+' м³ ('+bePct+'%)</div>';
@@ -17532,7 +17532,7 @@ function fixedVarBlock(){
     h+='</div>';
   } else if(fixSum>0){
     // маржа с куба ещё не положительная (ранний этап — расходы выше выручки)
-    h+='<div class="dcard" style="border:1px solid var(--mut)">';
+    h+='<div class="pl-card" style="border:1px solid var(--mut)">';
     h+='<div style="font-size:14px;color:var(--mut);letter-spacing:1px;font-weight:700;margin-bottom:6px">🎯 ТОЧКА БЕЗУБЫТОЧНОСТИ</div>';
     h+='<div style="font-size:14px;color:var(--mut);line-height:1.5">Пока себестоимость куба выше цены продажи (ранний этап — много армирования, бетон ещё не залит). Точка безубыточности рассчитается, когда маржа с куба станет положительной — после заливки бетона по выполненному армированию.</div>';
     h+='</div>';
