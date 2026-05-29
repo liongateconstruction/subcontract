@@ -12444,7 +12444,10 @@ function rObjects(){
   h += '</div>';
   h += crumbs();
 
-  // === УРОВЕНЬ 3: КАРТОЧКА ОБЪЕКТА (пятна, бригады) ===
+  // Кнопка управления объектами — на первом экране вкладки (список заказчиков), только редактору
+  if(!effCustomer && !effObject && typeof canEdit==='function' && canEdit()){
+    h += '<button onclick="if(typeof openManageObjects===\'function\')openManageObjects()" style="width:100%;background:linear-gradient(135deg,rgba(255,179,32,.12),rgba(57,211,187,.06));border:1px solid var(--gold);color:var(--gold);border-radius:12px;padding:13px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;margin-bottom:16px">⚙️ Управление объектами — добавить, расценки, пятна, фото</button>';
+  }
   if(effObject){
     if(typeof canEdit==='function' && canEdit()){
       var _oi = S.objects.indexOf(effObject);
