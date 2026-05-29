@@ -45,7 +45,9 @@ button, .nb, .hbtn, .fab, .yk-mini, .yk-big, .yk-alert { touch-action: manipulat
   --teal:#39d3bb;--tlt:rgba(57,211,187,.15);
   --orange:#f0883e;--olt:rgba(240,136,62,.15);
   --text:#f0f6fc;--mut:#b9c3d0;
-  --fd:'Bebas Neue',sans-serif;--fm:'IBM Plex Mono',monospace;
+  --fd:-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif;
+  --fm:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',Roboto,sans-serif;
+  --fn:'SF Mono','IBM Plex Mono',ui-monospace,'Roboto Mono',Menlo,monospace;
 }
 
 /* ==== КРАСИВЫЕ КАРТОЧКИ И ТИПОГРАФИКА ==== */
@@ -190,14 +192,14 @@ nav{position:fixed;bottom:0;left:0;right:0;background:rgba(22,27,34,0.97);border
 .fin-row{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:10px 0;border-bottom:1px solid rgba(61,70,85,.35)}
 .fin-row:last-child{border-bottom:none}
 .fin-row .l{font-size:14px;color:#cdd6e2;font-weight:500}
-.fin-row .v{font-size:15px;color:#f0f6fc;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
-.fin-big{font-family:var(--fd);font-weight:800;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:.5px}
+.fin-row .v{font-family:var(--fn);font-size:15px;color:#f0f6fc;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.fin-big{font-family:var(--fn);font-weight:800;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:.5px}
 .fin-tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
 .fin-tile{border-radius:12px;padding:13px 14px}
 .fin-tile .tl{font-size:12px;letter-spacing:.8px;font-weight:700;text-transform:uppercase;opacity:.85;margin-bottom:5px}
-.fin-tile .tv{font-family:var(--fd);font-size:21px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
+.fin-tile .tv{font-family:var(--fn);font-size:21px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
 .fin-tile .ts{font-size:12px;color:#8b95a4;margin-top:5px;font-variant-numeric:tabular-nums}
-.fin-formula{font-size:13px;color:#8b95a4;font-variant-numeric:tabular-nums;margin-top:8px;letter-spacing:.2px}
+.fin-formula{font-family:var(--fn);font-size:13px;color:#8b95a4;font-variant-numeric:tabular-nums;margin-top:8px;letter-spacing:.2px}
 /* === Премиум-дизайн вкладки Деньги === */
 @keyframes plFade{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
 .pl-wrap{padding-bottom:8px}
@@ -213,11 +215,11 @@ nav{position:fixed;bottom:0;left:0;right:0;background:rgba(22,27,34,0.97);border
 .pl-hero{position:relative;overflow:hidden;border-radius:20px;padding:22px;margin-bottom:18px;background:radial-gradient(120% 140% at 0% 0%,rgba(255,179,32,.14),transparent 55%),linear-gradient(155deg,#1b2230,#10141c);border:1px solid rgba(255,179,32,.22);box-shadow:0 10px 30px rgba(0,0,0,.35)}
 .pl-hero .glow{position:absolute;top:-60px;right:-40px;width:200px;height:200px;border-radius:50%;background:radial-gradient(circle,rgba(255,179,32,.18),transparent 70%);pointer-events:none}
 .pl-hero .lbl{font-size:12px;letter-spacing:1.5px;font-weight:800;text-transform:uppercase;color:#cdb27a}
-.pl-hero .num{font-family:var(--fd);font-size:46px;font-weight:800;line-height:.95;margin-top:6px;font-variant-numeric:tabular-nums;letter-spacing:.5px}
+.pl-hero .num{font-family:var(--fn);font-size:46px;font-weight:800;line-height:.95;margin-top:6px;font-variant-numeric:tabular-nums;letter-spacing:.5px}
 .pl-hero .chips{display:flex;gap:8px;flexwrap:wrap;margin-top:14px}
 .pl-chip{flex:1;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:10px 12px;min-width:0}
 .pl-chip .c1{font-size:11px;color:#8b95a4;letter-spacing:.5px;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pl-chip .c2{font-family:var(--fd);font-size:18px;font-weight:700;margin-top:3px;font-variant-numeric:tabular-nums}
+.pl-chip .c2{font-family:var(--fn);font-size:18px;font-weight:700;margin-top:3px;font-variant-numeric:tabular-nums}
 .pl-card{position:relative;border-radius:18px;padding:18px;margin-bottom:14px;background:linear-gradient(155deg,rgba(28,34,46,.9),rgba(18,22,30,.95));border:1px solid rgba(61,70,85,.6);box-shadow:0 4px 18px rgba(0,0,0,.22)}
 .pl-card.accent{border-left:3px solid var(--ac,var(--gold))}
 .pl-cta{width:100%;border:none;border-radius:16px;padding:17px;margin-bottom:18px;font-family:var(--fm);font-size:15px;font-weight:800;letter-spacing:.3px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;color:#0d1117;background:linear-gradient(135deg,#3fb950,#2ea043);box-shadow:0 8px 22px rgba(46,160,67,.32);transition:transform .15s}
@@ -9599,7 +9601,7 @@ function rPL(){
     // Уравнение баланса
     h+='<div class="pl-card" style="text-align:center">';
     h+='<div class="fin-sub" style="margin:0 0 8px">Уравнение баланса</div>';
-    h+='<div style="font-family:var(--fd);font-size:16px;color:#cdd6e2;font-variant-numeric:tabular-nums;line-height:1.6">'+fmt(assets)+' <span style="color:#8b95a4">активы</span><br>\u2212 '+fmt(liabPartners)+' <span style="color:#8b95a4">обязательства</span><br>= <span style="color:'+eqColor+';font-size:20px">'+fmt(equity)+'</span> <span style="color:#8b95a4">капитал</span></div>';
+    h+='<div style="font-family:var(--fn);font-size:16px;color:#cdd6e2;font-variant-numeric:tabular-nums;line-height:1.6">'+fmt(assets)+' <span style="color:#8b95a4">активы</span><br>\u2212 '+fmt(liabPartners)+' <span style="color:#8b95a4">обязательства</span><br>= <span style="color:'+eqColor+';font-size:20px">'+fmt(equity)+'</span> <span style="color:#8b95a4">капитал</span></div>';
     h+='</div>';
   }
 
