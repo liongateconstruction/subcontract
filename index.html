@@ -13223,9 +13223,9 @@ function openKS2Doc(doc){
   ov.id = 'ks2-doc-overlay';
   ov.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#525659;display:flex;flex-direction:column';
 
-  // Панель управления (не печатается)
+  // Панель управления (не печатается). Учитываем «чёлку»/статус-бар через safe-area.
   var bar = document.createElement('div');
-  bar.style.cssText = 'flex-shrink:0;display:flex;gap:8px;padding:10px 12px;background:#1a1f2e;align-items:center;box-shadow:0 2px 8px rgba(0,0,0,.4)';
+  bar.style.cssText = 'flex-shrink:0;display:flex;gap:8px;padding:10px 12px;padding-top:calc(10px + env(safe-area-inset-top));background:#1a1f2e;align-items:center;box-shadow:0 2px 8px rgba(0,0,0,.4)';
   bar.innerHTML =
     '<button id="ks2-doc-back" style="background:#30363d;border:1px solid #4a5568;color:#f0f6fc;border-radius:8px;padding:9px 16px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;display:flex;align-items:center;gap:6px">← Назад</button>'+
     '<div style="flex:1;color:#f0a500;font-size:13px;font-weight:700;letter-spacing:1px;text-align:center">ДОКУМЕНТ</div>'+
