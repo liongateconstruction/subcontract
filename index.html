@@ -184,6 +184,48 @@ nav{position:fixed;bottom:0;left:0;right:0;background:rgba(22,27,34,0.97);border
 .bn-big{font-family:var(--fd);font-size:40px;line-height:1}
 .bn-unit{font-size:9px;color:var(--mut);text-transform:uppercase;letter-spacing:2px}
 .dcard{background:linear-gradient(145deg,rgba(22,27,34,1),rgba(18,22,30,1));border:1px solid rgba(61,70,85,0.8);border-radius:16px;padding:18px;margin-bottom:14px;box-shadow:0 2px 12px rgba(0,0,0,.2),inset 0 1px 0 rgba(255,255,255,0.04)}
+/* === Унифицированные финансовые элементы (симметрия, выравнивание) === */
+.fin-kick{font-size:12px;letter-spacing:1px;font-weight:800;text-transform:uppercase;color:#aab4c2;display:flex;align-items:center;gap:7px;margin-bottom:3px}
+.fin-sub{font-size:13px;color:#8b95a4;line-height:1.5;margin-top:6px}
+.fin-row{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:10px 0;border-bottom:1px solid rgba(61,70,85,.35)}
+.fin-row:last-child{border-bottom:none}
+.fin-row .l{font-size:14px;color:#cdd6e2;font-weight:500}
+.fin-row .v{font-size:15px;color:#f0f6fc;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.fin-big{font-family:var(--fd);font-weight:800;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:.5px}
+.fin-tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.fin-tile{border-radius:12px;padding:13px 14px}
+.fin-tile .tl{font-size:12px;letter-spacing:.8px;font-weight:700;text-transform:uppercase;opacity:.85;margin-bottom:5px}
+.fin-tile .tv{font-family:var(--fd);font-size:21px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
+.fin-tile .ts{font-size:12px;color:#8b95a4;margin-top:5px;font-variant-numeric:tabular-nums}
+.fin-formula{font-size:13px;color:#8b95a4;font-variant-numeric:tabular-nums;margin-top:8px;letter-spacing:.2px}
+/* === Премиум-дизайн вкладки Деньги === */
+@keyframes plFade{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+.pl-wrap{padding-bottom:8px}
+.pl-wrap>*{animation:plFade .5s cubic-bezier(.22,1,.36,1) backwards}
+.pl-wrap>*:nth-child(1){animation-delay:.02s}
+.pl-wrap>*:nth-child(2){animation-delay:.06s}
+.pl-wrap>*:nth-child(3){animation-delay:.10s}
+.pl-wrap>*:nth-child(4){animation-delay:.14s}
+.pl-wrap>*:nth-child(5){animation-delay:.18s}
+.pl-wrap>*:nth-child(6){animation-delay:.22s}
+.pl-wrap>*:nth-child(7){animation-delay:.26s}
+.pl-wrap>*:nth-child(8){animation-delay:.30s}
+.pl-hero{position:relative;overflow:hidden;border-radius:20px;padding:22px;margin-bottom:18px;background:radial-gradient(120% 140% at 0% 0%,rgba(255,179,32,.14),transparent 55%),linear-gradient(155deg,#1b2230,#10141c);border:1px solid rgba(255,179,32,.22);box-shadow:0 10px 30px rgba(0,0,0,.35)}
+.pl-hero .glow{position:absolute;top:-60px;right:-40px;width:200px;height:200px;border-radius:50%;background:radial-gradient(circle,rgba(255,179,32,.18),transparent 70%);pointer-events:none}
+.pl-hero .lbl{font-size:12px;letter-spacing:1.5px;font-weight:800;text-transform:uppercase;color:#cdb27a}
+.pl-hero .num{font-family:var(--fd);font-size:46px;font-weight:800;line-height:.95;margin-top:6px;font-variant-numeric:tabular-nums;letter-spacing:.5px}
+.pl-hero .chips{display:flex;gap:8px;flexwrap:wrap;margin-top:14px}
+.pl-chip{flex:1;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:10px 12px;min-width:0}
+.pl-chip .c1{font-size:11px;color:#8b95a4;letter-spacing:.5px;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pl-chip .c2{font-family:var(--fd);font-size:18px;font-weight:700;margin-top:3px;font-variant-numeric:tabular-nums}
+.pl-card{position:relative;border-radius:18px;padding:18px;margin-bottom:14px;background:linear-gradient(155deg,rgba(28,34,46,.9),rgba(18,22,30,.95));border:1px solid rgba(61,70,85,.6);box-shadow:0 4px 18px rgba(0,0,0,.22)}
+.pl-card.accent{border-left:3px solid var(--ac,var(--gold))}
+.pl-cta{width:100%;border:none;border-radius:16px;padding:17px;margin-bottom:18px;font-family:var(--fm);font-size:15px;font-weight:800;letter-spacing:.3px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;color:#0d1117;background:linear-gradient(135deg,#3fb950,#2ea043);box-shadow:0 8px 22px rgba(46,160,67,.32);transition:transform .15s}
+.pl-cta:active{transform:scale(.98)}
+.pl-seg{display:flex;gap:5px;background:rgba(13,17,23,.6);border:1px solid rgba(61,70,85,.5);border-radius:14px;padding:5px;margin-bottom:18px}
+.pl-seg button{flex:1;border:none;background:transparent;color:#9aa5b4;font-family:var(--fm);font-size:13px;font-weight:800;letter-spacing:.3px;padding:11px 6px;border-radius:10px;cursor:pointer;transition:all .18s}
+.pl-seg button.on{background:linear-gradient(135deg,#ffb320,#f0883e);color:#0d1117;box-shadow:0 4px 12px rgba(255,179,32,.28)}
+.pl-stmt{font-size:13px;color:#8b95a4;line-height:1.5;margin:-6px 0 16px}
 .dtop{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:10px}
 .dbig{font-family:var(--fd);font-size:36px;line-height:1}
 .dpct{font-family:var(--fd);font-size:28px;color:var(--text)}
@@ -7760,6 +7802,8 @@ var curTab='main',searchQ='',fType='all',fObj='all',fSpot='all',fWho='all',fSour
 var curObj = (typeof localStorage!=='undefined' && localStorage.getItem('lg_curObj')) || 'all';
 // Drill-down навигация в Объектах: уровни customer → object → (пятна внутри объекта)
 var objNavCustomer = null; // выбранный заказчик (null = показать список заказчиков)
+var _plView = 'pnl'; // вкладка Деньги: 'pnl' | 'flow' | 'balance'
+function setPLView(v){ _plView = v; if(typeof haptic==='function') haptic('light'); render(); }
 var objNavObject = null;   // выбранный объект (null = показать объекты заказчика)
 function setCurObj(v){ curObj=v; try{localStorage.setItem('lg_curObj',v);}catch(e){} if(typeof render==='function')render(); }
 // Применимо ли значение — если объект удалён, сбрасываем
@@ -9367,206 +9411,199 @@ function rPL(){
   var C = (typeof calcCo==='function') ? calcCo() : {cash:0, debtToCompany:{}, debtToPartner:{}};
 
   var h='<div class="shdr"><h2>\u{1F4B0} \u0414\u0415\u041d\u042c\u0413\u0418</h2></div>';
+  h+='<div class="pl-wrap">';
 
-  // Заметная кнопка добавления оплаты от заказчика — ПЕРВАЯ на вкладке
-  if(canEdit()){
-    h+='<button onclick="openCustomerIncome()" style="width:100%;background:linear-gradient(135deg,rgba(46,160,67,.18),rgba(46,160,67,.06));border:2px solid var(--green);color:var(--green);border-radius:12px;padding:16px;margin-bottom:16px;font-family:var(--fm);font-size:15px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 2px 8px rgba(46,160,67,.15)">';
-    h+='<span style="font-size:22px">\u{1F4B0}</span>';
-    h+='<span>+ ОПЛАТА ОТ ЗАКАЗЧИКА</span>';
-    h+='</button>';
-  }
-
-  // ===== КОМПАКТНАЯ СТРОКА: ДЕНЬГИ ОТ ЗАКАЗЧИКА → ОБЪЕКТЫ =====
-  var firstObj=(S.objects||[])[0]||'';
-  var customerName='';
-  if(firstObj && S.objMeta && S.objMeta[firstObj]) customerName=S.objMeta[firstObj].customer||'Заказчик';
-  var lc = lifecycleSummary(firstObj);
-  var debtTotal = customerDebt(firstObj);
-  if(debtTotal>0){
-    h+='<div onclick="setTab(\'objects\')" style="background:var(--sur);border:1px solid var(--gold);border-radius:14px;padding:14px 16px;margin-bottom:16px;cursor:pointer;display:flex;align-items:center;gap:12px">';
-    h+='<div style="font-size:26px;line-height:1">\u{1F4B5}</div>';
-    h+='<div style="flex:1;min-width:0">';
-    h+='<div style="font-size:14px;color:var(--mut);letter-spacing:.5px;font-weight:700">ЖДЁМ ОТ ЗАКАЗЧИКА</div>';
-    h+='<div style="font-family:var(--fd);font-size:22px;color:var(--gold);font-weight:800;margin-top:2px">'+fmt(debtTotal)+' \u20b8</div>';
-    h+='<div style="font-size:13px;color:var(--mut);margin-top:2px">'+escapeHtml(customerName)+' \u00b7 подробнее в Объектах</div>';
-    h+='</div>';
-    h+='<div style="font-size:22px;color:var(--gold);font-weight:800">\u203A</div>';
-    h+='</div>';
-  }
-
-  // ===== БЛОК CASH FLOW — ДЕНЕЖНЫЙ ПОТОК КОМПАНИИ =====
-  (function(){
-    var inInvest=0, inCustomer=0, inOwnPaid=0, inAdvance=0, outExpenseCash=0, outPayout=0;
-    (S.entries||[]).forEach(function(e){
-      var amt=Number(e.amount)||0;
-      if(e.type==='invest') inInvest+=amt;
-      else if(e.type==='income'||e.type==='customer_income') inCustomer+=amt;
-      else if(e.type==='advance') inAdvance+=amt;
-      else if(e.type==='expense'){
-        var src=e.paySource||(e.source==='telegram'?'advance':e.source)||'cash';
-        if(src==='cash') outExpenseCash+=amt;
-        else if(src==='own') inOwnPaid+=amt;
-      }
-      else if(e.type==='payout'||e.type==='return') outPayout+=amt;
-    });
-    // ВСЕГО вложили партнёры своими деньгами = касса + из своих + переданное под отчёт
-    var totalPartnerIn = inInvest + inOwnPaid + inAdvance;
-    var cashNow=(typeof calcCo==='function')?(calcCo().cash||0):0;
-
-    h+='<div class="sect">\u{1F4B5} ДЕНЬГИ КОМПАНИИ</div>';
-    h+='<div class="dcard">';
-
-    // ГЛАВНАЯ ЦИФРА — всего вложено партнёрами
-    h+='<div style="background:rgba(63,185,80,.10);border:1.5px solid rgba(63,185,80,.40);border-radius:14px;padding:16px;margin-bottom:14px">';
-    h+='<div style="font-size:13px;color:#7ee787;letter-spacing:1.5px;font-weight:700;margin-bottom:6px">\u{1F4BC} ВСЕГО ВЛОЖИЛИ ПАРТНЁРЫ</div>';
-    h+='<div style="font-family:var(--fd);font-size:30px;color:#7ee787;font-weight:800;line-height:1">'+fmt(totalPartnerIn)+' \u20b8</div>';
-    h+='<div style="font-size:14px;color:#cdd6e2;margin-top:10px;line-height:1.7">';
-    var inParts=[];
-    if(inInvest>0) inParts.push('в кассу: <b style="color:#e8edf4">'+fmt(inInvest)+'</b>');
-    if(inOwnPaid>0) inParts.push('из своих: <b style="color:#e8edf4">'+fmt(inOwnPaid)+'</b>');
-    if(inAdvance>0) inParts.push('под отчёт: <b style="color:#e8edf4">'+fmt(inAdvance)+'</b>');
-    h+=inParts.join(' \u00b7 ');
-    h+='</div></div>';
-
-    // Поступления от заказчика (отдельно — это не вклад партнёров)
-    if(inCustomer>0){
-      h+='<div style="display:flex;justify-content:space-between;align-items:center;padding:11px 13px;background:rgba(88,166,255,.08);border-radius:10px;margin-bottom:10px">';
-      h+='<span style="font-size:15px;color:var(--blue);font-weight:600">\u{1F4B0} Оплачено заказчиком</span>';
-      h+='<span style="font-family:var(--fd);font-size:16px;color:var(--blue);font-weight:800">'+fmt(inCustomer)+' \u20b8</span>';
-      h+='</div>';
+  // === Общий расчёт денежного потока ===
+  var inInvest=0, inCustomer=0, inAdvance=0, inOwnPaid=0, outExpenseCash=0, outPayout=0;
+  (S.entries||[]).forEach(function(e){
+    var amt=Number(e.amount)||0;
+    if(e.type==='invest') inInvest+=amt;
+    else if(e.type==='income'||e.type==='customer_income') inCustomer+=amt;
+    else if(e.type==='advance') inAdvance+=amt;
+    else if(e.type==='expense'){
+      var src=e.paySource||(e.source==='telegram'?'advance':e.source)||'cash';
+      if(src==='cash') outExpenseCash+=amt;
+      else if(src==='own') inOwnPaid+=amt;
     }
-
-    // Касса сейчас — что осталось живыми деньгами
-    var ccolor=cashNow<50000?'var(--red)':(cashNow<200000?'var(--orange)':'#7ee787');
-    h+='<div style="display:flex;justify-content:space-between;align-items:center;padding:13px;background:rgba(255,255,255,.03);border-radius:10px;border:1px solid '+(cashNow<50000?'rgba(248,81,73,.4)':'var(--brd)')+'">';
-    h+='<div><div style="font-size:14px;color:#cdd6e2;font-weight:600">\u{1F4B5} В КАССЕ СЕЙЧАС</div>';
-    h+='<div style="font-size:12px;color:var(--mut);margin-top:2px">живые деньги на руках</div></div>';
-    h+='<div style="font-family:var(--fd);font-size:22px;color:'+ccolor+';font-weight:800">'+(cashNow<0?'\u2212':'')+fmt(Math.abs(cashNow))+' \u20b8</div>';
-    h+='</div>';
-
-    // Подсказка
-    h+='<div style="font-size:13px;color:#aab4c2;margin-top:12px;line-height:1.55">\u2139\uFE0F Партнёры вложили '+fmt(totalPartnerIn)+' \u20b8, но в кассе мало \u2014 деньги уже потрачены на стройку (зарплаты, материалы). Полный разбор трат \u2014 в Аналитике.</div>';
-    h+='</div>';
-  })();
-
-  // ===== БЛОК 2: ПЛАН/ФАКТ МАЯ =====
-  if(plan){
-    h+='<div class="sect">\u041c\u0410\u0419 \u00b7 \u041f\u041b\u0410\u041d \u2192 \u0424\u0410\u041a\u0422</div>';
-    h+='<div class="dcard">';
-    // Прибыль месяца
-    var profitColor = profitMonth>0?'var(--green)':(profitMonth>=-plan.profit*0.1?'var(--orange)':'var(--red)');
-    var gap = plan.profit - profitMonth;
-    h+='<div style="margin-bottom:14px">';
-    h+='<div style="font-size:13px;color:var(--mut);letter-spacing:.5px;margin-bottom:6px">\u041f\u0420\u0418\u0411\u042b\u041b\u042c \u041c\u0415\u0421\u042f\u0426\u0410</div>';
-    h+='<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">';
-    h+='<div><div style="font-size:13px;color:var(--mut)">\u041f\u043b\u0430\u043d</div><div style="font-family:var(--fd);font-size:18px;color:var(--gold)">'+fmt(plan.profit)+' \u20b8</div></div>';
-    h+='<div style="text-align:right"><div style="font-size:13px;color:var(--mut)">\u0424\u0430\u043a\u0442 \u043d\u0430 \u0441\u0435\u0433\u043e\u0434\u043d\u044f</div><div style="font-family:var(--fd);font-size:18px;color:'+profitColor+'">'+(profitMonth>=0?'+':'')+fmtS(profitMonth)+' \u20b8</div></div>';
-    h+='</div>';
-    if(gap>0){
-      h+='<div style="background:rgba(248,81,73,.10);border:1px solid var(--red);border-radius:6px;padding:8px;font-size:14px;color:var(--red)"><b>\u041e\u0442\u0441\u0442\u0430\u0432\u0430\u043d\u0438\u0435 \u043e\u0442 \u043f\u043b\u0430\u043d\u0430:</b> '+fmt(gap)+' \u20b8</div>';
-    } else {
-      h+='<div style="background:rgba(46,160,67,.10);border:1px solid var(--green);border-radius:6px;padding:8px;font-size:14px;color:var(--green)"><b>\u041f\u043b\u0430\u043d \u0432\u044b\u043f\u043e\u043b\u043d\u0435\u043d!</b></div>';
-    }
-    h+='</div>';
-
-    // Выручка/Расход
-    h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">';
-    h+='<div style="background:rgba(57,211,187,.06);border:1px solid var(--teal);border-radius:8px;padding:10px"><div style="font-size:13px;color:#aab4c2">\u0412\u042b\u0420\u0423\u0427\u041a\u0410</div><div style="font-family:var(--fd);font-size:16px;color:var(--teal);margin-top:2px">'+fmt(revMonth)+'</div><div style="font-size:13px;color:#aab4c2;margin-top:1px">\u043f\u043b\u0430\u043d '+fmt(plan.revenue)+'</div></div>';
-    h+='<div style="background:rgba(248,81,73,.06);border:1px solid var(--red);border-radius:8px;padding:10px"><div style="font-size:13px;color:#aab4c2">\u0420\u0410\u0421\u0425\u041e\u0414</div><div style="font-family:var(--fd);font-size:16px;color:var(--red);margin-top:2px">'+fmt(expMonth)+'</div><div style="font-size:13px;color:#aab4c2;margin-top:1px">\u043f\u043b\u0430\u043d '+fmt(plan.expense)+'</div></div>';
-    h+='</div>';
-    h+='<div style="font-size:13px;color:var(--mut);text-align:center">'+plan.name+' '+plan.workers+' \u0447\u0435\u043b \u00b7 '+fmt(plan.weekVol)+' \u043c\u00b3/\u043d\u0435\u0434 \u00b7 \u043c\u0430\u0440\u0436\u0430 '+plan.margin.toFixed(0)+'%' + (plan.note?' \u00b7 '+plan.note:'') + '</div>';
-    h+='</div>';
-  }
-
-  // ===== БЛОК 3: МАРЖА 3 УРОВНЯ =====
-  h+='<div class="sect">\u041c\u0410\u0420\u0416\u0410 \u041a\u041e\u041c\u041f\u0410\u041d\u0418\u0418 \u00b7 3 \u0423\u0420\u041e\u0412\u041d\u042f</div>';
-
-  // Прямая бригадная
-  var mdColor = mDirect.pct>=30?'var(--green)':(mDirect.pct>=15?'var(--orange)':'var(--red)');
-  h+='<div class="dcard"><div style="font-size:13px;color:var(--mut);letter-spacing:.5px;margin-bottom:4px">\u041f\u0420\u042f\u041c\u0410\u042f \u0411\u0420\u0418\u0413\u0410\u0414\u041d\u0410\u042f \u041c\u0410\u0420\u0416\u0410</div>';
-  h+='<div style="font-size:14px;color:var(--mut);margin-bottom:6px">\u0432\u044b\u0440\u0443\u0447\u043a\u0430 \u2212 \u043d\u0430\u0447\u0438\u0441\u043b\u0435\u043d\u0438\u044f \u0431\u0440\u0438\u0433\u0430\u0434\u0430\u043c</div>';
-  h+='<div style="display:flex;justify-content:space-between;align-items:baseline">';
-  h+='<span style="font-family:var(--fd);font-size:18px;color:'+mdColor+'">'+(mDirect.profit>=0?'+':'')+fmtS(mDirect.profit)+' \u20b8</span>';
-  h+='<span style="font-family:var(--fd);font-size:14px;color:'+mdColor+';font-weight:700">'+mDirect.pct.toFixed(0)+'%</span></div>';
-  h+='<div style="font-size:13px;color:#aab4c2;margin-top:4px">'+fmt(mDirect.revenue)+' \u2212 '+fmt(mDirect.cost)+' = '+fmt(mDirect.profit)+'</div>';
-  h+='<div style="font-size:13px;color:var(--orange);margin-top:3px">\u26a0 \u0431\u0435\u0437 \u043c\u0430\u0442\u0435\u0440\u0438\u0430\u043b\u043e\u0432, \u0438\u043d\u0441\u0442\u0440\u0443\u043c\u0435\u043d\u0442\u0430, \u0430\u0434\u043c\u0438\u043d\u0430</div>';
-  h+='</div>';
-
-  // Объектная (главная)
-  var moColor = mObject.pct>=15?'var(--green)':(mObject.pct>=5?'var(--orange)':'var(--red)');
-  h+='<div class="dcard" style="border-color:'+moColor+'"><div style="font-size:13px;color:var(--gold);letter-spacing:.5px;margin-bottom:4px">\u041e\u0411\u042a\u0415\u041a\u0422\u041d\u0410\u042f \u041c\u0410\u0420\u0416\u0410 (gross) \u2014 \u0413\u041b\u0410\u0412\u041d\u0410\u042f</div>';
-  h+='<div style="font-size:14px;color:var(--mut);margin-bottom:6px">\u0432\u044b\u0440\u0443\u0447\u043a\u0430 \u2212 \u0432\u0441\u0435 \u0440\u0430\u0441\u0445\u043e\u0434\u044b \u043e\u0431\u044a\u0435\u043a\u0442\u0430</div>';
-  h+='<div style="display:flex;justify-content:space-between;align-items:baseline">';
-  h+='<span style="font-family:var(--fd);font-size:22px;color:'+moColor+';font-weight:800">'+(mObject.profit>=0?'+':'')+fmtS(mObject.profit)+' \u20b8</span>';
-  h+='<span style="font-family:var(--fd);font-size:16px;color:'+moColor+';font-weight:700">'+mObject.pct.toFixed(0)+'%</span></div>';
-  h+='<div style="font-size:13px;color:#aab4c2;margin-top:4px">'+fmt(mObject.revenue)+' \u2212 '+fmt(mObject.cost)+' = '+fmt(mObject.profit)+'</div>';
-  if(mObject.profit<0){
-    h+='<div style="font-size:13px;color:var(--red);margin-top:6px;font-weight:600">\ud83d\udd34 \u041e\u0431\u044a\u0435\u043a\u0442 \u043f\u043e\u043a\u0430 \u0443\u0431\u044b\u0442\u043e\u0447\u0435\u043d \u2014 \u0440\u0430\u0441\u0445\u043e\u0434\u044b \u0432\u044b\u0448\u0435 \u0432\u044b\u0440\u0443\u0447\u043a\u0438</div>';
-  }
-  h+='</div>';
-
-  // Чистая компании (пока = объектной)
-  h+='<div class="dcard"><div style="font-size:13px;color:var(--mut);letter-spacing:.5px;margin-bottom:4px">\u0427\u0418\u0421\u0422\u0410\u042f \u041c\u0410\u0420\u0416\u0410 \u041a\u041e\u041c\u041f\u0410\u041d\u0418\u0418</div>';
-  h+='<div style="font-size:14px;color:var(--mut);margin-bottom:6px">\u043f\u043e\u0441\u043b\u0435 \u043d\u0430\u043a\u043b\u0430\u0434\u043d\u044b\u0445 \u0440\u0430\u0441\u0445\u043e\u0434\u043e\u0432 \u043a\u043e\u043c\u043f\u0430\u043d\u0438\u0438</div>';
-  h+='<div style="font-size:13px;color:var(--mut)">\u041f\u043e\u043a\u0430 = \u043e\u0431\u044a\u0435\u043a\u0442\u043d\u043e\u0439 (1 \u043e\u0431\u044a\u0435\u043a\u0442). \u041f\u0440\u0438 \u0440\u043e\u0441\u0442\u0435 \u043f\u043e\u044f\u0432\u044f\u0442\u0441\u044f \u043d\u0430\u043a\u043b\u0430\u0434\u043d\u044b\u0435 \u043e\u0444\u0438\u0441\u0430, \u0431\u0443\u0445\u0433\u0430\u043b\u0442\u0435\u0440\u0438\u044f, \u043d\u0430\u043b\u043e\u0433\u0438.</div>';
-  h+='</div>';
-
-  // ===== СТРУКТУРА РАСХОДОВ: постоянные/переменные + точка безубыточности =====
-  if(typeof fixedVarBlock==='function'){ h += fixedVarBlock(); }
-
-  // ===== 💰 ПОИСК НЕДОЗАРАБОТАННЫХ ДЕНЕГ =====
-  if(typeof leakBlock==='function'){ h += leakBlock(); }
-
-  // ===== БЛОК 4: ПЛАН ГОДА 2026 =====
-  if(typeof YEAR_PLAN !== 'undefined'){
-    h+='<div class="sect">\u041f\u041b\u0410\u041d \u0413\u041e\u0414\u0410 2026</div>';
-    h+='<div class="dcard">';
-    h+='<div style="font-size:13px;color:var(--mut);margin-bottom:8px">\u0426\u0435\u043b\u044c: 920 \u043c\u043b\u043d \u20b8 \u043f\u0440\u0438\u0431\u044b\u043b\u0438 \u043a \u043a\u043e\u043d\u0446\u0443 \u0433\u043e\u0434\u0430</div>';
-    YEAR_PLAN.forEach(function(r){
-      var isCurrent = r.m===monthNum;
-      var isPast = r.m<monthNum;
-      var icon = isPast?'\u2713':(isCurrent?'\u23f3':'\u00b7');
-      var actualProfit = 0;
-      if(isPast || isCurrent){
-        var rYm = '2026-'+String(r.m).padStart(2,'0');
-        actualProfit = revenueMonth(rYm) - expensesMonth(rYm);
-      }
-      var status = '';
-      if(isCurrent){
-        var pct = r.profit>0?Math.round(actualProfit/(r.profit*1000000)*100):0;
-        var sc = pct>=80?'var(--green)':(pct>=40?'var(--orange)':'var(--red)');
-        status='<span style="color:'+sc+';font-weight:700">'+(actualProfit>=0?'+':'')+fmt(actualProfit/1000000).replace(/[\.,]\d+/,'')+'.'+String(Math.abs(actualProfit/100000|0)%10)+' / '+r.profit+' \u043c\u043b\u043d</span>';
-      } else if(isPast){
-        status='<span style="color:var(--mut)">\u0444\u0430\u043a\u0442 '+(actualProfit/1000000).toFixed(1)+'</span>';
-      } else {
-        status='<span style="color:var(--mut)">\u043f\u043b\u0430\u043d '+r.profit+' \u043c\u043b\u043d</span>';
-      }
-      h+='<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--brd)' + (isCurrent?';background:rgba(212,175,55,.06);margin:0 -8px;padding:6px 8px':'') + '">';
-      h+='<div><span style="color:'+(isPast?'var(--green)':(isCurrent?'var(--gold)':'var(--mut)'))+';font-weight:700">'+icon+' '+r.name+'</span> <span style="color:var(--mut);font-size:13px">'+r.workers+' \u0447\u0435\u043b \u00b7 '+r.weekVol+' \u043c\u00b3/\u043d\u0435\u0434</span></div>';
-      h+='<div style="font-size:14px">'+status+'</div>';
-      h+='</div>';
-    });
-    h+='</div>';
-  }
-
-  // ===== БЛОК 5: ДОЛГИ ПАРТНЁРОВ =====
-  h+='<div class="sect">\u0414\u041e\u041b\u0413\u0418 \u041f\u0410\u0420\u0422\u041d\u0401\u0420\u041e\u0412</div>';
-  h+='<div class="dcard">';
-  var dtp = C.debtToPartner||{};
-  var dtc = C.debtToCompany||{};
-  ['\u0414\u043c\u0438\u0442\u0440\u0438\u0439','\u0411\u0435\u043a\u0436\u0430\u043d','\u0415\u0432\u0433\u0435\u043d\u0438\u0439','\u041d\u0443\u0440\u0441\u0443\u043b\u0442\u0430\u043d','\u0421\u0435\u0440\u0433\u0435\u0439'].forEach(function(who){
-    var owes = dtc[who]||0;
-    var owed = dtp[who]||0;
-    if(owes===0 && owed===0) return;
-    var sign, color, val;
-    if(owed>0){sign='+'; color='var(--green)'; val=owed;}
-    else {sign='\u2212'; color='var(--red)'; val=owes;}
-    h+='<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--brd)"><span style="color:var(--mut)">'+who+'</span><span style="font-family:var(--fd);font-size:14px;color:'+color+'">'+sign+fmt(val)+' \u20b8</span></div>';
+    else if(e.type==='payout'||e.type==='return') outPayout+=amt;
   });
+  var totalPartnerIn = inInvest + inOwnPaid + inAdvance;
+  var cashNow = C.cash||0;
+  var firstObj=(S.objects||[])[0]||'';
+  var custName=(firstObj && S.objMeta && S.objMeta[firstObj]) ? (S.objMeta[firstObj].customer||'Заказчик') : 'Заказчик';
+  var receivable = customerDebt(firstObj);
+
+  // === Переключатель P&L / Поток / Баланс ===
+  h+='<div class="pl-seg">';
+  h+='<button class="'+(_plView==='pnl'?'on':'')+'" onclick="setPLView(\'pnl\')">P&L</button>';
+  h+='<button class="'+(_plView==='flow'?'on':'')+'" onclick="setPLView(\'flow\')">ПОТОК</button>';
+  h+='<button class="'+(_plView==='balance'?'on':'')+'" onclick="setPLView(\'balance\')">БАЛАНС</button>';
   h+='</div>';
 
-  // Кнопка «+ ОПЛАТА ОТ ЗАКАЗЧИКА» теперь сверху вкладки (после заголовка)
+  // ============================================================
+  // P&L — прибыль и убытки (выручка − расходы за период)
+  // ============================================================
+  if(_plView==='pnl'){
+    h+='<div class="pl-stmt">Прибыли и убытки: сколько заработали и потратили. Выручка \u2212 расходы = прибыль.</div>';
 
+    // HERO: объектная маржа (итоговая прибыль)
+    var moColor = mObject.pct>=15?'#7ee787':(mObject.pct>=5?'#f0883e':'#ff7b72');
+    h+='<div class="pl-hero" style="background:radial-gradient(120% 140% at 0% 0%,'+(mObject.profit>=0?'rgba(63,185,80,.16)':'rgba(248,81,73,.14)')+',transparent 55%),linear-gradient(155deg,#1b2230,#10141c);border-color:'+(mObject.profit>=0?'rgba(63,185,80,.3)':'rgba(248,81,73,.3)')+'">';
+    h+='<div class="glow" style="background:radial-gradient(circle,'+(mObject.profit>=0?'rgba(63,185,80,.18)':'rgba(248,81,73,.16)')+',transparent 70%)"></div>';
+    h+='<div class="lbl" style="color:'+(mObject.profit>=0?'#9be5ac':'#f5a3a0')+'">\u{1F4CA} Прибыль по объекту (gross)</div>';
+    h+='<div class="num" style="color:'+moColor+'">'+(mObject.profit>=0?'+':'\u2212')+fmt(Math.abs(mObject.profit))+' \u20b8</div>';
+    h+='<div style="font-size:13px;color:#9aa5b4;margin-top:7px">выручка \u2212 все расходы объекта \u00b7 маржа '+mObject.pct.toFixed(0)+'%</div>';
+    h+='<div class="chips">';
+    h+='<div class="pl-chip"><div class="c1">Выручка</div><div class="c2" style="color:var(--teal)">'+fmt(mObject.revenue)+'</div></div>';
+    h+='<div class="pl-chip"><div class="c1">Расходы</div><div class="c2" style="color:#ff7b72">'+fmt(mObject.cost)+'</div></div>';
+    h+='</div>';
+    h+='</div>';
+
+    // План/факт месяца
+    if(plan){
+      var profitColor = profitMonth>0?'#7ee787':(profitMonth>=-plan.profit*0.1?'#f0883e':'#ff7b72');
+      var gap = plan.profit - profitMonth;
+      h+='<div class="sect">\u{1F4C5} '+plan.name.toUpperCase()+' \u00b7 ПЛАН \u2192 ФАКТ</div>';
+      h+='<div class="pl-card">';
+      h+='<div style="display:flex;justify-content:space-between;align-items:flex-end;gap:12px;margin-bottom:14px">';
+      h+='<div><div style="font-size:12px;color:#8b95a4;margin-bottom:4px">План прибыли</div><div class="fin-big" style="font-size:24px;color:var(--gold)">'+fmt(plan.profit)+'</div></div>';
+      h+='<div style="text-align:right"><div style="font-size:12px;color:#8b95a4;margin-bottom:4px">Факт сегодня</div><div class="fin-big" style="font-size:24px;color:'+profitColor+'">'+(profitMonth>=0?'+':'')+fmtS(profitMonth)+'</div></div>';
+      h+='</div>';
+      if(gap>0) h+='<div style="background:rgba(248,81,73,.10);border:1px solid rgba(248,81,73,.45);border-radius:12px;padding:12px 14px;font-size:14px;color:#ff7b72"><b>Отставание от плана:</b> '+fmt(gap)+' \u20b8</div>';
+      else h+='<div style="background:rgba(46,160,67,.10);border:1px solid rgba(46,160,67,.45);border-radius:12px;padding:12px 14px;font-size:14px;color:#7ee787"><b>\u2713 План выполнен!</b></div>';
+      h+='<div class="fin-tiles">';
+      h+='<div class="fin-tile" style="background:rgba(57,211,187,.08);border:1px solid rgba(57,211,187,.3)"><div class="tl" style="color:var(--teal)">Выручка</div><div class="tv" style="color:var(--teal)">'+fmt(revMonth)+'</div><div class="ts">план '+fmt(plan.revenue)+'</div></div>';
+      h+='<div class="fin-tile" style="background:rgba(248,81,73,.08);border:1px solid rgba(248,81,73,.3)"><div class="tl" style="color:#ff7b72">Расход</div><div class="tv" style="color:#ff7b72">'+fmt(expMonth)+'</div><div class="ts">план '+fmt(plan.expense)+'</div></div>';
+      h+='</div>';
+      h+='<div style="font-size:13px;color:#8b95a4;text-align:center;margin-top:14px;line-height:1.5">'+plan.workers+' чел \u00b7 '+fmt(plan.weekVol)+' м\u00b3/нед \u00b7 маржа '+plan.margin.toFixed(0)+'%'+(plan.note?' \u00b7 '+plan.note:'')+'</div>';
+      h+='</div>';
+    }
+
+    // Маржа по уровням
+    h+='<div class="sect">\u{1F4C8} МАРЖА \u00b7 2 УРОВНЯ</div>';
+    var mdColor = mDirect.pct>=30?'#7ee787':(mDirect.pct>=15?'#f0883e':'#ff7b72');
+    function marginCard(o){
+      var s='<div class="pl-card accent" style="--ac:'+o.color+'">';
+      s+='<div class="fin-kick"'+(o.kc?' style="color:'+o.kc+'"':'')+'>'+o.title+'</div>';
+      s+='<div class="fin-sub" style="margin:3px 0 10px">'+o.desc+'</div>';
+      s+='<div style="display:flex;justify-content:space-between;align-items:baseline">';
+      s+='<span class="fin-big" style="font-size:'+(o.big||22)+'px;color:'+o.color+'">'+(o.profit>=0?'+':'')+fmtS(o.profit)+' \u20b8</span>';
+      s+='<span class="fin-big" style="font-size:16px;color:'+o.color+'">'+o.pct.toFixed(0)+'%</span></div>';
+      s+='<div class="fin-formula">'+fmt(o.revenue)+' \u2212 '+fmt(o.cost)+' = '+fmt(o.profit)+'</div>';
+      if(o.foot) s+='<div style="font-size:13px;color:'+o.fc+';margin-top:8px;font-weight:600">'+o.foot+'</div>';
+      s+='</div>'; return s;
+    }
+    h+=marginCard({title:'Прямая бригадная маржа',desc:'выручка \u2212 начисления бригадам',color:mdColor,profit:mDirect.profit,pct:mDirect.pct,revenue:mDirect.revenue,cost:mDirect.cost,foot:'\u26a0 без материалов, инструмента, админа',fc:'#f0883e'});
+    h+=marginCard({title:'Объектная маржа (gross) \u2014 ИТОГОВАЯ',kc:'var(--gold)',desc:'выручка \u2212 все расходы объекта',color:moColor,big:26,profit:mObject.profit,pct:mObject.pct,revenue:mObject.revenue,cost:mObject.cost,foot:mObject.profit<0?'\u{1F534} Объект пока убыточен \u2014 расходы выше выручки':'',fc:'#ff7b72'});
+
+    // Структура расходов + недозаработанные
+    if(typeof fixedVarBlock==='function'){ h += fixedVarBlock(); }
+    if(typeof leakBlock==='function'){ h += leakBlock(); }
+  }
+
+  // ============================================================
+  // CASH FLOW — движение денег (откуда пришли, куда ушли)
+  // ============================================================
+  else if(_plView==='flow'){
+    h+='<div class="pl-stmt">Движение денег: откуда деньги пришли и куда ушли. Итог = касса сейчас.</div>';
+
+    // HERO: касса
+    var heroColor = cashNow<50000?'#ff7b72':(cashNow<200000?'#f0883e':'#7ee787');
+    h+='<div class="pl-hero">';
+    h+='<div class="glow"></div>';
+    h+='<div class="lbl">\u{1F4B5} В кассе сейчас</div>';
+    h+='<div class="num" style="color:'+heroColor+'">'+(cashNow<0?'\u2212':'')+fmt(Math.abs(cashNow))+' \u20b8</div>';
+    h+='<div style="font-size:13px;color:#9aa5b4;margin-top:7px">живые деньги на руках</div>';
+    h+='</div>';
+
+    if(canEdit()){
+      h+='<button onclick="openCustomerIncome()" class="pl-cta"><span style="font-size:20px">\u{1F4B0}</span><span>ЗАПИСАТЬ ОПЛАТУ ОТ ЗАКАЗЧИКА</span></button>';
+    }
+
+    // ПРИТОК
+    h+='<div class="sect">\u2B07\uFE0F ПРИТОК \u2014 ОТКУДА ДЕНЬГИ</div>';
+    h+='<div class="pl-card accent" style="--ac:var(--green)">';
+    var totalIn = inInvest+inOwnPaid+inAdvance+inCustomer;
+    h+='<div class="fin-kick" style="color:#7ee787">Всего поступило</div>';
+    h+='<div class="fin-big" style="font-size:30px;color:#7ee787;margin:6px 0 12px">'+fmt(totalIn)+' \u20b8</div>';
+    if(inInvest>0) h+='<div class="fin-row"><span class="l">\u{1F4BC} Вложения партнёров в кассу</span><span class="v" style="color:#7ee787">'+fmt(inInvest)+'</span></div>';
+    if(inAdvance>0) h+='<div class="fin-row"><span class="l">\u{1F501} Передано под отчёт</span><span class="v" style="color:#7ee787">'+fmt(inAdvance)+'</span></div>';
+    if(inOwnPaid>0) h+='<div class="fin-row"><span class="l">\u{1F4B3} Оплачено из своих</span><span class="v" style="color:#7ee787">'+fmt(inOwnPaid)+'</span></div>';
+    if(inCustomer>0) h+='<div class="fin-row"><span class="l">\u{1F3E2} Оплата от заказчика</span><span class="v" style="color:#58a6ff">'+fmt(inCustomer)+'</span></div>';
+    h+='</div>';
+
+    // ОТТОК
+    h+='<div class="sect">\u2B06\uFE0F ОТТОК \u2014 КУДА УШЛИ</div>';
+    h+='<div class="pl-card accent" style="--ac:var(--red)">';
+    var totalOut = outExpenseCash+outPayout;
+    h+='<div class="fin-kick" style="color:#ff7b72">Всего выбыло из кассы</div>';
+    h+='<div class="fin-big" style="font-size:30px;color:#ff7b72;margin:6px 0 12px">'+fmt(totalOut)+' \u20b8</div>';
+    if(outExpenseCash>0) h+='<div class="fin-row"><span class="l">\u{1F9FE} Расходы из кассы</span><span class="v" style="color:#ff7b72">\u2212'+fmt(outExpenseCash)+'</span></div>';
+    if(outPayout>0) h+='<div class="fin-row"><span class="l">\u21A9\uFE0F Выплаты партнёрам</span><span class="v" style="color:#ff7b72">\u2212'+fmt(outPayout)+'</span></div>';
+    h+='<div class="fin-sub" style="margin-top:10px">\u2139\uFE0F Большинство расходов идёт через подотчётные (не из общей кассы), поэтому касса меняется меньше, чем общие траты.</div>';
+    h+='</div>';
+
+    // ИТОГ ПОТОКА
+    h+='<div class="pl-card" style="text-align:center">';
+    h+='<div class="fin-kick" style="justify-content:center">\u{1F4CD} Итог: касса сейчас</div>';
+    h+='<div class="fin-big" style="font-size:30px;color:'+heroColor+';margin-top:8px">'+(cashNow<0?'\u2212':'')+fmt(Math.abs(cashNow))+' \u20b8</div>';
+    h+='</div>';
+  }
+
+  // ============================================================
+  // BALANCE — баланс (что компания имеет vs должна)
+  // ============================================================
+  else {
+    h+='<div class="pl-stmt">Баланс на сегодня: чем компания владеет (активы) и сколько должна. Разница = чистый капитал.</div>';
+
+    // Активы
+    var mo = marginObject(null);
+    var frozen = mo.wip||0; // НЗП — армирование без бетона (будущая выручка)
+    var assets = cashNow + receivable + frozen;
+
+    // Обязательства — агрегат долга партнёрам (детали в Партнёрах)
+    var dtp = C.debtToPartner||{};
+    var liabPartners = 0;
+    Object.keys(dtp).forEach(function(k){ if(dtp[k]>0) liabPartners+=dtp[k]; });
+    var equity = assets - liabPartners;
+
+    // HERO: чистый капитал
+    var eqColor = equity>=0?'#7ee787':'#ff7b72';
+    h+='<div class="pl-hero" style="background:radial-gradient(120% 140% at 0% 0%,rgba(88,166,255,.16),transparent 55%),linear-gradient(155deg,#1b2230,#10141c);border-color:rgba(88,166,255,.3)">';
+    h+='<div class="glow" style="background:radial-gradient(circle,rgba(88,166,255,.18),transparent 70%)"></div>';
+    h+='<div class="lbl" style="color:#a9cdfb">\u2696\uFE0F Чистый капитал компании</div>';
+    h+='<div class="num" style="color:'+eqColor+'">'+(equity>=0?'':'\u2212')+fmt(Math.abs(equity))+' \u20b8</div>';
+    h+='<div style="font-size:13px;color:#9aa5b4;margin-top:7px">активы \u2212 обязательства</div>';
+    h+='</div>';
+
+    // Активы
+    h+='<div class="sect">\u{1F4B0} АКТИВЫ \u2014 ЧЕМ ВЛАДЕЕМ</div>';
+    h+='<div class="pl-card accent" style="--ac:var(--green)">';
+    h+='<div class="fin-kick" style="color:#7ee787">Всего активов</div>';
+    h+='<div class="fin-big" style="font-size:28px;color:#7ee787;margin:6px 0 12px">'+fmt(assets)+' \u20b8</div>';
+    h+='<div class="fin-row"><span class="l">\u{1F4B5} Касса (живые деньги)</span><span class="v">'+fmt(cashNow)+'</span></div>';
+    h+='<div class="fin-row"><span class="l">\u{1F3E2} Дебиторка ('+escapeHtml(custName)+' должен)</span><span class="v" style="color:var(--gold)">'+fmt(receivable)+'</span></div>';
+    if(frozen>0) h+='<div class="fin-row"><span class="l">\u{1F9CA} НЗП (армирование без бетона)</span><span class="v" style="color:#39d3bb">'+fmt(frozen)+'</span></div>';
+    h+='<div class="fin-sub" style="margin-top:10px">Дебиторка \u2014 закрытые объёмы, которые заказчик ещё не оплатил. НЗП \u2014 деньги, вложенные в армирование: станут выручкой после заливки бетона.</div>';
+    h+='</div>';
+
+    // Обязательства
+    h+='<div class="sect">\u{1F4CB} ОБЯЗАТЕЛЬСТВА \u2014 СКОЛЬКО ДОЛЖНЫ</div>';
+    h+='<div class="pl-card accent" style="--ac:var(--red)">';
+    h+='<div class="fin-kick" style="color:#ff7b72">Долг партнёрам</div>';
+    h+='<div class="fin-big" style="font-size:28px;color:#ff7b72;margin:6px 0 10px">'+fmt(liabPartners)+' \u20b8</div>';
+    h+='<div class="fin-sub">Деньги, которые компания должна вернуть партнёрам за их вложения. Разбивка по людям \u2014 во вкладке «Партнёры».</div>';
+    h+='<div onclick="setTab(\'partners\')" style="margin-top:12px;text-align:center;font-size:13px;color:#58a6ff;font-weight:700;cursor:pointer">Детали по партнёрам \u2192</div>';
+    h+='</div>';
+
+    // Уравнение баланса
+    h+='<div class="pl-card" style="text-align:center">';
+    h+='<div class="fin-sub" style="margin:0 0 8px">Уравнение баланса</div>';
+    h+='<div style="font-family:var(--fd);font-size:16px;color:#cdd6e2;font-variant-numeric:tabular-nums;line-height:1.6">'+fmt(assets)+' <span style="color:#8b95a4">активы</span><br>\u2212 '+fmt(liabPartners)+' <span style="color:#8b95a4">обязательства</span><br>= <span style="color:'+eqColor+';font-size:20px">'+fmt(equity)+'</span> <span style="color:#8b95a4">капитал</span></div>';
+    h+='</div>';
+  }
+
+  h+='</div>'; // pl-wrap
   return h;
 }
 function rPartners(){
