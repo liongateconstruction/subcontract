@@ -9289,35 +9289,6 @@ function rMain(){
     h += '</div>';
   }
   
-  // ============= 📊 ПОСЛЕДНИЕ ОПЕРАЦИИ =============
-  var recent = entries.slice().sort(function(a,b){return (b.date||'').localeCompare(a.date||'');}).slice(0, 3);
-  
-  if(recent.length > 0){
-    h += secHead('📜 ПОСЛЕДНИЕ ОПЕРАЦИИ');
-    h += '<div style="background:#161b22;border:1px solid var(--brd);border-radius:14px;padding:14px;margin-bottom:14px">';
-    
-    var typeIcons = {expense:'💸',income:'💰',advance:'🔄',invest:'💼',vol:'🏗',payout:'↩️'};
-    var typeColors = {expense:'#ff7b72',income:'#7ee787',advance:'#58a6ff',invest:'#a371f7',vol:'#39d3bb',payout:'#ffd166'};
-    
-    recent.forEach(function(e, i){
-      var icon = typeIcons[e.type] || '•';
-      var color = typeColors[e.type] || '#8b949e';
-      var amt = e.type==='vol' ? (e.volume||0).toFixed(1)+' м³' : fmt(e.amount||0)+' ₸';
-      
-      h += '<div style="display:flex;align-items:center;gap:10px;padding:10px 0'+(i<recent.length-1?';border-bottom:1px solid #21262d':'')+'">';
-      h += '<div style="font-size:24px;line-height:1;flex-shrink:0">'+icon+'</div>';
-      h += '<div style="flex:1;min-width:0">';
-      h += '<div style="font-size:14px;color:#e6edf3;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+((e.note||e.cat||e.type)||'').substring(0,50)+'</div>';
-      h += '<div style="font-size:12px;color:#8b949e;margin-top:1px">'+(e.date||'')+(e.who?' · '+e.who:'')+(e.from?' · '+e.from+'→'+e.to:'')+'</div>';
-      h += '</div>';
-      h += '<div style="font-size:14px;color:'+color+';font-weight:800;white-space:nowrap">'+amt+'</div>';
-      h += '</div>';
-    });
-    
-    h += '<div onclick="setTab(\'journal\')" style="text-align:center;font-size:13px;color:#58a6ff;margin-top:10px;font-weight:600;cursor:pointer">Все операции в Журнале →</div>';
-    h += '</div>';
-  }
-  
   // ============= 🎯 ЦЕЛЬ 2026 (живой прогресс) =============
   var profitTarget = 820000000;
   var profitNow = (typeof subgoalCurrent==='function') ? subgoalCurrent({source:'profit_2026'}) : (C.profit||0);
@@ -9540,6 +9511,9 @@ function rPL(){
   h+='<div style="font-size:11px;color:var(--mut)">\u041f\u043e\u043a\u0430 = \u043e\u0431\u044a\u0435\u043a\u0442\u043d\u043e\u0439 (1 \u043e\u0431\u044a\u0435\u043a\u0442). \u041f\u0440\u0438 \u0440\u043e\u0441\u0442\u0435 \u043f\u043e\u044f\u0432\u044f\u0442\u0441\u044f \u043d\u0430\u043a\u043b\u0430\u0434\u043d\u044b\u0435 \u043e\u0444\u0438\u0441\u0430, \u0431\u0443\u0445\u0433\u0430\u043b\u0442\u0435\u0440\u0438\u044f, \u043d\u0430\u043b\u043e\u0433\u0438.</div>';
   h+='</div>';
 
+  // ===== СТРУКТУРА РАСХОДОВ: постоянные/переменные + точка безубыточности =====
+  if(typeof fixedVarBlock==='function'){ h += fixedVarBlock(); }
+
   // ===== 💰 ПОИСК НЕДОЗАРАБОТАННЫХ ДЕНЕГ =====
   if(typeof leakBlock==='function'){ h += leakBlock(); }
 
@@ -9575,10 +9549,9 @@ function rPL(){
     h+='</div>';
   }
 
-  // ===== БЛОК 5: КАССА И ДОЛГИ =====
-  h+='<div class="sect">\u041a\u0410\u0421\u0421\u0410 \u0418 \u0414\u041e\u041b\u0413\u0418</div>';
+  // ===== БЛОК 5: ДОЛГИ ПАРТНЁРОВ =====
+  h+='<div class="sect">\u0414\u041e\u041b\u0413\u0418 \u041f\u0410\u0420\u0422\u041d\u0401\u0420\u041e\u0412</div>';
   h+='<div class="dcard">';
-  h+='<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--brd)"><span style="color:var(--mut)">\u041a\u0430\u0441\u0441\u0430</span><span style="font-family:var(--fd);font-size:16px;color:var(--teal);font-weight:700">'+fmt(C.cash||0)+' \u20b8</span></div>';
   var dtp = C.debtToPartner||{};
   var dtc = C.debtToCompany||{};
   ['\u0414\u043c\u0438\u0442\u0440\u0438\u0439','\u0411\u0435\u043a\u0436\u0430\u043d','\u0415\u0432\u0433\u0435\u043d\u0438\u0439','\u041d\u0443\u0440\u0441\u0443\u043b\u0442\u0430\u043d','\u0421\u0435\u0440\u0433\u0435\u0439'].forEach(function(who){
@@ -17443,6 +17416,88 @@ function leakCard(f, accent){
   h+='<div style="font-size:11px;color:var(--mut);line-height:1.5;margin-bottom:8px">'+escapeHtml(f.desc)+'</div>';
   h+='<div style="background:rgba(255,179,32,.07);border-radius:7px;padding:8px 10px;font-size:11px;color:var(--gold);line-height:1.45">⚡ '+escapeHtml(f.act)+'</div>';
   h+='</div>';
+  return h;
+}
+
+// Постоянные / переменные расходы + точка безубыточности
+function fixedVarBlock(){
+  var entries=S.entries||[];
+  // классификация категорий
+  var VAR_CATS=['Материалы','Аванс / зарплата рабочим','Топливо','Транспорт','Питание'];
+  function isVar(cat){
+    cat=cat||'Прочее';
+    // всё что про объём работ — переменное
+    if(VAR_CATS.indexOf(cat)>=0) return true;
+    if(/материал|зарплат|аванс|топлив|бензин|транспорт|такси|питани|бетон|арматур/i.test(cat)) return true;
+    return false; // Связь, Административные, Инструменты, Аренда, Прочее → постоянные
+  }
+  var varSum=0, fixSum=0;
+  var varBy={}, fixBy={};
+  entries.forEach(function(e){
+    if(e.type!=='expense') return;
+    var amt=e.amount||0, cat=e.cat||'Прочее';
+    if(isVar(cat)){ varSum+=amt; varBy[cat]=(varBy[cat]||0)+amt; }
+    else { fixSum+=amt; fixBy[cat]=(fixBy[cat]||0)+amt; }
+  });
+  var totalExp=varSum+fixSum;
+  if(totalExp===0) return '';
+
+  // выручка (для % переменных) — выполненные работы по бетону
+  var ue=unitEconomics();
+  var revenue = ue.concreteVol * ue.sellRate;
+  var varPctOfRev = revenue>0 ? Math.round(varSum/revenue*100) : 0;
+
+  // точка безубыточности: сколько м³ бетона покрывают постоянные расходы
+  var marginPerM3 = ue.marginPerM3>0 ? ue.marginPerM3 : 0;
+  var breakEvenM3 = marginPerM3>0 ? Math.ceil(fixSum/marginPerM3) : 0;
+  var doneM3 = ue.concreteVol;
+  var bePct = breakEvenM3>0 ? Math.min(100, Math.round(doneM3/breakEvenM3*100)) : 0;
+
+  function rows(obj){
+    return Object.keys(obj).sort(function(a,b){return obj[b]-obj[a];}).map(function(k){
+      return '<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12px"><span style="color:var(--mut)">'+escapeHtml(k)+'</span><span style="color:var(--text);font-weight:600">'+fmt(obj[k])+' ₸</span></div>';
+    }).join('');
+  }
+
+  var h='';
+  h+='<div class="sect" style="margin-top:8px">\u0421\u0422\u0420\u0423\u041a\u0422\u0423\u0420\u0410 \u0420\u0410\u0421\u0425\u041e\u0414\u041e\u0412</div>';
+  h+=hint('Переменные растут с объёмом работ — смотрим в % от выручки. Постоянные есть всегда — смотрим в деньгах. Точка безубыточности = сколько м³ нужно залить, чтобы покрыть постоянные.');
+
+  // Переменные — в % от выручки (главная цифра — процент)
+  h+='<div class="dcard" style="margin-bottom:10px">';
+  h+='<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px"><span style="font-size:12px;color:var(--orange);letter-spacing:1px;font-weight:700">📈 ПЕРЕМЕННЫЕ</span><span style="font-family:var(--fd);font-size:24px;color:var(--orange);font-weight:800">'+varPctOfRev+'%</span></div>';
+  h+='<div style="font-size:10px;color:var(--mut);margin-bottom:8px">'+fmt(varSum)+' ₸ · '+varPctOfRev+'% от выручки. Чем ниже %, тем эффективнее каждый куб.</div>';
+  h+=rows(varBy);
+  h+='</div>';
+
+  // Постоянные — в деньгах (главная цифра — сумма)
+  h+='<div class="dcard" style="margin-bottom:10px">';
+  h+='<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px"><span style="font-size:12px;color:var(--blue);letter-spacing:1px;font-weight:700">📌 ПОСТОЯННЫЕ</span><span style="font-family:var(--fd);font-size:20px;color:var(--blue);font-weight:800">'+fmt(fixSum)+' ₸</span></div>';
+  h+='<div style="font-size:10px;color:var(--mut);margin-bottom:8px">Есть всегда, не зависят от объёма. Их надо покрыть выручкой.</div>';
+  h+=rows(fixBy);
+  h+='</div>';
+
+  // Точка безубыточности
+  if(breakEvenM3>0){
+    var beColor = doneM3>=breakEvenM3 ? 'var(--green)' : 'var(--gold)';
+    h+='<div class="dcard" style="border:1px solid '+beColor+'">';
+    h+='<div style="font-size:12px;color:'+beColor+';letter-spacing:1px;font-weight:700;margin-bottom:6px">🎯 ТОЧКА БЕЗУБЫТОЧНОСТИ</div>';
+    h+='<div style="font-size:13px;color:var(--text);margin-bottom:8px">Нужно залить <b style="color:'+beColor+'">'+fmt(breakEvenM3)+' м³</b> бетона, чтобы покрыть постоянные расходы.</div>';
+    h+='<div style="font-size:11px;color:var(--mut);margin-bottom:6px">Залито: <b style="color:var(--text)">'+fmtD(doneM3)+' м³</b> из '+fmt(breakEvenM3)+' м³ ('+bePct+'%)</div>';
+    h+='<div style="height:8px;background:var(--s2);border-radius:4px;overflow:hidden"><div style="height:100%;width:'+bePct+'%;background:'+beColor+'"></div></div>';
+    if(doneM3>=breakEvenM3){
+      h+='<div style="font-size:11px;color:var(--green);margin-top:8px">✓ Постоянные расходы покрыты — каждый следующий куб приносит прибыль.</div>';
+    } else {
+      h+='<div style="font-size:11px;color:var(--mut);margin-top:8px">Осталось залить '+fmt(breakEvenM3-Math.floor(doneM3))+' м³ до выхода в плюс по постоянным.</div>';
+    }
+    h+='</div>';
+  } else if(fixSum>0){
+    // маржа с куба ещё не положительная (ранний этап — расходы выше выручки)
+    h+='<div class="dcard" style="border:1px solid var(--mut)">';
+    h+='<div style="font-size:12px;color:var(--mut);letter-spacing:1px;font-weight:700;margin-bottom:6px">🎯 ТОЧКА БЕЗУБЫТОЧНОСТИ</div>';
+    h+='<div style="font-size:12px;color:var(--mut);line-height:1.5">Пока себестоимость куба выше цены продажи (ранний этап — много армирования, бетон ещё не залит). Точка безубыточности рассчитается, когда маржа с куба станет положительной — после заливки бетона по выполненному армированию.</div>';
+    h+='</div>';
+  }
   return h;
 }
 
