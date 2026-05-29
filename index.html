@@ -12446,6 +12446,10 @@ function rObjects(){
 
   // === УРОВЕНЬ 3: КАРТОЧКА ОБЪЕКТА (пятна, бригады) ===
   if(effObject){
+    if(typeof canEdit==='function' && canEdit()){
+      var _oi = S.objects.indexOf(effObject);
+      h += '<button onclick="if(typeof editObjMeta===\'function\')editObjMeta('+_oi+')" style="width:100%;background:var(--s2);border:1px solid var(--gold);color:var(--gold);border-radius:10px;padding:11px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;margin-bottom:12px">⚙️ Настроить объект — расценки, пятна, фото договора</button>';
+    }
     h += renderObjectCard(effObject, 0, [effObject]);
     h += '</div>';
     return h;
@@ -13993,7 +13997,8 @@ if(typeof window.openDiagnostic === 'undefined'){
 if(typeof window.openObjectsModal === 'undefined'){
   window.openObjectsModal = function(){
     if(typeof haptic === 'function') haptic('medium');
-    alert('Управление объектами — пока через настройки.\n\nТекущий объект: ' + (S.objects && S.objects[0] || 'не задан'));
+    if(typeof openManageObjects === 'function'){ openManageObjects(); }
+    else alert('Управление объектами недоступно. Обновите приложение.');
   };
 }
 
