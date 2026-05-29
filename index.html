@@ -12447,14 +12447,18 @@ function rObjects(){
 
   // Кнопки управления (только редактору)
   if(typeof canEdit==='function' && canEdit()){
-    // «← Назад» — на уровнях глубже первого, возвращает на уровень выше
+    // «← Назад» — показываем ТОЛЬКО когда есть куда вернуться (иначе кнопка бесполезна)
+    var multiCustNav = customers.length>1;
     if(effObject){
-      // если у заказчика 1 объект — он авто-выбирается, поэтому возврат к заказчику бесполезен:
-      // идём сразу к списку заказчиков (или к объектам, если их несколько)
       var custObjsBack = byCustomer[effCustomer]||[];
-      var backAction = (custObjsBack.length>1 && objNavObject) ? 'objNavGoCustomer(\''+escapeAttr(effCustomer)+'\')' : 'objNavReset()';
-      h += '<button onclick="'+backAction+'" style="background:var(--s2);border:1px solid var(--brd);color:var(--text);border-radius:10px;padding:9px 16px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;margin-bottom:12px;display:inline-flex;align-items:center;gap:6px">← Назад к списку</button>';
-    } else if(effCustomer){
+      // вернуться можно если: несколько заказчиков ИЛИ у этого заказчика несколько объектов
+      if(multiCustNav){
+        h += '<button onclick="objNavReset()" style="background:var(--s2);border:1px solid var(--brd);color:var(--text);border-radius:10px;padding:9px 16px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;margin-bottom:12px;display:inline-flex;align-items:center;gap:6px">← Назад к заказчикам</button>';
+      } else if(custObjsBack.length>1 && objNavObject){
+        h += '<button onclick="objNavGoCustomer(\''+escapeAttr(effCustomer)+'\')" style="background:var(--s2);border:1px solid var(--brd);color:var(--text);border-radius:10px;padding:9px 16px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;margin-bottom:12px;display:inline-flex;align-items:center;gap:6px">← Назад к объектам</button>';
+      }
+      // если 1 заказчик и 1 объект — назад некуда, кнопку не показываем
+    } else if(effCustomer && multiCustNav){
       h += '<button onclick="objNavReset()" style="background:var(--s2);border:1px solid var(--brd);color:var(--text);border-radius:10px;padding:9px 16px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;margin-bottom:12px;display:inline-flex;align-items:center;gap:6px">← Назад к заказчикам</button>';
     }
     // «Добавить» — ТОЛЬКО на первом экране (список заказчиков)
@@ -16341,18 +16345,6 @@ window.restoreObj=function(o){
   setTimeout(function(){pushCloud();},100);
   openArchivedObjects();
 };
-// старое прямое удаление оставляем как «удалить навсегда» из архива (с двойным подтверждением)
-window.delObj=function(i){
-  var o=S.objects[i]; if(!o) return;
-  if(!confirmSafe('УДАЛИТЬ НАВСЕГДА объект «'+o.split(',')[0]+'»?\n\nЭто нельзя отменить. Лучше используйте архив.')) return;
-  if(!confirmSafe('Точно удалить безвозвратно? Все метаданные объекта будут стёрты.')) return;
-  S.objects.splice(i,1);
-  if(S.objMeta) delete S.objMeta[o];
-  S._modified=Date.now();
-  save();
-  setTimeout(function(){pushCloud();},100);
-  openArchivedObjects();
-};
 // Экран «Архив объектов»
 window.openArchivedObjects=function(){
   var archived=(S.objects||[]).filter(function(o){return (objMeta(o).archived);});
@@ -16361,17 +16353,15 @@ window.openArchivedObjects=function(){
   if(archived.length===0){
     body='<div style="text-align:center;color:var(--mut);font-size:13px;padding:30px 20px">Архив пуст.<br><br>Архивированные объекты появятся здесь — их можно вернуть со всеми данными.</div>';
   } else {
-    body='<div style="font-size:11px;color:var(--mut);line-height:1.5;margin-bottom:14px">Объекты в архиве. Все данные сохранены. Можно вернуть в работу или удалить навсегда.</div>';
+    body='<div style="font-size:11px;color:var(--mut);line-height:1.5;margin-bottom:14px">Объекты в архиве. Все данные сохранены — пятна, расценки, объёмы, расходы. Можно вернуть в работу в любой момент.</div>';
     archived.forEach(function(o){
       var i=S.objects.indexOf(o); var m=objMeta(o);
       var dt=m.archivedAt?new Date(m.archivedAt).toLocaleDateString('ru-RU'):'';
       body+='<div style="background:var(--s2);border-radius:10px;padding:12px;margin-bottom:10px">'+
         '<div style="font-size:13px;font-weight:700;color:var(--text)">'+escapeHtml(o.split(',')[0])+'</div>'+
         '<div style="font-size:10px;color:var(--mut);margin:2px 0 10px">Заказчик: '+escapeHtml(m.customer||'—')+(dt?' · в архиве с '+dt:'')+'</div>'+
-        '<div style="display:flex;gap:8px">'+
-          '<button onclick="restoreObj(\''+escapeAttr(o)+'\')" style="flex:1;background:var(--green);border:none;color:#fff;border-radius:8px;padding:9px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer">♻️ Вернуть</button>'+
-          '<button onclick="delObj('+i+')" style="background:transparent;border:1px solid var(--red);color:var(--red);border-radius:8px;padding:9px 12px;font-size:12px;font-family:inherit;cursor:pointer">Удалить навсегда</button>'+
-        '</div></div>';
+        '<button onclick="restoreObj(\''+escapeAttr(o)+'\')" style="width:100%;background:var(--green);border:none;color:#fff;border-radius:8px;padding:10px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer">♻️ Вернуть в работу</button>'+
+        '</div>';
     });
   }
   body+='<button class="fcanc" onclick="closeModal()" style="margin-top:8px">Закрыть</button>';
