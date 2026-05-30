@@ -3221,6 +3221,15 @@ function totalVolDone(){
   return S.entries.filter(function(e){ return isStructuralVol(e); }).reduce(function(s,e){return s+(e.volume||0);},0);
 }
 function getTotalVol(){return(S.settings&&S.settings.totalVol)||9999;}
+function objContractedVol(){
+  var t=0;
+  Object.keys(S.objMeta||{}).forEach(function(o){
+    (((S.objMeta||{})[o]||{}).spots||[]).forEach(function(sp){
+      (sp.constructions||[]).forEach(function(c){ t+=(c.volume||0); });
+    });
+  });
+  return t>0 ? t : getTotalVol();
+}
 function daysLeft(){if(!S.settings||!S.settings.deadline)return null;return Math.ceil((new Date(S.settings.deadline)-new Date())/86400000);}
 function lastEntryAge(){if(!S.entries.length)return 999;var d=S.entries.map(function(e){return e.date;}).sort();return Math.floor((new Date()-new Date(d[d.length-1]))/86400000);}
 // Хелпер: как одна запись влияет на кассу (для графиков и накопления)
@@ -6107,6 +6116,8 @@ function tempoCapacityCompany(){
   var sum=0;
   (S.brigades||[]).forEach(function(b){
     if(b.kfu_temp===false) return;
+    var work=(b.work||'').toLowerCase();
+    if(work.indexOf('опалубка+бетон')!==0 && work!=='комплекс монолит') return; // только льющие бетон
     sum += brigWeekTarget(b);
   });
   return sum;
@@ -6478,11 +6489,7 @@ function marginSpot(objName, spotId){
       cost += (e.amount||0); // прямой расход (запасной вариант)
     }
   });
-  // Расход по пятну: в записях расходы часто НЕ привязаны к пятну, поэтому
-  // распределяем все расходы объекта умно (как в прогрессе).
   if(typeof progressVsCash==='function'){ var _pc=progressVsCash(objName, spotId); if(_pc && typeof _pc.spent==='number') cost=_pc.spent; }
-  // «В работе» = незалитый задел (армирование/опалубка СВЕРХ уже залитого объёма),
-  // чтобы не задваивать ставку заказчика: заказчик платит за м³ один раз — за залитую конструкцию.
   wip = Math.max(0, wip - rev);
   return {
     revenue:rev, cost:cost, profit:rev-cost,
@@ -8087,7 +8094,7 @@ function openPLCard(focus){
 
 
 function openVolAnalytics(){
-  var vd=totalVolDone(),tv=getTotalVol(),vp=Math.min(Math.round(vd/tv*100),100);
+  var vd=totalVolDone(),tv=objContractedVol(),vp=Math.min(Math.round(vd/tv*100),100);
   var vols=S.entries.filter(function(e){return e.type==='vol';});
   // По бригадам
   var brigVol={};
@@ -8623,7 +8630,7 @@ function openForecastCard(){
   var C=calcCo();
   var G=calcGoal();
   var forecastColor=G.forecast>=GOAL_TOTAL*0.9?'var(--green)':G.forecast>=GOAL_TOTAL*0.7?'var(--orange)':'var(--red)';
-  var vd=totalVolDone(),tv=getTotalVol();
+  var vd=totalVolDone(),tv=objContractedVol();
 
   // Расчёт прогноза
   var daysInYear=Math.round((new Date()-new Date(new Date().getFullYear(),0,0))/86400000);
@@ -10325,7 +10332,7 @@ window.openPartnerDetails = function(partner){
 };
 
 function rBrigades(){
-  var tv=getTotalVol(),vd=totalVolDone(),vp=Math.min(Math.round(vd/tv*100),100);
+  var tv=objContractedVol(),vd=totalVolDone(),vp=Math.min(Math.round(vd/tv*100),100);
 
   // Кабинет бригадира
   if(isBrigadier()){
@@ -10397,8 +10404,8 @@ function rBrigades(){
   // Подпись — откуда взялась цель
   var targetSource='';
   if(planMonth>0 && capacity>0){
-    if(planMonth<=capacity) targetSource='= min('+fmtD(planMonth)+' план мая, '+fmtD(capacity)+' потолок) — ограничивает <b>план</b>';
-    else targetSource='= min('+fmtD(planMonth)+' план мая, '+fmtD(capacity)+' потолок) — ограничивает <b>потолок бригад</b>';
+    if(planMonth<=capacity) targetSource='= min('+fmtD(planMonth)+' план недели, '+fmtD(capacity)+' потолок) — ограничивает <b>план</b>';
+    else targetSource='= min('+fmtD(planMonth)+' план недели, '+fmtD(capacity)+' потолок) — ограничивает <b>потолок бригад</b>';
   } else if(planMonth>0) targetSource='только план: '+fmtD(planMonth)+' м³';
   else if(capacity>0) targetSource='только потолок: '+fmtD(capacity)+' м³';
   h+='<div style="font-size:12px;color:var(--mut);margin-top:5px">'+targetSource+'</div>';
@@ -10412,7 +10419,7 @@ function rBrigades(){
       '<div style="height:7px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:'+color+';border-radius:3px"></div></div>'+
       (sub?'<div style="font-size:12px;color:var(--mut);margin-top:2px">'+sub+'</div>':'')+'</div>';
   }
-  h+=bar('💰 План месяца ('+now.toLocaleString('ru-RU',{month:'long'})+')', planMonth, 'var(--gold)', 'из YEAR_PLAN');
+  h+=bar('💰 План недели ('+now.toLocaleString('ru-RU',{month:'long'})+')', planMonth, 'var(--gold)', 'из YEAR_PLAN');
   h+=bar('⚙ Потолок бригад (нормы × люди × 7)', capacity, 'var(--blue)', 'максимум что можем выдать сейчас');
   h+=bar('✅ Факт недели', fact, weekColor, '');
 
@@ -16656,7 +16663,7 @@ function showReport(){
   h+='<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px">';
   k.forEach(function(x){h+='<div style="background:#f8f9fa;border-left:4px solid '+x[2]+';padding:8px 12px;border-radius:4px;min-width:120px;flex:1"><div style="font-size:9px;color:#888;text-transform:uppercase">'+x[0]+'</div><div style="font-size:15px;font-weight:700;color:'+x[2]+'">'+x[1]+' тг</div></div>';});
   h+='</div>';
-  var vd=totalVolDone(),tv=getTotalVol(),dl=daysLeft();
+  var vd=totalVolDone(),tv=objContractedVol(),dl=daysLeft();
   h+='<h2>Прогресс объекта</h2><table>'+th(['Показатель','Значение'])+tr(['Выполнено',fmtD(vd)+' м³'])+tr(['По договору',tv.toLocaleString('ru')+' м³'])+tr(['Процент',Math.round(vd/tv*100)+'%'])+tr(['Осталось',fmtD(tv-vd)+' м³'])+(dl!==null?tr(['До дедлайна',dl+' дней']):'')+'</table>';
   h+='<h2>Расходы по статьям</h2><table>'+th(['Статья','Сумма','%']);
   Object.entries(cm).sort(function(a,b){return b[1]-a[1];}).forEach(function(cv){h+=tr([cv[0],fmt(cv[1]),C.expense?Math.round(cv[1]/C.expense*100)+'%':'-']);});
@@ -16932,7 +16939,7 @@ function loadAIForecast(force){
   if(_aiLoading) return;
   if(!force&&_aiInsightCache&&Date.now()-_aiInsightTime<1800000){showAIInsight(_aiInsightCache);return;}
   _aiLoading=true;
-  var C=calcCo();var G=calcGoal();var vd=totalVolDone(),tv=getTotalVol();
+  var C=calcCo();var G=calcGoal();var vd=totalVolDone(),tv=objContractedVol();
   var ks2=getKS2();
   var workers=S.brigades.reduce(function(s,b){return s+(b.workers||0);},0);
   var overdue=ks2.filter(function(k){return !k.paid&&k.deadline&&new Date(k.deadline)<new Date();}).length;
