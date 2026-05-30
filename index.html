@@ -6407,8 +6407,8 @@ function marginDirect(){
 }
 function marginObject(obj){
   // Объектная: выручка по объекту - все расходы по объекту
-  // wip = незавершёнка (армирование без залитого бетона) — будущая выручка
-  var rev=0, cost=0, wip=0;
+  // НЗП считаем ПО ПЯТНАМ: армирование минус уже залитый бетон того же пятна (без задвоения).
+  var rev=0, cost=0, wip=0, _revBySpot={}, _wipBySpot={};
   (S.entries||[]).forEach(function(e){
     if(obj && e.obj!==obj) return;
     if(e.type==='vol'){
@@ -6423,16 +6423,22 @@ function marginObject(obj){
         if(L.length) rate=L[0].rate;
       }
       var isConcrete = (work.indexOf('опалубка+бетон')===0 || work==='комплекс монолит' || (e.wtype||'').toLowerCase().indexOf('бетон')>=0);
+      var _sid = e.spotId || e.spot;
+      if(!_sid && e.zone){ var _sp=(((S.objMeta||{})[e.obj]||{}).spots||[]).find(function(s){return s.name===e.zone;}); if(_sp) _sid=_sp.id; }
+      if(!_sid) _sid='_none';
       if(isConcrete){
         rev += (e.volume||0)*rate;  // готовая выручка
+        _revBySpot[_sid] = (_revBySpot[_sid]||0) + (e.volume||0)*rate;
       } else {
-        // Армирование/подготовка — незавершёнка (станет выручкой после бетона)
-        wip += (e.volume||0)*rate;
+        _wipBySpot[_sid] = (_wipBySpot[_sid]||0) + (e.volume||0)*rate; // армирование — копим по пятну
       }
     } else if(e.type==='expense'){
       cost += (e.amount||0);
     }
   });
+  // НЗП = армирование, которое ещё НЕ залито бетоном (по каждому пятну отдельно)
+  wip = 0;
+  Object.keys(_wipBySpot).forEach(function(sid){ wip += Math.max(0, _wipBySpot[sid] - (_revBySpot[sid]||0)); });
   return {
     revenue: rev, cost: cost, profit: rev-cost, pct: rev>0?(rev-cost)/rev*100:0,
     wip: wip,                          // незавершёнка (будущая выручка)
