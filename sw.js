@@ -1,4 +1,4 @@
-const CACHE='liongate-v114-coachui';
+const CACHE='liongate-v115-aistyle';
 const ASSETS=['./','./index.html','./manifest.json','./icon192.png','./icon512.png'];
 self.addEventListener('install',function(e){e.waitUntil(caches.open(CACHE).then(function(c){return Promise.all(ASSETS.map(function(a){return c.add(a).catch(function(){});}));}).catch(function(){}));self.skipWaiting();});
 self.addEventListener('activate',function(e){e.waitUntil(caches.keys().then(function(k){return Promise.all(k.filter(function(x){return x!==CACHE;}).map(function(x){return caches.delete(x);}));}).then(function(){return self.clients.claim();}));});

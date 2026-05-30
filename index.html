@@ -17019,7 +17019,7 @@ function loadAnalyticsAI(force){
   fetch(AI_WORKER_URL.replace(/\/$/,'')+'/api/ai-forecast',{
     method:'POST',
     headers:{'Content-Type':'application/json','X-LG-Token':AI_SHARED_TOKEN},
-    body:JSON.stringify({prompt:prompt})
+    body:JSON.stringify({prompt:prompt,model:'claude-opus-4-8',max_tokens:1500})
   }).then(function(r){
     if(!r.ok) throw new Error('HTTP '+r.status);
     return r.json();
@@ -20366,7 +20366,26 @@ function coachPrompt(p){
   'Его задачи на ближайшее время:\n'+(tasks||'нет')+'\n'+
   'Его КФУ:\n'+(kfus||'нет')+'\n'+
   'Прогноз года по монолиту: '+fc+'% к цели. Бэклог '+nf(R.backlog)+' м³'+(R.runout?(', работы до ~'+MN[R.runout]):'')+(R.newSpots?(', нужно +'+R.newSpots+' пятен'):'')+'.\n'+
-  'Дай 2-4 коротких конкретных совета ИМЕННО этому партнёру: что сделать в первую очередь и КАК, по-человечески и мотивирующе, с опорой на его задачи и цифры. Каждый совет — одно ясное предложение. Ответь ТОЛЬКО JSON-массивом строк на русском, без пояснений и без markdown.';
+  'Ответь СТРОГО валидным JSON-объектом (без markdown, без обратных кавычек, без текста вокруг): '+
+  '{"verdict":"одно предложение — главное для этого партнёра прямо сейчас, мотивирующе",'+
+  '"points":["2-3 наблюдения по его зоне ответственности, с цифрами"],'+
+  '"actions":["2-3 конкретных действия: что сделать и как"]}. Только валидный JSON на русском.';
+}
+function aiLoading(label){return '<div style="border:1px solid var(--purple);background:linear-gradient(135deg,rgba(163,113,247,.08),rgba(57,211,187,.05));border-radius:16px;padding:16px;margin-bottom:12px;color:var(--purple);font-size:14px;font-weight:700">🤖 '+esc(label)+' — думает…</div>';}
+function aiBtn(onclick,text){return '<div onclick="'+onclick+'" style="cursor:pointer;text-align:center;border:1px dashed var(--purple);color:var(--purple);border-radius:16px;padding:15px;margin-bottom:12px;font-size:14px;font-weight:700;background:linear-gradient(135deg,rgba(163,113,247,.06),rgba(57,211,187,.03))">'+esc(text)+'</div>';}
+function aiErr(onclick){return '<div onclick="'+onclick+'" style="cursor:pointer;border:1px solid var(--red);background:rgba(248,81,73,.06);border-radius:16px;padding:13px;margin-bottom:12px;color:var(--red);font-size:13px">🤖 ИИ-ответ не пришёл — нажми, чтобы повторить</div>';}
+function aiCard(label,a,onRefresh){
+ var h='<div style="background:linear-gradient(135deg,rgba(163,113,247,.08),rgba(57,211,187,.05));border:1px solid var(--purple);border-radius:16px;padding:16px;margin-bottom:12px;box-shadow:0 4px 18px rgba(0,0,0,.22)">';
+ h+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:18px">🤖</span><span style="font-size:13px;color:var(--purple);letter-spacing:1.5px;font-weight:800">'+esc(label)+'</span></div>'+(onRefresh?'<div onclick="'+onRefresh+'" style="cursor:pointer;color:var(--mut);font-size:18px;padding:2px 4px">↻</div>':'')+'</div>';
+ if(a.verdict){var vt=(''+a.verdict).toLowerCase();var acc='var(--green)',ic='✅',lab='ХОРОШО',tint='rgba(63,185,80,.10)';
+  if(/критич|тревож|опасн|кризис|разрыв|срочн|угроз|остановк|дефицит|нехватк|отстава|под угроз/.test(vt)){acc='var(--red)';ic='🚨';lab='КРИТИЧНО';tint='rgba(248,81,73,.10)';}
+  else if(/внимани|риск|следить|осторож|снижен|падени|узк/.test(vt)){acc='var(--orange)';ic='⚠️';lab='ВНИМАНИЕ';tint='rgba(255,166,87,.10)';}
+  h+='<div style="position:relative;background:'+tint+';border-radius:14px;padding:15px 15px 15px 19px;margin-bottom:16px;overflow:hidden"><div style="position:absolute;left:0;top:0;bottom:0;width:5px;background:'+acc+'"></div><div style="display:flex;align-items:center;gap:7px;margin-bottom:9px"><span style="font-size:16px">'+ic+'</span><span style="font-size:11px;font-weight:800;letter-spacing:1.5px;color:'+acc+'">'+lab+'</span></div><div style="font-size:16px;color:var(--text);line-height:1.5;font-weight:600">'+esc(a.verdict)+'</div></div>';}
+ if(a.points&&a.points.length){h+='<div style="display:flex;align-items:center;gap:7px;margin:0 2px 12px"><span style="font-size:16px">📌</span><span style="font-size:13px;color:var(--teal);letter-spacing:1.5px;font-weight:800">ВАЖНОЕ</span></div>';
+  a.points.forEach(function(p){h+='<div style="display:flex;gap:12px;background:var(--s2);border-radius:12px;padding:13px;margin-bottom:9px;align-items:flex-start"><div style="width:8px;height:8px;border-radius:50%;background:var(--teal);flex-shrink:0;margin-top:7px;box-shadow:0 0 8px var(--teal)"></div><span style="font-size:14.5px;color:var(--text);line-height:1.55">'+esc(typeof p==='string'?p:JSON.stringify(p))+'</span></div>';});}
+ if(a.actions&&a.actions.length){h+='<div style="display:flex;align-items:center;gap:7px;margin:20px 2px 12px"><span style="font-size:16px">🎯</span><span style="font-size:13px;color:var(--gold);letter-spacing:1.5px;font-weight:800">ЧТО ДЕЛАТЬ</span></div>';
+  a.actions.forEach(function(act,i){h+='<div style="display:flex;gap:13px;background:linear-gradient(135deg,rgba(255,179,32,.10),rgba(255,179,32,.03));border:1px solid rgba(255,179,32,.25);border-radius:12px;padding:13px;margin-bottom:9px;align-items:flex-start"><div style="width:30px;height:30px;border-radius:50%;background:var(--gold);color:#0d1117;font-size:16px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0">'+(i+1)+'</div><span style="font-size:14.5px;color:var(--text);line-height:1.55;padding-top:4px">'+esc(typeof act==='string'?act:JSON.stringify(act))+'</span></div>';});}
+ return h+'</div>';
 }
 function bTasks(){
  var c=cfg();var st=S();var now=new Date();if(!SELP)SELP='Дмитрий';
@@ -20415,12 +20434,11 @@ function bTasks(){
   '</div>';
  var body=sec(nowB,'🔴 СЕЙЧАС','#ff7b72')+sec(soonB,'🟡 СКОРО','#ffa657')+sec(laterB,'⚪ ПОТОМ','#8b949e');
  if(!body)body='<div style="text-align:center;color:#3fb950;font-size:15px;padding:24px;font-weight:600">✓ Активных задач нет</div>';
- var ai=AICACHE[SELP];var coach;
- if(ai&&ai.loading){coach='<div style="border:1px solid #7c5cff;background:#161b22;border-radius:14px;padding:14px;margin-bottom:12px;color:#b39cff;font-size:14px;font-weight:700">🤖 ИИ-тренер думает…</div>';}
- else if(ai&&ai.list){var tips=ai.list.map(function(x,i){return '<div style="display:flex;gap:12px;padding:13px 0'+(i>0?';border-top:1px solid #2a2347':'')+'"><div style="width:27px;height:27px;border-radius:50%;background:rgba(124,92,255,.18);color:#c4b3ff;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;flex:none;line-height:1">'+(i+1)+'</div><div style="color:#e6edf3;font-size:15px;line-height:1.6;flex:1">'+esc(typeof x==='string'?x:JSON.stringify(x))+'</div></div>';}).join('');
-  coach='<div style="border:1px solid #7c5cff;background:linear-gradient(180deg,rgba(124,92,255,.10),rgba(124,92,255,0));border-radius:16px;padding:14px 16px 12px;margin-bottom:12px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px"><div style="color:#b39cff;font-weight:800;font-size:13px;letter-spacing:.5px">🤖 ИИ-ТРЕНЕР · '+esc(SELP)+'</div><div onclick="LGPLAN.coach(\''+SELP+'\')" style="cursor:pointer;color:#8b949e;font-size:18px;padding:2px 4px">↻</div></div>'+tips+'<div style="text-align:right;color:#6e7681;font-size:10px;margin-top:9px">Claude Sonnet · ↻ обновить</div></div>';}
- else if(ai&&ai.error){coach='<div onclick="LGPLAN.coach(\''+SELP+'\')" style="cursor:pointer;border:1px solid #ff7b72;background:#161b22;border-radius:14px;padding:13px;margin-bottom:12px;color:#ff7b72;font-size:13px">🤖 ИИ недоступен — нажми, чтобы повторить</div>';}
- else {coach='<div onclick="LGPLAN.coach(\''+SELP+'\')" style="cursor:pointer;text-align:center;border:1px dashed #7c5cff;color:#b39cff;border-radius:14px;padding:14px;margin-bottom:12px;font-size:14px;font-weight:700">🤖 Спросить ИИ-тренера про задачи '+esc(SELP)+'</div>';}
+ var ai=AICACHE[SELP];var coach;var onc="LGPLAN.coach('"+SELP+"')";
+ if(ai&&ai.loading)coach=aiLoading('ИИ-ТРЕНЕР · '+SELP);
+ else if(ai&&ai.error)coach=aiErr(onc);
+ else if(ai&&(ai.verdict||ai.points||ai.actions))coach=aiCard('ИИ-ТРЕНЕР · '+SELP,ai,onc);
+ else coach=aiBtn(onc,'🤖 Спросить ИИ-тренера про задачи '+SELP);
  return head+coach+body;
 }
 function box(inner,b){return '<div style="background:#161b22;border:1px solid '+(b||'#30363d')+';border-radius:12px;padding:12px;margin-bottom:8px">'+inner+'</div>';}
@@ -20478,20 +20496,19 @@ function stratPrompt(){
   '- КФУ:\n'+(kfus||'нет')+'\n'+
   '- Партнёры: Дмитрий (стратегия, новые направления, торговля, опалубка, капитал, лицензия, холдинг), Бекжан (рабочие, найм, безопасность, темп), Евгений (новые объекты, контракты, КС-2, деньги заказчика), Нурсултан (качество), Сергей (финансы, касса, IPO-задел).\n'+
   '- Ближайшие подцели:\n'+(tasks||'нет')+'\n\n'+
-  'Дай глубокий стратегический разбор по пунктам:\n'+
-  '1) Главные риски прямо сейчас и что с ними делать.\n'+
-  '2) Где узкое место на пути к цели '+(c.goal/1e6)+' млн в 2026.\n'+
-  '3) 3-5 приоритетов на ближайший квартал (кому и что).\n'+
-  '4) Что критично для перехода к капитализации 1 млрд $ к 2030 (масштаб, лицензия, девелопмент, задел под IPO).\n'+
-  'Пиши по делу, конкретно, на русском. Можно использовать markdown с заголовками и списками.';
+  'Ответь СТРОГО валидным JSON-объектом (без markdown, без обратных кавычек, без текста вокруг): '+
+  '{"verdict":"одно предложение — общая стратегическая оценка ситуации сейчас",'+
+  '"points":["3-4 ключевых наблюдения: главные риски и где узкое место на пути к цели '+(c.goal/1e6)+' млн, с цифрами"],'+
+  '"actions":["3-5 приоритетов на ближайший квартал — кому и что делать, включая задел под цель 2030 и IPO"]}. '+
+  'Только валидный JSON на русском, по делу, с цифрами.';
 }
 function bStrategy(){
- var h='<div style="margin-top:10px">';
- if(STRAT&&STRAT.loading){h+='<div style="border:1px solid #d2a8ff;background:#161b22;border-radius:14px;padding:14px;color:#d2a8ff;font-size:14px;font-weight:700">🧠 Opus анализирует бизнес… (10–20 сек)</div>';}
- else if(STRAT&&STRAT.text){h+='<div style="border:1px solid #d2a8ff;background:#161b22;border-radius:14px;padding:15px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div style="color:#d2a8ff;font-weight:800;font-size:13px;letter-spacing:.5px">🧠 СТРАТЕГРАЗБОР · OPUS</div><div onclick="LGPLAN.strategy()" style="cursor:pointer;color:#8b949e;font-size:16px">↻</div></div><div style="color:#e6edf3;font-size:14px;line-height:1.6;white-space:pre-wrap">'+esc(STRAT.text)+'</div></div>';}
- else if(STRAT&&STRAT.error){h+='<div onclick="LGPLAN.strategy()" style="cursor:pointer;border:1px solid #ff7b72;background:#161b22;border-radius:14px;padding:13px;color:#ff7b72;font-size:13px">🧠 Разбор не удался — нажми, чтобы повторить</div>';}
- else {h+='<div onclick="LGPLAN.strategy()" style="cursor:pointer;text-align:center;border:1px dashed #d2a8ff;color:#d2a8ff;border-radius:14px;padding:14px;font-size:14px;font-weight:700">🧠 Глубокий стратегразбор от ИИ (Opus)</div>';}
- return h+'</div>';
+ var on='LGPLAN.strategy()';var c;
+ if(STRAT&&STRAT.loading)c=aiLoading('ИИ-АНАЛИЗ · OPUS');
+ else if(STRAT&&STRAT.error)c=aiErr(on);
+ else if(STRAT&&(STRAT.verdict||STRAT.points||STRAT.actions))c=aiCard('ИИ-АНАЛИЗ · OPUS',STRAT,on);
+ else c=aiBtn(on,'🧠 Глубокий стратегразбор от ИИ (Opus)');
+ return '<div style="margin-top:10px">'+c+'</div>';
 }
 function bPulse(){
  var R=compute();if(!R.rows.length)return box('<div style="color:#8b949e">Заполните цель в «⚙».</div>');
@@ -20633,7 +20650,7 @@ window.LGPLAN={
    var tok=(typeof AI_SHARED_TOKEN!=='undefined'?AI_SHARED_TOKEN:'liongate-2026-secret-x7p2k9m4');
    fetch(url,{method:'POST',headers:{'Content-Type':'application/json','X-LG-Token':tok},body:JSON.stringify({prompt:prompt,model:'claude-sonnet-4-6',max_tokens:700})})
     .then(function(r){return r.json();})
-    .then(function(d){AIBUSY=false;if(d&&d.advice&&d.advice.length){AICACHE[p]={list:d.advice};}else{AICACHE[p]={error:(d&&d.error)||'пусто'};}refresh();})
+    .then(function(d){AIBUSY=false;var a=d&&d.advice;if(a&&!Array.isArray(a)&&(a.verdict||a.points||a.actions)){AICACHE[p]=a;}else if(Array.isArray(a)&&a.length){AICACHE[p]={points:a};}else{AICACHE[p]={error:(d&&d.error)||'пусто'};}refresh();})
     .catch(function(e){AIBUSY=false;AICACHE[p]={error:String(e)};refresh();});
   }catch(e){AIBUSY=false;AICACHE[p]={error:String(e)};refresh();}
  },
@@ -20645,7 +20662,7 @@ window.LGPLAN={
    var tok=(typeof AI_SHARED_TOKEN!=='undefined'?AI_SHARED_TOKEN:'liongate-2026-secret-x7p2k9m4');
    fetch(url,{method:'POST',headers:{'Content-Type':'application/json','X-LG-Token':tok},body:JSON.stringify({model:'claude-opus-4-8',max_tokens:2000,messages:[{role:'user',content:prompt}]})})
     .then(function(r){return r.json();})
-    .then(function(d){STRATBUSY=false;var t=(d&&d.content&&d.content[0]&&d.content[0].text)||'';if(t){STRAT={text:t};}else{STRAT={error:(d&&(d.error&&(d.error.message||d.error)))||'пусто'};}refresh();})
+    .then(function(d){STRATBUSY=false;var t=(d&&d.content&&d.content[0]&&d.content[0].text)||'';if(t){var a=null;try{a=JSON.parse(t.replace(/```json|```/g,'').trim());}catch(e){}if(a&&(a.verdict||a.points||a.actions)){STRAT=a;}else{STRAT={verdict:t};}}else{STRAT={error:(d&&(d.error&&(d.error.message||d.error)))||'пусто'};}refresh();})
     .catch(function(e){STRATBUSY=false;STRAT={error:String(e)};refresh();});
   }catch(e){STRATBUSY=false;STRAT={error:String(e)};refresh();}
  },
