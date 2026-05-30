@@ -7200,7 +7200,7 @@ function comparePeriods(){
     (S.entries||[]).forEach(function(e){
       if(!e.date || e.date.slice(0,7)!==ym) return;
       if(e.type==='expense') exp += (e.amount||0);
-      if(e.type==='vol'){
+      if(e.type==='vol' && isStructuralVol(e)){
         volM += (e.volume||0);
         var b=(S.brigades||[]).find(function(x){return x.id===e.brigade;});
         var work=((b&&b.work)||'').toLowerCase();
@@ -13992,12 +13992,12 @@ function rAnalytics(){
       var arrow = delta>0?'↑':(delta<0?'↓':'→');
       // для расходов рост = плохо, для выручки рост = хорошо
       var good = goodWhenUp ? delta>0 : delta<0;
-      var col = delta===0?'var(--mut)':(good?'#7ee787':'#ff7b72');
+      var col = (prev===0)?'var(--mut)':(delta===0?'var(--mut)':(good?'#7ee787':'#ff7b72'));
       var s='<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--brd)">';
       s+='<span style="font-size:13px;color:var(--text)">'+label+'</span>';
       s+='<div style="text-align:right">';
       s+='<span style="font-family:var(--fd);font-size:15px;color:var(--text);font-weight:700">'+(typeof fmtShort==="function"?fmtShort(cur):cur)+'</span>';
-      s+='<span style="font-size:13px;color:'+col+';font-weight:700;margin-left:8px">'+arrow+Math.abs(delta)+'%</span>';
+      s+='<span style="font-size:13px;color:'+col+';font-weight:700;margin-left:8px">'+((prev===0)?'нов.':(arrow+Math.abs(delta)+'%'))+'</span>';
       s+='</div></div>';
       return s;
     }
