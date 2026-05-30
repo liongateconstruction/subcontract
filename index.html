@@ -10354,7 +10354,7 @@ function rBrigades(){
     return 0;
   }
 
-  var h='<div class="shdr"><h2>\u{1F477} БРИГАДЫ</h2>'+(canEdit()?'<button class="fedit" onclick="openAddBrig()">+ Бригада</button>':'')+'</div>';
+  var h='<div class="shdr"><h2>\u{1F477} БРИГАДЫ</h2>'+(canEdit()?'<button class="fedit" onclick="openAddBrig()">+ Бригада</button>':'')+((S.brigadesArchived&&S.brigadesArchived.length)?'<button class="fedit" style="color:var(--mut);border-color:var(--mut)" onclick="openBrigArchive()">🗄 '+S.brigadesArchived.length+'</button>':'')+'</div>';
 
   // ===== БЛОК 1: КФУ "ТЕМП ЗАЛИВКИ" =====
   h+='<div class="dcard" style="border-color:var(--gold);cursor:pointer" onclick="openCycle('+kfuTempo.id+',\''+iso.key+'\')">';
@@ -15666,7 +15666,8 @@ function openEditBrig(bId){
       (otherOpts?'<optgroup label="🔧 Прочее">'+otherOpts+'</optgroup>':'')+
       (customOpts?'<optgroup label="⭐ Свои виды">'+customOpts+'</optgroup>':'')+
       '<option value="__custom__">+ свой вид...</option>';
-    var unitOpts=UNITS.map(function(u){return '<option value="'+u+'"'+(u===unit?' selected':'')+'>'+u+'</option>';}).join('');
+    var unitList=UNITS.slice(); if(unit && unitList.indexOf(unit)<0) unitList.unshift(unit);
+    var unitOpts=unitList.map(function(u){return '<option value="'+u+'"'+(u===unit?' selected':'')+'>'+u+'</option>';}).join('')+'<option value="__custom__">+ своё...</option>';
     return '<div class="price-row" data-row="'+rowIdx+'" style="display:grid;grid-template-columns:1fr 70px 100px 30px;gap:6px;align-items:center;margin-bottom:6px">'+
       '<select class="fi prc-wt" style="font-size:12px;padding:6px 8px">'+wtOpts+'</select>'+
       '<select class="fi prc-unit" style="font-size:12px;padding:6px 4px;text-align:center">'+unitOpts+'</select>'+
@@ -15717,7 +15718,7 @@ function openEditBrig(bId){
     '<div id="prices-list" style="margin-bottom:10px">'+rowsHTML+'</div>'+
     '<button id="add-row-btn" style="width:100%;background:rgba(57,211,187,.1);border:1px dashed var(--teal);color:var(--teal);border-radius:8px;padding:9px;font-size:12px;cursor:pointer;margin-bottom:14px">+ ДОБАВИТЬ РАСЦЕНКУ</button>'+
     '<button class="fsave" style="background:var(--teal)" id="bsb">СОХРАНИТЬ</button>'+
-    '<button class="fcanc" style="color:var(--red);border-color:var(--red)" id="bdb">Удалить бригаду</button>'+
+    '<button class="fcanc" style="color:var(--gold);border-color:var(--gold)" id="bdb">🗄 Архивировать бригаду</button>'+
     '<button class="fcanc" id="bcb">Отмена</button>';
   document.getElementById('modal').style.display='flex';
   
@@ -15779,6 +15780,7 @@ function openEditBrig(bId){
         }
       });
     });
+    document.querySelectorAll('.prc-unit').forEach(function(sel){ if(sel._bound2)return; sel._bound2=true; sel.addEventListener('change',function(){ if(this.value==='__custom__'){ var cu=prompt('Единица измерения (напр. смена, рейс, м.п.):'); if(cu&&cu.trim()){ cu=cu.trim(); document.querySelectorAll('.prc-unit').forEach(function(s){ var ex=Array.from(s.options).find(function(o){return o.value===cu;}); if(!ex){ var o=document.createElement('option'); o.value=cu; o.textContent=cu; s.insertBefore(o,s.querySelector('option[value="__custom__"]')); } }); this.value=cu; } else { this.value='м³'; } } }); });
   }
   bindRowHandlers();
   
@@ -15797,7 +15799,7 @@ function openEditBrig(bId){
     var newPrices=[];
     document.querySelectorAll('.price-row').forEach(function(row){
       var wt=row.querySelector('.prc-wt').value;
-      var unit=row.querySelector('.prc-unit').value||'м³';
+      var unit=row.querySelector('.prc-unit').value; if(!unit||unit==='__custom__')unit='м³';
       var rate=parseFloat(row.querySelector('.prc-rate').value)||0;
       if(wt && wt!=='__custom__' && rate>0){
         newPrices.push({wtype:wt,unit:unit,rate:rate});
@@ -15816,7 +15818,10 @@ function openEditBrig(bId){
     closeModal();render();
   });
   document.getElementById('bdb').addEventListener('click',function(){
-    if(!confirmSafe(T('confirmBrigDel')))return;
+    if(!confirmSafe('Архивировать бригаду «'+b.name+'»? Её можно вернуть из архива.'))return;
+    if(!S.brigadesArchived)S.brigadesArchived=[];
+    b.archivedAt=Date.now();
+    S.brigadesArchived.push(b);
     S.brigades=S.brigades.filter(function(x){return x.id!==bId;});
     S._modified=Date.now();
     save();
@@ -15825,6 +15830,22 @@ function openEditBrig(bId){
     closeModal();render();
   });
   document.getElementById('bcb').addEventListener('click',function(){_editLock=false;closeModal();});
+}
+function openBrigArchive(){
+  var arc=S.brigadesArchived||[];
+  document.getElementById('mtit').textContent='АРХИВ БРИГАД';
+  var rows=arc.length?arc.map(function(b,i){return '<div style="background:var(--s2);border-radius:10px;padding:12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:8px"><div><div style="font-weight:700;color:var(--text)">'+b.name+'</div><div style="font-size:11px;color:var(--mut)">'+(b.workers||0)+' чел'+(b.archivedAt?' \u00b7 в архиве с '+new Date(b.archivedAt).toLocaleDateString('ru-RU'):'')+'</div></div><button onclick="restoreBrig('+i+')" style="background:var(--teal);border:none;color:#0d1117;border-radius:8px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer;flex:none">Вернуть</button></div>';}).join(''):'<div style="color:var(--mut);text-align:center;padding:20px">Архив пуст</div>';
+  document.getElementById('mbody').innerHTML=rows+'<button class="fcanc" id="bcb">Закрыть</button>';
+  document.getElementById('modal').style.display='flex';
+  document.getElementById('bcb').addEventListener('click',function(){closeModal();});
+}
+function restoreBrig(i){
+  var arc=S.brigadesArchived||[]; var b=arc[i]; if(!b)return;
+  delete b.archivedAt; S.brigades.push(b);
+  S.brigadesArchived=arc.filter(function(x,j){return j!==i;});
+  S._modified=Date.now(); save();
+  setTimeout(function(){pushCloud();},100);
+  closeModal(); render();
 }
 function openAddBrig(){
   _editLock=true;
