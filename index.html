@@ -3206,15 +3206,19 @@ function sumT(t,f,v){return S.entries.filter(function(e){return e.type===t&&(!f|
 function g(id){var el=document.getElementById(id);return el?el.value:'';}
 // Общий прогресс по объекту = ТОЛЬКО м³ залитого бетона.
 // Армирование — подготовка к тем же м³, не суммируется.
-function totalVolDone(){
-  return S.entries.filter(function(e){
-    if(e.type!=='vol') return false;
-    if(!e.brigade) return false;
+// Физический объём конструкции считаем ОДИН раз — только по заливке бетона.
+function isStructuralVol(e){
+  if(!e || e.type!=='vol') return false;
+  var w=(e.wtype||'').toLowerCase();
+  if(w){ return (w.indexOf('бетон')>=0 || w.indexOf('комплекс')>=0); }
+  if(e.brigade){
     var b=(S.brigades||[]).find(function(x){return x.id===e.brigade;});
-    if(!b) return false;
-    var work=(b.work||'').toLowerCase();
-    return work.indexOf('опалубка+бетон')===0 || work==='комплекс монолит' || (e.wtype||'').toLowerCase().indexOf('бетон')>=0;
-  }).reduce(function(s,e){return s+(e.volume||0);},0);
+    if(b){ var bw=(b.work||'').toLowerCase(); return (bw.indexOf('опалубка+бетон')===0 || bw==='комплекс монолит'); }
+  }
+  return false;
+}
+function totalVolDone(){
+  return S.entries.filter(function(e){ return isStructuralVol(e); }).reduce(function(s,e){return s+(e.volume||0);},0);
 }
 function getTotalVol(){return(S.settings&&S.settings.totalVol)||9999;}
 function daysLeft(){if(!S.settings||!S.settings.deadline)return null;return Math.ceil((new Date(S.settings.deadline)-new Date())/86400000);}
@@ -6677,6 +6681,7 @@ function progressVsCash(objName, spotId){
   (S.entries||[]).forEach(function(e){
     if(e.type!=='vol') return;
     if(e.spotId!==spotId && e.spot!==spotId && e.zone!==sp.name) return;
+    if(!isStructuralVol(e)) return;
     doneVol+=(e.volume||0);
   });
   var progressPct=planVol>0 ? Math.round(doneVol/planVol*100) : 0;
@@ -7418,6 +7423,12 @@ function calcPar(name){
     debtToCompany:debtToCompany,
     debtFromCompany:debtFromCompany
   };
+}
+function brigStart(b){
+  if(b&&b.started) return b.started;
+  if(!b) return '';
+  var ds=(S.entries||[]).filter(function(e){return e.brigade===b.id && e.date;}).map(function(e){return e.date;}).sort();
+  return ds.length?ds[0]:'';
 }
 function calcBrig(b){
   var vols=S.entries.filter(function(e){return e.type==='vol'&&e.brigade===b.id;});
@@ -10433,8 +10444,8 @@ function rBrigades(){
     // Header
     h+='<div class="bhdr"><div>';
     h+='<div class="bname">'+b.name+'</div>';
-    h+='<div style="font-size:12px;color:var(--mut)">'+(b.workers||0)+' чел · '+(b.work||'—')+'</div>';
-    h+='<div style="font-size:13px;color:var(--mut);margin-top:2px">старт '+(b.started?b.started.split('-').reverse().join('.'):'—')+'</div>';
+    h+='<div style="font-size:12px;color:var(--mut)">'+(b.workers||0)+' чел · '+(b.work||((b.prices&&b.prices[0]&&b.prices[0].wtype)||'—'))+'</div>';
+    h+='<div style="font-size:13px;color:var(--mut);margin-top:2px">старт '+(function(){var st=brigStart(b);return st?st.split('-').reverse().join('.'):'—';})()+'</div>';
     h+='</div>';
     if(canEdit()){
       h+='<button class="fedit" onclick="event.stopPropagation();openEditBrig(\''+b.id+'\')">ред</button>';
@@ -14934,12 +14945,11 @@ function openVol(bId){
   var defaultObj = b.obj || S.objects[0] || '';
   if(S.objMeta && S.objMeta[defaultObj] && S.objMeta[defaultObj].spots){
     S.objMeta[defaultObj].spots.forEach(function(s){
-      var label = s.name + (s.id ? ' ['+s.id+']' : '');
-      zones.push(label);
+      zones.push(s.name);
     });
   }
   // Добавляем уникальные из истории (которых ещё нет в списке)
-  var existingZones = uniqVals('zone');
+  var existingZones = [];
   existingZones.forEach(function(z){
     if(zones.indexOf(z)<0) zones.push(z);
   });
@@ -15112,11 +15122,9 @@ function openVol(bId){
     var rt=parseFloat(g('f-rate'))||brigPriceFor(b,wt,unit);
     var zoneValue = getSelCustom('f-zone');
     var spotId = null;
-    var spotIdMatch = (zoneValue||'').match(/\[([^\]]+)\]\s*$/);
-    if(spotIdMatch){
-      spotId = spotIdMatch[1];
-      zoneValue = zoneValue.replace(/\s*\[[^\]]+\]\s*$/, '').trim();
-    }
+    var _vobj = g('f-obj')||S.objects[0];
+    var _vsp = (S.objMeta&&S.objMeta[_vobj]&&S.objMeta[_vobj].spots||[]).find(function(s){return s.name===zoneValue || (s.id&&zoneValue&&zoneValue.indexOf('['+s.id+']')>=0);});
+    if(_vsp){ spotId=_vsp.id; zoneValue=_vsp.name; }
     var e={id:Date.now(),date:g('f-date')||new Date().toISOString().slice(0,10),type:'vol',brigade:bId,volume:v,unit:unit,wtype:wt,rateOverride:rt,rate:rt,amount:Math.round(v*rt),zone:zoneValue,floor:getSelCustom('f-floor'),struct:st,note:g('f-note')||'',obj:g('f-obj')||S.objects[0]};
     if(spotId) { e.spotId = spotId; e.spot = spotId; }
     if(redo)e.redo=true;
@@ -15149,11 +15157,10 @@ function openEditVol(id){
   var zones = [];
   if(S.objMeta && S.objMeta[obj] && S.objMeta[obj].spots){
     S.objMeta[obj].spots.forEach(function(s){
-      var label = s.name + (s.id ? ' ['+s.id+']' : '');
-      zones.push(label);
+      zones.push(s.name);
     });
   }
-  var existingZones = uniqVals('zone');
+  var existingZones = [];
   existingZones.forEach(function(z){
     if(zones.indexOf(z)<0) zones.push(z);
   });
@@ -15161,7 +15168,7 @@ function openEditVol(id){
   var curZoneLabel = e.zone || '';
   if(e.spotId){
     var spotInfo = (S.objMeta && S.objMeta[obj] && S.objMeta[obj].spots||[]).find(function(s){return s.id===e.spotId;});
-    if(spotInfo) curZoneLabel = spotInfo.name + ' ['+spotInfo.id+']';
+    if(spotInfo) curZoneLabel = spotInfo.name;
   }
 
   var floors = uniqVals('floor');
@@ -15275,13 +15282,8 @@ function openEditVol(id){
     }
     // Пятно — извлекаем id из формата "Имя [id]"
     var zoneValue = getSelCustom('ev-zone');
-    var spotIdMatch = (zoneValue||'').match(/\[([^\]]+)\]\s*$/);
-    if(spotIdMatch){
-      e.spotId = spotIdMatch[1];
-      zoneValue = zoneValue.replace(/\s*\[[^\]]+\]\s*$/, '').trim();
-    } else {
-      delete e.spotId;
-    }
+    var _esp = (S.objMeta&&S.objMeta[obj]&&S.objMeta[obj].spots||[]).find(function(s){return s.name===zoneValue || (s.id&&zoneValue&&zoneValue.indexOf('['+s.id+']')>=0);});
+    if(_esp){ e.spotId=_esp.id; zoneValue=_esp.name; } else { delete e.spotId; }
     e.zone = zoneValue || '';
     e.spot = e.spotId || e.zone;  // для совместимости с новым кодом
 
@@ -15706,6 +15708,7 @@ function openEditBrig(bId){
       '<div class="fg"><label class="fl">Кол-во людей</label><input class="fi" id="fb-w" type="number" value="'+(b.workers||0)+'" inputmode="numeric"/>'+hint('Сколько человек в бригаде')+'</div>'+
       '<div class="fg"><label class="fl">Объект</label><select class="fi" id="fb-o">'+oo+'</select>'+hint('Где работает')+'</div>'+
     '</div>'+
+    '<div class="fg"><label class="fl">Старт работ</label><input class="fi" id="fb-start" type="date" value="'+(b.started||'')+'"/>'+hint('Когда бригада вышла на объект')+'</div>'+
     '<div class="sect" style="margin:14px 0 8px">Расценки</div>'+
     '<div style="background:rgba(57,211,187,.05);border:1px solid rgba(57,211,187,.2);border-radius:8px;padding:10px;margin-bottom:10px;font-size:10px;color:var(--mut);line-height:1.5">'+
       '💡 Каждая строка = вид работ + единица + цена. Можно добавить одинаковый вид работ с разными единицами:<br>'+
@@ -15795,6 +15798,7 @@ function openEditBrig(bId){
     delete b.spec;
     b.obj=g('fb-o')||b.obj;
     b.workers=parseInt(g('fb-w'))||0;
+    b.started=g('fb-start')||b.started;
     // Собираем расценки из строк
     var newPrices=[];
     document.querySelectorAll('.price-row').forEach(function(row){
@@ -15806,6 +15810,7 @@ function openEditBrig(bId){
       }
     });
     b.prices=newPrices;
+    if(!b.work && newPrices.length) b.work=newPrices[0].wtype;
     // Добавляем виды работ в S.workTypes
     if(!S.workTypes)S.workTypes=WORK_TYPES.slice();
     newPrices.forEach(function(p){
@@ -15865,7 +15870,7 @@ function openAddBrig(){
   document.getElementById('modal').style.display='flex';
   document.getElementById('bsb').addEventListener('click',function(){
     var n=g('fb-n').trim();if(!n){alert('Введите название');return;}
-    S.brigades.push({id:'b'+Date.now(),name:n,obj:g('fb-o')||S.objects[0],workers:parseInt(g('fb-w'))||0,prices:{},people:[],attendance:{}});
+    S.brigades.push({id:'b'+Date.now(),name:n,obj:g('fb-o')||S.objects[0],workers:parseInt(g('fb-w'))||0,started:new Date().toISOString().slice(0,10),prices:{},people:[],attendance:{}});
     S._modified=Date.now();
     save();
     setTimeout(function(){pushCloud();},100);
