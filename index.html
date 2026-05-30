@@ -20479,6 +20479,7 @@ function box(inner,b){return '<div style="background:#161b22;border:1px solid '+
 function inp(val,oc,type,ph){return '<input value="'+esc(val)+'" type="'+(type||'text')+'" placeholder="'+esc(ph||'')+'" onchange="'+oc+'" style="width:100%;box-sizing:border-box;background:#0d1117;border:1px solid #30363d;border-radius:8px;color:#e6edf3;padding:10px;font-size:14px;margin-bottom:8px"/>';}
 function btn(txt,oc,bg){return '<div onclick="'+oc+'" style="cursor:pointer;text-align:center;background:'+(bg||'#ffd166')+';color:#0d1117;border-radius:9px;padding:11px;font-weight:800;font-size:13px;margin-bottom:8px">'+txt+'</div>';}
 function spotSel(sel,oc){var o='<option value="">— без пятна —</option>';activeSpots().forEach(function(sp){o+='<option value="'+esc(sp.id)+'"'+(sel===sp.id?' selected':'')+'>'+esc(sp.name)+'</option>';});return '<select onchange="'+oc+'" style="width:100%;box-sizing:border-box;background:#0d1117;border:1px solid #30363d;border-radius:8px;color:#e6edf3;padding:10px;font-size:14px;margin-bottom:8px">'+o+'</select>';}
+function ownerSel(cur,oc){var st=S();var names=(typeof PARTNERS!=='undefined'&&PARTNERS)?PARTNERS.slice():[];(st.brigades||[]).forEach(function(b){if(b&&b.name&&names.indexOf(b.name)<0)names.push(b.name);});var inList=names.indexOf(cur)>=0;var o='<option value="">— из списка —</option>'+names.map(function(n){return '<option value="'+esc(n)+'"'+(n===cur?' selected':'')+'>'+esc(n)+'</option>';}).join('');return '<select onchange="'+oc+'" style="width:100%;box-sizing:border-box;background:#0d1117;border:1px solid #30363d;border-radius:8px;color:#e6edf3;padding:10px;font-size:14px;margin-bottom:6px">'+o+'</select>'+'<input value="'+(cur&&!inList?esc(cur):'')+'" type="text" placeholder="или впишите своё (бригадир, прораб...)" onchange="'+oc+'" style="width:100%;box-sizing:border-box;background:#0d1117;border:1px solid #30363d;border-radius:8px;color:#e6edf3;padding:10px;font-size:14px;margin-bottom:8px"/>';}
 function chips(sel,fn){return '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">'+CATS.map(function(c){return '<div onclick="'+fn+'(\''+c.k+'\')" style="cursor:pointer;padding:7px 10px;border-radius:16px;font-size:12px;font-weight:700;color:'+(sel===c.k?'#0d1117':c.c)+';background:'+(sel===c.k?c.c:'#161b22')+';border:1px solid '+c.c+'">'+c.ic+' '+c.n+'</div>';}).join('')+'</div>';}
 function err(){return FORM&&FORM._err?'<div style="color:#ff7b72;font-size:12px;margin-bottom:8px">'+esc(FORM._err)+'</div>':'';}
 
@@ -20602,7 +20603,7 @@ function bConstr(){
  if(FORM&&FORM.kind==='constr'){
   return box('<div style="font-weight:700;color:#e6edf3;margin-bottom:10px">Новое ограничение</div>'+err()+
    inp(FORM.title,"LGPLAN.f('title',this.value)",'text','Что блокирует? (нет бетона...)')+chips(FORM.cat,'LGPLAN.fcat')+
-   spotSel(FORM.spot,"LGPLAN.f('spot',this.value)")+inp(FORM.owner,"LGPLAN.f('owner',this.value)",'text','Ответственный')+
+   spotSel(FORM.spot,"LGPLAN.f('spot',this.value)")+ownerSel(FORM.owner,"LGPLAN.f('owner',this.value)")+
    inp(FORM.due,"LGPLAN.f('due',this.value)",'date')+btn('СОХРАНИТЬ','LGPLAN.saveC()','#39d3bb')+btn('Отмена','LGPLAN.cancel()','#30363d'));
  }
  h+=btn('+ Добавить ограничение','LGPLAN.addC()');
@@ -20619,7 +20620,7 @@ function bPPC(){
  if(FORM&&FORM.kind==='commit'){
   h+=box('<div style="font-weight:700;color:#e6edf3;margin-bottom:10px">Обязательство на неделю</div>'+err()+
    inp(FORM.title,"LGPLAN.f('title',this.value)",'text','Что сделаем (залить стены б.48)')+spotSel(FORM.spot,"LGPLAN.f('spot',this.value)")+
-   inp(FORM.owner,"LGPLAN.f('owner',this.value)",'text','Ответственный')+btn('ДОБАВИТЬ','LGPLAN.saveM()','#39d3bb')+btn('Отмена','LGPLAN.cancel()','#30363d'));
+   ownerSel(FORM.owner,"LGPLAN.f('owner',this.value)")+btn('ДОБАВИТЬ','LGPLAN.saveM()','#39d3bb')+btn('Отмена','LGPLAN.cancel()','#30363d'));
  }else h+=btn('+ Обязательство на неделю','LGPLAN.addM()');
  mine.forEach(function(x){var rf=(FORM&&FORM.kind==='reason'&&FORM.id===x.id);
   h+=box('<div style="display:flex;align-items:center;gap:10px"><div onclick="LGPLAN.tog('+x.id+')" style="cursor:pointer;font-size:20px;color:'+(x.done?'#3fb950':'#8b949e')+'">'+(x.done?'✓':'○')+'</div><div style="flex:1"><div style="color:#e6edf3;font-size:13px;'+(x.done?'text-decoration:line-through;color:#8b949e':'')+'">'+esc(x.title)+'</div>'+(x.owner?'<div style="font-size:11px;color:#8b949e">'+esc(x.owner)+'</div>':'')+((!x.done&&x.reason)?'<div style="font-size:11px;color:#ff7b72">✗ '+cat(x.reason).ic+' '+cat(x.reason).n+'</div>':'')+'</div><div onclick="LGPLAN.delM('+x.id+')" style="cursor:pointer;color:#ff7b72;padding:4px">✕</div></div>'+
