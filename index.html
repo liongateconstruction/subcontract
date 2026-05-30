@@ -20272,13 +20272,21 @@ function autoMargin(){
  return (cr>0&&cost>0)?Math.round(cr-cost):0;
 }
 function effMargin(c){if(c.marginAuto){var a=autoMargin();if(a>0)return a;}return c.marginM3||0;}
+function isPour(e){
+ if(!e||e.type!=='vol')return false;
+ var w=((e.wtype||'')+'').toLowerCase();
+ if(w){return w.indexOf('бетон')>=0||w.indexOf('комплекс')>=0;}
+ var st=S();var b=(st.brigades||[]).find(function(x){return x.id===e.brigade;});
+ if(b){var bw=((b.work||'')+'').toLowerCase();return bw.indexOf('опалубка+бетон')===0||bw==='комплекс монолит';}
+ return false;
+}
 function spotVol(sp){var t=0;(sp.constructions||[]).forEach(function(c){t+=(c.volume||0);});return t||sp.volume||0;}
 function spotDone(sp){var st=S();var done=0;var tail=(sp.id||'').split('_').pop();var nm=(sp.name||'').toLowerCase();
- (st.entries||[]).forEach(function(e){if(!e||e.type!=='vol')return;var z=((e.zone||'')+'');var note=(e.note||'').toLowerCase();
+ (st.entries||[]).forEach(function(e){if(!e||e.type!=='vol'||!isPour(e))return;var z=((e.zone||'')+'');var note=(e.note||'').toLowerCase();
   if((e.spot&&e.spot===sp.id)||(tail&&z.indexOf(tail)>=0)||(nm&&z.toLowerCase().indexOf(nm)>=0)||(nm&&note.indexOf(nm)>=0))done+=(e.volume||0);});return done;}
 function activeSpots(){var st=S();var a=[];Object.keys(st.objMeta||{}).forEach(function(o){((st.objMeta[o]||{}).spots||[]).forEach(function(sp){if(sp&&!sp.completed)a.push(sp);});});return a;}
 function backlog(){var t=0;activeSpots().forEach(function(sp){t+=Math.max(0,spotVol(sp)-spotDone(sp));});return t;}
-function doneInMonth(m,y){var st=S();var t=0;(st.entries||[]).forEach(function(e){if(e&&e.type==='vol'&&e.date){var dt=''+e.date;if(+dt.slice(0,4)===y&&+dt.slice(5,7)===m)t+=(e.volume||0);}});return t;}
+function doneInMonth(m,y){var st=S();var t=0;(st.entries||[]).forEach(function(e){if(e&&e.type==='vol'&&e.date&&isPour(e)){var dt=''+e.date;if(+dt.slice(0,4)===y&&+dt.slice(5,7)===m)t+=(e.volume||0);}});return t;}
 
 /* ===== ДВИЖОК: намеренная кривая (геометрический рост от старта, без переноса) ===== */
 function compute(){
@@ -20480,7 +20488,7 @@ function yearForecast(R){
   var monoDir=null; c.dirs.forEach(function(d){if(d.kind==='mono')monoDir=d;});
   if(!monoDir||now.getFullYear()!==c.year) return null;
   var em=R.em||effMargin(c); if(em<=0) return null;
-  var doneM3=0; (st.entries||[]).forEach(function(e){if(e&&e.type==='vol'&&(''+(e.date||'')).slice(0,4)===(''+c.year))doneM3+=(e.volume||0);});
+  var doneM3=0; (st.entries||[]).forEach(function(e){if(e&&e.type==='vol'&&(''+(e.date||'')).slice(0,4)===(''+c.year)&&isPour(e))doneM3+=(e.volume||0);});
   var plannedToDate=0;
   R.rows.forEach(function(r){ if(r.m<R.curM) plannedToDate+=r.m3; else if(r.m===R.curM){var dim=new Date(c.year,r.m,0).getDate(); plannedToDate+=r.m3*(Math.min(now.getDate(),dim)/dim);} });
   var goalM3=em>0?monoDir.goal/em:0;
