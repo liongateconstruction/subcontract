@@ -6475,10 +6475,13 @@ function marginSpot(objName, spotId){
         wip += (e.volume||0)*rate;
       }
     } else if(e.type==='expense'){
-      // Расход относится к пятну если у него явно указан spotId/spot/zone
-      cost += (e.amount||0);
+      cost += (e.amount||0); // прямой расход (запасной вариант)
     }
   });
+  // Расход по пятну: в записях расходы часто НЕ привязаны к пятну, поэтому
+  // распределяем все расходы объекта умно — прямые на пятно, по бригаде по доле
+  // её объёма на пятне, общие пропорционально объёму пятна (как в прогрессе).
+  if(typeof progressVsCash==='function'){ var _pc=progressVsCash(objName, spotId); if(_pc && typeof _pc.spent==='number') cost=_pc.spent; }
   return {
     revenue:rev, cost:cost, profit:rev-cost,
     pct: rev>0?(rev-cost)/rev*100:0,
@@ -7076,6 +7079,7 @@ function scheduleStatus(objName, spotId){
     if(e.type!=='vol') return;
     var s = e.spotId || e.spot || e.zone || '';
     if(s!==spotId && s!==sp.name) return;
+    if(!isStructuralVol(e)) return;
     doneVol += (e.volume||0);
     if(e.date && (!firstWorkDate || e.date<firstWorkDate)) firstWorkDate = e.date;
   });
@@ -12927,6 +12931,7 @@ function renderObjectCard(objName, objIdx, objects){
         // Выполнено по пятну (vol-записи с этим пятном)
         var spotVol = entries.filter(function(e){
           if(e.type!=='vol') return false;
+          if(!isStructuralVol(e)) return false;
           var sp = e.spotId || e.spot || e.zone || '';
           return sp===spotId || sp===spot.name;
         }).reduce(function(s,e){return s+(e.volume||0);},0);
