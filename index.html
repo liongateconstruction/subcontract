@@ -14293,12 +14293,6 @@ function rMore(){
     + '</button>';
   }
   
-  // === КАБИНЕТ ===
-  h += '<div style=\"font-size:13px;color:var(--mut);letter-spacing:1.5px;font-weight:700;margin:8px 4px 10px\">КАБИНЕТ</div>';
-  h += '<div style=\"display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px\">';
-  h += tile('🏠', '#58a6ff', 'Мой кабинет', 'личная главная', 'openMyCabinet()');
-  h += tile('💬', '#a371f7', 'Общий чат', 'команда · разбор', 'openChat()');
-  h += '</div>';
   // === СТРАТЕГИЯ 2030 ===
   h += '<div style="font-size:13px;color:var(--mut);letter-spacing:1.5px;font-weight:700;margin:8px 4px 10px">СТРАТЕГИЯ 2030</div>';
   h += '<div style="display:grid;grid-template-columns:1fr;gap:10px;margin-bottom:18px">';
@@ -14321,7 +14315,6 @@ function rMore(){
   h += '<div style="font-size:13px;color:var(--mut);letter-spacing:1.5px;font-weight:700;margin:8px 4px 10px">ОТЧЁТЫ И ДАННЫЕ</div>';
   h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px">';
   h += tile('📊', '#ffd166', 'Отчёт', 'для партнёров', 'openFullReport()');
-  h += tile('📤', '#7ee787', 'Поделиться', 'сводкой', 'shareDailySummary()');
   h += tile('📋', '#39d3bb', 'Журнал', 'все операции', "setTab('journal')");
   h += tile('📋', '#a371f7', 'Поток пятен', 'Lean-доска', 'openSpotsBoard()');
   h += '</div>';
@@ -14360,7 +14353,6 @@ function rMore(){
   if(canEditNow){
     h += tile('⚠️', '#ff7b72', 'Сброс', 'к эталонным', 'resetToClean()');
   }
-  h += tile('🚪', '#ff7b72', 'Выйти', 'сменить логин', 'doLogout()');
   h += '</div>';
   
   // === Информация о версии (внизу мелким) ===
