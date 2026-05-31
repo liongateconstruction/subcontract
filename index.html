@@ -6427,16 +6427,15 @@ function marginObject(obj){
       if(!_sid && e.zone){ var _sp=(((S.objMeta||{})[e.obj]||{}).spots||[]).find(function(s){return s.name===e.zone;}); if(_sp) _sid=_sp.id; }
       if(!_sid) _sid='_none';
       if(isConcrete){
-        rev += (e.volume||0)*rate;  // готовая выручка
+        rev += (e.volume||0)*rate;
         _revBySpot[_sid] = (_revBySpot[_sid]||0) + (e.volume||0)*rate;
       } else {
-        _wipBySpot[_sid] = (_wipBySpot[_sid]||0) + (e.volume||0)*rate; // армирование — копим по пятну
+        _wipBySpot[_sid] = (_wipBySpot[_sid]||0) + (e.volume||0)*rate;
       }
     } else if(e.type==='expense'){
       cost += (e.amount||0);
     }
   });
-  // НЗП = армирование, которое ещё НЕ залито бетоном (по каждому пятну отдельно)
   wip = 0;
   Object.keys(_wipBySpot).forEach(function(sid){ wip += Math.max(0, _wipBySpot[sid] - (_revBySpot[sid]||0)); });
   return {
@@ -11695,6 +11694,12 @@ function earnedValue(){
   };
 }
 function rPlan(){
+  if(typeof LGPLAN_block==='function'){
+    var _ph='';
+    _ph += '<div style="margin-bottom:14px"><button onclick="openStrategy2030()" style="width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;background:linear-gradient(135deg,rgba(255,209,102,.14),rgba(163,113,247,.10));border:1px solid rgba(255,209,102,.35);border-radius:14px;padding:14px 16px;cursor:pointer;color:#ffd166;font-size:15px;font-weight:800;font-family:inherit"><span>🎯 Путь к $1 млрд</span><span style="color:#8b949e;font-size:13px;font-weight:600">стратегия →</span></button></div>';
+    _ph += LGPLAN_block();
+    return _ph;
+  }
   // ============================================================
   // ЭКРАН ПЛАН — СИСТЕМА ЯНКОВСКОГО (пирамида целей)
   // ============================================================
@@ -14126,13 +14131,24 @@ function rMore(){
     + '</button>';
   }
   
+  // === СТРАТЕГИЯ 2030 ===
+  h += '<div style="font-size:13px;color:var(--mut);letter-spacing:1.5px;font-weight:700;margin:8px 4px 10px">СТРАТЕГИЯ 2030</div>';
+  h += '<div style="display:grid;grid-template-columns:1fr;gap:10px;margin-bottom:18px">';
+  h += tile('🎯', '#ffd166', 'Путь к $1 млрд', 'холдинг сейчас · план · вехи', 'openStrategy2030()');
+  h += '</div>';
+  // === НАПРАВЛЕНИЯ ХОЛДИНГА ===
+  h += '<div style="font-size:13px;color:var(--mut);letter-spacing:1.5px;font-weight:700;margin:8px 4px 10px">НАПРАВЛЕНИЯ ХОЛДИНГА</div>';
+  h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px">';
+  h += tile('🛒', '#a371f7', 'Ритейл', 'товары · склад · маржа', 'openRetail()');
+  h += tile('🎨', '#58a6ff', 'Отделка', 'проекты · м² · маржа', 'openFinishing()');
+  h += tile('🏢', '#ffd166', 'Девелопмент', 'GMV · NAV · продажи', 'openDevelopment()');
+  h += '</div>';
   // === ОТЧЁТЫ И ДАННЫЕ ===
   h += '<div style="font-size:13px;color:var(--mut);letter-spacing:1.5px;font-weight:700;margin:8px 4px 10px">ОТЧЁТЫ И ДАННЫЕ</div>';
   h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px">';
   h += tile('📊', '#ffd166', 'Отчёт', 'для партнёров', 'openFullReport()');
   h += tile('📤', '#7ee787', 'Поделиться', 'сводкой', 'shareDailySummary()');
   h += tile('📋', '#39d3bb', 'Журнал', 'все операции', "setTab('journal')");
-  h += tile('🎯', '#ffd166', 'План', 'недели', "setTab('plan')");
   h += tile('📋', '#a371f7', 'Поток пятен', 'Lean-доска', 'openSpotsBoard()');
   h += '</div>';
   
@@ -20723,9 +20739,636 @@ window.LGPLAN={
  },
  cancel:function(){FORM=null;refresh();}
 };
+window.lgStratToggle=function(id){var S=window.S||{};if(!S.stratDone)S.stratDone={};S.stratDone[id]=!S.stratDone[id];try{if(window.save)window.save();}catch(e){}window.openStrategy2030();};
+window.openStrategy2030=function(){
+  var S=window.S||{};var yr=new Date().getFullYear();
+  var factM3=0;
+  (S.entries||[]).forEach(function(e){
+    if(e.type!=='vol'||!e.date)return; if(+e.date.slice(0,4)!==yr)return;
+    var pour=false;var w=(e.wtype||'').toLowerCase();
+    if(w){pour=(w.indexOf('бетон')>=0||w.indexOf('комплекс')>=0);}
+    else{var b=(S.brigades||[]).find(function(x){return x.id===e.brigade;});if(b){var bw=(b.work||'').toLowerCase();pour=(bw.indexOf('опалубка+бетон')===0||bw==='комплекс монолит');}}
+    if(pour)factM3+=(e.volume||0);
+  });
+  var done=S.stratDone||{};
+  var years=[2026,2027,2028,2029,2030];
+  var mono=[0.18,1.2,1.92,2.4,2.64],fin=[0.12,0.40,0.56,0.64,0.64],ret=[0.30,0.90,2.25,6.0,15.0],grp=[0.6,2.5,4.73,9.04,18.28];
+  var retTO=[2,6,15,40,100];var monoM3=[15000,100000,160000,200000,220000];
+  var miles={
+    2026:[['s26a','Монолит в операционном плюсе'],['s26b','КС-2 закрыт и оплачен'],['s26c','Ритейл запущен на Kaspi (~2 млрд)'],['s26d','Отделка зашла на объекты'],['s26e','Холдинговая структура оформлена']],
+    2027:[['s27a','Группа ~2,5 млрд ₸ прибыли'],['s27b','Ритейл ~6 млрд оборота'],['s27c','Старт МСФО-аудита (Big-4)'],['s27d','1 объект «под ключ» (генподряд)']],
+    2028:[['s28a','Ритейл ~15 млрд + узнаваемый бренд'],['s28b','Первый свой девелопмент-проект'],['s28c','Независимый совет директоров'],['s28d','Pre-IPO 1-й транш ~$25М + переговоры']],
+    2029:[['s29a','Pre-IPO 2-й транш ~$35М (всего $60М) + JV земля-за-долю'],['s29b','2–4 девелопмент-проекта в работе']],
+    2030:[['s30a','IPO на AIX (Астана)'],['s30b','Капитализация ~$1 млрд']]
+  };
+  var GOLD='#ffd166',TEAL='#39d3bb',PURP='#a371f7',BLUE='#58a6ff',MUT='#8b949e';
+  function bar(label,val,max,color,right){var pct=Math.max(2,Math.min(100,val/max*100));return '<div style="margin:6px 0"><div style="display:flex;justify-content:space-between;font-size:12px;color:#c9d1d9;margin-bottom:3px"><span>'+label+'</span><span style="color:'+color+';font-weight:700">'+right+'</span></div><div style="height:9px;background:#21262d;border-radius:6px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:'+color+'"></div></div></div>';}
+  var h='';
+  // ЦЕЛЬ
+  h+='<div style="background:linear-gradient(135deg,rgba(255,209,102,.14),rgba(163,113,247,.10));border:1px solid rgba(255,209,102,.35);border-radius:14px;padding:16px;margin-bottom:14px">';
+  h+='<div style="font-size:12px;color:'+MUT+';letter-spacing:1.5px;font-weight:700">🎯 ЦЕЛЬ · АГРЕССИВНЫЙ СЦЕНАРИЙ</div>';
+  h+='<div style="font-size:24px;color:'+GOLD+';font-weight:800;margin-top:4px;font-family:var(--fd,monospace)">$1 МЛРД капитализации</div>';
+  h+='<div style="font-size:13px;color:#c9d1d9;margin-top:2px">на бирже AIX к 31.12.2030</div>';
+  h+='</div>';
+  // === ХОЛДИНГ СЕЙЧАС (живой факт + капитализация от факта) ===
+  var _rRev=(typeof window.retailYearRevenue==='function')?window.retailYearRevenue(yr):0;
+  var _rPrf=(typeof window.retailYearProfit==='function')?window.retailYearProfit(yr):0;
+  var _fArea=(typeof window.finishingYearArea==='function')?window.finishingYearArea(yr):0;
+  var _fPrf=(typeof window.finishingYearProfit==='function')?window.finishingYearProfit(yr):0;
+  var _nav=(typeof window.developmentNAV==='function')?window.developmentNAV():0;
+  var _monoPrf=factM3*12000;
+  var _capT=(_monoPrf+_fPrf)*7 + _rPrf*18 + _nav;
+  var _capUSD=_capT/5e8;
+  var _capPct=Math.min(100,_capUSD/1000*100);
+  function _cell(ic,lab,val,color){return '<div style="background:#0d1117;border:1px solid #2a3140;border-radius:10px;padding:10px 11px"><div style="font-size:11px;color:'+MUT+'">'+ic+' '+lab+'</div><div style="font-size:15px;font-weight:800;color:'+color+';margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+val+'</div></div>';}
+  h+='<div style="background:#12161f;border:1px solid var(--brd,#30363d);border-radius:14px;padding:16px;margin-bottom:14px">';
+  h+='<div style="font-size:13px;font-weight:800;color:#fff;letter-spacing:.5px;margin-bottom:10px">ХОЛДИНГ СЕЙЧАС · '+yr+'</div>';
+  h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
+  h+=_cell('🏗','Монолит',Math.round(factM3).toLocaleString('ru')+' м³',TEAL);
+  h+=_cell('🛒','Ритейл',(_rRev/1e9).toFixed(2)+' млрд ₸',PURP);
+  h+=_cell('🎨','Отделка',_fArea.toLocaleString('ru')+' м²',BLUE);
+  h+=_cell('🏢','Девелопмент','NAV '+(_nav/1e9).toFixed(2)+' млрд',GOLD);
+  h+='</div>';
+  h+='<div style="border-top:1px solid #2a3140;margin-top:12px;padding-top:12px">';
+  h+='<div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:13px;color:#c9d1d9;font-weight:700">Капитализация сейчас</span><span style="font-size:20px;font-weight:800;color:'+GOLD+'">~$'+(_capUSD>=1?_capUSD.toFixed(0):_capUSD.toFixed(1))+'М</span></div>';
+  h+='<div style="height:9px;background:#0d1117;border-radius:6px;overflow:hidden;margin-top:7px"><div style="height:100%;width:'+Math.max(0.6,_capPct)+'%;background:linear-gradient(90deg,'+TEAL+','+GOLD+')"></div></div>';
+  h+='<div style="font-size:11px;color:'+MUT+';margin-top:5px">'+_capPct.toFixed(1)+'% от цели $1 млрд · оценка по факту (монолит/отделка ×7, ритейл ×18, девелопмент NAV)</div>';
+  h+='</div></div>';
+  // КАПИТАЛИЗАЦИЯ-СТЕК 2030
+  h+='<div style="background:#0d1117;border:1px solid var(--brd,#30363d);border-radius:14px;padding:16px;margin-bottom:14px">';
+  h+='<div style="font-size:14px;font-weight:800;color:#fff;margin-bottom:4px">ИЗ ЧЕГО СКЛАДЫВАЕТСЯ КАПА (план 2030)</div>';
+  h+='<div style="font-size:11px;color:'+MUT+';margin-bottom:10px">Капу несёт ритейл-бренд и девелопмент, не стройка</div>';
+  h+=bar('Ритейл-бренд ×18 ($30М чист.)',540,1000,PURP,'~$540М');
+  h+=bar('Девелопмент NAV',300,1000,TEAL,'~$300М');
+  h+=bar('Стройка ×7 ($8М чист.)',60,1000,BLUE,'~$60М');
+  h+='<div style="border-top:1px solid var(--brd,#30363d);margin-top:10px;padding-top:10px;display:flex;justify-content:space-between"><span style="font-size:13px;color:#c9d1d9">ИТОГО капа 2030</span><span style="font-size:16px;font-weight:800;color:'+GOLD+'">~$900М–$1 млрд</span></div>';
+  h+='<div style="font-size:11px;color:'+MUT+';margin-top:8px;line-height:1.5">Топливо: Pre-IPO раунд ~$60М (2028: $25М + 2029: $35М) + рычаг (эскроу · проектное финансирование · JV земля-за-долю) → портфель $1 млрд GMV.</div>';
+  h+='</div>';
+  // ФИНМОДЕЛЬ ПО ГОДАМ
+  h+='<div style="background:#0d1117;border:1px solid var(--brd,#30363d);border-radius:14px;padding:16px;margin-bottom:14px">';
+  h+='<div style="font-size:14px;font-weight:800;color:#fff;margin-bottom:10px">ПРИБЫЛЬ ГРУППЫ ПО ГОДАМ (млрд ₸)</div>';
+  h+='<div style="display:grid;grid-template-columns:46px 1fr 1fr 1fr 64px;gap:4px;font-size:11px;color:'+MUT+';font-weight:700;padding-bottom:6px;border-bottom:1px solid var(--brd,#30363d)"><span>Год</span><span style="text-align:right">Монол</span><span style="text-align:right">Отдел</span><span style="text-align:right">Ритейл</span><span style="text-align:right">ГРУППА</span></div>';
+  for(var i=0;i<years.length;i++){var cur=(years[i]===yr);
+    h+='<div style="display:grid;grid-template-columns:46px 1fr 1fr 1fr 64px;gap:4px;font-size:13px;padding:7px 0;border-bottom:1px solid #161b22;'+(cur?'background:rgba(255,209,102,.07)':'')+'">';
+    h+='<span style="font-weight:'+(cur?'800':'600')+';color:'+(cur?GOLD:'#c9d1d9')+'">'+years[i]+(cur?'•':'')+'</span>';
+    h+='<span style="text-align:right;color:#c9d1d9">'+mono[i]+'</span>';
+    h+='<span style="text-align:right;color:#c9d1d9">'+fin[i]+'</span>';
+    h+='<span style="text-align:right;color:'+PURP+'">'+ret[i]+'</span>';
+    h+='<span style="text-align:right;font-weight:800;color:'+TEAL+'">'+grp[i]+'</span>';
+    h+='</div>';
+  }
+  h+='<div style="font-size:11px;color:'+MUT+';margin-top:8px">Факт монолита '+yr+': <b style="color:'+TEAL+'">'+Math.round(factM3)+' м³</b> из плана '+monoM3[Math.max(0,years.indexOf(yr))].toLocaleString('ru')+' м³</div>';
+  var _rretail=(typeof window.retailYearRevenue==='function')?window.retailYearRevenue(yr):0;
+  var _rtgt=[2,6,15,40,100][Math.max(0,years.indexOf(yr))];
+  h+='<div style="font-size:11px;color:'+MUT+';margin-top:4px">Факт ритейла '+yr+': <b style="color:'+PURP+'">'+(_rretail/1e9).toFixed(2)+' млрд ₸</b> из плана '+_rtgt+' млрд ₸</div>';
+  var _fa=(typeof window.finishingYearArea==='function')?window.finishingYearArea(yr):0;
+  var _ftgt=[15000,50000,70000,80000,80000][Math.max(0,years.indexOf(yr))];
+  h+='<div style="font-size:11px;color:'+MUT+';margin-top:4px">Факт отделки '+yr+': <b style="color:'+BLUE+'">'+_fa.toLocaleString('ru')+' м²</b> из плана '+_ftgt.toLocaleString('ru')+' м²</div>';
+  var _nav=(typeof window.developmentNAV==='function')?window.developmentNAV():0;
+  h+='<div style="font-size:11px;color:'+MUT+';margin-top:4px">NAV девелопмента: <b style="color:'+GOLD+'">'+(_nav/1e9).toFixed(2)+' млрд ₸</b> из цели 150 млрд ₸ (~$300М)</div>';
+  h+='</div>';
+  // РИТЕЙЛ-ТРЕКЕР
+  h+='<div style="background:#0d1117;border:1px solid var(--brd,#30363d);border-radius:14px;padding:16px;margin-bottom:14px">';
+  h+='<div style="font-size:14px;font-weight:800;color:#fff;margin-bottom:2px">🛒 РИТЕЙЛ — ДВИГАТЕЛЬ КАПЫ №1</div>';
+  h+='<div style="font-size:11px;color:'+MUT+';margin-bottom:10px">Оборот, млрд ₸ (рост ~2,5×/год). Должен стать БРЕНДОМ, не перепродажей.</div>';
+  for(var j=0;j<years.length;j++){h+=bar(String(years[j]),retTO[j],100,PURP,retTO[j]+' млрд');}
+  h+='</div>';
+  // ВЕХИ / IPO-МАШИНА
+  h+='<div style="background:#0d1117;border:1px solid var(--brd,#30363d);border-radius:14px;padding:16px;margin-bottom:14px">';
+  h+='<div style="font-size:14px;font-weight:800;color:#fff;margin-bottom:10px">✅ ВЕХИ И IPO-МАШИНА</div>';
+  years.forEach(function(y){var arr=miles[y]||[];
+    h+='<div style="font-size:12px;color:'+GOLD+';font-weight:700;margin:10px 0 4px">'+y+'</div>';
+    arr.forEach(function(m){var d=!!done[m[0]];
+      h+='<div onclick="lgStratToggle(\''+m[0]+'\')" style="display:flex;align-items:flex-start;gap:8px;padding:7px 0;cursor:pointer;border-bottom:1px solid #161b22">';
+      h+='<span style="font-size:16px;line-height:1.3">'+(d?'✅':'⬜')+'</span>';
+      h+='<span style="font-size:13px;color:'+(d?MUT:'#c9d1d9')+';'+(d?'text-decoration:line-through':'')+';line-height:1.35">'+m[1]+'</span>';
+      h+='</div>';
+    });
+  });
+  h+='</div>';
+  h+='<div style="font-size:11px;color:'+MUT+';line-height:1.5;margin-bottom:14px">Это муншот: всё зависит от того, станет ли ритейл премиальным брендом и зайдёт ли капитал к 2028–29. Стройка — касса и репутация, капу несут ритейл + девелопмент.</div>';
+  h+='<button class="fcanc" id="strat-close" style="width:100%">Закрыть</button>';
+  var mt=document.getElementById('mtit');if(mt)mt.textContent='ПУТЬ К $1 МЛРД';
+  var mb=document.getElementById('mbody');if(mb)mb.innerHTML=h;
+  var md=document.getElementById('modal');if(md)md.style.display='flex';
+  var cb=document.getElementById('strat-close');if(cb)cb.addEventListener('click',function(){if(typeof window.closeModal==='function')window.closeModal();else if(md)md.style.display='none';});
+};
+
 try{syncYearPlan();}catch(e){}
 try{syncKFU();}catch(e){}
 setTimeout(function(){try{syncYearPlan();}catch(e){}try{syncKFU();}catch(e){}},800);
+})();
+</script>
+
+<script>
+/* ====== LIONGATE — МОДУЛЬ РИТЕЙЛА (товары, закуп/продажи, склад, маржа, план/факт) ====== */
+(function(){
+"use strict";
+var GOLD="#ffd166",TEAL="#39d3bb",PURPLE="#a371f7",BLUE="#58a6ff",GREEN="#7ee787",RED="#ff7b72",TEXT="#e8edf4",MUT="#8b949e",BG="#0d1117",CARD="#161b22",BRD="#2a3140";
+var R={view:"overview",form:null};
+function S(){ if(!window.S) window.S={}; if(!window.S.retail) window.S.retail={products:[],ops:[]}; var r=window.S.retail; if(!r.products)r.products=[]; if(!r.ops)r.ops=[]; return window.S; }
+function save(){ try{ if(window.save) window.save(); }catch(e){} }
+function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
+function gv(id){var el=document.getElementById(id);return el?el.value:"";}
+function money(n){n=n||0;var a=Math.abs(n);var s;if(a>=1e9)s=(n/1e9).toFixed(2).replace(".",",")+" млрд";else if(a>=1e6)s=(n/1e6).toFixed(1).replace(".",",")+" млн";else if(a>=1e3)s=Math.round(n/1e3)+" тыс";else s=Math.round(n);return s+" ₸";}
+function num(n){try{return new Intl.NumberFormat("ru").format(Math.round(n||0));}catch(e){return Math.round(n||0);}}
+var TARGET={2026:2,2027:6,2028:15,2029:40,2030:100}; // млрд ₸
+
+function stats(year){
+  var r=S().retail, prod={}; r.products.forEach(function(p){prod[p.id]=p;});
+  var rev=0,cogs=0,purch=0,sold={},bought={},byM=[0,0,0,0,0,0,0,0,0,0,0,0],byP={};
+  r.ops.forEach(function(o){
+    var inY = year ? (o.date && (+o.date.slice(0,4))===year) : true;
+    if(o.type==="sale"){
+      sold[o.productId]=(sold[o.productId]||0)+(o.qty||0);
+      if(inY){ rev+=o.amount||0; cogs+=((prod[o.productId]&&prod[o.productId].cost)||0)*(o.qty||0); var m=o.date?(+o.date.slice(5,7)-1):0; if(m>=0&&m<12)byM[m]+=o.amount||0; byP[o.productId]=(byP[o.productId]||0)+(o.amount||0); }
+    } else {
+      bought[o.productId]=(bought[o.productId]||0)+(o.qty||0);
+      if(inY) purch+=o.amount||0;
+    }
+  });
+  var stockVal=0,stockQty=0;
+  r.products.forEach(function(p){ var st=(p.opening||0)+(bought[p.id]||0)-(sold[p.id]||0); p._stock=st; stockVal+=st*(p.cost||0); stockQty+=st; });
+  var gross=rev-cogs;
+  return {rev:rev,cogs:cogs,gross:gross,margin:rev>0?gross/rev*100:0,purch:purch,stockVal:stockVal,stockQty:stockQty,turnover:stockVal>0?cogs/stockVal:0,byM:byM,byP:byP,prod:prod};
+}
+
+function inp(id,ph,val,type){return '<input id="'+id+'" type="'+(type||"text")+'" value="'+(val==null?"":esc(val))+'" placeholder="'+esc(ph||"")+'" style="width:100%;box-sizing:border-box;background:'+BG+';border:1px solid '+BRD+';border-radius:8px;padding:10px;color:'+TEXT+';font-size:15px;margin-bottom:8px"/>';}
+function lbl(t){return '<div style="font-size:12px;color:'+MUT+';margin:2px 0 4px;font-weight:600">'+esc(t)+'</div>';}
+function kpi(label,val,color){return '<div style="flex:1;min-width:0;background:'+CARD+';border:1px solid '+BRD+';border-radius:12px;padding:12px 11px"><div style="font-size:11px;color:'+MUT+'">'+esc(label)+'</div><div style="font-size:17px;font-weight:800;color:'+color+';margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+val+'</div></div>';}
+function tabBtn(v,label){var on=R.view===v;return '<button onclick="retailNav(\''+v+'\')" style="flex:1;padding:9px 4px;border-radius:8px;border:1px solid '+(on?GOLD:BRD)+';background:'+(on?"rgba(255,209,102,.12)":"transparent")+';color:'+(on?GOLD:MUT)+';font-weight:700;font-size:13px;cursor:pointer">'+label+'</button>';}
+
+function navRow(){ return '<div style="display:flex;gap:8px;margin-bottom:14px">'+tabBtn("overview","Обзор")+tabBtn("products","Товары")+tabBtn("ops","Операции")+'</div>'; }
+
+function overview(){
+  var yr=new Date().getFullYear(); var st=stats(yr);
+  var h=navRow();
+  // KPI
+  h+='<div style="display:flex;gap:8px;margin-bottom:8px">'+kpi("Оборот "+yr,money(st.rev),PURPLE)+kpi("Валовая прибыль",money(st.gross),GREEN)+'</div>';
+  h+='<div style="display:flex;gap:8px;margin-bottom:14px">'+kpi("Маржа",(st.rev>0?st.margin.toFixed(0):0)+"%",GOLD)+kpi("Склад",money(st.stockVal),BLUE)+'</div>';
+  // план/факт
+  var tg=(TARGET[yr]||0)*1e9; var pct=tg>0?Math.min(100,st.rev/tg*100):0;
+  h+='<div style="background:'+CARD+';border:1px solid '+BRD+';border-radius:12px;padding:13px;margin-bottom:14px">';
+  h+='<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px"><span style="color:'+TEXT+';font-weight:700">План '+yr+' (агрессивный)</span><span style="color:'+PURPLE+';font-weight:700">'+money(st.rev)+' / '+(TARGET[yr]||0)+' млрд</span></div>';
+  h+='<div style="height:10px;background:'+BG+';border-radius:6px;overflow:hidden"><div style="height:100%;width:'+Math.max(1,pct)+'%;background:'+PURPLE+'"></div></div>';
+  h+='<div style="font-size:11px;color:'+MUT+';margin-top:5px">'+pct.toFixed(1)+'% годового плана · оборачиваемость '+st.turnover.toFixed(1)+'×</div>';
+  h+='</div>';
+  // оборот по месяцам
+  var mx=Math.max.apply(null,st.byM.concat([1])); var MN=["Я","Ф","М","А","М","И","И","А","С","О","Н","Д"];
+  h+='<div style="background:'+CARD+';border:1px solid '+BRD+';border-radius:12px;padding:13px;margin-bottom:14px">';
+  h+='<div style="font-size:13px;color:'+TEXT+';font-weight:700;margin-bottom:10px">Оборот по месяцам '+yr+'</div>';
+  h+='<div style="display:flex;align-items:flex-end;gap:4px;height:90px">';
+  for(var m=0;m<12;m++){ var hh=Math.max(2,st.byM[m]/mx*82); h+='<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%"><div style="width:100%;height:'+hh+'px;background:'+(st.byM[m]>0?PURPLE:BRD)+';border-radius:3px 3px 0 0"></div><div style="font-size:9px;color:'+MUT+';margin-top:3px">'+MN[m]+'</div></div>'; }
+  h+='</div></div>';
+  // топ товары
+  var tops=Object.keys(st.byP).map(function(id){return {id:id,rev:st.byP[id]};}).sort(function(a,b){return b.rev-a.rev;}).slice(0,5);
+  h+='<div style="background:'+CARD+';border:1px solid '+BRD+';border-radius:12px;padding:13px;margin-bottom:8px">';
+  h+='<div style="font-size:13px;color:'+TEXT+';font-weight:700;margin-bottom:8px">Топ товаров по обороту</div>';
+  if(tops.length){ tops.forEach(function(t){ var p=st.prod[t.id]; h+='<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #161b22;font-size:13px"><span style="color:'+TEXT+'">'+esc(p?p.name:"—")+'</span><span style="color:'+PURPLE+';font-weight:700">'+money(t.rev)+'</span></div>'; }); }
+  else h+='<div style="font-size:12px;color:'+MUT+'">Пока нет продаж. Добавь товары и операции.</div>';
+  h+='</div>';
+  return h;
+}
+
+function products(){
+  var r=S().retail; stats(); // populate _stock
+  var h=navRow();
+  h+='<button onclick="retailForm(\'product\')" style="width:100%;padding:11px;border-radius:10px;border:1px solid '+TEAL+';background:rgba(57,211,187,.10);color:'+TEAL+';font-weight:700;font-size:14px;cursor:pointer;margin-bottom:12px">+ Добавить товар</button>';
+  if(!r.products.length){ h+='<div style="font-size:13px;color:'+MUT+';text-align:center;padding:20px">Каталог пуст</div>'; return h; }
+  r.products.forEach(function(p){
+    var marg=(p.price>0)?((p.price-p.cost)/p.price*100):0;
+    h+='<div onclick="retailForm(\'product\',null,\''+p.id+'\')" style="background:'+CARD+';border:1px solid '+BRD+';border-radius:12px;padding:12px;margin-bottom:8px;cursor:pointer">';
+    h+='<div style="display:flex;justify-content:space-between;align-items:flex-start"><div><div style="font-weight:700;color:'+TEXT+';font-size:15px">'+esc(p.name)+'</div><div style="font-size:11px;color:'+MUT+';margin-top:2px">'+esc(p.cat||"—")+'</div></div>';
+    h+='<div style="text-align:right"><div style="font-size:13px;color:'+GOLD+';font-weight:700">маржа '+marg.toFixed(0)+'%</div><div style="font-size:11px;color:'+MUT+';margin-top:2px">остаток '+num(p._stock||0)+'</div></div></div>';
+    h+='<div style="display:flex;gap:14px;margin-top:8px;font-size:12px;color:'+MUT+'"><span>закуп '+money(p.cost)+'</span><span>продажа '+money(p.price)+'</span><span>склад '+money((p._stock||0)*(p.cost||0))+'</span></div>';
+    h+='</div>';
+  });
+  return h;
+}
+
+function ops(){
+  var r=S().retail; var prod={}; r.products.forEach(function(p){prod[p.id]=p;});
+  var h=navRow();
+  h+='<div style="display:flex;gap:8px;margin-bottom:12px">';
+  h+='<button onclick="retailForm(\'op\',\'sale\')" style="flex:1;padding:11px;border-radius:10px;border:1px solid '+GREEN+';background:rgba(126,231,135,.10);color:'+GREEN+';font-weight:700;font-size:14px;cursor:pointer">+ Продажа</button>';
+  h+='<button onclick="retailForm(\'op\',\'purchase\')" style="flex:1;padding:11px;border-radius:10px;border:1px solid '+BLUE+';background:rgba(88,166,255,.10);color:'+BLUE+';font-weight:700;font-size:14px;cursor:pointer">+ Закупка</button>';
+  h+='</div>';
+  var list=r.ops.slice().sort(function(a,b){return (b.date||"").localeCompare(a.date||"");});
+  if(!list.length){ h+='<div style="font-size:13px;color:'+MUT+';text-align:center;padding:20px">Операций пока нет</div>'; return h; }
+  list.forEach(function(o){
+    var sale=o.type==="sale"; var col=sale?GREEN:BLUE; var p=prod[o.productId];
+    h+='<div onclick="retailForm(\'op\',\''+o.type+'\',\''+o.id+'\')" style="background:'+CARD+';border:1px solid '+BRD+';border-radius:10px;padding:11px;margin-bottom:7px;cursor:pointer;display:flex;justify-content:space-between;align-items:center">';
+    h+='<div><div style="font-weight:700;color:'+TEXT+';font-size:14px">'+(sale?"Продажа":"Закупка")+' · '+esc(p?p.name:"—")+'</div><div style="font-size:11px;color:'+MUT+';margin-top:2px">'+esc(o.date||"")+' · '+num(o.qty)+' шт'+(sale&&o.channel?" · "+esc(o.channel):"")+'</div></div>';
+    h+='<div style="color:'+col+';font-weight:700;font-size:14px;white-space:nowrap">'+(sale?"+":"−")+money(o.amount)+'</div>';
+    h+='</div>';
+  });
+  return h;
+}
+
+function productForm(){
+  var f=R.form; var r=S().retail; var p=f.id?r.products.find(function(x){return x.id===f.id;}):null; p=p||{};
+  var h='<div style="margin-bottom:6px"><button onclick="retailNav(\'products\')" style="background:none;border:none;color:'+MUT+';font-size:14px;cursor:pointer;padding:0">‹ Назад</button></div>';
+  h+='<div style="font-size:18px;font-weight:800;color:'+TEXT+';margin-bottom:14px">'+(f.id?"Товар":"Новый товар")+'</div>';
+  h+=lbl("Название")+inp("r-name","Напр. Смеситель кухонный",p.name);
+  h+=lbl("Категория")+inp("r-cat","Напр. Сантехника",p.cat);
+  h+='<div style="display:flex;gap:8px">';
+  h+='<div style="flex:1">'+lbl("Закупка, ₸")+inp("r-cost","",p.cost,"number")+'</div>';
+  h+='<div style="flex:1">'+lbl("Продажа, ₸")+inp("r-price","",p.price,"number")+'</div>';
+  h+='</div>';
+  h+=lbl("Начальный остаток, шт")+inp("r-open","0",p.opening,"number");
+  h+='<button onclick="retailSave(\'product\')" style="width:100%;padding:12px;border-radius:10px;border:none;background:'+TEAL+';color:#0d1117;font-weight:800;font-size:15px;cursor:pointer;margin-top:6px">Сохранить</button>';
+  if(f.id) h+='<button onclick="retailDel(\'product\',\''+f.id+'\')" style="width:100%;padding:11px;border-radius:10px;border:1px solid '+RED+';background:none;color:'+RED+';font-weight:700;font-size:14px;cursor:pointer;margin-top:8px">Удалить товар</button>';
+  return h;
+}
+
+function opForm(){
+  var f=R.form; var r=S().retail; var o=f.id?r.ops.find(function(x){return x.id===f.id;}):null; o=o||{};
+  var sale=f.opType==="sale";
+  var h='<div style="margin-bottom:6px"><button onclick="retailNav(\'ops\')" style="background:none;border:none;color:'+MUT+';font-size:14px;cursor:pointer;padding:0">‹ Назад</button></div>';
+  h+='<div style="font-size:18px;font-weight:800;color:'+(sale?GREEN:BLUE)+';margin-bottom:14px">'+(sale?"Продажа":"Закупка")+'</div>';
+  if(!r.products.length){ h+='<div style="font-size:13px;color:'+MUT+';padding:14px;background:'+CARD+';border-radius:10px">Сначала добавь хотя бы один товар во вкладке «Товары».</div>'; return h; }
+  h+=lbl("Дата")+inp("r-date","",o.date||new Date().toISOString().slice(0,10),"date");
+  h+=lbl("Товар");
+  h+='<select id="r-prod" style="width:100%;box-sizing:border-box;background:'+BG+';border:1px solid '+BRD+';border-radius:8px;padding:10px;color:'+TEXT+';font-size:15px;margin-bottom:8px">';
+  r.products.forEach(function(p){ h+='<option value="'+p.id+'"'+(o.productId===p.id?" selected":"")+'>'+esc(p.name)+'</option>'; });
+  h+='</select>';
+  h+='<div style="display:flex;gap:8px">';
+  h+='<div style="flex:1">'+lbl("Кол-во, шт")+inp("r-qty","",o.qty,"number")+'</div>';
+  h+='<div style="flex:1">'+lbl(sale?"Выручка, ₸":"Сумма закупки, ₸")+inp("r-amt","",o.amount,"number")+'</div>';
+  h+='</div>';
+  if(sale){
+    h+=lbl("Канал");
+    h+='<select id="r-chan" style="width:100%;box-sizing:border-box;background:'+BG+';border:1px solid '+BRD+';border-radius:8px;padding:10px;color:'+TEXT+';font-size:15px;margin-bottom:8px">';
+    ["Kaspi","Свой канал","Опт","Розница"].forEach(function(c){ h+='<option value="'+c+'"'+(o.channel===c?" selected":"")+'>'+c+'</option>'; });
+    h+='</select>';
+  }
+  h+='<button onclick="retailSave(\'op\')" style="width:100%;padding:12px;border-radius:10px;border:none;background:'+(sale?GREEN:BLUE)+';color:#0d1117;font-weight:800;font-size:15px;cursor:pointer;margin-top:6px">Сохранить</button>';
+  if(f.id) h+='<button onclick="retailDel(\'op\',\''+f.id+'\')" style="width:100%;padding:11px;border-radius:10px;border:1px solid '+RED+';background:none;color:'+RED+';font-weight:700;font-size:14px;cursor:pointer;margin-top:8px">Удалить операцию</button>';
+  return h;
+}
+
+window.openRetail=function(){
+  S();
+  var h;
+  if(R.form){ h = R.form.kind==="product" ? productForm() : opForm(); }
+  else if(R.view==="products") h=products();
+  else if(R.view==="ops") h=ops();
+  else h=overview();
+  h+='<button class="fcanc" id="r-close" style="width:100%;margin-top:10px">Закрыть</button>';
+  var mt=document.getElementById("mtit"); if(mt)mt.textContent="РИТЕЙЛ";
+  var mb=document.getElementById("mbody"); if(mb)mb.innerHTML=h;
+  var md=document.getElementById("modal"); if(md)md.style.display="flex";
+  var cb=document.getElementById("r-close"); if(cb)cb.addEventListener("click",function(){ R.form=null; if(typeof window.closeModal==="function")window.closeModal(); else if(md)md.style.display="none"; });
+};
+window.retailNav=function(v){ R.form=null; R.view=v; window.openRetail(); };
+window.retailForm=function(kind,opType,id){ R.form={kind:kind,opType:opType,id:id||null}; window.openRetail(); };
+window.retailSave=function(kind){
+  var r=S().retail;
+  if(kind==="product"){
+    var name=(gv("r-name")||"").trim(); if(!name){alert("Введите название");return;}
+    var f=R.form, p=f.id?r.products.find(function(x){return x.id===f.id;}):null;
+    var obj={id:p?p.id:("p"+Date.now()),name:name,cat:(gv("r-cat")||"").trim(),cost:+gv("r-cost")||0,price:+gv("r-price")||0,opening:+gv("r-open")||0};
+    if(p){ Object.keys(obj).forEach(function(k){p[k]=obj[k];}); } else r.products.push(obj);
+    R.form=null; R.view="products";
+  } else {
+    var prodId=gv("r-prod"); if(!prodId){alert("Выберите товар");return;}
+    var f2=R.form, o=f2.id?r.ops.find(function(x){return x.id===f2.id;}):null;
+    var obj2={id:o?o.id:("o"+Date.now()),type:f2.opType,date:gv("r-date")||new Date().toISOString().slice(0,10),productId:prodId,qty:+gv("r-qty")||0,amount:+gv("r-amt")||0};
+    if(f2.opType==="sale") obj2.channel=gv("r-chan")||"";
+    if(o){ Object.keys(obj2).forEach(function(k){o[k]=obj2[k];}); } else r.ops.push(obj2);
+    R.form=null; R.view="ops";
+  }
+  if(window.S)window.S._modified=Date.now(); save();
+  try{ if(window.pushCloud) setTimeout(function(){window.pushCloud();},100); }catch(e){}
+  window.openRetail();
+};
+window.retailDel=function(kind,id){
+  if(!confirm("Удалить?"))return;
+  var r=S().retail;
+  if(kind==="product") r.products=r.products.filter(function(x){return x.id!==id;});
+  else r.ops=r.ops.filter(function(x){return x.id!==id;});
+  if(window.S)window.S._modified=Date.now(); save();
+  R.form=null; R.view=(kind==="product"?"products":"ops");
+  window.openRetail();
+};
+// для дашборда стратегии: факт оборота ритейла за год
+window.retailYearRevenue=function(year){ try{ return stats(year).rev; }catch(e){ return 0; } };
+window.retailYearProfit=function(year){ try{ return stats(year).gross; }catch(e){ return 0; } };
+})();
+</script>
+
+<script>
+/* ====== LIONGATE — МОДУЛЬ ОТДЕЛКИ (проекты, работы по м², затраты, маржа, прогресс) ====== */
+(function(){
+"use strict";
+var GOLD="#ffd166",TEAL="#39d3bb",BLUE="#58a6ff",GREEN="#7ee787",RED="#ff7b72",TEXT="#e8edf4",MUT="#8b949e",BG="#0d1117",CARD="#161b22",BRD="#2a3140";
+var F={view:"overview",form:null};
+function S(){ if(!window.S)window.S={}; if(!window.S.finishing)window.S.finishing={projects:[],ops:[]}; var r=window.S.finishing; if(!r.projects)r.projects=[]; if(!r.ops)r.ops=[]; return window.S; }
+function save(){ try{ if(window.save)window.save(); }catch(e){} }
+function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
+function gv(id){var el=document.getElementById(id);return el?el.value:"";}
+function money(n){n=n||0;var a=Math.abs(n);var s;if(a>=1e9)s=(n/1e9).toFixed(2).replace(".",",")+" млрд";else if(a>=1e6)s=(n/1e6).toFixed(1).replace(".",",")+" млн";else if(a>=1e3)s=Math.round(n/1e3)+" тыс";else s=Math.round(n);return s+" ₸";}
+function num(n){try{return new Intl.NumberFormat("ru").format(Math.round(n||0));}catch(e){return Math.round(n||0);}}
+var TARGET={2026:15000,2027:50000,2028:70000,2029:80000,2030:80000}; // м²
+
+function stats(year){
+  var r=S().finishing, proj={}; r.projects.forEach(function(p){proj[p.id]=p; p._area=0; p._rev=0; p._cost=0;});
+  var area=0,rev=0,cost=0,byM=[0,0,0,0,0,0,0,0,0,0,0,0],byP={};
+  r.ops.forEach(function(o){
+    var inY = year ? (o.date && (+o.date.slice(0,4))===year) : true;
+    var p=proj[o.projectId]; var rate=p?(p.rate||0):0; var orev=(o.area||0)*rate;
+    if(p){ p._area+=(o.area||0); p._rev+=orev; p._cost+=(o.cost||0); }
+    if(inY){ area+=(o.area||0); rev+=orev; cost+=(o.cost||0); var m=o.date?(+o.date.slice(5,7)-1):0; if(m>=0&&m<12)byM[m]+=(o.area||0); byP[o.projectId]=(byP[o.projectId]||0)+orev; }
+  });
+  return {area:area,rev:rev,cost:cost,gross:rev-cost,margin:rev>0?(rev-cost)/rev*100:0,byM:byM,byP:byP,proj:proj};
+}
+
+function inp(id,ph,val,type){return '<input id="'+id+'" type="'+(type||"text")+'" value="'+(val==null?"":esc(val))+'" placeholder="'+esc(ph||"")+'" style="width:100%;box-sizing:border-box;background:'+BG+';border:1px solid '+BRD+';border-radius:8px;padding:10px;color:'+TEXT+';font-size:15px;margin-bottom:8px"/>';}
+function lbl(t){return '<div style="font-size:12px;color:'+MUT+';margin:2px 0 4px;font-weight:600">'+esc(t)+'</div>';}
+function kpi(label,val,color){return '<div style="flex:1;min-width:0;background:'+CARD+';border:1px solid '+BRD+';border-radius:12px;padding:12px 11px"><div style="font-size:11px;color:'+MUT+'">'+esc(label)+'</div><div style="font-size:17px;font-weight:800;color:'+color+';margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+val+'</div></div>';}
+function tabBtn(v,label){var on=F.view===v;return '<button onclick="finNav(\''+v+'\')" style="flex:1;padding:9px 4px;border-radius:8px;border:1px solid '+(on?TEAL:BRD)+';background:'+(on?"rgba(57,211,187,.12)":"transparent")+';color:'+(on?TEAL:MUT)+';font-weight:700;font-size:13px;cursor:pointer">'+label+'</button>';}
+function navRow(){ return '<div style="display:flex;gap:8px;margin-bottom:14px">'+tabBtn("overview","Обзор")+tabBtn("projects","Проекты")+tabBtn("ops","Работы")+'</div>'; }
+
+function overview(){
+  var yr=new Date().getFullYear(); var st=stats(yr);
+  var h=navRow();
+  h+='<div style="display:flex;gap:8px;margin-bottom:8px">'+kpi("Сделано "+yr,num(st.area)+" м²",TEAL)+kpi("Выручка",money(st.rev),GREEN)+'</div>';
+  h+='<div style="display:flex;gap:8px;margin-bottom:14px">'+kpi("Затраты",money(st.cost),BLUE)+kpi("Маржа",(st.rev>0?st.margin.toFixed(0):0)+"%",GOLD)+'</div>';
+  var tg=TARGET[yr]||0; var pct=tg>0?Math.min(100,st.area/tg*100):0;
+  h+='<div style="background:'+CARD+';border:1px solid '+BRD+';border-radius:12px;padding:13px;margin-bottom:14px">';
+  h+='<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px"><span style="color:'+TEXT+';font-weight:700">План '+yr+'</span><span style="color:'+TEAL+';font-weight:700">'+num(st.area)+' / '+num(tg)+' м²</span></div>';
+  h+='<div style="height:10px;background:'+BG+';border-radius:6px;overflow:hidden"><div style="height:100%;width:'+Math.max(1,pct)+'%;background:'+TEAL+'"></div></div>';
+  h+='<div style="font-size:11px;color:'+MUT+';margin-top:5px">'+pct.toFixed(1)+'% годового плана по м²</div></div>';
+  var mx=Math.max.apply(null,st.byM.concat([1])); var MN=["Я","Ф","М","А","М","И","И","А","С","О","Н","Д"];
+  h+='<div style="background:'+CARD+';border:1px solid '+BRD+';border-radius:12px;padding:13px;margin-bottom:14px">';
+  h+='<div style="font-size:13px;color:'+TEXT+';font-weight:700;margin-bottom:10px">м² по месяцам '+yr+'</div>';
+  h+='<div style="display:flex;align-items:flex-end;gap:4px;height:90px">';
+  for(var m=0;m<12;m++){ var hh=Math.max(2,st.byM[m]/mx*82); h+='<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%"><div style="width:100%;height:'+hh+'px;background:'+(st.byM[m]>0?TEAL:BRD)+';border-radius:3px 3px 0 0"></div><div style="font-size:9px;color:'+MUT+';margin-top:3px">'+MN[m]+'</div></div>'; }
+  h+='</div></div>';
+  // прогресс по проектам
+  var r=S().finishing; stats(); // populate _area
+  h+='<div style="background:'+CARD+';border:1px solid '+BRD+';border-radius:12px;padding:13px;margin-bottom:8px">';
+  h+='<div style="font-size:13px;color:'+TEXT+';font-weight:700;margin-bottom:8px">Проекты</div>';
+  if(r.projects.length){ r.projects.forEach(function(p){ var pr=p.area>0?Math.min(100,p._area/p.area*100):0;
+    h+='<div style="padding:7px 0;border-bottom:1px solid #161b22"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span style="color:'+TEXT+'">'+esc(p.name)+'</span><span style="color:'+MUT+'">'+num(p._area)+'/'+num(p.area)+' м²</span></div><div style="height:6px;background:'+BG+';border-radius:4px;overflow:hidden"><div style="height:100%;width:'+Math.max(1,pr)+'%;background:'+TEAL+'"></div></div></div>'; }); }
+  else h+='<div style="font-size:12px;color:'+MUT+'">Нет проектов. Добавь во вкладке «Проекты».</div>';
+  h+='</div>';
+  return h;
+}
+function projects(){
+  var r=S().finishing; stats();
+  var h=navRow();
+  h+='<button onclick="finForm(\'project\')" style="width:100%;padding:11px;border-radius:10px;border:1px solid '+TEAL+';background:rgba(57,211,187,.10);color:'+TEAL+';font-weight:700;font-size:14px;cursor:pointer;margin-bottom:12px">+ Добавить проект</button>';
+  if(!r.projects.length){ h+='<div style="font-size:13px;color:'+MUT+';text-align:center;padding:20px">Проектов нет</div>'; return h; }
+  r.projects.forEach(function(p){
+    h+='<div onclick="finForm(\'project\',\''+p.id+'\')" style="background:'+CARD+';border:1px solid '+BRD+';border-radius:12px;padding:12px;margin-bottom:8px;cursor:pointer">';
+    h+='<div style="display:flex;justify-content:space-between"><div style="font-weight:700;color:'+TEXT+';font-size:15px">'+esc(p.name)+'</div><div style="font-size:13px;color:'+GOLD+';font-weight:700">'+num(p.rate)+' ₸/м²</div></div>';
+    h+='<div style="display:flex;gap:14px;margin-top:8px;font-size:12px;color:'+MUT+'"><span>'+num(p._area)+' / '+num(p.area)+' м²</span><span>выручка '+money(p._rev)+'</span>'+(p.deadline?'<span>срок '+esc(p.deadline)+'</span>':'')+'</div>';
+    h+='</div>';
+  });
+  return h;
+}
+function ops(){
+  var r=S().finishing; var proj={}; r.projects.forEach(function(p){proj[p.id]=p;});
+  var h=navRow();
+  h+='<button onclick="finForm(\'op\')" style="width:100%;padding:11px;border-radius:10px;border:1px solid '+GREEN+';background:rgba(126,231,135,.10);color:'+GREEN+';font-weight:700;font-size:14px;cursor:pointer;margin-bottom:12px">+ Добавить работу</button>';
+  var list=r.ops.slice().sort(function(a,b){return (b.date||"").localeCompare(a.date||"");});
+  if(!list.length){ h+='<div style="font-size:13px;color:'+MUT+';text-align:center;padding:20px">Работ пока нет</div>'; return h; }
+  list.forEach(function(o){ var p=proj[o.projectId]; var rate=p?(p.rate||0):0;
+    h+='<div onclick="finForm(\'op\',\''+o.id+'\')" style="background:'+CARD+';border:1px solid '+BRD+';border-radius:10px;padding:11px;margin-bottom:7px;cursor:pointer;display:flex;justify-content:space-between;align-items:center">';
+    h+='<div><div style="font-weight:700;color:'+TEXT+';font-size:14px">'+esc(o.work||"Работа")+' · '+esc(p?p.name:"—")+'</div><div style="font-size:11px;color:'+MUT+';margin-top:2px">'+esc(o.date||"")+' · '+num(o.area)+' м²'+(o.brigade?" · "+esc(o.brigade):"")+'</div></div>';
+    h+='<div style="text-align:right"><div style="color:'+GREEN+';font-weight:700;font-size:14px">'+money((o.area||0)*rate)+'</div><div style="font-size:11px;color:'+MUT+'">−'+money(o.cost)+'</div></div>';
+    h+='</div>';
+  });
+  return h;
+}
+function projectForm(){
+  var f=F.form, r=S().finishing; var p=f.id?r.projects.find(function(x){return x.id===f.id;}):null; p=p||{};
+  var h='<div style="margin-bottom:6px"><button onclick="finNav(\'projects\')" style="background:none;border:none;color:'+MUT+';font-size:14px;cursor:pointer;padding:0">‹ Назад</button></div>';
+  h+='<div style="font-size:18px;font-weight:800;color:'+TEXT+';margin-bottom:14px">'+(f.id?"Проект":"Новый проект")+'</div>';
+  h+=lbl("Название")+inp("f-name","Напр. ЖК Нуркент, секция А",p.name);
+  h+='<div style="display:flex;gap:8px"><div style="flex:1">'+lbl("Объём, м²")+inp("f-area","",p.area,"number")+'</div><div style="flex:1">'+lbl("Ставка, ₸/м²")+inp("f-rate","",p.rate,"number")+'</div></div>';
+  h+=lbl("Срок (необяз.)")+inp("f-deadline","",p.deadline,"date");
+  h+='<button onclick="finSave(\'project\')" style="width:100%;padding:12px;border-radius:10px;border:none;background:'+TEAL+';color:#0d1117;font-weight:800;font-size:15px;cursor:pointer;margin-top:6px">Сохранить</button>';
+  if(f.id) h+='<button onclick="finDel(\'project\',\''+f.id+'\')" style="width:100%;padding:11px;border-radius:10px;border:1px solid '+RED+';background:none;color:'+RED+';font-weight:700;font-size:14px;cursor:pointer;margin-top:8px">Удалить проект</button>';
+  return h;
+}
+function opForm(){
+  var f=F.form, r=S().finishing; var o=f.id?r.ops.find(function(x){return x.id===f.id;}):null; o=o||{};
+  var h='<div style="margin-bottom:6px"><button onclick="finNav(\'ops\')" style="background:none;border:none;color:'+MUT+';font-size:14px;cursor:pointer;padding:0">‹ Назад</button></div>';
+  h+='<div style="font-size:18px;font-weight:800;color:'+GREEN+';margin-bottom:14px">Работа</div>';
+  if(!r.projects.length){ h+='<div style="font-size:13px;color:'+MUT+';padding:14px;background:'+CARD+';border-radius:10px">Сначала добавь проект во вкладке «Проекты».</div>'; return h; }
+  h+=lbl("Дата")+inp("f-date","",o.date||new Date().toISOString().slice(0,10),"date");
+  h+=lbl("Проект")+'<select id="f-proj" style="width:100%;box-sizing:border-box;background:'+BG+';border:1px solid '+BRD+';border-radius:8px;padding:10px;color:'+TEXT+';font-size:15px;margin-bottom:8px">';
+  r.projects.forEach(function(p){ h+='<option value="'+p.id+'"'+(o.projectId===p.id?" selected":"")+'>'+esc(p.name)+'</option>'; });
+  h+='</select>';
+  h+=lbl("Вид работ")+inp("f-work","Напр. штукатурка, стяжка, плитка",o.work);
+  h+='<div style="display:flex;gap:8px"><div style="flex:1">'+lbl("Объём, м²")+inp("f-warea","",o.area,"number")+'</div><div style="flex:1">'+lbl("Затраты, ₸")+inp("f-cost","",o.cost,"number")+'</div></div>';
+  h+=lbl("Бригада (необяз.)")+inp("f-brig","",o.brigade);
+  h+='<button onclick="finSave(\'op\')" style="width:100%;padding:12px;border-radius:10px;border:none;background:'+GREEN+';color:#0d1117;font-weight:800;font-size:15px;cursor:pointer;margin-top:6px">Сохранить</button>';
+  if(f.id) h+='<button onclick="finDel(\'op\',\''+f.id+'\')" style="width:100%;padding:11px;border-radius:10px;border:1px solid '+RED+';background:none;color:'+RED+';font-weight:700;font-size:14px;cursor:pointer;margin-top:8px">Удалить</button>';
+  return h;
+}
+window.openFinishing=function(){
+  S(); var h;
+  if(F.form){ h=F.form.kind==="project"?projectForm():opForm(); }
+  else if(F.view==="projects") h=projects();
+  else if(F.view==="ops") h=ops();
+  else h=overview();
+  h+='<button class="fcanc" id="f-close" style="width:100%;margin-top:10px">Закрыть</button>';
+  var mt=document.getElementById("mtit"); if(mt)mt.textContent="ОТДЕЛКА";
+  var mb=document.getElementById("mbody"); if(mb)mb.innerHTML=h;
+  var md=document.getElementById("modal"); if(md)md.style.display="flex";
+  var cb=document.getElementById("f-close"); if(cb)cb.addEventListener("click",function(){ F.form=null; if(typeof window.closeModal==="function")window.closeModal(); else if(md)md.style.display="none"; });
+};
+window.finNav=function(v){ F.form=null; F.view=v; window.openFinishing(); };
+window.finForm=function(kind,id){ F.form={kind:kind,id:id||null}; window.openFinishing(); };
+window.finSave=function(kind){
+  var r=S().finishing;
+  if(kind==="project"){
+    var name=(gv("f-name")||"").trim(); if(!name){alert("Введите название");return;}
+    var f=F.form, p=f.id?r.projects.find(function(x){return x.id===f.id;}):null;
+    var obj={id:p?p.id:("fp"+Date.now()),name:name,area:+gv("f-area")||0,rate:+gv("f-rate")||0,deadline:gv("f-deadline")||""};
+    if(p){Object.keys(obj).forEach(function(k){p[k]=obj[k];});} else r.projects.push(obj);
+    F.form=null; F.view="projects";
+  } else {
+    var prj=gv("f-proj"); if(!prj){alert("Выберите проект");return;}
+    var f2=F.form, o=f2.id?r.ops.find(function(x){return x.id===f2.id;}):null;
+    var obj2={id:o?o.id:("fo"+Date.now()),date:gv("f-date")||new Date().toISOString().slice(0,10),projectId:prj,work:(gv("f-work")||"").trim(),area:+gv("f-warea")||0,cost:+gv("f-cost")||0,brigade:(gv("f-brig")||"").trim()};
+    if(o){Object.keys(obj2).forEach(function(k){o[k]=obj2[k];});} else r.ops.push(obj2);
+    F.form=null; F.view="ops";
+  }
+  if(window.S)window.S._modified=Date.now(); save();
+  try{ if(window.pushCloud) setTimeout(function(){window.pushCloud();},100); }catch(e){}
+  window.openFinishing();
+};
+window.finDel=function(kind,id){
+  if(!confirm("Удалить?"))return;
+  var r=S().finishing;
+  if(kind==="project") r.projects=r.projects.filter(function(x){return x.id!==id;});
+  else r.ops=r.ops.filter(function(x){return x.id!==id;});
+  if(window.S)window.S._modified=Date.now(); save();
+  F.form=null; F.view=(kind==="project"?"projects":"ops");
+  window.openFinishing();
+};
+window.finishingYearArea=function(year){ try{ return stats(year).area; }catch(e){ return 0; } };
+window.finishingYearProfit=function(year){ try{ return stats(year).gross; }catch(e){ return 0; } };
+})();
+</script>
+
+<script>
+/* ====== LIONGATE — МОДУЛЬ ДЕВЕЛОПМЕНТА (портфель: GMV, NAV, equity, продажи, статус) ====== */
+(function(){
+"use strict";
+var GOLD="#ffd166",TEAL="#39d3bb",PURPLE="#a371f7",BLUE="#58a6ff",GREEN="#7ee787",RED="#ff7b72",TEXT="#e8edf4",MUT="#8b949e",BG="#0d1117",CARD="#161b22",BRD="#2a3140";
+var D={view:"overview",form:null};
+var STATUSES=["Планируется","Стройка","Продажи","Завершён"];
+var NAV_TARGET_2030=150e9; // ~$300М
+function S(){ if(!window.S)window.S={}; if(!window.S.development)window.S.development={projects:[],ops:[]}; var r=window.S.development; if(!r.projects)r.projects=[]; if(!r.ops)r.ops=[]; return window.S; }
+function save(){ try{ if(window.save)window.save(); }catch(e){} }
+function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
+function gv(id){var el=document.getElementById(id);return el?el.value:"";}
+function money(n){n=n||0;var a=Math.abs(n);var s;if(a>=1e9)s=(n/1e9).toFixed(2).replace(".",",")+" млрд";else if(a>=1e6)s=(n/1e6).toFixed(1).replace(".",",")+" млн";else if(a>=1e3)s=Math.round(n/1e3)+" тыс";else s=Math.round(n);return s+" ₸";}
+
+function stats(){
+  var r=S().development, proj={}; r.projects.forEach(function(p){proj[p.id]=p; p._sold=0; p._spent=0;});
+  var gmv=0,nav=0,equity=0,sold=0,spent=0;
+  r.projects.forEach(function(p){ gmv+=(p.gmv||0); nav+=(p.nav||0); equity+=(p.equity||0); });
+  r.ops.forEach(function(o){ var p=proj[o.projectId]; if(o.type==="sale"){ sold+=(o.amount||0); if(p)p._sold+=(o.amount||0); } else { spent+=(o.amount||0); if(p)p._spent+=(o.amount||0); } });
+  return {gmv:gmv,nav:nav,equity:equity,sold:sold,spent:spent,count:r.projects.length,proj:proj};
+}
+
+function inp(id,ph,val,type){return '<input id="'+id+'" type="'+(type||"text")+'" value="'+(val==null?"":esc(val))+'" placeholder="'+esc(ph||"")+'" style="width:100%;box-sizing:border-box;background:'+BG+';border:1px solid '+BRD+';border-radius:8px;padding:10px;color:'+TEXT+';font-size:15px;margin-bottom:8px"/>';}
+function lbl(t){return '<div style="font-size:12px;color:'+MUT+';margin:2px 0 4px;font-weight:600">'+esc(t)+'</div>';}
+function kpi(label,val,color){return '<div style="flex:1;min-width:0;background:'+CARD+';border:1px solid '+BRD+';border-radius:12px;padding:12px 11px"><div style="font-size:11px;color:'+MUT+'">'+esc(label)+'</div><div style="font-size:17px;font-weight:800;color:'+color+';margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+val+'</div></div>';}
+function tabBtn(v,label){var on=D.view===v;return '<button onclick="devNav(\''+v+'\')" style="flex:1;padding:9px 4px;border-radius:8px;border:1px solid '+(on?GOLD:BRD)+';background:'+(on?"rgba(255,209,102,.12)":"transparent")+';color:'+(on?GOLD:MUT)+';font-weight:700;font-size:13px;cursor:pointer">'+label+'</button>';}
+function navRow(){ return '<div style="display:flex;gap:8px;margin-bottom:14px">'+tabBtn("overview","Обзор")+tabBtn("projects","Проекты")+tabBtn("ops","Операции")+'</div>'; }
+
+function statusColor(s){ return s==="Завершён"?GREEN:(s==="Продажи"?PURPLE:(s==="Стройка"?BLUE:MUT)); }
+
+function overview(){
+  var st=stats();
+  var h=navRow();
+  h+='<div style="display:flex;gap:8px;margin-bottom:8px">'+kpi("NAV портфеля",money(st.nav),GOLD)+kpi("GMV под упр.",money(st.gmv),PURPLE)+'</div>';
+  h+='<div style="display:flex;gap:8px;margin-bottom:14px">'+kpi("Вложено equity",money(st.equity),BLUE)+kpi("Реализовано",money(st.sold),GREEN)+'</div>';
+  var pct=Math.min(100,st.nav/NAV_TARGET_2030*100);
+  h+='<div style="background:'+CARD+';border:1px solid '+BRD+';border-radius:12px;padding:13px;margin-bottom:14px">';
+  h+='<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px"><span style="color:'+TEXT+';font-weight:700">NAV против цели 2030</span><span style="color:'+GOLD+';font-weight:700">'+money(st.nav)+' / 150 млрд</span></div>';
+  h+='<div style="height:10px;background:'+BG+';border-radius:6px;overflow:hidden"><div style="height:100%;width:'+Math.max(1,pct)+'%;background:'+GOLD+'"></div></div>';
+  h+='<div style="font-size:11px;color:'+MUT+';margin-top:5px">'+pct.toFixed(1)+'% цели · NAV 2030 ~150 млрд ₸ (~$300М) несёт капитализацию</div></div>';
+  var r=S().development;
+  h+='<div style="background:'+CARD+';border:1px solid '+BRD+';border-radius:12px;padding:13px;margin-bottom:8px">';
+  h+='<div style="font-size:13px;color:'+TEXT+';font-weight:700;margin-bottom:8px">Портфель проектов</div>';
+  if(r.projects.length){ r.projects.forEach(function(p){ var sc=statusColor(p.status);
+    h+='<div style="padding:7px 0;border-bottom:1px solid #161b22"><div style="display:flex;justify-content:space-between;font-size:13px"><span style="color:'+TEXT+'">'+esc(p.name)+'</span><span style="color:'+sc+';font-weight:700">'+esc(p.status||"—")+'</span></div><div style="display:flex;gap:12px;margin-top:3px;font-size:11px;color:'+MUT+'"><span>GMV '+money(p.gmv)+'</span><span>NAV '+money(p.nav)+'</span><span>продано '+(p.soldPct||0)+'%</span></div></div>'; }); }
+  else h+='<div style="font-size:12px;color:'+MUT+'">Портфель пуст. Добавь проект во вкладке «Проекты».</div>';
+  h+='</div>';
+  return h;
+}
+function projects(){
+  var r=S().development;
+  var h=navRow();
+  h+='<button onclick="devForm(\'project\')" style="width:100%;padding:11px;border-radius:10px;border:1px solid '+GOLD+';background:rgba(255,209,102,.10);color:'+GOLD+';font-weight:700;font-size:14px;cursor:pointer;margin-bottom:12px">+ Добавить проект</button>';
+  if(!r.projects.length){ h+='<div style="font-size:13px;color:'+MUT+';text-align:center;padding:20px">Проектов нет</div>'; return h; }
+  r.projects.forEach(function(p){ var sc=statusColor(p.status);
+    h+='<div onclick="devForm(\'project\',\''+p.id+'\')" style="background:'+CARD+';border:1px solid '+BRD+';border-radius:12px;padding:12px;margin-bottom:8px;cursor:pointer">';
+    h+='<div style="display:flex;justify-content:space-between"><div style="font-weight:700;color:'+TEXT+';font-size:15px">'+esc(p.name)+'</div><div style="font-size:12px;color:'+sc+';font-weight:700">'+esc(p.status||"—")+'</div></div>';
+    h+='<div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:8px;font-size:12px;color:'+MUT+'"><span>GMV '+money(p.gmv)+'</span><span>NAV '+money(p.nav)+'</span><span>equity '+money(p.equity)+'</span><span>продано '+(p.soldPct||0)+'%</span></div>';
+    h+='</div>';
+  });
+  return h;
+}
+function ops(){
+  var r=S().development; var proj={}; r.projects.forEach(function(p){proj[p.id]=p;});
+  var h=navRow();
+  h+='<div style="display:flex;gap:8px;margin-bottom:12px">';
+  h+='<button onclick="devForm(\'op\',null,\'sale\')" style="flex:1;padding:11px;border-radius:10px;border:1px solid '+GREEN+';background:rgba(126,231,135,.10);color:'+GREEN+';font-weight:700;font-size:14px;cursor:pointer">+ Продажа</button>';
+  h+='<button onclick="devForm(\'op\',null,\'cost\')" style="flex:1;padding:11px;border-radius:10px;border:1px solid '+BLUE+';background:rgba(88,166,255,.10);color:'+BLUE+';font-weight:700;font-size:14px;cursor:pointer">+ Затрата</button>';
+  h+='</div>';
+  var list=r.ops.slice().sort(function(a,b){return (b.date||"").localeCompare(a.date||"");});
+  if(!list.length){ h+='<div style="font-size:13px;color:'+MUT+';text-align:center;padding:20px">Операций пока нет</div>'; return h; }
+  list.forEach(function(o){ var sale=o.type==="sale"; var col=sale?GREEN:BLUE; var p=proj[o.projectId];
+    h+='<div onclick="devForm(\'op\',\''+o.id+'\',\''+o.type+'\')" style="background:'+CARD+';border:1px solid '+BRD+';border-radius:10px;padding:11px;margin-bottom:7px;cursor:pointer;display:flex;justify-content:space-between;align-items:center">';
+    h+='<div><div style="font-weight:700;color:'+TEXT+';font-size:14px">'+(sale?"Продажа":"Затрата")+' · '+esc(p?p.name:"—")+'</div><div style="font-size:11px;color:'+MUT+';margin-top:2px">'+esc(o.date||"")+(o.note?" · "+esc(o.note):"")+'</div></div>';
+    h+='<div style="color:'+col+';font-weight:700;font-size:14px;white-space:nowrap">'+(sale?"+":"−")+money(o.amount)+'</div>';
+    h+='</div>';
+  });
+  return h;
+}
+function projectForm(){
+  var f=D.form, r=S().development; var p=f.id?r.projects.find(function(x){return x.id===f.id;}):null; p=p||{};
+  var h='<div style="margin-bottom:6px"><button onclick="devNav(\'projects\')" style="background:none;border:none;color:'+MUT+';font-size:14px;cursor:pointer;padding:0">‹ Назад</button></div>';
+  h+='<div style="font-size:18px;font-weight:800;color:'+TEXT+';margin-bottom:14px">'+(f.id?"Проект":"Новый проект")+'</div>';
+  h+=lbl("Название")+inp("d-name","Напр. ЖК Вертикаль, очередь 1",p.name);
+  h+='<div style="display:flex;gap:8px"><div style="flex:1">'+lbl("GMV проекта, ₸")+inp("d-gmv","",p.gmv,"number")+'</div><div style="flex:1">'+lbl("NAV (оценка), ₸")+inp("d-nav","",p.nav,"number")+'</div></div>';
+  h+='<div style="display:flex;gap:8px"><div style="flex:1">'+lbl("Вложено equity, ₸")+inp("d-eq","",p.equity,"number")+'</div><div style="flex:1">'+lbl("Себестоимость, ₸")+inp("d-cost","",p.cost,"number")+'</div></div>';
+  h+='<div style="display:flex;gap:8px"><div style="flex:1">'+lbl("Площадь, м²")+inp("d-area","",p.area,"number")+'</div><div style="flex:1">'+lbl("Продано, %")+inp("d-sold","",p.soldPct,"number")+'</div></div>';
+  h+=lbl("Статус")+'<select id="d-status" style="width:100%;box-sizing:border-box;background:'+BG+';border:1px solid '+BRD+';border-radius:8px;padding:10px;color:'+TEXT+';font-size:15px;margin-bottom:8px">';
+  STATUSES.forEach(function(s){ h+='<option value="'+s+'"'+((p.status||"Планируется")===s?" selected":"")+'>'+s+'</option>'; });
+  h+='</select>';
+  h+='<button onclick="devSave(\'project\')" style="width:100%;padding:12px;border-radius:10px;border:none;background:'+GOLD+';color:#0d1117;font-weight:800;font-size:15px;cursor:pointer;margin-top:6px">Сохранить</button>';
+  if(f.id) h+='<button onclick="devDel(\'project\',\''+f.id+'\')" style="width:100%;padding:11px;border-radius:10px;border:1px solid '+RED+';background:none;color:'+RED+';font-weight:700;font-size:14px;cursor:pointer;margin-top:8px">Удалить проект</button>';
+  return h;
+}
+function opForm(){
+  var f=D.form, r=S().development; var o=f.id?r.ops.find(function(x){return x.id===f.id;}):null; o=o||{};
+  var sale=f.opType==="sale";
+  var h='<div style="margin-bottom:6px"><button onclick="devNav(\'ops\')" style="background:none;border:none;color:'+MUT+';font-size:14px;cursor:pointer;padding:0">‹ Назад</button></div>';
+  h+='<div style="font-size:18px;font-weight:800;color:'+(sale?GREEN:BLUE)+';margin-bottom:14px">'+(sale?"Продажа":"Затрата")+'</div>';
+  if(!r.projects.length){ h+='<div style="font-size:13px;color:'+MUT+';padding:14px;background:'+CARD+';border-radius:10px">Сначала добавь проект во вкладке «Проекты».</div>'; return h; }
+  h+=lbl("Дата")+inp("d-date","",o.date||new Date().toISOString().slice(0,10),"date");
+  h+=lbl("Проект")+'<select id="d-proj" style="width:100%;box-sizing:border-box;background:'+BG+';border:1px solid '+BRD+';border-radius:8px;padding:10px;color:'+TEXT+';font-size:15px;margin-bottom:8px">';
+  r.projects.forEach(function(p){ h+='<option value="'+p.id+'"'+(o.projectId===p.id?" selected":"")+'>'+esc(p.name)+'</option>'; });
+  h+='</select>';
+  h+=lbl(sale?"Сумма продажи, ₸":"Сумма затраты, ₸")+inp("d-amt","",o.amount,"number");
+  h+=lbl("Примечание (необяз.)")+inp("d-note","",o.note);
+  h+='<button onclick="devSave(\'op\')" style="width:100%;padding:12px;border-radius:10px;border:none;background:'+(sale?GREEN:BLUE)+';color:#0d1117;font-weight:800;font-size:15px;cursor:pointer;margin-top:6px">Сохранить</button>';
+  if(f.id) h+='<button onclick="devDel(\'op\',\''+f.id+'\')" style="width:100%;padding:11px;border-radius:10px;border:1px solid '+RED+';background:none;color:'+RED+';font-weight:700;font-size:14px;cursor:pointer;margin-top:8px">Удалить</button>';
+  return h;
+}
+window.openDevelopment=function(){
+  S(); var h;
+  if(D.form){ h=D.form.kind==="project"?projectForm():opForm(); }
+  else if(D.view==="projects") h=projects();
+  else if(D.view==="ops") h=ops();
+  else h=overview();
+  h+='<button class="fcanc" id="d-close" style="width:100%;margin-top:10px">Закрыть</button>';
+  var mt=document.getElementById("mtit"); if(mt)mt.textContent="ДЕВЕЛОПМЕНТ";
+  var mb=document.getElementById("mbody"); if(mb)mb.innerHTML=h;
+  var md=document.getElementById("modal"); if(md)md.style.display="flex";
+  var cb=document.getElementById("d-close"); if(cb)cb.addEventListener("click",function(){ D.form=null; if(typeof window.closeModal==="function")window.closeModal(); else if(md)md.style.display="none"; });
+};
+window.devNav=function(v){ D.form=null; D.view=v; window.openDevelopment(); };
+window.devForm=function(kind,id,opType){ D.form={kind:kind,id:id||null,opType:opType}; window.openDevelopment(); };
+window.devSave=function(kind){
+  var r=S().development;
+  if(kind==="project"){
+    var name=(gv("d-name")||"").trim(); if(!name){alert("Введите название");return;}
+    var f=D.form, p=f.id?r.projects.find(function(x){return x.id===f.id;}):null;
+    var obj={id:p?p.id:("dp"+Date.now()),name:name,gmv:+gv("d-gmv")||0,nav:+gv("d-nav")||0,equity:+gv("d-eq")||0,cost:+gv("d-cost")||0,area:+gv("d-area")||0,soldPct:+gv("d-sold")||0,status:gv("d-status")||"Планируется"};
+    if(p){Object.keys(obj).forEach(function(k){p[k]=obj[k];});} else r.projects.push(obj);
+    D.form=null; D.view="projects";
+  } else {
+    var prj=gv("d-proj"); if(!prj){alert("Выберите проект");return;}
+    var f2=D.form, o=f2.id?r.ops.find(function(x){return x.id===f2.id;}):null;
+    var obj2={id:o?o.id:("do"+Date.now()),type:f2.opType,date:gv("d-date")||new Date().toISOString().slice(0,10),projectId:prj,amount:+gv("d-amt")||0,note:(gv("d-note")||"").trim()};
+    if(o){Object.keys(obj2).forEach(function(k){o[k]=obj2[k];});} else r.ops.push(obj2);
+    D.form=null; D.view="ops";
+  }
+  if(window.S)window.S._modified=Date.now(); save();
+  try{ if(window.pushCloud) setTimeout(function(){window.pushCloud();},100); }catch(e){}
+  window.openDevelopment();
+};
+window.devDel=function(kind,id){
+  if(!confirm("Удалить?"))return;
+  var r=S().development;
+  if(kind==="project") r.projects=r.projects.filter(function(x){return x.id!==id;});
+  else r.ops=r.ops.filter(function(x){return x.id!==id;});
+  if(window.S)window.S._modified=Date.now(); save();
+  D.form=null; D.view=(kind==="project"?"projects":"ops");
+  window.openDevelopment();
+};
+window.developmentNAV=function(){ try{ return stats().nav; }catch(e){ return 0; } };
 })();
 </script>
 
