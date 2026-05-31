@@ -14277,7 +14277,6 @@ function rMore(){
   var canEditNow = (typeof canEdit === 'function') ? canEdit() : false;
   
   var h = '<div style="padding:20px 16px;font-family:-apple-system,system-ui,sans-serif">';
-  if(typeof canEdit==='function'&&canEdit()){ h += '<button onclick="if(window.restoreMay30)restoreMay30()" style="width:100%;margin-bottom:16px;background:linear-gradient(135deg,#1f6feb,#388bfd);border:none;border-radius:14px;padding:14px;color:#fff;font-size:15px;font-weight:700;font-family:inherit;cursor:pointer;box-shadow:0 4px 16px rgba(56,139,253,.4)">🛟 Восстановить 5 операций за 30.05</button>'; }
   
   // Заголовок
   h += '<div style="margin-bottom:20px">';
@@ -17374,12 +17373,6 @@ function restoreMay30(opts){
   return added;
 }
 window.restoreMay30=restoreMay30;
-// авто-применение один раз после загрузки данных (тихо, без дублей)
-window.addEventListener('load',function(){
-  setTimeout(function(){
-    try{ if(typeof canEdit==='function'&&canEdit()) restoreMay30({silent:true}); }catch(e){}
-  },4500);
-});
 
 function tryLogin(){
   var p=document.getElementById('lpass').value.trim();
