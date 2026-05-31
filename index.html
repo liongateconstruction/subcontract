@@ -590,7 +590,7 @@ canvas{display:block;width:100%;border-radius:8px}
   </div>
   <div class="lbox" id="ls-box">
     <div class="ltit">ВХОД</div>
-    <div class="lhnt">Введите свой пароль для входа.<br><span style='color:var(--gold)'>Редактор</span> · <span style='color:var(--blue)'>Партнёр</span> · <span style='color:var(--teal)'>Бригадир</span></div>
+    <div class="lhnt">Введите свой пароль для входа.<br><span style='color:var(--gold)'>Владелец · Учётчица</span> · <span style='color:var(--blue)'>Партнёр</span> · <span style='color:var(--teal)'>Бригадир</span></div>
     <input class="linp" type="password" id="lpass" placeholder="······"/>
     <div class="lerr" id="lerr"></div>
     <button class="lbtn" id="btn-login">ВОЙТИ</button>
@@ -995,6 +995,150 @@ en:{
 function T(k){var lang=LANG||'ru';if(lang!=='kz'&&lang!=='en')lang='ru';return (I18N[lang]&&I18N[lang][k])||I18N.ru[k]||k;}
 // Полный словарь замен RU→KZ для DOM-прохода
 var KZ_DICT=[
+  // === ХОЛДИНГ / СТРАТЕГИЯ / ТЕРМИНЫ (v138) ===
+  ['Это действие доступно только владельцу.','Бұл әрекет тек иесіне қолжетімді.'],
+  ['РИТЕЙЛ — ДВИГАТЕЛЬ КАПЫ №1','РИТЕЙЛ — КАПИТАЛИЗАЦИЯ ҚОЗҒАЛТҚЫШЫ №1'],
+  ['ИЗ ЧЕГО СКЛАДЫВАЕТСЯ КАПА','КАПИТАЛИЗАЦИЯ НЕДЕН ҚҰРАЛАДЫ'],
+  ['ПРИБЫЛЬ ГРУППЫ ПО ГОДАМ','ТОП ПАЙДАСЫ ЖЫЛДАР БОЙЫНША'],
+  ['ВЕХИ И IPO-МАШИНА','КЕЗЕҢДЕР МЕН IPO'],
+  ['НАПРАВЛЕНИЯ ХОЛДИНГА','ХОЛДИНГ БАҒЫТТАРЫ'],
+  ['Топ товаров по обороту','Айналым бойынша үздік тауарлар'],
+  ['Капитализация сейчас','Қазіргі капитализация'],
+  ['Портфель проектов','Жобалар портфелі'],
+  ['NAV портфеля','Портфель NAV'],
+  ['GMV под управлением','Басқарудағы GMV'],
+  ['Вложено equity','Салынған equity'],
+  ['Оборот по месяцам','Айлар бойынша айналым'],
+  ['Прибыль группы по годам','Топ пайдасы жылдар бойынша'],
+  ['холдинг сейчас · план · вехи','холдинг қазір · жоспар · кезеңдер'],
+  ['капитализация · 4 двигателя · вехи','капитализация · 4 қозғалтқыш · кезеңдер'],
+  ['товары · склад · маржа','тауарлар · қойма · маржа'],
+  ['проекты · м² · маржа','жобалар · м² · маржа'],
+  ['GMV · NAV · продажи','GMV · NAV · сатылым'],
+  ['Структура 2030','2030 құрылымы'],
+  ['ХОЛДИНГ СЕЙЧАС','ХОЛДИНГ ҚАЗІР'],
+  ['Путь к $1 млрд','$1 млрд-қа жол'],
+  ['Добавить товар','Тауар қосу'],
+  ['Добавить проект','Жоба қосу'],
+  ['Добавить работу','Жұмыс қосу'],
+  ['Удалить проект','Жобаны жою'],
+  ['Удалить товар','Тауарды жою'],
+  ['Удалить операцию','Операцияны жою'],
+  ['Только просмотр','Тек қарау'],
+  ['Вид работ','Жұмыс түрі'],
+  ['Валовая прибыль','Жалпы пайда'],
+  ['Единица измерения','Өлшем бірлігі'],
+  ['Начальный остаток','Бастапқы қалдық'],
+  ['Себестоимость','Өзіндік құн'],
+  ['Оборачиваемость','Айналымдылық'],
+  ['Капитализация','Капитализация'],
+  ['Девелопмент','Девелопмент'],
+  ['Реализовано','Сатылды'],
+  ['Планируется','Жоспарлануда'],
+  ['Завершён','Аяқталды'],
+  ['Выручка','Түсім'],
+  ['Затраты','Шығындар'],
+  ['Отделка','Әрлеу'],
+  ['Монолит','Монолит'],
+  ['Стройка','Құрылыс'],
+  ['Оборот','Айналым'],
+  ['Маржа','Маржа'],
+  ['Склад','Қойма'],
+  ['Продажи','Сатылым'],
+  ['Продажа','Сату'],
+  ['Закупка','Сатып алу'],
+  ['Товары','Тауарлар'],
+  ['Товар','Тауар'],
+  ['Проекты','Жобалар'],
+  ['Работы','Жұмыстар'],
+  ['Операции','Операциялар'],
+  ['Остаток','Қалдық'],
+  ['Категория','Санат'],
+  ['Площадь','Аумақ'],
+  ['Ставка','Мөлшерлеме'],
+  ['Статус','Мәртебе'],
+  ['Владелец','Иесі'],
+  ['Учётчица','Есепші'],
+  ['Обзор','Шолу'],
+  ['Настроить этот объект — расценки, пятна, фото','Бұл нысанды баптау — бағалар, дақтар, фото'],
+  ['станет выручкой после заливки бетона','бетон құйылғаннан кейін түсімге айналады'],
+  ['Прибыли и убытки: сколько заработали и потратили.','Пайда мен шығын: қанша таптық және жұмсадық.'],
+  ['Потолок бригад (нормы × люди × 7)','Бригада шегі (нормалар × адам × 7)'],
+  ['максимум что можем выдать сейчас','қазір бере алатын максимум'],
+  ['ОБЩИЙ ПРОГРЕСС ПО ОБЪЕКТУ','НЫСАН БОЙЫНША ЖАЛПЫ ПРОГРЕСС'],
+  ['Общий прогресс по объекту','Нысан бойынша жалпы прогресс'],
+  ['Сверка вложений и расчётов','Салымдар мен есептерді салыстыру'],
+  ['ВЛОЖЕНО В КОМПАНИЮ','КОМПАНИЯҒА САЛЫНДЫ'],
+  ['всеми партнёрами','барлық серіктестермен'],
+  ['после взаимозачёта','өзара есепке алудан кейін'],
+  ['ДОЛИ И ВКЛАДЫ','ҮЛЕСТЕР МЕН САЛЫМДАР'],
+  ['ДОЛИ В КОМПАНИИ','КОМПАНИЯДАҒЫ ҮЛЕС'],
+  ['ДЕНЬГИ ПО ОБЪЕКТУ','НЫСАН БОЙЫНША АҚША'],
+  ['ПРИБЫЛЬ ПО ОБЪЕКТУ','НЫСАН БОЙЫНША ПАЙДА'],
+  ['ДЕНЬГИ ОТ ЗАКАЗЧИКА','ТАПСЫРЫСШЫДАН АҚША'],
+  ['Деньги от заказчика','Тапсырысшыдан ақша'],
+  ['Цель недели выполнена','Апта мақсаты орындалды'],
+  ['ЦЕЛЬ НЕДЕЛИ → ФАКТ','АПТА МАҚСАТЫ → ФАКТ'],
+  ['ЦЕЛЬ НЕДЕЛИ','АПТА МАҚСАТЫ'],
+  ['Цель недели','Апта мақсаты'],
+  ['ПЛАН НЕДЕЛИ','АПТА ЖОСПАРЫ'],
+  ['План недели','Апта жоспары'],
+  ['ФАКТ НЕДЕЛИ','АПТА ФАКТІ'],
+  ['Факт недели','Апта факті'],
+  ['от плана недели','апта жоспарынан'],
+  ['Потолок бригад','Бригада шегі'],
+  ['ТЕМП ЗАЛИВКИ','ҚҰЮ ҚАРҚЫНЫ'],
+  ['Темп заливки','Құю қарқыны'],
+  ['ПРОГНОЗ ГОДА · МОНОЛИТ','ЖЫЛ БОЛЖАМЫ · МОНОЛИТ'],
+  ['ПРОГНОЗ ГОДА','ЖЫЛ БОЛЖАМЫ'],
+  ['с торговлей/опалубкой по плану','сауда/қалыппен жоспар бойынша'],
+  ['плана монолита','монолит жоспарынан'],
+  ['Цель под угрозой','Мақсат қауіп астында'],
+  ['Законтрактовано на','Келісімшарт жасалды:'],
+  ['не хватает','жетпейді'],
+  ['Архивировать объект','Нысанды мұрағаттау'],
+  ['Расходы стройки','Құрылыс шығындары'],
+  ['МАРЖА по готовому','Дайын бойынша МАРЖА'],
+  ['по готовому','дайын бойынша'],
+  ['В работе (армирование)','Жұмыста (арматура)'],
+  ['все расходы объекта','нысанның барлық шығыны'],
+  ['по объекту','нысан бойынша'],
+  ['План прибыли','Пайда жоспары'],
+  ['прибыли','пайда'],
+  ['Факт сегодня','Бүгінгі факт'],
+  ['Отставание от плана','Жоспардан артта қалу'],
+  ['ОБЩАЯ КАРТИНА','ЖАЛПЫ КӨРІНІС'],
+  ['КОМПАНИЯ ДОЛЖНА','КОМПАНИЯ БЕРЕШЕК'],
+  ['ИЗ НИХ','ОЛАРДЫҢ ІШІНДЕ'],
+  ['из них','олардың ішінде'],
+  ['в кассу','кассаға'],
+  ['из своих','өзінікінен'],
+  ['переведено','аударылды'],
+  ['Безопасность','Қауіпсіздік'],
+  ['месяц без происшествий','оқиғасыз ай'],
+  ['Запас кассы','Касса қоры'],
+  ['Новые объекты','Жаңа нысандар'],
+  ['Закрытие КС-2','КС-2 жабу'],
+  ['нужен КС-2','КС-2 керек'],
+  ['НЕ ПОДПИСАНО','ҚОЛ ҚОЙЫЛМАҒАН'],
+  ['не подписано','қол қойылмаған'],
+  ['подписано','қол қойылды'],
+  ['дебиторка','дебиторлық'],
+  ['пришло','келді'],
+  ['Качество','Сапа'],
+  ['переделок','қайта өңдеу'],
+  ['переделки','қайта өңдеу'],
+  ['Мои задачи','Менің тапсырмаларым'],
+  ['Месяцы','Айлар'],
+  ['Пятна','Дақтар'],
+  ['Глубокий стратегразбор от ИИ','Терең стратегиялық талдау (ИИ)'],
+  ['Внимание','Назар аударыңыз'],
+  ['ДО КОНЦА','СОҢЫНА ДЕЙІН'],
+  ['человеко-недель','адам-апта'],
+  ['нагрузка растёт','жүктеме өсуде'],
+  ['пятен разом','бірден дақ'],
+  ['Ближайшие','Жақын'],
+  ['Хозяин','Иесі'],
   // Навигация и шапка
   ['Сводка','Қорытынды'],['P&L','Қаржы'],['Партнёры','Серіктестер'],
   ['Бригады','Бригадалар'],['План','Жоспар'],['История','Тарих'],
@@ -1012,7 +1156,7 @@ var KZ_DICT=[
   ['ДИНАМИКА ЗА 30 ДНЕЙ','30 КҮНДЕГІ ДИНАМИКА'],
   ['До дедлайна','Мерзімге дейін'],['дней','күн'],
   ['млн должно быть','млн болуы керек'],['млн сейчас','млн қазір'],
-  ['из','мақсаттан'],['по текущему темпу','ағымдағы қарқынмен'],
+  ['по текущему темпу','ағымдағы қарқынмен'],
   ['к 31.12','31.12-ге'],
   // Черновики
   ['НА СВЕРКУ','ТЕКСЕРУГЕ'],
@@ -1414,7 +1558,7 @@ function translateBatch(texts,cb){
   // Объединяем строки разделителем
   var SEP='|||';
   var combined=texts.join(' '+SEP+' ');
-  if(combined.length>4500){
+  if(true){
     // Если слишком длинно — переводим по одной
     var results={};
     var done=0;
@@ -1441,21 +1585,15 @@ function translateBatch(texts,cb){
 }
 
 function translateOne(text,cb){
-  // Защищаем имена
   var prot=protectNames(text);
-  var url='https://translate.googleapis.com/translate_a/single?client=gtx&sl=ru&tl=kk&dt=t&q='+encodeURIComponent(prot.text);
-  fetch(url).then(function(r){return r.json();}).then(function(data){
-    try{
-      var translated='';
-      if(data && data[0]){
-        data[0].forEach(function(seg){
-          if(seg[0])translated+=seg[0];
-        });
-      }
-      translated=restoreNames(translated,prot.map);
-      cb(translated);
-    }catch(e){cb(null);}
-  }).catch(function(){cb(null);});
+  function parse(data){try{var tr='';if(data&&data[0]){data[0].forEach(function(s){if(s[0])tr+=s[0];});}var r=restoreNames(tr,prot.map);return r;}catch(e){return null;}}
+  var direct='https://translate.googleapis.com/translate_a/single?client=gtx&sl=ru&tl=kk&dt=t&q='+encodeURIComponent(prot.text);
+  var viaWorker=(typeof AI_WORKER_URL!=='undefined'&&AI_WORKER_URL)?(AI_WORKER_URL+'/api/translate?tl=kk&q='+encodeURIComponent(prot.text)):null;
+  // 1) Прямой Google (работает без воркера). 2) Запасной путь — воркер (если Google закрыт CORS).
+  fetch(direct).then(function(r){return r.json();}).then(function(data){var t=parse(data);if(t!=null&&t!==''){cb(t);return;}throw 0;}).catch(function(){
+    if(!viaWorker){cb(null);return;}
+    fetch(viaWorker).then(function(r){return r.json();}).then(function(data){cb(parse(data));}).catch(function(){cb(null);});
+  });
 }
 
 // Сбор непереведённых русских строк со страницы
@@ -1507,6 +1645,7 @@ function applyCloudDict(t){
 }
 
 function applyTranslation(root){
+  try{if(localStorage.getItem('lg_kzclean3')!=='1'){localStorage.setItem('lg_kzclean3','1');if(window.S){S.kzDict={};if(typeof persist==='function')persist();}}}catch(e){}
   if(!root) root=document.getElementById('content');
   if(!root) return;
   // 1. Применяем статичный + облачный словари
@@ -1702,7 +1841,9 @@ var CONSTR=['Подбетонка','Фундамент / плита','Стена
 var EXP_CATS=['Аванс / зарплата рабочим','Материалы','Аренда техники','Транспорт','Инструменты и инвентарь','Мобильная связь','Страхование','Представительские','Административные','Прочее'];
 
 var PWD={
-  // Учётчица
+  // Владелец (полный доступ)
+  'Dmitry1980':'owner',
+  // Учётчица (ввод/правка операций, без удаления и админки)
   'Intek2026':'editor',
   'Finance2026':'editor',
   // Партнёры (видят свою карточку + общую сводку)
@@ -1721,7 +1862,12 @@ function isPartner(){return role&&role.startsWith('partner_');}
 function isBrigadier(){return role&&role.startsWith('brigadier_');}
 function getPartnerName(){return isPartner()?role.replace('partner_',''):''}
 function getBrigId(){return isBrigadier()?role.replace('brigadier_',''):''}
-function canEdit(){return isEditor();}
+function isOwner(){return role==='owner';}
+function canEdit(){return isOwner()||isEditor();}
+function canAdmin(){return isOwner();}
+function canDelete(){return isOwner();}
+function adminDenied(){try{alert('Это действие доступно только владельцу.');}catch(e){}}
+window.isOwner=isOwner;window.canAdmin=canAdmin;window.canDelete=canDelete;
 var role=null;
 var AK='$2a$10$GBjOzIGzwTDlm4AZ4NkFS.nQXesYbuM/MNy2EYw4JV/QrDHiZG31m';
 var BIN='6a0a38b9c0954111d83ac9f8';
@@ -1878,7 +2024,7 @@ function _pushCloudLegacy(){
       body:JSON.stringify(snap)
     }).catch(function(){});
   }
-  fetch(BURL,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':AK,'X-Bin-Versioning':'false'},body:JSON.stringify({_modified:S._modified,_schema:S._schema||3,entries:S.entries,brigades:S.brigades,objects:S.objects,objMeta:S.objMeta||{},history:S.history,weeks:S.weeks,kfu:S.kfu,settings:S.settings,goalsDone:S.goalsDone,kzDict:S.kzDict||{},workTypes:S.workTypes||[],subgoals:S.subgoals||[],cycles:S.cycles||{},ks2meta:S.ks2meta||{},ks2acts:S.ks2acts||[],ks3acts:S.ks3acts||[],directions:S.directions||[],roles:S.roles||[],milestones:S.milestones||[]})}).then(function(){ss('OK',false);}).catch(function(){ss('!',true);});
+  fetch(BURL,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':AK,'X-Bin-Versioning':'false'},body:JSON.stringify({_modified:S._modified,_schema:S._schema||3,entries:S.entries,brigades:S.brigades,objects:S.objects,objMeta:S.objMeta||{},history:S.history,weeks:S.weeks,kfu:S.kfu,settings:S.settings,goalsDone:S.goalsDone,auth:S.auth||{},kzDict:S.kzDict||{},workTypes:S.workTypes||[],subgoals:S.subgoals||[],cycles:S.cycles||{},ks2meta:S.ks2meta||{},ks2acts:S.ks2acts||[],ks3acts:S.ks3acts||[],directions:S.directions||[],roles:S.roles||[],milestones:S.milestones||[]})}).then(function(){ss('OK',false);}).catch(function(){ss('!',true);});
 }
 
 // Отправка события в архивную группу Telegram (через worker)
@@ -2306,6 +2452,7 @@ function processCloudData(d, cb){
         if(r.settings){S.settings=r.settings;if(!S.settings.norms)S.settings.norms=defState().settings.norms;}
         if(r.goalsDone)S.goalsDone=r.goalsDone;
         if(r.kzDict)S.kzDict=r.kzDict;
+        if(r.auth){S.auth=r.auth;try{localStorage.setItem('lg_auth',JSON.stringify(r.auth));}catch(e){}}
         if(r.objMeta)S.objMeta=r.objMeta;
         if(r.workTypes&&r.workTypes.length>0)S.workTypes=r.workTypes;
         if(r.subgoals&&Array.isArray(r.subgoals))S.subgoals=r.subgoals;
@@ -2345,6 +2492,7 @@ function processCloudData(d, cb){
         if(r.settings){S.settings=r.settings;if(!S.settings.norms)S.settings.norms=defState().settings.norms;}
         if(r.goalsDone)S.goalsDone=r.goalsDone;
         if(r.kzDict)S.kzDict=r.kzDict;
+        if(r.auth){S.auth=r.auth;try{localStorage.setItem('lg_auth',JSON.stringify(r.auth));}catch(e){}}
         if(r.objMeta)S.objMeta=r.objMeta;
         if(r.workTypes&&r.workTypes.length>0)S.workTypes=r.workTypes;
         if(r.subgoals&&Array.isArray(r.subgoals))S.subgoals=r.subgoals;
@@ -3206,7 +3354,6 @@ function sumT(t,f,v){return S.entries.filter(function(e){return e.type===t&&(!f|
 function g(id){var el=document.getElementById(id);return el?el.value:'';}
 // Общий прогресс по объекту = ТОЛЬКО м³ залитого бетона.
 // Армирование — подготовка к тем же м³, не суммируется.
-// Физический объём конструкции считаем ОДИН раз — только по заливке бетона.
 function isStructuralVol(e){
   if(!e || e.type!=='vol') return false;
   var w=(e.wtype||'').toLowerCase();
@@ -4927,6 +5074,7 @@ window.startVoiceInput = function(){
 // ПРИНУДИТЕЛЬНАЯ ЗАЛИВКА ЛОКАЛЬНЫХ ДАННЫХ В ОБЛАКО
 // Использовать если в облаке битые данные, а в приложении — правильные
 window.forceUploadLocal = function(){
+  if(!canAdmin()){adminDenied();return;}
   if(typeof haptic === 'function') haptic('heavy');
   
   alert('Сейчас ВСЕ локальные данные приложения будут залиты в облако.\n\nВ облаке всё перепишется на то что у вас сейчас в приложении.\n\nИспользуйте это если:\n• В облаке битые данные\n• На разных устройствах разные цифры\n• После сброса хотите синхронизировать');
@@ -4976,6 +5124,7 @@ window.forceUploadLocal = function(){
 
 // Загрузить свежие данные из облака (заменить локальные) — ПРИНУДИТЕЛЬНО
 window.forceDownloadCloud = function(){
+  if(!canAdmin()){adminDenied();return;}
   if(typeof haptic === 'function') haptic('heavy');
   var localCnt = (S.entries||[]).length;
   alert('Сейчас данные будут загружены ИЗ облака.\n\nЛокальные данные приложения ('+localCnt+' записей) заменятся тем, что лежит в облаке.\n\nИспользуйте это если:\n• На этом устройстве данные старее\n• Хотите подтянуть свежее с другого устройства\n\nСовет: если не уверены — сначала сделайте 📦 Бэкап.');
@@ -5338,6 +5487,7 @@ window.markNotDuplicate = function(pairKey){
 // 📋 ОТКРЫТЬ ОКНО ЗАЩИТЫ ДАННЫХ
 // =============================================================
 window.openDataProtection = function(){
+  if(!canAdmin()){adminDenied();return;}
   if(typeof haptic === 'function') haptic('medium');
   
   var titleEl = document.getElementById('drillTitle');
@@ -5750,7 +5900,8 @@ window.openMainMenu = function(){
   var roleLabel = 'Пользователь';
   var roleColor = '#8b949e';
   if(typeof role !== 'undefined' && role){
-    if(role === 'editor'){ roleLabel = 'Учётчица / Редактор'; roleColor = '#ffd166'; }
+    if(role === 'owner'){ roleLabel = 'Владелец'; roleColor = '#ffd166'; }
+    else if(role === 'editor'){ roleLabel = 'Учётчица'; roleColor = '#58a6ff'; }
     else if(role.indexOf('partner_') === 0){ roleLabel = 'Партнёр: '+role.replace('partner_',''); roleColor = '#58a6ff'; }
     else if(role.indexOf('brigadier_') === 0){ roleLabel = 'Бригадир'; roleColor = '#39d3bb'; }
     else if(role === 'viewer'){ roleLabel = 'Просмотр'; roleColor = '#8b949e'; }
@@ -6117,7 +6268,7 @@ function tempoCapacityCompany(){
   (S.brigades||[]).forEach(function(b){
     if(b.kfu_temp===false) return;
     var work=(b.work||'').toLowerCase();
-    if(work.indexOf('опалубка+бетон')!==0 && work!=='комплекс монолит') return; // только льющие бетон
+    if(work.indexOf('опалубка+бетон')!==0 && work!=='комплекс монолит') return;
     sum += brigWeekTarget(b);
   });
   return sum;
@@ -6407,7 +6558,7 @@ function marginDirect(){
 }
 function marginObject(obj){
   // Объектная: выручка по объекту - все расходы по объекту
-  // НЗП считаем ПО ПЯТНАМ: армирование минус уже залитый бетон того же пятна (без задвоения).
+  // НЗП по пятнам
   var rev=0, cost=0, wip=0, _revBySpot={}, _wipBySpot={};
   (S.entries||[]).forEach(function(e){
     if(obj && e.obj!==obj) return;
@@ -10383,7 +10534,7 @@ function rBrigades(){
     return 0;
   }
 
-  var h='<div class="shdr"><h2>\u{1F477} БРИГАДЫ</h2>'+(canEdit()?'<button class="fedit" onclick="openAddBrig()">+ Бригада</button>':'')+((S.brigadesArchived&&S.brigadesArchived.length)?'<button class="fedit" style="color:var(--mut);border-color:var(--mut)" onclick="openBrigArchive()">🗄 '+S.brigadesArchived.length+'</button>':'')+'</div>';
+  var h='<div class="shdr"><h2>\u{1F477} БРИГАДЫ</h2>'+(canAdmin()?'<button class="fedit" onclick="openAddBrig()">+ Бригада</button>':'')+((canAdmin()&&S.brigadesArchived&&S.brigadesArchived.length)?'<button class="fedit" style="color:var(--mut);border-color:var(--mut)" onclick="openBrigArchive()">🗄 '+S.brigadesArchived.length+'</button>':'')+'</div>';
 
   // ===== БЛОК 1: КФУ "ТЕМП ЗАЛИВКИ" =====
   h+='<div class="dcard" style="border-color:var(--gold);cursor:pointer" onclick="openCycle('+kfuTempo.id+',\''+iso.key+'\')">';
@@ -10410,7 +10561,7 @@ function rBrigades(){
   var targetSource='';
   if(planMonth>0 && capacity>0){
     if(planMonth<=capacity) targetSource='= min('+fmtD(planMonth)+' план недели, '+fmtD(capacity)+' потолок) — ограничивает <b>план</b>';
-    else targetSource='= min('+fmtD(planMonth)+' план недели, '+fmtD(capacity)+' потолок) — ограничивает <b>потолок бригад</b>';
+    else targetSource='= min('+fmtD(planMonth)+' план мая, '+fmtD(capacity)+' потолок) — ограничивает <b>потолок бригад</b>';
   } else if(planMonth>0) targetSource='только план: '+fmtD(planMonth)+' м³';
   else if(capacity>0) targetSource='только потолок: '+fmtD(capacity)+' м³';
   h+='<div style="font-size:12px;color:var(--mut);margin-top:5px">'+targetSource+'</div>';
@@ -10424,7 +10575,7 @@ function rBrigades(){
       '<div style="height:7px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:'+color+';border-radius:3px"></div></div>'+
       (sub?'<div style="font-size:12px;color:var(--mut);margin-top:2px">'+sub+'</div>':'')+'</div>';
   }
-  h+=bar('💰 План недели ('+now.toLocaleString('ru-RU',{month:'long'})+')', planMonth, 'var(--gold)', 'из YEAR_PLAN');
+  h+=bar('💰 План недели ('+now.toLocaleString('ru-RU',{month:'long'})+')', planMonth, 'var(--gold)', 'из годового плана');
   h+=bar('⚙ Потолок бригад (нормы × люди × 7)', capacity, 'var(--blue)', 'максимум что можем выдать сейчас');
   h+=bar('✅ Факт недели', fact, weekColor, '');
 
@@ -10466,7 +10617,7 @@ function rBrigades(){
     h+='<div style="font-size:13px;color:var(--mut);margin-top:2px">старт '+(function(){var st=brigStart(b);return st?st.split('-').reverse().join('.'):'—';})()+'</div>';
     h+='</div>';
     if(canEdit()){
-      h+='<button class="fedit" onclick="event.stopPropagation();openEditBrig(\''+b.id+'\')">ред</button>';
+      if(canAdmin())h+='<button class="fedit" onclick="event.stopPropagation();openEditBrig(\''+b.id+'\')">ред</button>';
     }
     h+='</div><div class="bbody">';
 
@@ -10646,7 +10797,7 @@ function renderCycle(){
       srcLbl=autoTarget<=capForCycle?'(ограничивает план)':'(ограничивает потолок бригад)';
     }
     targetBody='<div style="background:rgba(212,175,55,.10);border-radius:6px;padding:8px;margin-bottom:8px;text-align:center"><div style="font-size:12px;color:var(--mut);letter-spacing:.5px">🎯 ЦЕЛЬ НЕДЕЛИ = min(план, потолок)</div><div style="font-family:var(--fd);font-size:22px;color:var(--gold);font-weight:800;margin-top:3px">'+fmtD(weekTargetCycle)+' м³</div><div style="font-size:12px;color:var(--mut);margin-top:2px">'+srcLbl+'</div></div>';
-    targetBody+='<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span style="color:var(--mut)">💰 План месяца (YEAR_PLAN):</span><span style="font-family:var(--fd);color:var(--gold);font-weight:700">'+fmtD(autoTarget)+' м³/нед</span></div>';
+    targetBody+='<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span style="color:var(--mut)">💰 План месяца (год):</span><span style="font-family:var(--fd);color:var(--gold);font-weight:700">'+fmtD(autoTarget)+' м³/нед</span></div>';
     targetBody+='<div style="display:flex;justify-content:space-between;font-size:12px"><span style="color:var(--mut)">⚙ Потолок бригад:</span><span style="font-family:var(--fd);color:var(--blue);font-weight:700">'+fmtD(capForCycle)+' м³/нед</span></div>';
   } else {
     targetBody='<span style="color:var(--text)">'+(kfu.target||'не задана')+'</span>';
@@ -14143,6 +14294,12 @@ function rMore(){
   h += tile('🎨', '#58a6ff', 'Отделка', 'проекты · м² · маржа', 'openFinishing()');
   h += tile('🏢', '#ffd166', 'Девелопмент', 'GMV · NAV · продажи', 'openDevelopment()');
   h += '</div>';
+  // === ДОСТУП ===
+  h += '<div style=\"font-size:13px;color:var(--mut);letter-spacing:1.5px;font-weight:700;margin:8px 4px 10px\">ДОСТУП</div>';
+  h += '<div style=\"display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px\">';
+  h += tile('🔑', '#58a6ff', 'Сменить пароль', 'свой пароль', 'openChangePassword()');
+  if(typeof canAdmin==='function'&&canAdmin()) h += tile('👥', '#ffd166', 'Пользователи', 'люди и доступы', 'openUsers()');
+  h += '</div>';
   // === ОТЧЁТЫ И ДАННЫЕ ===
   h += '<div style="font-size:13px;color:var(--mut);letter-spacing:1.5px;font-weight:700;margin:8px 4px 10px">ОТЧЁТЫ И ДАННЫЕ</div>';
   h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px">';
@@ -14268,6 +14425,7 @@ if(typeof window.openDiagnostic === 'undefined'){
 
 if(typeof window.openObjectsModal === 'undefined'){
   window.openObjectsModal = function(){
+    if(!canAdmin()){adminDenied();return;}
     if(typeof haptic === 'function') haptic('medium');
     if(typeof openManageObjects === 'function'){ openManageObjects(); }
     else alert('Управление объектами недоступно. Обновите приложение.');
@@ -14276,6 +14434,7 @@ if(typeof window.openObjectsModal === 'undefined'){
 
 if(typeof window.openCashSettings === 'undefined'){
   window.openCashSettings = function(){
+    if(!canAdmin()){adminDenied();return;}
     if(typeof haptic === 'function') haptic('medium');
     document.getElementById('mtit').textContent='ФАКТИЧЕСКАЯ КАССА';
     document.getElementById('mbody').innerHTML=
@@ -14318,6 +14477,7 @@ if(typeof window.openCashSettings === 'undefined'){
 
 if(typeof window.exportJSON === 'undefined'){
   window.exportJSON = function(){
+    if(!canAdmin()){adminDenied();return;}
     if(typeof haptic === 'function') haptic('medium');
     try {
       var data = JSON.stringify(S, null, 2);
@@ -14793,7 +14953,7 @@ function saveEntry(){
   render();
 }
 function delEntry(id){
-  if(role!=='editor')return;
+  if(!canDelete()){adminDenied();return;}
   if(!confirmSafe(T('confirmDel')))return;
   var d=S.entries.find(function(e){return e.id==id;});
   S.entries=S.entries.filter(function(e){return e.id!=id;});
@@ -14942,6 +15102,7 @@ function openSpotsBoard(){
   document.getElementById('modal').style.display='flex';
 }
 function openSettings(){
+  if(!canAdmin()){adminDenied();return;}
   document.getElementById('mtit').textContent='ПАРАМЕТРЫ';
   var s=S.settings||{};
   var norms=s.norms||{'Армирование':4.4,'Опалубка':4.0,'Бетонирование':4.7,'Комплекс':4.0,'Опалубка+бетон стен':4.7,'Опалубка+бетон перекрытий':3.3};
@@ -15193,10 +15354,11 @@ function openEditVol(id){
   var zones = [];
   if(S.objMeta && S.objMeta[obj] && S.objMeta[obj].spots){
     S.objMeta[obj].spots.forEach(function(s){
-      zones.push(s.name);
+      var label = s.name + (s.id ? ' ['+s.id+']' : '');
+      zones.push(label);
     });
   }
-  var existingZones = [];
+  var existingZones = uniqVals('zone');
   existingZones.forEach(function(z){
     if(zones.indexOf(z)<0) zones.push(z);
   });
@@ -15667,6 +15829,7 @@ function openBrigCard(bId){
 }
 
 function openEditBrig(bId){
+  if(!canAdmin()){adminDenied();return;}
   _editLock=true;
   var b=S.brigades.find(function(x){return x.id===bId;});
   if(!b){_editLock=false;return;}
@@ -15873,6 +16036,7 @@ function openEditBrig(bId){
   document.getElementById('bcb').addEventListener('click',function(){_editLock=false;closeModal();});
 }
 function openBrigArchive(){
+  if(!canAdmin()){adminDenied();return;}
   var arc=S.brigadesArchived||[];
   document.getElementById('mtit').textContent='АРХИВ БРИГАД';
   var rows=arc.length?arc.map(function(b,i){return '<div style="background:var(--s2);border-radius:10px;padding:12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:8px"><div><div style="font-weight:700;color:var(--text)">'+b.name+'</div><div style="font-size:11px;color:var(--mut)">'+(b.workers||0)+' чел'+(b.archivedAt?' \u00b7 в архиве с '+new Date(b.archivedAt).toLocaleDateString('ru-RU'):'')+'</div></div><button onclick="restoreBrig('+i+')" style="background:var(--teal);border:none;color:#0d1117;border-radius:8px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer;flex:none">Вернуть</button></div>';}).join(''):'<div style="color:var(--mut);text-align:center;padding:20px">Архив пуст</div>';
@@ -15881,6 +16045,7 @@ function openBrigArchive(){
   document.getElementById('bcb').addEventListener('click',function(){closeModal();});
 }
 function restoreBrig(i){
+  if(!canAdmin()){adminDenied();return;}
   var arc=S.brigadesArchived||[]; var b=arc[i]; if(!b)return;
   delete b.archivedAt; S.brigades.push(b);
   S.brigadesArchived=arc.filter(function(x,j){return j!==i;});
@@ -15889,6 +16054,7 @@ function restoreBrig(i){
   closeModal(); render();
 }
 function openAddBrig(){
+  if(!canAdmin()){adminDenied();return;}
   _editLock=true;
   var oo=S.objects.map(function(o){return '<option>'+o+'</option>';}).join('');
   document.getElementById('mtit').textContent='НОВАЯ БРИГАДА';
@@ -16651,6 +16817,7 @@ window.restoreObj=function(o){
 };
 // Экран «Архив объектов»
 window.openArchivedObjects=function(){
+  if(!canAdmin()){adminDenied();return;}
   var archived=(S.objects||[]).filter(function(o){return (objMeta(o).archived);});
   document.getElementById('mtit').textContent='АРХИВ ОБЪЕКТОВ';
   var body='';
@@ -16753,9 +16920,123 @@ function showReport(){
 }
 function shareReport(){var c=document.getElementById('rpt-body').innerHTML;var d=new Date().toLocaleDateString('ru-RU');var f='<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>LIONGATE '+d+'</title><style>body{font-family:Arial,sans-serif;font-size:11px;color:#222;padding:16px}table{width:100%;border-collapse:collapse;margin-bottom:12px}th{background:#1a1f2e;color:#f0a500;padding:6px 8px;text-align:left;font-size:10px}td{padding:5px 8px;border-bottom:1px solid #eee;font-size:10px}h2{font-size:13px;color:#1a1f2e;margin:16px 0 6px;padding-bottom:4px;border-bottom:3px solid #f0a500}@media print{*{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body>'+c+'</body></html>';var b=new Blob([f],{type:'text/html;charset=utf-8'});var fn='LIONGATE_'+d.replace(/\./g,'-')+'.html';if(navigator.share&&navigator.canShare){var fl=new File([b],fn,{type:'text/html'});if(navigator.canShare({files:[fl]})){navigator.share({files:[fl],title:'LIONGATE '+d}).catch(function(){printReport();});return;}}printReport();}
 function printReport(){var c=document.getElementById('rpt-body').innerHTML;var d=new Date().toLocaleDateString('ru-RU');var pw=window.open('','_blank');if(!pw){alert('Разрешите всплывающие окна');return;}pw.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>LIONGATE '+d+'</title><style>body{font-family:Arial,sans-serif;font-size:11px;color:#222;padding:16px}table{width:100%;border-collapse:collapse;margin-bottom:12px}th{background:#1a1f2e;color:#f0a500;padding:6px 8px;text-align:left;font-size:10px}td{padding:5px 8px;border-bottom:1px solid #eee;font-size:10px}h2{font-size:13px;color:#1a1f2e;margin:16px 0 6px;padding-bottom:4px;border-bottom:3px solid #f0a500}@media print{*{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body>'+c+'<scr'+'ipt>window.onload=function(){window.print();}<\/scr'+'ipt></body></html>');pw.document.close();}
+/* ===== СМЕНА ПАРОЛЯ (самообслуживание ролей) ===== */
+function hashPwd(s){s=String(s||'');var h=5381;for(var i=0;i<s.length;i++){h=((h<<5)+h+s.charCodeAt(i))>>>0;}return 'h'+h.toString(16);}
+function lgGetAuth(){var m={};try{var a=localStorage.getItem('lg_auth');if(a)m=JSON.parse(a)||{};}catch(e){m={};}try{if(window.S&&S.auth){for(var k in S.auth)m[k]=S.auth[k];}}catch(e){}return m;}
+function lgSaveAuth(map){try{localStorage.setItem('lg_auth',JSON.stringify(map));}catch(e){}try{if(window.S){S.auth=map;S._modified=Date.now();if(typeof persist==='function')persist();if(typeof pushCloud==='function')setTimeout(pushCloud,200);}}catch(e){}}
+function resolveRole(p){p=String(p||'').trim();if(!p)return null;var auth=lgGetAuth();var hp=hashPwd(p);for(var r in auth){if(auth[r]===hp)return r;}if(PWD[p]){var r0=PWD[p];if(r0==='owner')return 'owner';if(auth[r0])return null;return r0;}return null;}
+function roleLabelFor(r){return r==='owner'?'Владелец':(r==='editor'?'Учётчица':(r&&r.indexOf('partner_')===0?'Партнёр '+r.replace('partner_',''):(r&&r.indexOf('brigadier_')===0?'Бригадир '+r.replace('brigadier_',''):(r||'—'))));}
+window.resolveRole=resolveRole;window.hashPwd=hashPwd;window.lgGetAuth=lgGetAuth;window.lgSaveAuth=lgSaveAuth;
+
+function openChangePassword(){
+  var r=(typeof role!=='undefined')?role:null;
+  if(!r||r==='viewer'){alert('Войдите под своим паролем, чтобы сменить его.');return;}
+  document.getElementById('mtit').textContent='СМЕНА ПАРОЛЯ';
+  var h='<div style="font-size:13px;color:var(--mut);margin-bottom:12px">Ваша роль: <b style="color:var(--text)">'+roleLabelFor(r)+'</b>. Новый пароль заменит старый на всех ваших устройствах.</div>';
+  h+='<div class="fg"><label class="fl">Текущий пароль</label><input class="fi" type="password" id="cp-old" autocomplete="off"/></div>';
+  h+='<div class="fg"><label class="fl">Новый пароль</label><input class="fi" type="password" id="cp-new" autocomplete="off"/></div>';
+  h+='<div class="fg"><label class="fl">Повторите новый</label><input class="fi" type="password" id="cp-new2" autocomplete="off"/></div>';
+  h+='<button class="fsave" id="cp-save" style="background:var(--gold);color:#0d1117">Сохранить</button>';
+  h+='<button class="fcanc" id="cp-cancel">Отмена</button>';
+  document.getElementById('mbody').innerHTML=h;
+  document.getElementById('modal').style.display='flex';
+  document.getElementById('cp-cancel').addEventListener('click',function(){closeModal();});
+  document.getElementById('cp-save').addEventListener('click',function(){
+    var oldp=(document.getElementById('cp-old').value||'').trim();
+    var nw=(document.getElementById('cp-new').value||'').trim();
+    var nw2=(document.getElementById('cp-new2').value||'').trim();
+    if(resolveRole(oldp)!==r){alert('Текущий пароль неверный.');return;}
+    if(nw.length<4){alert('Новый пароль — минимум 4 символа.');return;}
+    if(nw!==nw2){alert('Пароли не совпадают.');return;}
+    var auth=lgGetAuth();var hp=hashPwd(nw);
+    for(var rr in auth){if(rr!==r&&auth[rr]===hp){alert('Такой пароль уже используется.');return;}}
+    if(PWD[nw]&&PWD[nw]!==r){alert('Такой пароль занят системой. Выберите другой.');return;}
+    auth[r]=hp;lgSaveAuth(auth);
+    try{sessionStorage.setItem('loginPwd',nw);}catch(e){}
+    closeModal();alert('Пароль изменён.');
+  });
+}
+
+function openPwdAdmin(){
+  if(typeof canAdmin!=='function'||!canAdmin()){if(typeof adminDenied==='function')adminDenied();return;}
+  var auth=lgGetAuth();
+  document.getElementById('mtit').textContent='ПАРОЛИ · СБРОС';
+  var roles=[['owner','Владелец'],['editor','Учётчица']];var seen={owner:1,editor:1};
+  for(var k in PWD){var rr=PWD[k];if(seen[rr])continue;seen[rr]=1;roles.push([rr,roleLabelFor(rr)]);}
+  var h='<div style="font-size:13px;color:var(--mut);margin-bottom:12px">Сброс вернёт роль к стандартному паролю. Вход владельца (Dmitry1980) — аварийный, работает всегда.</div>';
+  roles.forEach(function(pr){
+    var has=!!auth[pr[0]];
+    h+='<div style="display:flex;justify-content:space-between;align-items:center;background:var(--s2);border-radius:10px;padding:11px;margin-bottom:8px"><div><div style="font-weight:700;color:var(--text)">'+pr[1]+'</div><div style="font-size:11px;color:var(--mut)">'+(has?'свой пароль':'стандартный пароль')+'</div></div>'+(has?'<button class="pa-reset" data-r="'+pr[0]+'" style="background:var(--red);border:none;color:#fff;border-radius:8px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer">Сбросить</button>':'')+'</div>';
+  });
+  h+='<button class="fcanc" id="pa-c">Закрыть</button>';
+  document.getElementById('mbody').innerHTML=h;
+  document.getElementById('modal').style.display='flex';
+  document.getElementById('pa-c').addEventListener('click',function(){closeModal();});
+  Array.prototype.forEach.call(document.querySelectorAll('.pa-reset'),function(b){b.addEventListener('click',function(){lgResetRole(b.getAttribute('data-r'));});});
+}
+function lgResetRole(r){
+  if(typeof canAdmin!=='function'||!canAdmin()){if(typeof adminDenied==='function')adminDenied();return;}
+  if(!confirm('Сбросить пароль роли «'+roleLabelFor(r)+'» к стандартному?'))return;
+  var auth=lgGetAuth();delete auth[r];lgSaveAuth(auth);openPwdAdmin();
+}
+/* ===== ПОЛЬЗОВАТЕЛИ (люди уже в системе: владелец/учётчица/партнёры/бригады) ===== */
+function lgUserNames(){try{return (window.S&&S.userNames)?S.userNames:{};}catch(e){return {};}}
+function userDisplayName(rl){
+  var nm=lgUserNames();if(nm[rl])return nm[rl];
+  if(rl==='owner')return 'Дмитрий';
+  if(rl==='editor')return 'Учётчица';
+  if(rl&&rl.indexOf('partner_')===0)return rl.replace('partner_','');
+  if(rl&&rl.indexOf('brigadier_')===0){try{var b=(window.S&&S.brigades?S.brigades:[]).find(function(x){return 'brigadier_'+x.id===rl;});if(b)return b.name;}catch(e){}return 'Бригадир';}
+  return rl||'—';
+}
+function lgPeopleList(){
+  var list=[{role:'owner',label:'Владелец',icon:'👑'},{role:'editor',label:'Учётчица',icon:'📊'}];
+  try{(typeof PARTNERS!=='undefined'?PARTNERS:[]).forEach(function(p){list.push({role:'partner_'+p,label:'Партнёр',icon:'🤝'});});}catch(e){}
+  try{(window.S&&S.brigades?S.brigades:[]).forEach(function(b){list.push({role:'brigadier_'+b.id,label:'Бригадир',icon:'👷'});});}catch(e){}
+  return list;
+}
+function openUsers(){
+  if(typeof canAdmin!=='function'||!canAdmin()){if(typeof adminDenied==='function')adminDenied();return;}
+  var auth=lgGetAuth();var people=lgPeopleList();
+  document.getElementById('mtit').textContent='ПОЛЬЗОВАТЕЛИ';
+  var h='<div style="font-size:13px;color:var(--mut);margin-bottom:12px">Все, кто уже в системе. Задай человеку пароль — и он входит под своим. Вход владельца (Dmitry1980) — аварийный, работает всегда.</div>';
+  people.forEach(function(pr){
+    var has=!!auth[pr.role];
+    h+='<div style="background:var(--s2);border-radius:10px;padding:11px;margin-bottom:8px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div style="min-width:0"><div style="font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+pr.icon+' '+userDisplayName(pr.role)+'</div><div style="font-size:11px;color:var(--mut)">'+pr.label+' · '+(has?'свой пароль':'стандартный')+'</div></div><div style="display:flex;gap:6px;flex:none"><button class="u-set" data-r="'+pr.role+'" style="background:var(--blue);border:none;color:#fff;border-radius:8px;padding:8px 10px;font-size:12px;font-weight:700;cursor:pointer">Пароль</button>'+(has?'<button class="u-reset" data-r="'+pr.role+'" style="background:var(--red);border:none;color:#fff;border-radius:8px;padding:8px 10px;font-size:12px;font-weight:700;cursor:pointer">Сброс</button>':'')+'</div></div></div>';
+  });
+  h+='<button class="fcanc" id="u-close">Закрыть</button>';
+  document.getElementById('mbody').innerHTML=h;
+  document.getElementById('modal').style.display='flex';
+  document.getElementById('u-close').addEventListener('click',function(){closeModal();});
+  Array.prototype.forEach.call(document.querySelectorAll('.u-set'),function(b){b.addEventListener('click',function(){openSetPwd(b.getAttribute('data-r'));});});
+  Array.prototype.forEach.call(document.querySelectorAll('.u-reset'),function(b){b.addEventListener('click',function(){lgResetRole(b.getAttribute('data-r'));});});
+}
+function openSetPwd(rl){
+  if(typeof canAdmin!=='function'||!canAdmin()){if(typeof adminDenied==='function')adminDenied();return;}
+  document.getElementById('mtit').textContent='ПАРОЛЬ · '+userDisplayName(rl);
+  var h='<div style="font-size:13px;color:var(--mut);margin-bottom:12px">Пароль для: <b style="color:var(--text)">'+userDisplayName(rl)+'</b>. Заменит прежний, синхронизируется на все устройства.</div>';
+  h+='<div class="fg"><label class="fl">Новый пароль</label><input class="fi" type="text" id="su-p" autocomplete="off" placeholder="минимум 4 символа"/></div>';
+  h+='<button class="fsave" id="su-save" style="background:var(--gold);color:#0d1117">Сохранить</button>';
+  h+='<button class="fcanc" id="su-cancel">Назад</button>';
+  document.getElementById('mbody').innerHTML=h;
+  document.getElementById('su-cancel').addEventListener('click',function(){openUsers();});
+  document.getElementById('su-save').addEventListener('click',function(){
+    var p=(document.getElementById('su-p').value||'').trim();
+    if(p.length<4){alert('Минимум 4 символа.');return;}
+    var auth=lgGetAuth();var hp=hashPwd(p);
+    for(var rr in auth){if(rr!==rl&&auth[rr]===hp){alert('Такой пароль уже используется.');return;}}
+    if(PWD[p]&&PWD[p]!==rl){alert('Такой пароль занят системой.');return;}
+    auth[rl]=hp;lgSaveAuth(auth);
+    alert('Пароль задан для: '+userDisplayName(rl));openUsers();
+  });
+}
+window.openUsers=openUsers;window.openSetPwd=openSetPwd;window.userDisplayName=userDisplayName;
+window.openChangePassword=openChangePassword;window.openPwdAdmin=openPwdAdmin;window.lgResetRole=lgResetRole;
+
 function tryLogin(){
   var p=document.getElementById('lpass').value.trim();
-  if(PWD[p]){role=PWD[p];sessionStorage.setItem('role',role);sessionStorage.setItem('loginPwd',p);startApp();}
+  var _rr=resolveRole(p);
+  if(_rr){role=_rr;sessionStorage.setItem('role',role);sessionStorage.setItem('loginPwd',p);startApp();}
   else{document.getElementById('lerr').textContent='Неверный пароль';document.getElementById('lpass').value='';}
 }
 function viewOnly(){role='viewer';sessionStorage.setItem('role','viewer');startApp();}
@@ -17950,7 +18231,7 @@ document.getElementById('btn-out').addEventListener('click',doLogout);
 // Переключатель языка RU/KZ
 var btnLang=document.getElementById('btn-lang');
 if(btnLang){
-  var langCycle = ['ru','kz','en'];
+  var langCycle = ['ru','kz'];
   var langLabels = {'ru':'RU','kz':'KZ','en':'EN'};
   btnLang.textContent = langLabels[LANG] || 'RU';
   // Удалим старый обработчик если был
@@ -17973,7 +18254,7 @@ document.getElementById('btn-refresh').addEventListener('click',function(){
   try{localStorage.setItem('lg_v9',JSON.stringify(S));}catch(e){}
   // 2. Отправить в облако и ПОДОЖДАТЬ подтверждения перед очисткой
   ss('↑ Отправка в облако...',false);
-  fetch(BURL,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':AK,'X-Bin-Versioning':'false'},body:JSON.stringify({_modified:S._modified,_schema:S._schema||3,entries:S.entries,brigades:S.brigades,objects:S.objects,objMeta:S.objMeta||{},history:S.history,weeks:S.weeks,kfu:S.kfu,settings:S.settings,goalsDone:S.goalsDone,kzDict:S.kzDict||{},workTypes:S.workTypes||[],subgoals:S.subgoals||[],cycles:S.cycles||{},ks2meta:S.ks2meta||{},ks2acts:S.ks2acts||[],ks3acts:S.ks3acts||[],directions:S.directions||[],roles:S.roles||[],milestones:S.milestones||[]})}).then(function(res){
+  fetch(BURL,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':AK,'X-Bin-Versioning':'false'},body:JSON.stringify({_modified:S._modified,_schema:S._schema||3,entries:S.entries,brigades:S.brigades,objects:S.objects,objMeta:S.objMeta||{},history:S.history,weeks:S.weeks,kfu:S.kfu,settings:S.settings,goalsDone:S.goalsDone,auth:S.auth||{},kzDict:S.kzDict||{},workTypes:S.workTypes||[],subgoals:S.subgoals||[],cycles:S.cycles||{},ks2meta:S.ks2meta||{},ks2acts:S.ks2acts||[],ks3acts:S.ks3acts||[],directions:S.directions||[],roles:S.roles||[],milestones:S.milestones||[]})}).then(function(res){
     if(!res.ok){
       alert('❌ Не удалось сохранить в облако! Обновление отменено чтобы не потерять данные.\n\nПроверьте интернет и попробуйте снова.');
       ss('!',true);
@@ -18659,6 +18940,7 @@ setInterval(function(){
     if(isEditor()) setTimeout(pushCloud,500);
   }
 })();
+try{fetch(BURL,{headers:{'X-Master-Key':AK}}).then(function(r){return r.json();}).then(function(d){var rec=(d&&d.record)?d.record:d;if(rec&&rec.auth){try{localStorage.setItem('lg_auth',JSON.stringify(rec.auth));}catch(e){}}}).catch(function(){});}catch(e){}
 var sr=sessionStorage.getItem('role');if(sr){role=sr;startApp();}
 setLang(LANG);
 });
@@ -20739,7 +21021,7 @@ window.LGPLAN={
  },
  cancel:function(){FORM=null;refresh();}
 };
-window.lgStratToggle=function(id){var S=window.S||{};if(!S.stratDone)S.stratDone={};S.stratDone[id]=!S.stratDone[id];try{if(window.save)window.save();}catch(e){}window.openStrategy2030();};
+window.lgStratToggle=function(id){if(typeof window.canAdmin==="function" && !window.canAdmin())return;var S=window.S||{};if(!S.stratDone)S.stratDone={};S.stratDone[id]=!S.stratDone[id];try{if(window.save)window.save();}catch(e){}window.openStrategy2030();};
 window.openStrategy2030=function(){
   var S=window.S||{};var yr=new Date().getFullYear();
   var factM3=0;
@@ -20851,6 +21133,7 @@ window.openStrategy2030=function(){
   var mt=document.getElementById('mtit');if(mt)mt.textContent='ПУТЬ К $1 МЛРД';
   var mb=document.getElementById('mbody');if(mb)mb.innerHTML=h;
   var md=document.getElementById('modal');if(md)md.style.display='flex';
+  if(window.LANG==="kz"&&typeof window.applyTranslation==="function")setTimeout(function(){try{window.applyTranslation(md);}catch(e){}},30);
   var cb=document.getElementById('strat-close');if(cb)cb.addEventListener('click',function(){if(typeof window.closeModal==='function')window.closeModal();else if(md)md.style.display='none';});
 };
 
@@ -20870,6 +21153,7 @@ function S(){ if(!window.S) window.S={}; if(!window.S.retail) window.S.retail={p
 function save(){ try{ if(window.save) window.save(); }catch(e){} }
 function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
 function gv(id){var el=document.getElementById(id);return el?el.value:"";}
+function ro(){ return (typeof window.canAdmin==="function") && !window.canAdmin(); }
 function money(n){n=n||0;var a=Math.abs(n);var s;if(a>=1e9)s=(n/1e9).toFixed(2).replace(".",",")+" млрд";else if(a>=1e6)s=(n/1e6).toFixed(1).replace(".",",")+" млн";else if(a>=1e3)s=Math.round(n/1e3)+" тыс";else s=Math.round(n);return s+" ₸";}
 function num(n){try{return new Intl.NumberFormat("ru").format(Math.round(n||0));}catch(e){return Math.round(n||0);}}
 var TARGET={2026:2,2027:6,2028:15,2029:40,2030:100}; // млрд ₸
@@ -20933,7 +21217,7 @@ function overview(){
 function products(){
   var r=S().retail; stats(); // populate _stock
   var h=navRow();
-  h+='<button onclick="retailForm(\'product\')" style="width:100%;padding:11px;border-radius:10px;border:1px solid '+TEAL+';background:rgba(57,211,187,.10);color:'+TEAL+';font-weight:700;font-size:14px;cursor:pointer;margin-bottom:12px">+ Добавить товар</button>';
+  if(!ro())h+='<button onclick="retailForm(\'product\')" style="width:100%;padding:11px;border-radius:10px;border:1px solid '+TEAL+';background:rgba(57,211,187,.10);color:'+TEAL+';font-weight:700;font-size:14px;cursor:pointer;margin-bottom:12px">+ Добавить товар</button>';
   if(!r.products.length){ h+='<div style="font-size:13px;color:'+MUT+';text-align:center;padding:20px">Каталог пуст</div>'; return h; }
   r.products.forEach(function(p){
     var marg=(p.price>0)?((p.price-p.cost)/p.price*100):0;
@@ -20950,8 +21234,8 @@ function ops(){
   var r=S().retail; var prod={}; r.products.forEach(function(p){prod[p.id]=p;});
   var h=navRow();
   h+='<div style="display:flex;gap:8px;margin-bottom:12px">';
-  h+='<button onclick="retailForm(\'op\',\'sale\')" style="flex:1;padding:11px;border-radius:10px;border:1px solid '+GREEN+';background:rgba(126,231,135,.10);color:'+GREEN+';font-weight:700;font-size:14px;cursor:pointer">+ Продажа</button>';
-  h+='<button onclick="retailForm(\'op\',\'purchase\')" style="flex:1;padding:11px;border-radius:10px;border:1px solid '+BLUE+';background:rgba(88,166,255,.10);color:'+BLUE+';font-weight:700;font-size:14px;cursor:pointer">+ Закупка</button>';
+  if(!ro())h+='<button onclick="retailForm(\'op\',\'sale\')" style="flex:1;padding:11px;border-radius:10px;border:1px solid '+GREEN+';background:rgba(126,231,135,.10);color:'+GREEN+';font-weight:700;font-size:14px;cursor:pointer">+ Продажа</button>';
+  if(!ro())h+='<button onclick="retailForm(\'op\',\'purchase\')" style="flex:1;padding:11px;border-radius:10px;border:1px solid '+BLUE+';background:rgba(88,166,255,.10);color:'+BLUE+';font-weight:700;font-size:14px;cursor:pointer">+ Закупка</button>';
   h+='</div>';
   var list=r.ops.slice().sort(function(a,b){return (b.date||"").localeCompare(a.date||"");});
   if(!list.length){ h+='<div style="font-size:13px;color:'+MUT+';text-align:center;padding:20px">Операций пока нет</div>'; return h; }
@@ -21018,11 +21302,12 @@ window.openRetail=function(){
   var mt=document.getElementById("mtit"); if(mt)mt.textContent="РИТЕЙЛ";
   var mb=document.getElementById("mbody"); if(mb)mb.innerHTML=h;
   var md=document.getElementById("modal"); if(md)md.style.display="flex";
+  if(window.LANG==="kz"&&typeof window.applyTranslation==="function")setTimeout(function(){try{window.applyTranslation(md);}catch(e){}},30);
   var cb=document.getElementById("r-close"); if(cb)cb.addEventListener("click",function(){ R.form=null; if(typeof window.closeModal==="function")window.closeModal(); else if(md)md.style.display="none"; });
 };
 window.retailNav=function(v){ R.form=null; R.view=v; window.openRetail(); };
-window.retailForm=function(kind,opType,id){ R.form={kind:kind,opType:opType,id:id||null}; window.openRetail(); };
-window.retailSave=function(kind){
+window.retailForm=function(kind,opType,id){ if(ro())return; R.form={kind:kind,opType:opType,id:id||null}; window.openRetail(); };
+window.retailSave=function(kind){ if(ro())return;
   var r=S().retail;
   if(kind==="product"){
     var name=(gv("r-name")||"").trim(); if(!name){alert("Введите название");return;}
@@ -21042,7 +21327,7 @@ window.retailSave=function(kind){
   try{ if(window.pushCloud) setTimeout(function(){window.pushCloud();},100); }catch(e){}
   window.openRetail();
 };
-window.retailDel=function(kind,id){
+window.retailDel=function(kind,id){ if(ro())return;
   if(!confirm("Удалить?"))return;
   var r=S().retail;
   if(kind==="product") r.products=r.products.filter(function(x){return x.id!==id;});
@@ -21067,6 +21352,7 @@ function S(){ if(!window.S)window.S={}; if(!window.S.finishing)window.S.finishin
 function save(){ try{ if(window.save)window.save(); }catch(e){} }
 function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
 function gv(id){var el=document.getElementById(id);return el?el.value:"";}
+function ro(){ return (typeof window.canAdmin==="function") && !window.canAdmin(); }
 function money(n){n=n||0;var a=Math.abs(n);var s;if(a>=1e9)s=(n/1e9).toFixed(2).replace(".",",")+" млрд";else if(a>=1e6)s=(n/1e6).toFixed(1).replace(".",",")+" млн";else if(a>=1e3)s=Math.round(n/1e3)+" тыс";else s=Math.round(n);return s+" ₸";}
 function num(n){try{return new Intl.NumberFormat("ru").format(Math.round(n||0));}catch(e){return Math.round(n||0);}}
 var TARGET={2026:15000,2027:50000,2028:70000,2029:80000,2030:80000}; // м²
@@ -21118,7 +21404,7 @@ function overview(){
 function projects(){
   var r=S().finishing; stats();
   var h=navRow();
-  h+='<button onclick="finForm(\'project\')" style="width:100%;padding:11px;border-radius:10px;border:1px solid '+TEAL+';background:rgba(57,211,187,.10);color:'+TEAL+';font-weight:700;font-size:14px;cursor:pointer;margin-bottom:12px">+ Добавить проект</button>';
+  if(!ro())h+='<button onclick="finForm(\'project\')" style="width:100%;padding:11px;border-radius:10px;border:1px solid '+TEAL+';background:rgba(57,211,187,.10);color:'+TEAL+';font-weight:700;font-size:14px;cursor:pointer;margin-bottom:12px">+ Добавить проект</button>';
   if(!r.projects.length){ h+='<div style="font-size:13px;color:'+MUT+';text-align:center;padding:20px">Проектов нет</div>'; return h; }
   r.projects.forEach(function(p){
     h+='<div onclick="finForm(\'project\',\''+p.id+'\')" style="background:'+CARD+';border:1px solid '+BRD+';border-radius:12px;padding:12px;margin-bottom:8px;cursor:pointer">';
@@ -21131,7 +21417,7 @@ function projects(){
 function ops(){
   var r=S().finishing; var proj={}; r.projects.forEach(function(p){proj[p.id]=p;});
   var h=navRow();
-  h+='<button onclick="finForm(\'op\')" style="width:100%;padding:11px;border-radius:10px;border:1px solid '+GREEN+';background:rgba(126,231,135,.10);color:'+GREEN+';font-weight:700;font-size:14px;cursor:pointer;margin-bottom:12px">+ Добавить работу</button>';
+  if(!ro())h+='<button onclick="finForm(\'op\')" style="width:100%;padding:11px;border-radius:10px;border:1px solid '+GREEN+';background:rgba(126,231,135,.10);color:'+GREEN+';font-weight:700;font-size:14px;cursor:pointer;margin-bottom:12px">+ Добавить работу</button>';
   var list=r.ops.slice().sort(function(a,b){return (b.date||"").localeCompare(a.date||"");});
   if(!list.length){ h+='<div style="font-size:13px;color:'+MUT+';text-align:center;padding:20px">Работ пока нет</div>'; return h; }
   list.forEach(function(o){ var p=proj[o.projectId]; var rate=p?(p.rate||0):0;
@@ -21179,11 +21465,12 @@ window.openFinishing=function(){
   var mt=document.getElementById("mtit"); if(mt)mt.textContent="ОТДЕЛКА";
   var mb=document.getElementById("mbody"); if(mb)mb.innerHTML=h;
   var md=document.getElementById("modal"); if(md)md.style.display="flex";
+  if(window.LANG==="kz"&&typeof window.applyTranslation==="function")setTimeout(function(){try{window.applyTranslation(md);}catch(e){}},30);
   var cb=document.getElementById("f-close"); if(cb)cb.addEventListener("click",function(){ F.form=null; if(typeof window.closeModal==="function")window.closeModal(); else if(md)md.style.display="none"; });
 };
 window.finNav=function(v){ F.form=null; F.view=v; window.openFinishing(); };
-window.finForm=function(kind,id){ F.form={kind:kind,id:id||null}; window.openFinishing(); };
-window.finSave=function(kind){
+window.finForm=function(kind,id){ if(ro())return; F.form={kind:kind,id:id||null}; window.openFinishing(); };
+window.finSave=function(kind){ if(ro())return;
   var r=S().finishing;
   if(kind==="project"){
     var name=(gv("f-name")||"").trim(); if(!name){alert("Введите название");return;}
@@ -21202,7 +21489,7 @@ window.finSave=function(kind){
   try{ if(window.pushCloud) setTimeout(function(){window.pushCloud();},100); }catch(e){}
   window.openFinishing();
 };
-window.finDel=function(kind,id){
+window.finDel=function(kind,id){ if(ro())return;
   if(!confirm("Удалить?"))return;
   var r=S().finishing;
   if(kind==="project") r.projects=r.projects.filter(function(x){return x.id!==id;});
@@ -21228,6 +21515,7 @@ function S(){ if(!window.S)window.S={}; if(!window.S.development)window.S.develo
 function save(){ try{ if(window.save)window.save(); }catch(e){} }
 function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
 function gv(id){var el=document.getElementById(id);return el?el.value:"";}
+function ro(){ return (typeof window.canAdmin==="function") && !window.canAdmin(); }
 function money(n){n=n||0;var a=Math.abs(n);var s;if(a>=1e9)s=(n/1e9).toFixed(2).replace(".",",")+" млрд";else if(a>=1e6)s=(n/1e6).toFixed(1).replace(".",",")+" млн";else if(a>=1e3)s=Math.round(n/1e3)+" тыс";else s=Math.round(n);return s+" ₸";}
 
 function stats(){
@@ -21268,7 +21556,7 @@ function overview(){
 function projects(){
   var r=S().development;
   var h=navRow();
-  h+='<button onclick="devForm(\'project\')" style="width:100%;padding:11px;border-radius:10px;border:1px solid '+GOLD+';background:rgba(255,209,102,.10);color:'+GOLD+';font-weight:700;font-size:14px;cursor:pointer;margin-bottom:12px">+ Добавить проект</button>';
+  if(!ro())h+='<button onclick="devForm(\'project\')" style="width:100%;padding:11px;border-radius:10px;border:1px solid '+GOLD+';background:rgba(255,209,102,.10);color:'+GOLD+';font-weight:700;font-size:14px;cursor:pointer;margin-bottom:12px">+ Добавить проект</button>';
   if(!r.projects.length){ h+='<div style="font-size:13px;color:'+MUT+';text-align:center;padding:20px">Проектов нет</div>'; return h; }
   r.projects.forEach(function(p){ var sc=statusColor(p.status);
     h+='<div onclick="devForm(\'project\',\''+p.id+'\')" style="background:'+CARD+';border:1px solid '+BRD+';border-radius:12px;padding:12px;margin-bottom:8px;cursor:pointer">';
@@ -21282,8 +21570,8 @@ function ops(){
   var r=S().development; var proj={}; r.projects.forEach(function(p){proj[p.id]=p;});
   var h=navRow();
   h+='<div style="display:flex;gap:8px;margin-bottom:12px">';
-  h+='<button onclick="devForm(\'op\',null,\'sale\')" style="flex:1;padding:11px;border-radius:10px;border:1px solid '+GREEN+';background:rgba(126,231,135,.10);color:'+GREEN+';font-weight:700;font-size:14px;cursor:pointer">+ Продажа</button>';
-  h+='<button onclick="devForm(\'op\',null,\'cost\')" style="flex:1;padding:11px;border-radius:10px;border:1px solid '+BLUE+';background:rgba(88,166,255,.10);color:'+BLUE+';font-weight:700;font-size:14px;cursor:pointer">+ Затрата</button>';
+  if(!ro())h+='<button onclick="devForm(\'op\',null,\'sale\')" style="flex:1;padding:11px;border-radius:10px;border:1px solid '+GREEN+';background:rgba(126,231,135,.10);color:'+GREEN+';font-weight:700;font-size:14px;cursor:pointer">+ Продажа</button>';
+  if(!ro())h+='<button onclick="devForm(\'op\',null,\'cost\')" style="flex:1;padding:11px;border-radius:10px;border:1px solid '+BLUE+';background:rgba(88,166,255,.10);color:'+BLUE+';font-weight:700;font-size:14px;cursor:pointer">+ Затрата</button>';
   h+='</div>';
   var list=r.ops.slice().sort(function(a,b){return (b.date||"").localeCompare(a.date||"");});
   if(!list.length){ h+='<div style="font-size:13px;color:'+MUT+';text-align:center;padding:20px">Операций пока нет</div>'; return h; }
@@ -21336,11 +21624,12 @@ window.openDevelopment=function(){
   var mt=document.getElementById("mtit"); if(mt)mt.textContent="ДЕВЕЛОПМЕНТ";
   var mb=document.getElementById("mbody"); if(mb)mb.innerHTML=h;
   var md=document.getElementById("modal"); if(md)md.style.display="flex";
+  if(window.LANG==="kz"&&typeof window.applyTranslation==="function")setTimeout(function(){try{window.applyTranslation(md);}catch(e){}},30);
   var cb=document.getElementById("d-close"); if(cb)cb.addEventListener("click",function(){ D.form=null; if(typeof window.closeModal==="function")window.closeModal(); else if(md)md.style.display="none"; });
 };
 window.devNav=function(v){ D.form=null; D.view=v; window.openDevelopment(); };
-window.devForm=function(kind,id,opType){ D.form={kind:kind,id:id||null,opType:opType}; window.openDevelopment(); };
-window.devSave=function(kind){
+window.devForm=function(kind,id,opType){ if(ro())return; D.form={kind:kind,id:id||null,opType:opType}; window.openDevelopment(); };
+window.devSave=function(kind){ if(ro())return;
   var r=S().development;
   if(kind==="project"){
     var name=(gv("d-name")||"").trim(); if(!name){alert("Введите название");return;}
@@ -21359,7 +21648,7 @@ window.devSave=function(kind){
   try{ if(window.pushCloud) setTimeout(function(){window.pushCloud();},100); }catch(e){}
   window.openDevelopment();
 };
-window.devDel=function(kind,id){
+window.devDel=function(kind,id){ if(ro())return;
   if(!confirm("Удалить?"))return;
   var r=S().development;
   if(kind==="project") r.projects=r.projects.filter(function(x){return x.id!==id;});
