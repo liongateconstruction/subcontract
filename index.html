@@ -9184,7 +9184,6 @@ function rMain(){
   h += '<div style="font-size:30px;color:var(--gold);font-weight:800;letter-spacing:2px;font-family:var(--fd)">🔥 ПУЛЬС</div>';
   h += '<div style="font-size:14px;color:#8b949e;margin-top:4px;text-transform:capitalize">'+today.toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long'})+'</div>';
   h += '</div>';
-  h += (typeof LGPLAN_block==='function'?LGPLAN_block():'');
 
   // ============= 📥 ЧЕРНОВИКИ НА СВЕРКЕ (самый верх — требуют действия) =============
   var draftsCount = (typeof _drafts !== 'undefined' && _drafts) ? 
@@ -9200,6 +9199,8 @@ function rMain(){
     h += '<div style="font-size:26px;color:#0d1117;font-weight:800">›</div>';
     h += '</div>';
   }
+
+  h += (typeof LGPLAN_block==='function'?LGPLAN_block():'');
 
   // ============= 5 КФУ — СВЕТОФОРЫ ЯНКОВСКОГО =============
   var iso = isoWeek(today);
@@ -17238,7 +17239,7 @@ function chatParseMessage(m){
     var op=d&&d.advice;if(Array.isArray(op))op=op[0];
     if(!op||typeof op!=='object'||!op.kind||op.kind==='none'){m.parseState='none';}
     else{m.parsed=op;m.parseState='draft';}
-    S._modified=Date.now();if(typeof persist==='function')persist();if(typeof pushCloud==='function')setTimeout(pushCloud,200);renderChatList();
+    S._modified=Date.now();if(typeof persist==='function')persist();if(typeof pushCloud==='function')setTimeout(pushCloud,200);renderChatList();if(typeof render==='function')render();
   }).catch(function(){m.parseState='error';renderChatList();});
 }
 function chatBrigName(id){if(id&&window.S&&S.brigades){var b=S.brigades.find(function(x){return x.id===id;});if(b)return b.name;}return '';}
@@ -17279,18 +17280,14 @@ function chatConfirmDraft(id){
   S._modified=Date.now();if(typeof persist==='function')persist();if(typeof pushCloud==='function')setTimeout(pushCloud,150);if(typeof render==='function')render();
   renderChatList();
 }
-function chatRejectDraft(id){var m=(window.S&&S.chat?S.chat:[]).find(function(x){return x.id===id;});if(!m)return;m.parseState='rejected';S._modified=Date.now();if(typeof persist==='function')persist();if(typeof pushCloud==='function')setTimeout(pushCloud,150);renderChatList();}
+function chatRejectDraft(id){var m=(window.S&&S.chat?S.chat:[]).find(function(x){return x.id===id;});if(!m)return;m.parseState='rejected';S._modified=Date.now();if(typeof persist==='function')persist();if(typeof pushCloud==='function')setTimeout(pushCloud,150);renderChatList();if(typeof render==='function')render();}
 function chatDraftCard(m){
   var done=(window.S&&S.entries?S.entries:[]).some(function(e){return e.chatMsgId===m.id;});
   if(done)return '<div style="margin-top:6px;font-size:11px;color:#0a8f80;font-weight:700">✓ Добавлено в учёт</div>';
-  if(m.parseState==='rejected')return '';
+  if(m.parseState==='rejected')return '<div style="margin-top:6px;font-size:11px;color:#999">✗ Отклонено</div>';
   if(m.parseState==='parsing')return '<div style="margin-top:6px;font-size:11px;color:#1f6feb">🤖 разбираю…</div>';
   if(m.parseState==='draft'&&m.parsed){
-    var canC=(typeof canEdit==='function')?canEdit():false;
-    var h='<div style="margin-top:6px;background:#fff7e0;border:1px solid #f0d98a;border-radius:10px;padding:8px 10px"><div style="font-size:12px;color:#7a5c00;font-weight:700">🤖 '+chatEsc(chatOpSummary(m.parsed))+'</div>';
-    if(canC)h+='<div style="display:flex;gap:6px;margin-top:7px"><button onclick="chatConfirmDraft(\''+m.id+'\')" style="flex:1;background:#0a8f80;color:#fff;border:none;border-radius:7px;padding:7px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">✓ В учёт</button><button onclick="chatRejectDraft(\''+m.id+'\')" style="flex:none;background:#e6e6e6;color:#555;border:none;border-radius:7px;padding:7px 12px;font-size:12px;cursor:pointer;font-family:inherit">✗</button></div>';
-    else h+='<div style="font-size:10px;color:#a98a3a;margin-top:4px">ждёт подтверждения</div>';
-    h+='</div>';return h;
+    return '<div style="margin-top:6px;background:#fff7e0;border:1px solid #f0d98a;border-radius:10px;padding:7px 10px"><div style="font-size:12px;color:#7a5c00;font-weight:700">🤖 '+chatEsc(chatOpSummary(m.parsed))+'</div><div style="font-size:10px;color:#a98a3a;margin-top:3px">на сверке · подтвердит владелец или учётчица</div></div>';
   }
   return '';
 }
@@ -19736,7 +19733,7 @@ function openDraftsModal(){
 
   // DEBUG-блок: показать что прислал бот (сырой op)
   // Помогает диагностировать пустые/неполные черновики
-  if(window._showDebug !== false){
+  if(window._showDebug !== false && visible.length>0){
     h += '<details style="background:rgba(248,81,73,.06);border:1px solid var(--red);border-radius:8px;padding:8px;margin-bottom:10px;font-size:11px">';
     h += '<summary style="cursor:pointer;color:var(--red);font-weight:700;font-size:10px;letter-spacing:1px">🐞 DEBUG: ЧТО ПРИСЛАЛ БОТ ('+visible.length+' черновиков)</summary>';
     h += '<div style="margin-top:8px;font-family:monospace;font-size:10px;color:var(--mut)">';
