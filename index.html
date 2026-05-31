@@ -173,6 +173,7 @@ nav{position:fixed;bottom:0;left:0;right:0;background:rgba(22,27,34,0.97);border
 .nb:active{transform:scale(.88)}
 .nb svg{transition:all .2s;flex-shrink:0}
 .nb .ic{font-size:20px;line-height:1;transition:transform .2s}
+.chatfab{position:fixed;bottom:calc(58px + env(safe-area-inset-bottom) + 66px);right:14px;width:52px;height:52px;background:linear-gradient(135deg,#a371f7,#58a6ff);border:none;border-radius:50%;font-size:23px;color:#fff;cursor:pointer;z-index:89;box-shadow:0 4px 18px rgba(88,166,255,.45);display:flex;align-items:center;justify-content:center}
 .fab{position:fixed;bottom:calc(58px + env(safe-area-inset-bottom));right:14px;width:56px;height:56px;background:linear-gradient(135deg,#ffb320,#ff8c00);border:none;border-radius:50%;font-size:26px;color:#0d1117;cursor:pointer;z-index:89;box-shadow:0 4px 20px rgba(255,179,32,.5),0 0 0 0 rgba(255,179,32,.3);display:flex;align-items:center;justify-content:center;transition:all .2s;animation:pulse-fab 3s infinite}
 @keyframes pulse-fab{0%,100%{box-shadow:0 4px 20px rgba(255,179,32,.5),0 0 0 0 rgba(255,179,32,.3)}50%{box-shadow:0 4px 20px rgba(255,179,32,.5),0 0 0 8px rgba(255,179,32,0)}}
 @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
@@ -620,8 +621,9 @@ canvas{display:block;width:100%;border-radius:8px}
       <span id="syncTime" style="display:none">только что</span>
       <span class="rpill" id="rpill" style="display:none"></span>
       
-      <!-- Только кнопка языка -->
+      <button class="hbtn" onclick="if(window.openMyCabinet)openMyCabinet()" title="Мой кабинет" style="font-size:15px;padding:5px 9px">🏠</button>
       <button id="btn-lang" class="hbtn" style="border-color:var(--purple);color:var(--purple);min-width:48px;font-weight:700">RU</button>
+      <button class="hbtn" onclick="if(window.doLogout){doLogout();}else{location.reload();}" title="Выйти" style="border-color:var(--red);color:var(--red);font-weight:700">Выйти</button>
       
       <!-- Скрытые служебные (для совместимости с JS) -->
       <button class="hbtn" id="btn-menu" onclick="openMainMenu()" style="display:none">⋯</button>
@@ -641,6 +643,7 @@ canvas{display:block;width:100%;border-radius:8px}
     <button onclick="fabPick('manual')" style="display:flex;align-items:center;gap:10px;background:var(--sur);border:1px solid var(--brd);border-radius:24px;padding:10px 16px;color:var(--text);font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.4)"><span>Вручную</span><span style="font-size:20px">✏️</span></button>
   </div>
   <button class="fab" id="fab" onclick="toggleFab()" title="Добавить запись">+</button>
+  <button class="chatfab" id="chatfab" onclick="if(window.openChat)openChat()" title="Чат команды">💬</button>
   <div id="sync-stamp" style="position:fixed;left:14px;bottom:calc(62px + env(safe-area-inset-bottom));font-size:9px;color:#5a6472;z-index:88;pointer-events:none;font-family:-apple-system,system-ui,sans-serif">v4.8</div>
   <nav>
     <button class="nb active" id="tab-main">
@@ -1862,12 +1865,14 @@ function isPartner(){return role&&role.startsWith('partner_');}
 function isBrigadier(){return role&&role.startsWith('brigadier_');}
 function getPartnerName(){return isPartner()?role.replace('partner_',''):''}
 function getBrigId(){return isBrigadier()?role.replace('brigadier_',''):''}
-function isOwner(){return role==='owner';}
-function canEdit(){return isOwner()||isEditor();}
-function canAdmin(){return isOwner();}
-function canDelete(){return isOwner();}
+function defaultTier(r){return r==='owner'?'owner':(r==='editor'?'editor':'viewer');}
+function effTier(){try{if(window.S&&S.tier&&S.tier[role])return S.tier[role];}catch(e){}return defaultTier(role);}
+function isOwner(){return effTier()==='owner';}
+function canEdit(){var t=effTier();return t==='owner'||t==='editor';}
+function canAdmin(){return effTier()==='owner';}
+function canDelete(){return effTier()==='owner';}
 function adminDenied(){try{alert('Это действие доступно только владельцу.');}catch(e){}}
-window.isOwner=isOwner;window.canAdmin=canAdmin;window.canDelete=canDelete;
+window.isOwner=isOwner;window.canAdmin=canAdmin;window.canDelete=canDelete;window.effTier=effTier;window.defaultTier=defaultTier;
 var role=null;
 var AK='$2a$10$GBjOzIGzwTDlm4AZ4NkFS.nQXesYbuM/MNy2EYw4JV/QrDHiZG31m';
 var BIN='6a0a38b9c0954111d83ac9f8';
@@ -2024,7 +2029,7 @@ function _pushCloudLegacy(){
       body:JSON.stringify(snap)
     }).catch(function(){});
   }
-  fetch(BURL,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':AK,'X-Bin-Versioning':'false'},body:JSON.stringify({_modified:S._modified,_schema:S._schema||3,entries:S.entries,brigades:S.brigades,objects:S.objects,objMeta:S.objMeta||{},history:S.history,weeks:S.weeks,kfu:S.kfu,settings:S.settings,goalsDone:S.goalsDone,auth:S.auth||{},kzDict:S.kzDict||{},workTypes:S.workTypes||[],subgoals:S.subgoals||[],cycles:S.cycles||{},ks2meta:S.ks2meta||{},ks2acts:S.ks2acts||[],ks3acts:S.ks3acts||[],directions:S.directions||[],roles:S.roles||[],milestones:S.milestones||[]})}).then(function(){ss('OK',false);}).catch(function(){ss('!',true);});
+  fetch(BURL,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':AK,'X-Bin-Versioning':'false'},body:JSON.stringify({_modified:S._modified,_schema:S._schema||3,entries:S.entries,brigades:S.brigades,objects:S.objects,objMeta:S.objMeta||{},history:S.history,weeks:S.weeks,kfu:S.kfu,settings:S.settings,goalsDone:S.goalsDone,auth:S.auth||{},tier:S.tier||{},chat:S.chat||[],kzDict:S.kzDict||{},workTypes:S.workTypes||[],subgoals:S.subgoals||[],cycles:S.cycles||{},ks2meta:S.ks2meta||{},ks2acts:S.ks2acts||[],ks3acts:S.ks3acts||[],directions:S.directions||[],roles:S.roles||[],milestones:S.milestones||[]})}).then(function(){ss('OK',false);}).catch(function(){ss('!',true);});
 }
 
 // Отправка события в архивную группу Telegram (через worker)
@@ -2453,6 +2458,8 @@ function processCloudData(d, cb){
         if(r.goalsDone)S.goalsDone=r.goalsDone;
         if(r.kzDict)S.kzDict=r.kzDict;
         if(r.auth){S.auth=r.auth;try{localStorage.setItem('lg_auth',JSON.stringify(r.auth));}catch(e){}}
+        if(r.tier)S.tier=r.tier;
+        if(r.chat){var _seen={},_mg=[];(S.chat||[]).concat(r.chat).forEach(function(m){if(m&&m.id&&!_seen[m.id]){_seen[m.id]=1;_mg.push(m);}});_mg.sort(function(a,b){return (a.at||0)-(b.at||0);});S.chat=_mg.slice(-500);}
         if(r.objMeta)S.objMeta=r.objMeta;
         if(r.workTypes&&r.workTypes.length>0)S.workTypes=r.workTypes;
         if(r.subgoals&&Array.isArray(r.subgoals))S.subgoals=r.subgoals;
@@ -2493,6 +2500,8 @@ function processCloudData(d, cb){
         if(r.goalsDone)S.goalsDone=r.goalsDone;
         if(r.kzDict)S.kzDict=r.kzDict;
         if(r.auth){S.auth=r.auth;try{localStorage.setItem('lg_auth',JSON.stringify(r.auth));}catch(e){}}
+        if(r.tier)S.tier=r.tier;
+        if(r.chat){var _seen={},_mg=[];(S.chat||[]).concat(r.chat).forEach(function(m){if(m&&m.id&&!_seen[m.id]){_seen[m.id]=1;_mg.push(m);}});_mg.sort(function(a,b){return (a.at||0)-(b.at||0);});S.chat=_mg.slice(-500);}
         if(r.objMeta)S.objMeta=r.objMeta;
         if(r.workTypes&&r.workTypes.length>0)S.workTypes=r.workTypes;
         if(r.subgoals&&Array.isArray(r.subgoals))S.subgoals=r.subgoals;
@@ -9180,12 +9189,13 @@ function rMain(){
   // ============= 📥 ЧЕРНОВИКИ НА СВЕРКЕ (самый верх — требуют действия) =============
   var draftsCount = (typeof _drafts !== 'undefined' && _drafts) ? 
     _drafts.filter(function(d){return !(typeof _deletedIds !== 'undefined' && _deletedIds[d.id]);}).length : 0;
+  draftsCount += (typeof chatPendingDrafts==='function')?chatPendingDrafts().length:0;
   if(draftsCount > 0 && canEditNow){
     h += '<div onclick="if(typeof openDraftsModal===\'function\')openDraftsModal()" style="background:linear-gradient(90deg,#ffd166,#ffa657);border-radius:14px;padding:14px 16px;margin-bottom:16px;cursor:pointer;display:flex;align-items:center;gap:12px;box-shadow:0 4px 14px rgba(255,179,32,.25)">';
     h += '<div style="font-size:34px;line-height:1">📥</div>';
     h += '<div style="flex:1;color:#0d1117">';
     h += '<div style="font-size:16px;font-weight:800;letter-spacing:.3px">'+draftsCount+' '+(draftsCount===1?'ЧЕРНОВИК':(draftsCount<5?'ЧЕРНОВИКА':'ЧЕРНОВИКОВ'))+' НА СВЕРКЕ</div>';
-    h += '<div style="font-size:13px;opacity:.75;margin-top:2px">от Telegram бота · нажмите чтобы открыть</div>';
+    h += '<div style="font-size:13px;opacity:.75;margin-top:2px">из чата и Telegram · нажмите чтобы открыть</div>';
     h += '</div>';
     h += '<div style="font-size:26px;color:#0d1117;font-weight:800">›</div>';
     h += '</div>';
@@ -14282,6 +14292,12 @@ function rMore(){
     + '</button>';
   }
   
+  // === КАБИНЕТ ===
+  h += '<div style=\"font-size:13px;color:var(--mut);letter-spacing:1.5px;font-weight:700;margin:8px 4px 10px\">КАБИНЕТ</div>';
+  h += '<div style=\"display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px\">';
+  h += tile('🏠', '#58a6ff', 'Мой кабинет', 'личная главная', 'openMyCabinet()');
+  h += tile('💬', '#a371f7', 'Общий чат', 'команда · разбор', 'openChat()');
+  h += '</div>';
   // === СТРАТЕГИЯ 2030 ===
   h += '<div style="font-size:13px;color:var(--mut);letter-spacing:1.5px;font-weight:700;margin:8px 4px 10px">СТРАТЕГИЯ 2030</div>';
   h += '<div style="display:grid;grid-template-columns:1fr;gap:10px;margin-bottom:18px">';
@@ -14948,6 +14964,7 @@ function saveEntry(){
   S.entries.push(e);
   if(!S.history)S.history=[];
   S.history.push({action:'add',by:role,at:new Date().toISOString(),type:e.type,amount:e.amount});
+  try{if(window.chatPushTelegram)chatPushTelegram(e,(typeof userDisplayName==='function'?userDisplayName(role):''));}catch(_e){}
   save();
   closeModal();
   render();
@@ -17002,7 +17019,9 @@ function openUsers(){
   var h='<div style="font-size:13px;color:var(--mut);margin-bottom:12px">Все, кто уже в системе. Задай человеку пароль — и он входит под своим. Вход владельца (Dmitry1980) — аварийный, работает всегда.</div>';
   people.forEach(function(pr){
     var has=!!auth[pr.role];
-    h+='<div style="background:var(--s2);border-radius:10px;padding:11px;margin-bottom:8px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div style="min-width:0"><div style="font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+pr.icon+' '+userDisplayName(pr.role)+'</div><div style="font-size:11px;color:var(--mut)">'+pr.label+' · '+(has?'свой пароль':'стандартный')+'</div></div><div style="display:flex;gap:6px;flex:none"><button class="u-set" data-r="'+pr.role+'" style="background:var(--blue);border:none;color:#fff;border-radius:8px;padding:8px 10px;font-size:12px;font-weight:700;cursor:pointer">Пароль</button>'+(has?'<button class="u-reset" data-r="'+pr.role+'" style="background:var(--red);border:none;color:#fff;border-radius:8px;padding:8px 10px;font-size:12px;font-weight:700;cursor:pointer">Сброс</button>':'')+'</div></div></div>';
+    var t=tierOf(pr.role); var over=!!(window.S&&S.tier&&S.tier[pr.role]);
+    var roleBtn=(pr.role==='owner')?'':'<button class="u-role" data-r="'+pr.role+'" style="background:var(--gold);border:none;color:#0d1117;border-radius:8px;padding:8px 10px;font-size:12px;font-weight:700;cursor:pointer">Роль</button>';
+    h+='<div style="background:var(--s2);border-radius:10px;padding:11px;margin-bottom:8px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div style="min-width:0"><div style="font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+pr.icon+' '+userDisplayName(pr.role)+'</div><div style="font-size:11px;color:var(--mut)">'+pr.label+(over?' · права: '+tierLabel(t):'')+' · '+(has?'свой пароль':'стандартный')+'</div></div><div style="display:flex;gap:6px;flex:none">'+roleBtn+'<button class="u-set" data-r="'+pr.role+'" style="background:var(--blue);border:none;color:#fff;border-radius:8px;padding:8px 10px;font-size:12px;font-weight:700;cursor:pointer">Пароль</button>'+(has?'<button class="u-reset" data-r="'+pr.role+'" style="background:var(--red);border:none;color:#fff;border-radius:8px;padding:8px 10px;font-size:12px;font-weight:700;cursor:pointer">Сброс</button>':'')+'</div></div></div>';
   });
   h+='<button class="fcanc" id="u-close">Закрыть</button>';
   document.getElementById('mbody').innerHTML=h;
@@ -17010,6 +17029,7 @@ function openUsers(){
   document.getElementById('u-close').addEventListener('click',function(){closeModal();});
   Array.prototype.forEach.call(document.querySelectorAll('.u-set'),function(b){b.addEventListener('click',function(){openSetPwd(b.getAttribute('data-r'));});});
   Array.prototype.forEach.call(document.querySelectorAll('.u-reset'),function(b){b.addEventListener('click',function(){lgResetRole(b.getAttribute('data-r'));});});
+  Array.prototype.forEach.call(document.querySelectorAll('.u-role'),function(b){b.addEventListener('click',function(){openSetRole(b.getAttribute('data-r'));});});
 }
 function openSetPwd(rl){
   if(typeof canAdmin!=='function'||!canAdmin()){if(typeof adminDenied==='function')adminDenied();return;}
@@ -17030,6 +17050,304 @@ function openSetPwd(rl){
     alert('Пароль задан для: '+userDisplayName(rl));openUsers();
   });
 }
+function tierOf(rl){try{if(window.S&&S.tier&&S.tier[rl])return S.tier[rl];}catch(e){}return rl==='owner'?'owner':(rl==='editor'?'editor':'viewer');}
+function tierLabel(t){return t==='owner'?'Владелец':(t==='editor'?'Учётчица (ввод)':'Просмотр');}
+function lgSaveTier(map){try{if(window.S){S.tier=map;S._modified=Date.now();if(typeof persist==='function')persist();if(typeof pushCloud==='function')setTimeout(pushCloud,200);}}catch(e){}}
+function openSetRole(rl){
+  if(typeof canAdmin!=='function'||!canAdmin()){if(typeof adminDenied==='function')adminDenied();return;}
+  if(rl==='owner'){alert('Роль владельца менять нельзя.');return;}
+  var cur=tierOf(rl);
+  document.getElementById('mtit').textContent='РОЛЬ · '+userDisplayName(rl);
+  var opts=[['owner','Владелец','полный доступ ко всему'],['editor','Учётчица (ввод)','может вводить и править операции'],['viewer','Только просмотр','видит, но не редактирует']];
+  var h='<div style="font-size:13px;color:var(--mut);margin-bottom:12px">Права для: <b style="color:var(--text)">'+userDisplayName(rl)+'</b>. Личность (партнёр/бригада) не меняется — только права.</div>';
+  opts.forEach(function(o){
+    var sel=(cur===o[0]);
+    h+='<button class="rl-opt" data-t="'+o[0]+'" style="display:block;width:100%;text-align:left;background:'+(sel?'rgba(88,166,255,.15)':'var(--s2)')+';border:1px solid '+(sel?'var(--blue)':'transparent')+';border-radius:10px;padding:12px;margin-bottom:8px;cursor:pointer;color:var(--text);font-family:inherit"><div style="font-weight:700">'+(sel?'✓ ':'')+o[1]+'</div><div style="font-size:11px;color:var(--mut)">'+o[2]+'</div></button>';
+  });
+  h+='<button class="fcanc" id="rl-cancel">Назад</button>';
+  document.getElementById('mbody').innerHTML=h;
+  Array.prototype.forEach.call(document.querySelectorAll('.rl-opt'),function(b){b.addEventListener('click',function(){
+    var t=b.getAttribute('data-t');var map=(window.S&&S.tier)?S.tier:{};map[rl]=t;lgSaveTier(map);
+    alert('Роль обновлена: '+userDisplayName(rl)+' → '+tierLabel(t));openUsers();
+  });});
+  document.getElementById('rl-cancel').addEventListener('click',function(){openUsers();});
+}
+/* ===== МОЙ КАБИНЕТ (личная главная под человека) ===== */
+function openMyCabinet(){
+  var r=(typeof role!=='undefined')?role:null;
+  if(!r){alert('Войдите, чтобы открыть кабинет.');return;}
+  var nm=userDisplayName(r);
+  var tl=(typeof tierLabel==='function'&&typeof tierOf==='function')?tierLabel(tierOf(r)):'';
+  var icon=r==='owner'?'👑':(r==='editor'?'📊':(r.indexOf('partner_')===0?'🤝':(r.indexOf('brigadier_')===0?'👷':'👤')));
+  function money(n){return (typeof fmt==='function'?fmt(n):Math.round(n||0))+' ₸';}
+  function cell(label,val,color){return '<div style="background:var(--s2);border-radius:10px;padding:11px"><div style="font-size:11px;color:var(--mut)">'+label+'</div><div style="font-size:16px;font-weight:800;color:'+(color||'var(--text)')+';margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+val+'</div></div>';}
+  function gobtn(txt,fn){return '<button onclick="closeModal();if(window.'+fn+')'+fn+'()" style="width:100%;text-align:left;background:var(--s2);border:1px solid var(--brd,#30363d);border-radius:12px;padding:13px 15px;margin-bottom:8px;cursor:pointer;color:var(--text);font-size:15px;font-weight:600;font-family:inherit">'+txt+'</button>';}
+  document.getElementById('mtit').textContent='МОЙ КАБИНЕТ';
+  var h='<div style="background:linear-gradient(135deg,rgba(255,209,102,.12),rgba(88,166,255,.08));border:1px solid var(--brd,#30363d);border-radius:14px;padding:16px;margin-bottom:14px"><div style="font-size:22px;font-weight:800;color:var(--text)">'+icon+' '+nm+'</div><div style="font-size:13px;color:var(--mut);margin-top:2px">Права: '+tl+'</div></div>';
+  try{
+    if(typeof isPartner==='function'&&isPartner()&&typeof calcPar==='function'){
+      var P=calcPar(getPartnerName());
+      h+='<div style="font-size:13px;font-weight:700;color:var(--mut);margin:6px 2px 8px">МОЯ КАРТОЧКА ПАРТНЁРА</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">';
+      h+=cell('Вложил', money(P.investedCash+P.advancedOut),'#7ee787');
+      h+=cell('Доля прибыли', money(P.share),'#ffd166');
+      h+=cell(P.debtFromCompany>0?'Компания должна':'Я должен', money(P.debtFromCompany>0?P.debtFromCompany:P.debtToCompany), P.debtFromCompany>0?'#7ee787':'#ff7b72');
+      h+=cell('К получению', money(P.totalGet),'#58a6ff');
+      h+='</div>';
+    } else if(typeof isBrigadier==='function'&&isBrigadier()){
+      var b=(window.S&&S.brigades?S.brigades:[]).find(function(x){return x.id===getBrigId();});
+      if(b&&typeof calcBrig==='function'){var B=calcBrig(b);
+        h+='<div style="font-size:13px;font-weight:700;color:var(--mut);margin:6px 2px 8px">МОЯ БРИГАДА · '+b.name+'</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">';
+        h+=cell('Объём', (typeof fmtD==='function'?fmtD(B.vol):Math.round(B.vol))+' м³','#39d3bb');
+        h+=cell('Заработано', money(B.earned),'#ffd166');
+        h+=cell('Выплачено', money(B.paid),'#7ee787');
+        h+=cell('Остаток к выплате', money(B.balance), B.balance>0?'#ff7b72':'#7ee787');
+        h+='</div>';
+      }
+    } else if(r==='owner'){
+      h+='<div style="font-size:13px;color:var(--mut);margin-bottom:10px">Полный доступ. Быстрые переходы:</div>';
+      h+=gobtn('🎯 Путь к $1 млрд','openStrategy2030');
+      h+=gobtn('👥 Пользователи','openUsers');
+    } else if(r==='editor'){
+      var today=new Date().toISOString().slice(0,10);
+      var cnt=(window.S&&S.entries?S.entries:[]).filter(function(e){return e.date===today;}).length;
+      h+='<div style="font-size:13px;font-weight:700;color:var(--mut);margin:6px 2px 8px">СЕГОДНЯ</div><div style="display:grid;grid-template-columns:1fr;gap:8px;margin-bottom:14px">';
+      h+=cell('Внесено операций сегодня', cnt,'#39d3bb');
+      h+='</div>';
+    }
+  }catch(e){}
+  h+='<div style="border-top:1px solid var(--brd,#30363d);margin-top:6px;padding-top:12px;font-size:12px;color:var(--mut)">💬 Скоро здесь появятся ваши сообщения и задачи из общего чата.</div>';
+  h+='<button class="fcanc" id="mc-close">Закрыть</button>';
+  document.getElementById('mbody').innerHTML=h;
+  document.getElementById('modal').style.display='flex';
+  document.getElementById('mc-close').addEventListener('click',function(){closeModal();});
+  if(window.LANG==='kz'&&typeof window.applyTranslation==='function')setTimeout(function(){try{window.applyTranslation(document.getElementById('modal'));}catch(e){}},30);
+}
+window.openMyCabinet=openMyCabinet;
+
+/* ===== ОБЩИЙ ЧАТ (WhatsApp-вид: лента + текст/голос + фото/файлы) ===== */
+var _chatTimer=null;var _chatRec=null;
+function chatEsc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function chatTagInfo(tag){var m={expense:['💸','Расход','#ff7b72'],income:['💰','Приход','#7ee787'],transfer:['🔄','Передача','#58a6ff'],volume:['🧱','Объём','#39d3bb'],task:['✅','Задача','#ffd166'],msg:['','','']};return m[tag]||m.msg;}
+function chatTag(text){var t=(text||'').toLowerCase();
+  if(/(расход|купил|купили|оплатил|оплатили|потратил|закупил|заплат|чек на)/.test(t))return 'expense';
+  if(/(приход|получили деньги|поступил|оплата пришла|пришли деньги|пришло|перечислил.*нам)/.test(t))return 'income';
+  if(/(передал|передали|перевёл|перевел|передача денег|отдал деньги|занёс|занес)/.test(t))return 'transfer';
+  if(/(залил|залили|куб|м3|м³|бетон|объём|объем|армиров|опалубк)/.test(t))return 'volume';
+  if(/(надо|нужно|задача|сделать|поручаю|до завтра|до конца|не забудь)/.test(t))return 'task';
+  return 'msg';}
+function chatRoleColor(rl){return rl==='owner'?'#ffd166':(rl==='editor'?'#58a6ff':(rl&&rl.indexOf('partner_')===0?'#a371f7':(rl&&rl.indexOf('brigadier_')===0?'#39d3bb':'#8b949e')));}
+function chatRoleColorLight(rl){return rl==='owner'?'#a8780a':(rl==='editor'?'#1f6feb':(rl&&rl.indexOf('partner_')===0?'#6f42c1':(rl&&rl.indexOf('brigadier_')===0?'#0a8f80':'#555')));}
+function renderChatList(force){
+  var box=document.getElementById('chat-list');if(!box)return;
+  var nearBot=(box.scrollHeight-box.scrollTop-box.clientHeight)<90;
+  var me=(typeof role!=='undefined')?role:'';
+  var msgs=(window.S&&S.chat?S.chat:[]).slice().sort(function(a,b){return (a.at||0)-(b.at||0);});
+  if(!msgs.length){box.innerHTML='<div style="color:#667781;text-align:center;padding:30px 16px;font-size:13px">Пока пусто. Напишите, надиктуйте или прикрепите фото…</div>';return;}
+  box.innerHTML=msgs.map(function(m){
+    var ti=chatTagInfo(m.tag||'msg');var col=chatRoleColorLight(m.by);var mine=(m.by===me);
+    var tm=new Date(m.at||Date.now());var hh=('0'+tm.getHours()).slice(-2)+':'+('0'+tm.getMinutes()).slice(-2);
+    var badge=ti[1]?'<span style="font-size:9px;font-weight:700;color:'+ti[2]+';background:rgba(0,0,0,.05);padding:1px 5px;border-radius:5px;margin-left:6px">'+ti[0]+' '+ti[1]+'</span>':'';
+    var att='';
+    if(m.att){
+      if(m.att.type==='image'){att=m.att.data?'<img src="'+m.att.data+'" style="max-width:230px;width:100%;border-radius:10px;display:block;margin-top:5px;cursor:pointer" onclick="window.open(this.src,\'_blank\')"/>':'<div style="font-size:12px;color:#667781;margin-top:5px">📷 фото (не загружено)</div>';}
+      else{att=m.att.data?'<a href="'+m.att.data+'" download="'+chatEsc(m.att.name||'файл')+'" style="display:inline-flex;gap:6px;align-items:center;margin-top:5px;color:#1f6feb;font-size:13px;text-decoration:none;font-weight:600">📄 '+chatEsc(m.att.name||'файл')+'</a>':'<div style="font-size:12px;color:#667781;margin-top:5px">📄 '+chatEsc(m.att.name||'файл')+' (не загружено)</div>';}
+    }
+    var textHtml=m.text?'<div style="font-size:14px;color:#111b21;margin-top:'+(att?'5px':'3px')+';white-space:pre-wrap;word-break:break-word">'+chatEsc(m.text)+'</div>':'';
+    return '<div style="display:flex;flex-direction:column;align-items:'+(mine?'flex-end':'flex-start')+';margin-bottom:8px"><div style="max-width:84%;background:'+(mine?'#d9fdd3':'#ffffff')+';border-radius:12px;padding:7px 10px;box-shadow:0 1px 1px rgba(0,0,0,.13)"><div style="font-size:11px;font-weight:700;color:'+col+'">'+chatEsc(m.name||userDisplayName(m.by))+badge+'</div>'+att+textHtml+chatDraftCard(m)+'<div style="font-size:9px;color:#667781;text-align:right;margin-top:2px">'+hh+'</div></div></div>';
+  }).join('');
+  if(force||nearBot){setTimeout(function(){try{box.scrollTop=box.scrollHeight;}catch(e){}},0);}
+}
+function chatMic(){
+  var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){alert('Голос внутри приложения недоступен на этом устройстве.\n\nНадиктуйте через микрофон на клавиатуре (значок 🎤 справа внизу) — текст появится в поле, потом нажмите ↑.');return;}
+  var inp=document.getElementById('chat-input');var btn=document.getElementById('chat-mic');if(!inp)return;
+  if(_chatRec&&_chatRec._active){try{_chatRec.stop();}catch(e){}return;}
+  try{_chatRec=new SR();}catch(e){alert('Не удалось включить микрофон. Надиктуйте через 🎤 на клавиатуре.');return;}
+  _chatRec.lang=(window.LANG==='kz')?'kk-KZ':'ru-RU';_chatRec.interimResults=true;_chatRec.continuous=false;_chatRec._active=false;
+  var base=inp.value?inp.value+' ':'';
+  _chatRec.onstart=function(){_chatRec._active=true;if(btn){btn.textContent='⏺';btn.style.background='#ff7b72';btn.style.color='#fff';}};
+  _chatRec.onresult=function(e){var s='';for(var i=0;i<e.results.length;i++){s+=e.results[i][0].transcript;}inp.value=base+s;};
+  _chatRec.onerror=function(){_chatRec._active=false;if(btn){btn.textContent='🎤';btn.style.background='var(--s2)';btn.style.color='';}};
+  _chatRec.onend=function(){_chatRec._active=false;if(btn){btn.textContent='🎤';btn.style.background='var(--s2)';btn.style.color='';}try{inp.focus();}catch(e){}};
+  try{_chatRec.start();}catch(e){if(btn){btn.textContent='🎤';btn.style.background='var(--s2)';}alert('Не удалось включить микрофон. Надиктуйте через 🎤 на клавиатуре.');}
+}
+function chatCompressImage(f,cb){
+  var rd=new FileReader();
+  rd.onload=function(){var img=new Image();
+    img.onload=function(){var max=900,w=img.width,h=img.height;
+      if(w>h&&w>max){h=Math.round(h*max/w);w=max;}else if(h>=w&&h>max){w=Math.round(w*max/h);h=max;}
+      try{var cv=document.createElement('canvas');cv.width=w;cv.height=h;cv.getContext('2d').drawImage(img,0,0,w,h);cb(cv.toDataURL('image/jpeg',0.55));}catch(e){cb(rd.result);}};
+    img.onerror=function(){cb(rd.result);};img.src=rd.result;};
+  rd.readAsDataURL(f);
+}
+function chatHandleFile(f,caption){
+  if(!f)return;
+  if(f.type&&f.type.indexOf('image/')===0){chatCompressImage(f,function(d){chatSendMsg(caption||'',{type:'image',name:f.name||'photo.jpg',mime:'image/jpeg',data:d});});}
+  else{if(f.size>500000){alert('Файл великоват для чата (макс ~0.5 МБ). Отправьте фото или небольшой файл.');return;}
+    var rd=new FileReader();rd.onload=function(){chatSendMsg(caption||'',{type:'file',name:f.name||'файл',mime:f.type||'',data:rd.result});};rd.readAsDataURL(f);}
+}
+function pruneChatAtt(){if(!window.S||!S.chat)return;var kept=0,LIM=12;for(var i=S.chat.length-1;i>=0;i--){var m=S.chat[i];if(m&&m.att&&m.att.data){kept++;if(kept>LIM){m.att.data='';m.att.gone=true;}}}}
+function chatSendMsg(text,att){
+  if(!window.S)return;if(!text&&!att)return;
+  if(!S.chat)S.chat=[];
+  var rl=(typeof role!=='undefined')?role:'';
+  var m={id:'c'+Date.now()+'_'+Math.floor(Math.random()*1000),by:rl,name:userDisplayName(rl),at:Date.now(),text:text||'',tag:chatTag(text||'')};
+  if(att)m.att=att;
+  S.chat.push(m);if(S.chat.length>500)S.chat=S.chat.slice(-500);
+  pruneChatAtt();S._modified=Date.now();
+  if(typeof persist==='function')persist();
+  if(typeof pushCloud==='function')setTimeout(pushCloud,150);
+  if(/^(expense|income|transfer|volume)$/.test(m.tag||''))setTimeout(function(){chatParseMessage(m);},120);
+  renderChatList(true);
+}
+/* ===== ИИ-РАЗБОР сообщений чата → черновик операции ===== */
+function chatFmtMoney(n){return (typeof fmt==='function'?fmt(n):Math.round(n||0));}
+function chatFindBrig(name){if(!name||!window.S||!S.brigades)return null;var on=(''+name).toLowerCase();return S.brigades.find(function(b){var bn=(b.name||'').toLowerCase();return bn.indexOf(on)>=0||on.indexOf(bn.replace('бригада ',''))>=0;})||null;}
+function chatOpSummary(op){var L={expense:'Расход',advance:'Передача',income:'Приход',invest:'Вложение',payout:'Выплата',vol:'Объём'};var s=(L[op.kind]||op.kind);
+  if(op.kind==='vol'){s+=': '+(op.volume||'?')+' '+(op.unit||'м³')+(op.wtype?' · '+op.wtype:'')+(op.brigadeName?' · '+op.brigadeName:'');}
+  else{s+=': '+chatFmtMoney(op.amount)+' ₸';if(op.kind==='advance'&&(op.from||op.to))s+=' · '+(op.from||'?')+'→'+(op.to||'?');if(op.who)s+=' · '+op.who;if(op.category)s+=' · '+op.category;}
+  return s;}
+function chatBuildEntry(op,author,mid){
+  if(!op||!op.kind)return null;
+  var me=(author&&(typeof PARTNERS!=='undefined')&&PARTNERS.indexOf(author)>=0)?author:'Дмитрий';
+  var entry={id:Date.now()+Math.floor(Math.random()*9999),date:new Date().toISOString().slice(0,10),amount:op.amount||0,obj:(window.S&&S.objects&&S.objects[0])||'',note:op.note||'',source:'chat',chatMsgId:mid||''};
+  var k=op.kind;
+  if(k==='income'){entry.type='income';if(op.who)entry.who=op.who;}
+  else if(k==='advance'){entry.type='advance';entry.from=op.from||me;entry.to=op.to||'';var ba=chatFindBrig(op.brigadeName);if(ba)entry.brigade=ba.id;}
+  else if(k==='invest'){entry.type='invest';entry.who=op.who||me;}
+  else if(k==='payout'){entry.type='payout';entry.who=op.who||'';}
+  else if(k==='expense'){entry.type='expense';entry.who=op.who||me;entry.paySource=op.paySource||((entry.who==='Дмитрий')?'own':'advance');if(op.category)entry.cat=op.category;var be=chatFindBrig(op.brigadeName);if(be)entry.brigade=be.id;}
+  else if(k==='vol'){entry.type='vol';entry.volume=op.volume||0;entry.unit=op.unit||'м³';entry.wtype=op.wtype||'';var bv=chatFindBrig(op.brigadeName);if(bv){entry.brigade=bv.id;var rate=(typeof brigPriceFor==='function')?brigPriceFor(bv,entry.wtype,entry.unit):0;if(rate>0){entry.rate=rate;entry.amount=Math.round(entry.volume*rate);}else{entry.amount=0;entry.amountPending=true;}}}
+  else return null;
+  return entry;
+}
+function chatParseMessage(m){
+  if(!m||!m.text)return;if(!(typeof AI_WORKER_URL!=='undefined'&&AI_WORKER_URL&&AI_SHARED_TOKEN))return;
+  var partners=(typeof PARTNERS!=='undefined'?PARTNERS:[]).join(', ');
+  var brigs=(window.S&&S.brigades?S.brigades:[]).map(function(b){return b.name;}).join(', ');
+  var cats='Материалы, Аванс / зарплата рабочим, Инструменты и инвентарь, Транспорт, Топливо, Питание, Административные, Связь, Аренда, Прочее';
+  var works=(window.S&&S.workTypes?S.workTypes:[]).join(', ');
+  var prompt='Ты — бухгалтер стройфирмы. Разбери сообщение из рабочего чата в ОДНУ операцию. Ответь ТОЛЬКО JSON-объектом, без пояснений и без markdown.\n'+
+    'Партнёры: '+partners+'.\nБригады: '+brigs+'.\nКатегории расходов: '+cats+'.\nВиды работ: '+works+'.\n'+
+    'Поля: kind (expense|advance|income|invest|payout|vol|none), amount (целое число тенге без пробелов; "200 тысяч"=200000), from, to (для advance — кто кому передал деньги), who (кто платит/вложил/получил), category (одна из категорий, только для expense), brigadeName (если упомянута бригада), volume (число, для vol), wtype (вид работ, для vol), note (краткое описание сути), confidence (0..1).\n'+
+    'Расход = что-то купили/оплатили. Передача(advance) = отдал деньги человеку. Объём(vol) = залили/сделали кубы/м2. Если это просто общение, фото, задача без денег — верни {"kind":"none"}.\n'+
+    'Сообщение: "'+(''+m.text).replace(/"/g,"'").slice(0,400)+'"';
+  m.parseState='parsing';renderChatList();
+  fetch(AI_WORKER_URL.replace(/\/$/,'')+'/api/ai-forecast',{method:'POST',headers:{'Content-Type':'application/json','X-LG-Token':AI_SHARED_TOKEN},body:JSON.stringify({prompt:prompt})})
+  .then(function(r){return r.json();}).then(function(d){
+    var op=d&&d.advice;if(Array.isArray(op))op=op[0];
+    if(!op||typeof op!=='object'||!op.kind||op.kind==='none'){m.parseState='none';}
+    else{m.parsed=op;m.parseState='draft';}
+    S._modified=Date.now();if(typeof persist==='function')persist();if(typeof pushCloud==='function')setTimeout(pushCloud,200);renderChatList();
+  }).catch(function(){m.parseState='error';renderChatList();});
+}
+function chatBrigName(id){if(id&&window.S&&S.brigades){var b=S.brigades.find(function(x){return x.id===id;});if(b)return b.name;}return '';}
+function chatTgText(entry){
+  var money=function(n){return chatFmtMoney(n)+' ₸';};
+  if(entry.type==='vol'){var bn=chatBrigName(entry.brigade);return '📐 ОБЪЁМ\n'+(entry.volume||0)+' '+(entry.unit||'м³')+(entry.wtype?' · '+entry.wtype:'')+(bn?' · '+bn:'')+(entry.note?'\n'+entry.note:'');}
+  var L={expense:'🧾 РАСХОД',advance:'🔄 ПЕРЕДАЧА',income:'💰 ПРИХОД',invest:'💼 ВЛОЖЕНИЕ',payout:'↩️ ВЫПЛАТА'};
+  var line=(L[entry.type]||'💸 ОПЕРАЦИЯ')+'\n'+money(entry.amount);
+  if(entry.type==='advance')line+=' · '+(entry.from||'?')+'→'+(entry.to||'?');
+  else if(entry.who)line+=' · '+entry.who;
+  if(entry.cat)line+=' · '+entry.cat;
+  if(entry.note)line+='\n'+entry.note;
+  return line;
+}
+function chatPushTelegram(entry,author){
+  if(!(typeof AI_WORKER_URL!=='undefined'&&AI_WORKER_URL&&AI_SHARED_TOKEN)||!entry)return;
+  if(window.S&&S.tgPush===false)return;
+  var ok={expense:1,advance:1,income:1,invest:1,payout:1,vol:1};
+  if(!ok[entry.type])return;
+  if(entry.source==='telegram'||entry.source==='tg-confirmed')return;
+  var target=(entry.type==='vol')?'working':'uchet';
+  var text=chatTgText(entry)+'\n— '+(author||'')+' · из приложения';
+  fetch(AI_WORKER_URL.replace(/\/$/,'')+'/api/tg-post',{method:'POST',headers:{'Content-Type':'application/json','X-LG-Token':AI_SHARED_TOKEN},body:JSON.stringify({target:target,text:text})}).catch(function(){});
+}
+window.chatPushTelegram=chatPushTelegram;
+function chatConfirmDraft(id){
+  if(typeof canEdit==='function'&&!canEdit()){alert('Подтверждать операции может владелец или учётчица.');return;}
+  var m=(window.S&&S.chat?S.chat:[]).find(function(x){return x.id===id;});if(!m||!m.parsed)return;
+  if((window.S&&S.entries?S.entries:[]).some(function(e){return e.chatMsgId===id;})){renderChatList();return;}
+  var entry=chatBuildEntry(m.parsed,m.name,id);
+  if(!entry){alert('Не удалось распознать как операцию.');return;}
+  if(entry.type!=='vol'&&(!entry.amount||entry.amount<=0)){alert('Не вижу суммы. Добавьте операцию вручную через +.');return;}
+  if(entry.type==='vol'&&(!entry.volume||entry.volume<=0)){alert('Не вижу объёма. Добавьте вручную через +.');return;}
+  if(!S.entries)S.entries=[];S.entries.push(entry);
+  if(!S.history)S.history=[];S.history.push({action:'add',by:(typeof role!=='undefined'?role:''),at:new Date().toISOString(),type:entry.type,amount:entry.amount,source:'chat-confirmed'});
+  try{chatPushTelegram(entry,m.name);}catch(e){}
+  m.parseState='confirmed';
+  S._modified=Date.now();if(typeof persist==='function')persist();if(typeof pushCloud==='function')setTimeout(pushCloud,150);if(typeof render==='function')render();
+  renderChatList();
+}
+function chatRejectDraft(id){var m=(window.S&&S.chat?S.chat:[]).find(function(x){return x.id===id;});if(!m)return;m.parseState='rejected';S._modified=Date.now();if(typeof persist==='function')persist();if(typeof pushCloud==='function')setTimeout(pushCloud,150);renderChatList();}
+function chatDraftCard(m){
+  var done=(window.S&&S.entries?S.entries:[]).some(function(e){return e.chatMsgId===m.id;});
+  if(done)return '<div style="margin-top:6px;font-size:11px;color:#0a8f80;font-weight:700">✓ Добавлено в учёт</div>';
+  if(m.parseState==='rejected')return '';
+  if(m.parseState==='parsing')return '<div style="margin-top:6px;font-size:11px;color:#1f6feb">🤖 разбираю…</div>';
+  if(m.parseState==='draft'&&m.parsed){
+    var canC=(typeof canEdit==='function')?canEdit():false;
+    var h='<div style="margin-top:6px;background:#fff7e0;border:1px solid #f0d98a;border-radius:10px;padding:8px 10px"><div style="font-size:12px;color:#7a5c00;font-weight:700">🤖 '+chatEsc(chatOpSummary(m.parsed))+'</div>';
+    if(canC)h+='<div style="display:flex;gap:6px;margin-top:7px"><button onclick="chatConfirmDraft(\''+m.id+'\')" style="flex:1;background:#0a8f80;color:#fff;border:none;border-radius:7px;padding:7px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">✓ В учёт</button><button onclick="chatRejectDraft(\''+m.id+'\')" style="flex:none;background:#e6e6e6;color:#555;border:none;border-radius:7px;padding:7px 12px;font-size:12px;cursor:pointer;font-family:inherit">✗</button></div>';
+    else h+='<div style="font-size:10px;color:#a98a3a;margin-top:4px">ждёт подтверждения</div>';
+    h+='</div>';return h;
+  }
+  return '';
+}
+window.chatConfirmDraft=chatConfirmDraft;window.chatRejectDraft=chatRejectDraft;
+function chatPendingDrafts(){
+  if(!window.S||!S.chat)return [];
+  var entries=S.entries||[];
+  return S.chat.filter(function(m){
+    if(!m||m.parseState!=='draft'||!m.parsed)return false;
+    if(entries.some(function(e){return e.chatMsgId===m.id;}))return false;
+    return true;
+  });
+}
+function chatDraftsSection(){
+  var list=chatPendingDrafts();if(!list.length)return '';
+  var canC=(typeof canEdit==='function')?canEdit():false;
+  var h='<div style="margin-bottom:14px"><div style="font-size:11px;letter-spacing:1.5px;color:var(--mut);font-weight:700;margin:2px 2px 8px">💬 ИЗ ЧАТА ('+list.length+')</div>';
+  list.forEach(function(m){
+    h+='<div style="background:var(--s2);border:1px solid var(--brd,#30363d);border-radius:10px;padding:10px 12px;margin-bottom:8px">';
+    h+='<div style="font-size:13px;color:var(--text);font-weight:700">🤖 '+chatEsc(chatOpSummary(m.parsed))+'</div>';
+    h+='<div style="font-size:11px;color:var(--mut);margin-top:3px">'+chatEsc(m.name||'')+': '+chatEsc((m.text||'').slice(0,90))+'</div>';
+    if(canC)h+='<div style="display:flex;gap:6px;margin-top:8px"><button onclick="chatConfirmDraft(\''+m.id+'\');setTimeout(function(){if(typeof openDraftsModal===\'function\')openDraftsModal();},60)" style="flex:1;background:var(--green);color:#0d1117;border:none;border-radius:7px;padding:9px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">✓ В УЧЁТ</button><button onclick="chatRejectDraft(\''+m.id+'\');setTimeout(function(){if(typeof openDraftsModal===\'function\')openDraftsModal();},60)" style="flex:none;background:rgba(248,81,73,.15);color:var(--red);border:none;border-radius:7px;padding:9px 14px;font-size:12px;cursor:pointer;font-family:inherit">✗</button></div>';
+    h+='</div>';
+  });
+  h+='</div>';return h;
+}
+window.chatPendingDrafts=chatPendingDrafts;window.chatDraftsSection=chatDraftsSection;
+
+function openChat(){
+  var r=(typeof role!=='undefined')?role:null;
+  if(!r){alert('Войдите, чтобы открыть чат.');return;}
+  document.getElementById('mtit').textContent='ЧАТ КОМАНДЫ';
+  var h='<div style="display:flex;flex-direction:column;height:68vh;background:#e9e5de;border-radius:12px;overflow:hidden">';
+  h+='<div id="chat-list" style="flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:10px 8px"></div>';
+  h+='<input type="file" id="chat-file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt" style="display:none"/>';
+  h+='<div style="display:flex;gap:7px;align-items:center;padding:8px;background:#dcd7cf">';
+  h+='<button id="chat-att" title="Прикрепить" style="flex:none;width:38px;height:38px;border-radius:50%;border:1px solid #cfc9bf;background:#fff;font-size:17px;cursor:pointer;color:#444">📎</button>';
+  h+='<input id="chat-input" placeholder="Сообщение…" autocomplete="off" style="flex:1;min-width:0;background:#fff;color:#111;border:1px solid #cfc9bf;border-radius:20px;padding:11px 15px;font-size:15px;font-family:inherit;outline:none"/>';
+  h+='<button id="chat-mic" title="Голос" style="flex:none;width:40px;height:40px;border-radius:50%;border:1px solid #cfc9bf;background:#fff;font-size:17px;cursor:pointer">🎤</button>';
+  h+='<button id="chat-send" title="Отправить" style="flex:none;width:42px;height:42px;border-radius:50%;border:none;background:var(--gold);color:#0d1117;font-size:20px;font-weight:800;cursor:pointer">↑</button>';
+  h+='</div></div>';
+  document.getElementById('mbody').innerHTML=h;
+  document.getElementById('modal').style.display='flex';
+  renderChatList(true);
+  var inp=document.getElementById('chat-input');var fileEl=document.getElementById('chat-file');
+  function doSend(){var t=(inp.value||'').trim();if(t){chatSendMsg(t,null);inp.value='';}}
+  document.getElementById('chat-send').addEventListener('click',doSend);
+  document.getElementById('chat-mic').addEventListener('click',chatMic);
+  document.getElementById('chat-att').addEventListener('click',function(){fileEl.click();});
+  fileEl.addEventListener('change',function(){var f=fileEl.files&&fileEl.files[0];var cap=(inp.value||'').trim();if(f){chatHandleFile(f,cap);inp.value='';}fileEl.value='';});
+  inp.addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();doSend();}});
+  if(_chatTimer)clearInterval(_chatTimer);
+  var lastLen=(window.S&&S.chat?S.chat.length:0);
+  _chatTimer=setInterval(function(){if(!document.getElementById('chat-list')){clearInterval(_chatTimer);_chatTimer=null;return;}var l=(window.S&&S.chat?S.chat.length:0);if(l!==lastLen){lastLen=l;renderChatList();}},3000);
+}
+window.openChat=openChat;
+window.openSetRole=openSetRole;window.tierOf=tierOf;
 window.openUsers=openUsers;window.openSetPwd=openSetPwd;window.userDisplayName=userDisplayName;
 window.openChangePassword=openChangePassword;window.openPwdAdmin=openPwdAdmin;window.lgResetRole=lgResetRole;
 
@@ -18254,7 +18572,7 @@ document.getElementById('btn-refresh').addEventListener('click',function(){
   try{localStorage.setItem('lg_v9',JSON.stringify(S));}catch(e){}
   // 2. Отправить в облако и ПОДОЖДАТЬ подтверждения перед очисткой
   ss('↑ Отправка в облако...',false);
-  fetch(BURL,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':AK,'X-Bin-Versioning':'false'},body:JSON.stringify({_modified:S._modified,_schema:S._schema||3,entries:S.entries,brigades:S.brigades,objects:S.objects,objMeta:S.objMeta||{},history:S.history,weeks:S.weeks,kfu:S.kfu,settings:S.settings,goalsDone:S.goalsDone,auth:S.auth||{},kzDict:S.kzDict||{},workTypes:S.workTypes||[],subgoals:S.subgoals||[],cycles:S.cycles||{},ks2meta:S.ks2meta||{},ks2acts:S.ks2acts||[],ks3acts:S.ks3acts||[],directions:S.directions||[],roles:S.roles||[],milestones:S.milestones||[]})}).then(function(res){
+  fetch(BURL,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':AK,'X-Bin-Versioning':'false'},body:JSON.stringify({_modified:S._modified,_schema:S._schema||3,entries:S.entries,brigades:S.brigades,objects:S.objects,objMeta:S.objMeta||{},history:S.history,weeks:S.weeks,kfu:S.kfu,settings:S.settings,goalsDone:S.goalsDone,auth:S.auth||{},tier:S.tier||{},chat:S.chat||[],kzDict:S.kzDict||{},workTypes:S.workTypes||[],subgoals:S.subgoals||[],cycles:S.cycles||{},ks2meta:S.ks2meta||{},ks2acts:S.ks2acts||[],ks3acts:S.ks3acts||[],directions:S.directions||[],roles:S.roles||[],milestones:S.milestones||[]})}).then(function(res){
     if(!res.ok){
       alert('❌ Не удалось сохранить в облако! Обновление отменено чтобы не потерять данные.\n\nПроверьте интернет и попробуйте снова.');
       ss('!',true);
@@ -19389,7 +19707,8 @@ function delDraftOnServer(id){
 
 function openDraftsModal(){
   var visible=(_drafts||[]).filter(function(d){return !_deletedIds[d.id];});
-  if(visible.length===0){alert(T('noDrafts'));return;}
+  var _chatN=(typeof chatPendingDrafts==='function')?chatPendingDrafts().length:0;
+  if(visible.length===0 && _chatN===0){ var _md=document.getElementById('modal'); if(_md&&_md.style.display!=='none'){closeModal();} else {alert(T('noDrafts'));} return; }
   // Labels для новой модели v3 (+ старые типы для обратной совместимости)
   var labels={
     income:'💰 ДОХОД',
@@ -19411,8 +19730,9 @@ function openDraftsModal(){
     personal:'var(--purple)',
     workers:'var(--purple)'
   };
-  document.getElementById('mtit').textContent=T('onReview')+' ('+visible.length+')';
+  document.getElementById('mtit').textContent=T('onReview')+' ('+(visible.length+_chatN)+')';
   var h='';
+  h += (typeof chatDraftsSection==='function')?chatDraftsSection():'';
 
   // DEBUG-блок: показать что прислал бот (сырой op)
   // Помогает диагностировать пустые/неполные черновики
