@@ -17445,7 +17445,7 @@ function startApp(){
     checkSmartAlerts();
     if(typeof updateSyncStamp==='function') updateSyncStamp();
     // Подтягиваем черновики сразу после данных (чтобы плашка не отставала)
-    if((role==='editor'||(typeof isPartner==='function'&&isPartner()))&&typeof loadDrafts==='function') loadDrafts(true);
+    if((typeof canEdit==='function'&&canEdit())&&typeof loadDrafts==='function') loadDrafts(true);
   });
   setTimeout(function(){startDraftsPolling();initPushNotifications();},2000);
   setTimeout(function(){if(typeof loadAIForecast==='function')loadAIForecast();},3000);
@@ -19671,7 +19671,7 @@ function checkDraftsNow(){
 
 function startDraftsPolling(){
   if(_draftsTimer) clearInterval(_draftsTimer);
-  if((role==='editor'||isPartner())&&AI_WORKER_URL&&AI_SHARED_TOKEN){
+  if((typeof canEdit==='function'&&canEdit())&&AI_WORKER_URL&&AI_SHARED_TOKEN){
     loadDrafts(true);
     var fastCount=0;
     _draftsTimer=setInterval(function(){
@@ -19686,7 +19686,7 @@ function startDraftsPolling(){
 }
 
 document.addEventListener('visibilitychange',function(){
-  if(!document.hidden&&(role==='editor'||isPartner())&&AI_WORKER_URL){
+  if(!document.hidden&&(typeof canEdit==='function'&&canEdit())&&AI_WORKER_URL){
     // Надёжное обновление при возврате: сразу + повтор (телефон мог "спать", сеть не готова)
     loadDrafts(false);
     setTimeout(function(){loadDrafts(false);}, 1500);
