@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"/>
 <meta name="theme-color" content="#0d1117"/>
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="application-name" content="LIONGATE"/>
@@ -643,7 +643,8 @@ canvas{display:block;width:100%;border-radius:8px}
     <button onclick="fabPick('manual')" style="display:flex;align-items:center;gap:10px;background:var(--sur);border:1px solid var(--brd);border-radius:24px;padding:10px 16px;color:var(--text);font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.4)"><span>Вручную</span><span style="font-size:20px">✏️</span></button>
   </div>
   <button class="fab" id="fab" onclick="toggleFab()" title="Добавить запись">+</button>
-  <button class="chatfab" id="chatfab" onclick="if(window.openChat)openChat()" title="Чат команды">💬</button>
+  <!-- ЧАТ ОТКЛЮЧЁН (используются группы Telegram). Чтобы вернуть — раскомментируйте строку ниже. -->
+  <!-- <button class="chatfab" id="chatfab" onclick="if(window.openChat)openChat()" title="Чат команды">💬</button> -->
   <div id="sync-stamp" style="position:fixed;left:14px;bottom:calc(62px + env(safe-area-inset-bottom));font-size:9px;color:#5a6472;z-index:88;pointer-events:none;font-family:-apple-system,system-ui,sans-serif">v4.8</div>
   <nav>
     <button class="nb active" id="tab-main">
@@ -1843,22 +1844,10 @@ function defaultUnitFor(wtype){return DEFAULT_UNIT_FOR_WT[wtype]||'м³';}
 var CONSTR=['Подбетонка','Фундамент / плита','Стена','Перекрытие','Колонна','Лестница','Парапет','Лифтовая шахта','Балкон / лоджия','Ригель / балка','Прочее'];
 var EXP_CATS=['Аванс / зарплата рабочим','Материалы','Аренда техники','Транспорт','Инструменты и инвентарь','Мобильная связь','Страхование','Представительские','Административные','Прочее'];
 
-var PWD={
-  // Владелец (полный доступ)
-  'Dmitry1980':'owner',
-  // Учётчица (ввод/правка операций, без удаления и админки)
-  'Intek2026':'editor',
-  'Finance2026':'editor',
-  // Партнёры (видят свою карточку + общую сводку)
-  'Dmitry2026':'partner_Дмитрий',
-  'Bekzhan2026':'partner_Бекжан',
-  'Evgeny2026':'partner_Евгений',
-  'Nursultan2026':'partner_Нурсултан',
-  'Sergey2026':'partner_Сергей',
-  // Бригадиры (видят только свою бригаду)
-  'Brig1_2026':'brigadier_b1',
-  'Brig2_2026':'brigadier_b2',
-};
+// === ЭТАП 1 БЕЗОПАСНОСТИ: пароли больше НЕ хранятся в браузере. ===
+// Проверка пароля теперь на сервере (воркер, endpoint /api/login).
+// Список оставлен пустым, чтобы не ломать ссылки на PWD в коде.
+var PWD={};
 // Вспомогательные функции ролей
 function isEditor(){return role==='editor';}
 function isPartner(){return role&&role.startsWith('partner_');}
@@ -1874,13 +1863,19 @@ function canDelete(){return effTier()==='owner';}
 function adminDenied(){try{alert('Это действие доступно только владельцу.');}catch(e){}}
 window.isOwner=isOwner;window.canAdmin=canAdmin;window.canDelete=canDelete;window.effTier=effTier;window.defaultTier=defaultTier;
 var role=null;
-var AK='$2a$10$GBjOzIGzwTDlm4AZ4NkFS.nQXesYbuM/MNy2EYw4JV/QrDHiZG31m';
-var BIN='6a0a38b9c0954111d83ac9f8';
+// ЭТАП 1: мастер-ключ jsonbin удалён. jsonbin больше не используется —
+// синхронизация идёт только через Cloudflare Worker. Пустой ключ отключает все
+// резервные обращения к jsonbin (они защищены проверкой ключа).
+var AK='';
+var BIN='';
 var BURL='https://api.jsonbin.io/v3/b/'+BIN;
 var syncT=null;
 // Настройки ИИ — вшиты, не требуют настройки пользователем
 var AI_WORKER_URL = 'https://liongate-ai.hegaidima7.workers.dev';
-var AI_SHARED_TOKEN = 'liongate-2026-secret-x7p2k9m4';
+// ЭТАП 1: токен синхронизации больше НЕ вшит в HTML. Его выдаёт сервер при входе
+// (/api/login) и мы храним его в сессии. До входа — пусто.
+var AI_SHARED_TOKEN = '';
+try { AI_SHARED_TOKEN = sessionStorage.getItem('lg_token') || ''; } catch(e) {}
 function ss(m,e){
   var el=document.getElementById('sync-st');
   if(!el)return;
@@ -1919,7 +1914,7 @@ var _lastKnownRemote = 0;
 // jsonbin.io — РЕЗЕРВ (на случай если Worker упадёт)
 // =============================================================
 
-window.SYNC_TOKEN = AI_SHARED_TOKEN || 'liongate-2026-secret-x7p2k9m4';
+window.SYNC_TOKEN = AI_SHARED_TOKEN;
 
 // Проверка доступности Cloudflare Worker
 window._cfWorkerOk = null; // null = не знаем, true/false = известно
@@ -2005,32 +2000,8 @@ function pushCloud(){
   ss('!',true);
 }
 
-// Старая функция оставлена для совместимости (не вызывается)
-function _pushCloudLegacy(){
-  // jsonbin отключен. Используется только Cloudflare Worker.
-}
-
-// Резервная синхронизация через jsonbin
-function _pushCloudLegacy(){
-  S._modified=S._modified||Date.now();
-  // Сохраняем снапшот для Telegram /report
-  var C=calcCo();
-  var snap={
-    cash:fmt(C.cash),income:fmt(C.income),expense:fmt(C.expense),
-    invested:fmt(C.invested),profit:fmt(C.profit),
-    workers:S.brigades.reduce(function(s,b){return s+(b.workers||0);},0),
-    goalPct:Math.round(Math.max(0,C.profit)/9200000*100),
-    at:new Date().toISOString()
-  };
-  if(AI_WORKER_URL&&AI_SHARED_TOKEN){
-    fetch(AI_WORKER_URL.replace(/\/$/,'')+'/api/snapshot',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','X-LG-Token':AI_SHARED_TOKEN},
-      body:JSON.stringify(snap)
-    }).catch(function(){});
-  }
-  fetch(BURL,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':AK,'X-Bin-Versioning':'false'},body:JSON.stringify({_modified:S._modified,_schema:S._schema||3,entries:S.entries,brigades:S.brigades,objects:S.objects,objMeta:S.objMeta||{},history:S.history,weeks:S.weeks,kfu:S.kfu,settings:S.settings,goalsDone:S.goalsDone,auth:S.auth||{},tier:S.tier||{},chat:S.chat||[],kzDict:S.kzDict||{},workTypes:S.workTypes||[],subgoals:S.subgoals||[],cycles:S.cycles||{},ks2meta:S.ks2meta||{},ks2acts:S.ks2acts||[],ks3acts:S.ks3acts||[],directions:S.directions||[],roles:S.roles||[],milestones:S.milestones||[]})}).then(function(){ss('OK',false);}).catch(function(){ss('!',true);});
-}
+// (Удалён мёртвый код _pushCloudLegacy — старая синхронизация через jsonbin,
+//  которая не вызывалась. Синхронизация идёт только через Cloudflare Worker.)
 
 // Отправка события в архивную группу Telegram (через worker)
 // === ДИАГНОСТИКА ОБЛАКА ===
@@ -2468,7 +2439,7 @@ function processCloudData(d, cb){
         if(r.ks3acts&&Array.isArray(r.ks3acts))S.ks3acts=r.ks3acts;
         if(r.directions&&Array.isArray(r.directions))S.directions=r.directions;
         if(r.roles&&Array.isArray(r.roles))S.roles=r.roles;
-        if(r.milestones&&Array.isArray(r.milestones))S.milestones=r.milestones;
+        if(r.milestones&&Array.isArray(r.milestones))S.milestones=r.milestones;if(r.trash&&Array.isArray(r.trash)){var _ts={},_tm=[];(S.trash||[]).concat(r.trash).forEach(function(x){if(!x)return;var k=(x.at||'')+'|'+(x.action||'')+'|'+((x.entry&&x.entry.id)||'');if(!_ts[k]){_ts[k]=1;_tm.push(x);}});_tm.sort(function(a,b){return (a.at||'').localeCompare(b.at||'');});S.trash=_tm.slice(-300);}
         if(r.cycles)S.cycles=r.cycles;
         S._schema=Math.max(S._schema||2, r._schema||2);
         S._modified=remoteTime;
@@ -2510,7 +2481,7 @@ function processCloudData(d, cb){
         if(r.ks3acts&&Array.isArray(r.ks3acts))S.ks3acts=r.ks3acts;
         if(r.directions&&Array.isArray(r.directions))S.directions=r.directions;
         if(r.roles&&Array.isArray(r.roles))S.roles=r.roles;
-        if(r.milestones&&Array.isArray(r.milestones))S.milestones=r.milestones;
+        if(r.milestones&&Array.isArray(r.milestones))S.milestones=r.milestones;if(r.trash&&Array.isArray(r.trash)){var _ts={},_tm=[];(S.trash||[]).concat(r.trash).forEach(function(x){if(!x)return;var k=(x.at||'')+'|'+(x.action||'')+'|'+((x.entry&&x.entry.id)||'');if(!_ts[k]){_ts[k]=1;_tm.push(x);}});_tm.sort(function(a,b){return (a.at||'').localeCompare(b.at||'');});S.trash=_tm.slice(-300);}
         if(r.cycles)S.cycles=r.cycles;
         S._schema=Math.max(S._schema||2, r._schema||2);
         S._modified=remoteTime;
@@ -2543,8 +2514,8 @@ function defState(){return{
  ]
 };}
 
-// PRELOADED от 2026-05-25
-var PRELOADED_DATA = {"objects": ["ЖК «Алгабас», Мкр. Нуркент"], "objMeta": {"ЖК «Алгабас», Мкр. Нуркент": {"customer": "Sensata Group", "rates": {}, "custRates": [{"wtype": "Устройство стен", "unit": "м³", "rate": 38437.76}, {"wtype": "Устройство лестничного марша", "unit": "м³", "rate": 38437.76}, {"wtype": "Устройство плиты перекрытия и ригеля", "unit": "м³", "rate": 38437.76}, {"wtype": "Устройство парапета", "unit": "м³", "rate": 38437.76}], "spots": [{"id": "spot_b48", "name": "Блок 48", "deadline": "2026-10-31", "started": "2026-05-20", "completed": null, "constructions": [{"wtype": "Устройство стен", "unit": "м³", "volume": 1027.4, "heights": "-0,100 ÷ +42,850"}, {"wtype": "Устройство лестничного марша", "unit": "м³", "volume": 28.6, "heights": "-0,100 ÷ +40,550"}, {"wtype": "Устройство плиты перекрытия и ригеля", "unit": "м³", "volume": 868.8, "heights": "+4,150 ÷ +40,550"}, {"wtype": "Устройство парапета", "unit": "м³", "volume": 14.1, "heights": "+41,650 ÷ +43,950"}]}, {"id": "spot_b49", "name": "Блок 49", "deadline": "2026-11-30", "started": "2026-05-25", "completed": null, "constructions": [{"wtype": "Устройство стен", "unit": "м³", "volume": 707.5, "heights": "-0,100 ÷ +32,950"}, {"wtype": "Устройство лестничного марша", "unit": "м³", "volume": 20.8, "heights": "-0,100 ÷ +30,650"}, {"wtype": "Устройство плиты перекрытия и ригеля", "unit": "м³", "volume": 619.1, "heights": "+4,150 ÷ +33,150"}, {"wtype": "Устройство парапета", "unit": "м³", "volume": 13.6, "heights": "+31,750 ÷ +34,050"}]}]}}, "settings": {"deadline": "2026-12-31", "totalVol": 48000, "norms": {"Армирование": 4.4, "Опалубка": 4.0, "Бетонирование": 4.7, "Комплекс": 4.0, "Опалубка+бетон стен": 4.7, "Опалубка+бетон перекрытий": 3.3}, "workDaysPerWeek": 7, "startCash": 0, "startCashDate": ""}, "brigades": [{"id": "b1", "name": "Бригада Шынгыс", "obj": "ЖК «Алгабас», Мкр. Нуркент", "workers": 15, "started": "2026-05-18", "work": "Армирование", "norm": 4.4, "kfu_temp": true, "prices": [{"wtype": "Армирование", "unit": "м³", "rate": 14000}], "people": [], "attendance": {}}, {"id": "b2", "name": "Бригада Нурсултан", "obj": "ЖК «Алгабас», Мкр. Нуркент", "workers": 8, "started": "2026-05-18", "work": "Опалубка+бетон стен", "norm": 4.7, "kfu_temp": true, "prices": [{"wtype": "Опалубка+бетон стен", "unit": "м³", "rate": 12000}], "people": [], "attendance": {}}, {"id": "b3", "name": "Бригада Нуржан", "obj": "ЖК «Алгабас», Мкр. Нуркент", "workers": 8, "started": "2026-05-26", "work": "Опалубка+бетон перекрытий", "norm": 3.3, "kfu_temp": true, "prices": [{"wtype": "Опалубка+бетон перекрытий", "unit": "м³", "rate": 12000}], "people": [], "attendance": {}}, {"id": "b1779712091656", "name": "Штатная", "obj": "ЖК «Алгабас», Мкр. Нуркент", "workers": 1, "started": "2026-05-14", "work": "Разнорабочий", "norm": 0, "dailyRate": 20000, "kfu_temp": false, "prices": [], "people": [], "attendance": {}}], "history": [{"action": "reset_to_clean_v3", "at": "2026-05-25T12:10:29.027Z", "entries": 45}, {"action": "add", "by": "editor", "at": "2026-05-25T12:15:55.747Z", "type": "advance", "amount": 100000}, {"action": "add", "by": "editor", "at": "2026-05-25T12:17:40.539Z", "type": "expense", "amount": 80000}, {"action": "add", "by": "editor", "at": "2026-05-25T12:25:33.313Z", "type": "advance", "amount": 840000, "source": "tg-confirmed"}, {"action": "add", "by": "editor", "at": "2026-05-25T12:25:33.314Z", "type": "vol", "amount": 0, "source": "tg-confirmed"}, {"action": "add", "by": "editor", "at": "2026-05-25T12:27:27.323Z", "type": "advance", "amount": 200000, "source": "tg-confirmed"}, {"action": "add", "by": "editor", "at": "2026-05-25T13:16:19.606Z", "type": "expense", "amount": 840000}, {"action": "edit", "by": "editor", "at": "2026-05-25T13:31:17.807Z", "type": "advance", "amount": 840000}, {"action": "add", "by": "editor", "at": "2026-05-27T19:22:22.958Z", "type": "advance", "amount": 45000}, {"action": "add", "by": "editor", "at": "2026-05-27T19:25:15.625Z", "type": "expense", "amount": 45000}, {"action": "add", "by": "editor", "at": "2026-05-27T19:29:07.042Z", "amount": 10000, "source": "tg-confirmed"}, {"action": "add", "by": "editor", "at": "2026-05-27T19:29:54.065Z", "amount": 30000, "source": "tg-confirmed"}, {"action": "delete", "by": "editor", "at": "2026-05-27T19:31:01.814Z", "amount": 30000}, {"action": "delete", "by": "editor", "at": "2026-05-27T19:31:04.007Z", "amount": 10000}, {"action": "add", "by": "editor", "at": "2026-05-27T19:31:46.284Z", "type": "advance", "amount": 10000}, {"action": "add", "by": "editor", "at": "2026-05-27T19:32:30.014Z", "type": "advance", "amount": 30000}, {"action": "add", "by": "editor", "at": "2026-05-27T19:33:32.037Z", "type": "advance", "amount": 500000}, {"action": "add", "by": "editor", "at": "2026-05-27T19:35:57.558Z", "type": "expense", "amount": 500000}, {"action": "add", "by": "editor", "at": "2026-05-27T19:38:49.913Z", "type": "advance", "amount": 400000}, {"action": "add", "by": "editor", "at": "2026-05-27T19:40:15.507Z", "type": "expense", "amount": 200000}, {"action": "add", "by": "editor", "at": "2026-05-27T19:41:00.110Z", "type": "expense", "amount": 150000}], "weeks": [], "goalsDone": {}, "ks2": [], "kzDict": {}, "workTypes": ["Армирование", "Опалубка", "Бетонирование", "Демонтаж опалубки", "Комплекс монолит", "Штукатурка", "Стяжка пола", "Шпаклёвка", "Покраска", "Кладка кирпича", "Кладка блоков", "Гипсокартон", "Плитка", "Гидроизоляция", "Утепление фасада", "Электромонтаж", "Сантехника", "Сварочные работы", "Кровельные работы", "Разнорабочие", "Уборка", "Демонтаж", "Комплекс"], "kfu": [{"id": 1, "name": "Темп заливки", "owner": "Бекжан", "target": "150 м³/нед", "auto": "temp", "light": 1, "hist": []}, {"id": 2, "name": "Деньги от заказчика", "owner": "Евгений", "target": "оплата КС-2 ≤15 дней", "auto": "money", "light": 1, "hist": []}, {"id": 3, "name": "Качество", "owner": "Нурсултан", "target": "0 переделок", "auto": "quality", "light": 1, "hist": []}, {"id": 4, "name": "Закрытие КС-2", "owner": "Евгений", "target": "акт помесячно", "auto": "ks", "light": 1, "hist": []}, {"id": 5, "name": "Безопасность", "owner": "Бекжан", "target": "0 происшествий, все в СИЗ", "light": 2, "hist": []}], "entries": [{"id": 1001, "date": "2026-05-14", "type": "advance", "amount": 400000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "Выдал Бекжану наличными на расходы"}, {"id": 1002, "date": "2026-05-15", "type": "expense", "amount": 5000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Связь", "note": "Мобильный Бекжана — оплатил Дмитрий напрямую"}, {"id": 1003, "date": "2026-05-16", "type": "expense", "amount": 53100, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Административные", "note": "Смартфон и номер для финансовых операций"}, {"id": 1004, "date": "2026-05-16", "type": "expense", "amount": 150000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Аванс / зарплата рабочим", "brigade": "b1", "note": "Аванс Бригада Шынгыс — перевод"}, {"id": 1005, "date": "2026-05-16", "type": "expense", "amount": 100000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Аванс / зарплата рабочим", "brigade": "b1", "note": "Аванс Бригада Шынгыс — наличные"}, {"id": 1006, "date": "2026-05-16", "type": "expense", "amount": 20000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Транспорт", "note": "Такси Бригада Нурсултан до объекта"}, {"id": 1007, "date": "2026-05-16", "type": "advance", "amount": 20000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Евгений", "note": "Дал Евгению (личное)"}, {"id": 1008, "date": "2026-05-17", "type": "expense", "amount": 70000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Инструменты и инвентарь", "note": "Каски, жилеты, перчатки, диски, молоток, бур"}, {"id": 1009, "date": "2026-05-17", "type": "advance", "amount": 150000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "Выдал Бекжану наличными на расходы"}, {"id": 1010, "date": "2026-05-17", "type": "advance", "amount": 110000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "Проценты за Альфард — личный расход Бекжана"}, {"id": 1012, "date": "2026-05-18", "type": "expense", "amount": 20000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Аванс / зарплата рабочим", "brigade": "b1", "note": "Аванс бригада Шынгыс"}, {"id": 1013, "date": "2026-05-18", "type": "expense", "amount": 54000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Инструменты и инвентарь", "note": "Рации 3 шт × 18 000"}, {"id": 1014, "date": "2026-05-18", "type": "invest", "amount": 170000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "note": "Закинул на счёт компании для оплаты страховки"}, {"id": 1015, "date": "2026-05-18", "type": "expense", "amount": 158100, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "cash", "cat": "Административные", "note": "Страховка компании"}, {"id": 1016, "date": "2026-05-18", "type": "expense", "amount": 4500, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "cash", "cat": "Административные", "note": "Комиссия банка — Оплата К2"}, {"id": 1017, "date": "2026-05-18", "type": "expense", "amount": 1000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "cash", "cat": "Административные", "note": "Комиссия банка — ведение счёта"}, {"id": 1018, "date": "2026-05-18", "type": "expense", "amount": 1000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "cash", "cat": "Административные", "note": "Комиссия банка — Внешний перевод"}, {"id": 1019, "date": "2026-05-19", "type": "expense", "amount": 500000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Аванс / зарплата рабочим", "brigade": "b1", "note": "Аванс наличными бригада Шынгыс"}, {"id": 1020, "date": "2026-05-19", "type": "expense", "amount": 400000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Аванс / зарплата рабочим", "brigade": "b2", "note": "Аванс наличными бригада Нурсултан"}, {"id": 1021, "date": "2026-05-19", "type": "expense", "amount": 25135, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Административные", "note": "Обед с заказчиками"}, {"id": 1022, "date": "2026-05-19", "type": "expense", "amount": 2000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Административные", "note": "Напитки заказчики на объекте"}, {"id": 1023, "date": "2026-05-19", "type": "expense", "amount": 7000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "own", "cat": "Инструменты и инвентарь", "note": "Перчатки 2 пачки, молотки 2 шт"}, {"id": 1024, "date": "2026-05-19", "type": "advance", "amount": 198000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Евгений", "note": "Дал Евгению (личное)"}, {"id": 1025, "date": "2026-05-20", "type": "expense", "amount": 80000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Инструменты и инвентарь", "note": "Пояс монтажный 8 шт"}, {"id": 1026, "date": "2026-05-20", "type": "advance", "amount": 100000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "На расходы Бекжан"}, {"id": 1027, "date": "2026-05-21", "type": "expense", "amount": 65000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Инструменты и инвентарь", "note": "Перчатка, перфоратор, бензин"}, {"id": 1028, "date": "2026-05-21", "type": "advance", "amount": 100000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "Бекжану на расходы"}, {"id": 1029, "date": "2026-05-22", "type": "expense", "amount": 45000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Инструменты и инвентарь", "note": "Вибратор"}, {"id": 1030, "date": "2026-05-22", "type": "expense", "amount": 10000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Материалы", "note": "Дождевик 5 шт"}, {"id": 1031, "date": "2026-05-22", "type": "expense", "amount": 8000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Топливо", "note": "Заправка бензина"}, {"id": 1032, "date": "2026-05-22", "type": "advance", "amount": 10000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Нурсултан", "note": "Нурсултану на личные"}, {"id": 1033, "date": "2026-05-22", "type": "advance", "amount": 75000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "Бекжану на расход отправил"}, {"id": 1034, "date": "2026-05-23", "type": "expense", "amount": 15200, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Евгений", "paySource": "advance", "cat": "Административные", "note": "Бургеры, кола, картофель фри (из подотчётных)"}, {"id": 1035, "date": "2026-05-23", "type": "advance", "amount": 100000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "На барана"}, {"id": 1036, "date": "2026-05-23", "type": "advance", "amount": 50000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Евгений", "to": "Бекжан", "note": "На барана, салаты, напитки"}, {"id": 1037, "date": "2026-05-23", "type": "advance", "amount": 60000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "На расход Шынгыс"}, {"id": 1038, "date": "2026-05-23", "type": "advance", "amount": 30000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "На расход разнорабочий"}, {"id": 1039, "date": "2026-05-23", "type": "expense", "amount": 10000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Дмитрий", "paySource": "own", "cat": "Топливо", "note": "Бензин"}, {"id": 1040, "date": "2026-05-23", "type": "advance", "amount": 25000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "На напитки"}, {"id": 1041, "date": "2026-05-23", "type": "expense", "amount": 26000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Питание", "note": "Картошка, яблоки, бананы, помидоры, огурцы"}, {"id": 1042, "date": "2026-05-23", "type": "expense", "amount": 105000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Питание", "note": "Баран"}, {"id": 1043, "date": "2026-05-23", "type": "expense", "amount": 3000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Транспорт", "note": "Такси"}, {"id": 1044, "date": "2026-05-23", "type": "expense", "amount": 34000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Питание", "note": "Напитки, пирожное, пирожки"}, {"id": 1045, "date": "2026-05-23", "type": "expense", "amount": 60000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Аванс / зарплата рабочим", "brigade": "b1", "note": "Аванс"}, {"id": 1046, "date": "2026-05-23", "type": "expense", "amount": 30000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Аванс / зарплата рабочим", "note": "Аванс разнорабочий"}, {"id": 1779711355747, "date": "2026-05-25", "type": "advance", "amount": 100000, "note": "Дал Бекжану аванс 100000 бригада Нурсултан", "from": "Дмитрий", "to": "Бекжан", "obj": "ЖК «Алгабас», Мкр. Нуркент"}, {"id": 1779711460539, "date": "2026-05-25", "type": "expense", "amount": 80000, "note": "Аванс", "obj": "ЖК «Алгабас», Мкр. Нуркент", "cat": "Аванс / зарплата рабочим", "who": "Бекжан", "paySource": "advance", "brigade": "b2"}, {"id": 1779711941102, "date": "2026-05-25", "amount": 840000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "note": "з/п за Блок 48 третий этаж отметка 7.550 стена Бригада Нурсултан", "source": "telegram", "tgAuthor": "Дмитрий Хегай", "type": "advance", "linkedId": "tg_lk1779711680923", "from": "Дмитрий", "to": "Бекжан"}, {"id": 1779711941097, "date": "2026-05-25", "amount": 0, "obj": "ЖК «Алгабас», Мкр. Нуркент", "note": "Залили 114,5 куб бетон", "source": "telegram", "tgAuthor": "Дмитрий Хегай", "type": "vol", "volume": 114.5, "unit": "м³", "wtype": "Опалубка+бетон стен", "brigade": "b2", "amountPending": true, "linkedId": "tg_lk1779711680923", "spotId": "spot_b48", "spot": "spot_b48", "zone": "Блок 48"}, {"id": 1779712051286, "date": "2026-05-25", "amount": 200000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "note": "лично", "source": "telegram", "tgAuthor": "Дмитрий Хегай", "type": "advance", "from": "Дмитрий", "to": "Бекжан"}, {"id": 1779714979606, "date": "2026-05-25", "type": "expense", "amount": 840000, "note": "840000 нал Бекжану дал з/п за Блок 48 третий этаж отметка  7.550 стена Бригада Нурсултан залили 114,5 куб бетон остаток долга «54000» обьем больше получился 114,5 м3", "obj": "ЖК «Алгабас», Мкр. Нуркент", "cat": "Аванс / зарплата рабочим", "who": "Бекжан", "paySource": "advance", "brigade": "b2"}, {"id": 1779714979607, "date": "2026-05-26", "type": "expense", "amount": 10000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Евгений", "paySource": "advance", "cat": "Административные", "note": "Закуп журналов"}, {"id": 1779714979608, "date": "2026-05-26", "type": "expense", "amount": 48500, "obj": "ЖК «Алгабас», Мкр. Нуркент", "who": "Бекжан", "paySource": "advance", "cat": "Инструменты и инвентарь", "note": "лазер перчатка намордник шлифовочный диск очки маленький болгарка"}, {"id": 1779714979609, "date": "2026-05-26", "type": "advance", "amount": 60000, "obj": "ЖК «Алгабас», Мкр. Нуркент", "from": "Дмитрий", "to": "Бекжан", "note": "на инструменты 60000"}, {"id": 1779895004208, "date": "2026-05-26", "type": "expense", "amount": 710000, "note": "расчет за армирование 3 этаж отметка 7550 пятно 49 бригада Шынгыс", "obj": "ЖК «Алгабас», Мкр. Нуркент", "cat": "Аванс / зарплата рабочим", "who": "Бекжан", "paySource": "advance", "brigade": "b1"}, {"id": 1779895064281, "date": "2026-05-26", "type": "advance", "amount": 710000, "note": "Бекжану дал расчет за армирование 3 этаж отметка 7550 пятно 49 бригада Шынгыс", "from": "Дмитрий", "to": "Бекжан", "obj": "ЖК «Алгабас», Мкр. Нуркент"}, {"id": 1779895202221, "date": "2026-05-26", "type": "advance", "amount": 500000, "note": "Аванс бригада Нуржан плотники 500000 через Бекжана", "from": "Дмитрий", "to": "Бекжан", "obj": "ЖК «Алгабас», Мкр. Нуркент"}, {"id": 1779909742958, "date": "2026-05-27", "type": "advance", "amount": 45000, "note": "Бекжану дал  на пчелку", "from": "Дмитрий", "to": "Бекжан", "obj": "ЖК «Алгабас», Мкр. Нуркент"}, {"id": 1779909915625, "date": "2026-05-27", "type": "expense", "amount": 45000, "note": "Бекжану купил перчатки пчелку", "obj": "ЖК «Алгабас», Мкр. Нуркент", "cat": "Инструменты и инвентарь", "who": "Бекжан", "paySource": "advance"}, {"id": 1779910306284, "date": "2026-05-27", "type": "advance", "amount": 10000, "note": "На личные расходы ", "from": "Дмитрий", "to": "Бекжан", "obj": "ЖК «Алгабас», Мкр. Нуркент"}, {"id": 1779910350014, "date": "2026-05-27", "type": "advance", "amount": 30000, "note": "На личные расходы ", "from": "Дмитрий", "to": "Бекжан", "obj": "ЖК «Алгабас», Мкр. Нуркент"}, {"id": 1779910412036, "date": "2026-05-27", "type": "advance", "amount": 500000, "note": "500000 наличные Бекжану на личные расходы для ломбард золото", "from": "Дмитрий", "to": "Бекжан", "obj": "ЖК «Алгабас», Мкр. Нуркент"}, {"id": 1779910557558, "date": "2026-05-27", "type": "expense", "amount": 500000, "note": "Аванс плотники Нуржан", "obj": "ЖК «Алгабас», Мкр. Нуркент", "cat": "Аванс / зарплата рабочим", "who": "Бекжан", "paySource": "advance", "brigade": "b3"}, {"id": 1779910729913, "date": "2026-05-27", "type": "advance", "amount": 400000, "note": "Аванс Бригада Шынгыс 200000 Аванс бригада Нуржан 200000", "from": "Дмитрий", "to": "Бекжан", "obj": "ЖК «Алгабас», Мкр. Нуркент"}, {"id": 1779910815507, "date": "2026-05-27", "type": "expense", "amount": 200000, "note": "Аванс ", "obj": "ЖК «Алгабас», Мкр. Нуркент", "cat": "Аванс / зарплата рабочим", "who": "Бекжан", "paySource": "advance", "brigade": "b3"}, {"id": 1779910860110, "date": "2026-05-27", "type": "expense", "amount": 150000, "note": "Аванс ", "obj": "ЖК «Алгабас», Мкр. Нуркент", "cat": "Аванс / зарплата рабочим", "who": "Бекжан", "paySource": "advance", "brigade": "b1"}, {"id": 1779911078478, "date": "2026-05-26", "type": "vol", "brigade": "b1", "volume": 110, "unit": "м³", "wtype": "Армирование", "rateOverride": 14000, "rate": 14000, "amount": 1540000, "zone": "Блок 49", "floor": "3 этаж отметка 7550", "struct": "Стена", "note": "", "obj": "ЖК «Алгабас», Мкр. Нуркент", "spotId": "spot_b49"}], "_schema": 3, "_resetAt": "2026-05-25T12:10:29.027Z", "_modified": 1779883200000, "_preloaded": true, "cycles": {"1_2026-W22": {"done": "", "analysisGood": "", "analysisBad": "", "decisions": [], "closedAt": null}}, "subgoals": []};
+// PRELOADED обновлён до актуальных данных отчёта от 2026-06-01 (80 записей)
+var PRELOADED_DATA = {"objects":["ЖК «Алгабас», Мкр. Нуркент"],"objMeta":{"ЖК «Алгабас», Мкр. Нуркент":{"customer":"Sensata Group","rates":{},"custRates":[{"wtype":"Устройство стен","unit":"м³","rate":38437.76},{"wtype":"Устройство лестничного марша","unit":"м³","rate":38437.76},{"wtype":"Устройство плиты перекрытия и ригеля","unit":"м³","rate":38437.76},{"wtype":"Устройство парапета","unit":"м³","rate":38437.76}],"spots":[{"id":"spot_b48","name":"Блок 48","deadline":"2026-10-31","started":"2026-05-20","completed":null,"constructions":[{"wtype":"Устройство стен","unit":"м³","volume":1027.4,"heights":"-0,100 ÷ +42,850"},{"wtype":"Устройство лестничного марша","unit":"м³","volume":28.6,"heights":"-0,100 ÷ +40,550"},{"wtype":"Устройство плиты перекрытия и ригеля","unit":"м³","volume":868.8,"heights":"+4,150 ÷ +40,550"},{"wtype":"Устройство парапета","unit":"м³","volume":14.1,"heights":"+41,650 ÷ +43,950"}]},{"id":"spot_b49","name":"Блок 49","deadline":"2026-11-30","started":"2026-05-25","completed":null,"constructions":[{"wtype":"Устройство стен","unit":"м³","volume":707.5,"heights":"-0,100 ÷ +32,950"},{"wtype":"Устройство лестничного марша","unit":"м³","volume":20.8,"heights":"-0,100 ÷ +30,650"},{"wtype":"Устройство плиты перекрытия и ригеля","unit":"м³","volume":619.1,"heights":"+4,150 ÷ +33,150"},{"wtype":"Устройство парапета","unit":"м³","volume":13.6,"heights":"+31,750 ÷ +34,050"}]}]}},"settings":{"deadline":"2026-12-31","totalVol":48000,"norms":{"Армирование":4.4,"Опалубка":4,"Бетонирование":4.7,"Комплекс":4,"Опалубка+бетон стен":4.7,"Опалубка+бетон перекрытий":3.3},"workDaysPerWeek":7,"startCash":0,"startCashDate":"","lgPlan":{"goal":820000000,"year":2026,"weatherLoss":15,"growth":30,"marginM3":12438,"marginAuto":1,"peoplePerSpot":12,"avgSpot":1650,"normArm":4.4,"normWall":4.7,"startCapM3":380,"dirs":[{"key":"mono","name":"Монолит","goal":600000000,"startDate":"2026-05-20","kind":"mono","_sm":5,"_sd":"2026-05-20T00:00:00.000Z","_monthly":{"5":4726440,"6":33855372.27520538,"7":44011983.957766995,"8":57215579.1450971,"9":74380252.88862625,"10":96694328.75521411,"11":125702627.38177834,"12":163413415.59631187}},{"key":"opalubka","name":"Опалубка","goal":70000000,"startDate":"2026-06-01","kind":"simple","_sm":6,"_sd":"2026-06-01T00:00:00.000Z","_monthly":{"6":3981154.579189401,"7":5175500.952946221,"8":6728151.238830089,"9":8746596.610479115,"10":11370575.59362285,"11":14781748.271709705,"12":19216272.75322262}},{"key":"trade","name":"Торговля","goal":150000000,"startDate":"2026-08-01","kind":"simple","_sm":8,"_sd":"2026-08-01T00:00:00.000Z","_monthly":{"8":16587232.254426021,"9":21563401.930753827,"10":28032422.50997998,"11":36442149.26297398,"12":47374794.04186617}}],"constraints":[],"commitments":[],"roadmap":[{"id":"r1","name":"Нанять до 70 рабочих","owner":"Бекжан","due":"2026-06-30","done":false,"how":"Через бригадиров привести 3–4 команды по 12–15 чел. Объявления + сарафан. Сразу оформить, выдать инструмент и СИЗ."},{"id":"r2","name":"Подготовить опалубку к аренде","owner":"Дмитрий","due":"2026-06-30","done":false,"how":"Посчитать свободные комплекты, привести в товарный вид, назначить цену аренды за м², найти 1–2 клиентов среди соседних подрядчиков."},{"id":"r3","name":"≥3 новых пятна в переговорах","owner":"Евгений","due":"2026-06-30","done":false,"how":"Обойти прорабов соседних блоков ЖК, выйти на застройщиков. Предлагать опалубку в составе — поднимает цену до 50 000 ₸/м³."},{"id":"r4","name":"Выйти на 150 рабочих","owner":"Бекжан","due":"2026-07-31","done":false,"how":"Удвоить найм: +5–6 бригад. Готовить бригадиров заранее, чтобы было кому управлять новыми командами."},{"id":"r5","name":"Подписать 2 новых пятна (всего 4)","owner":"Евгений","due":"2026-07-31","done":false,"how":"Закрыть июньские переговоры договорами. Зафиксировать объём, цену за м³ и сроки приёмки КС-2."},{"id":"r6","name":"Первая аренда опалубки","owner":"Дмитрий","due":"2026-07-31","done":false,"how":"Подписать первый договор аренды, проверить возврат и износ. Это пассивный доход поверх монолита."},{"id":"r7","name":"Запуск торговли (Каспи), капитал 100 млн","owner":"Дмитрий","due":"2026-08-31","done":false,"how":"Открыть магазин на Kaspi, завести первую партию ходового товара, выделить 100 млн оборотных, нанять 1 операциониста."},{"id":"r8","name":"5 активных пятен","owner":"Евгений","due":"2026-08-31","done":false,"how":"Держать 5 пятен в работе одновременно. На каждом полный цикл: армирование → опалубка → бетон → КС-2."},{"id":"r9","name":"7 активных пятен","owner":"Евгений","due":"2026-09-30","done":false,"how":"Добрать ещё 2 пятна. Проверить, что бригад и опалубки хватает на параллельную работу."},{"id":"r10","name":"Выйти на ~220 рабочих","owner":"Бекжан","due":"2026-09-30","done":false,"how":"Найм под 7 пятен. Контроль текучки — удерживать бригадиров бонусом за выработку."},{"id":"r11","name":"Запустить объект Тип Б","owner":"Евгений","due":"2026-10-31","done":false,"how":"Согласовать ТЗ по объекту типа Б (~50 млн), поставить отдельную бригаду, не снимая людей с основных пятен."},{"id":"r12","name":"Опалубка-доход ~40 млн накопл.","owner":"Дмитрий","due":"2026-10-31","done":false,"how":"Нарастить аренду до нескольких клиентов. Вести учёт комплектов и платежей, не терять оборудование."},{"id":"r13","name":"8 активных пятен","owner":"Евгений","due":"2026-11-30","done":false,"how":"Пиковая параллель. Главное — без провисаний по бетону и приёмке КС-2."},{"id":"r14","name":"Выйти на ~290 рабочих","owner":"Бекжан","due":"2026-11-30","done":false,"how":"Пиковый найм. Заранее закрыть жильё и логистику для бригад, иначе разбегутся."},{"id":"r15","name":"Зарегистрировать холдинг ТОО","owner":"Дмитрий","due":"2026-11-30","done":false,"how":"ТОО «LIONGATE Group» — свести направления под одну крышу. Это задел под МСФО и будущий IPO."},{"id":"r16","name":"Качество: 0 переделок (весь год)","owner":"Нурсултан","due":"2026-12-31","done":false,"how":"Чек-листы приёмки на каждом этапе, фото-фиксация. Брак = минус маржа, ловить до заливки бетона."},{"id":"r17","name":"ИТОГ года: 820 млн прибыли","owner":"Все","due":"2026-12-31","done":false,"how":"Свести год: монолит ~600 + опалубка ~70 + торговля ~150. Сверять «Прогноз года» в Сводке каждую неделю."},{"id":"r18","name":"Выбрать МСФО-аудитора","owner":"Сергей","due":"2026-12-31","done":false,"how":"Найти аудитора (Big-4 или местный). Начать вести учёт по МСФО с 2026 — это первый из 3 годов для IPO."},{"id":"r19","name":"Лицензия 1 категории","owner":"Дмитрий","due":"2027-03-31","done":false,"how":"Собрать документы, опыт и специалистов под 1 категорию. Она открывает тендеры и девелопмент."},{"id":"r20","name":"Первый выигранный тендер","owner":"Евгений","due":"2027-06-30","done":false,"how":"После лицензии подать на тендер. Начать с небольшого, чтобы получить референс и опыт."},{"id":"r21","name":"Земля под первый ЖК","owner":"Дмитрий","due":"2027-09-30","done":false,"how":"Найти участок, посчитать экономику. Свой ЖК — главный множитель капитализации к IPO."}],"scenarioV":3}},"brigades":[{"id":"b1","name":"Бригада Шынгыс","obj":"ЖК «Алгабас», Мкр. Нуркент","workers":15,"started":"2026-05-18","work":"Армирование","norm":4.4,"kfu_temp":true,"prices":[{"wtype":"Армирование","unit":"м³","rate":14000}],"people":[],"attendance":{}},{"id":"b2","name":"Бригада Нурсултан","obj":"ЖК «Алгабас», Мкр. Нуркент","workers":8,"started":"2026-05-18","work":"Опалубка+бетон стен","norm":4.7,"kfu_temp":true,"prices":[{"wtype":"Опалубка+бетон стен","unit":"м³","rate":12000}],"people":[],"attendance":{}},{"id":"b3","name":"Бригада Нуржан","obj":"ЖК «Алгабас», Мкр. Нуркент","workers":8,"started":"2026-05-26","work":"Опалубка+бетон перекрытий","norm":3.3,"kfu_temp":true,"prices":[{"wtype":"Опалубка+бетон перекрытий","unit":"м³","rate":12000}],"people":[],"attendance":{}},{"id":"b1779712091656","name":"Штатная","obj":"ЖК «Алгабас», Мкр. Нуркент","workers":1,"started":"2026-05-14","work":"Разнорабочий","norm":0,"dailyRate":20000,"kfu_temp":false,"prices":{"Армирование":14000,"Опалубка+бетон":12000},"people":[],"attendance":{}}],"history":[{"action":"reset_to_clean_v3","at":"2026-05-25T12:10:29.027Z","entries":45},{"action":"add","by":"editor","at":"2026-05-25T12:15:55.747Z","type":"advance","amount":100000},{"action":"add","by":"editor","at":"2026-05-25T12:17:40.539Z","type":"expense","amount":80000},{"action":"add","by":"editor","at":"2026-05-25T12:25:33.313Z","type":"advance","amount":840000,"source":"tg-confirmed"},{"action":"add","by":"editor","at":"2026-05-25T12:25:33.314Z","type":"vol","amount":0,"source":"tg-confirmed"},{"action":"add","by":"editor","at":"2026-05-25T12:27:27.323Z","type":"advance","amount":200000,"source":"tg-confirmed"},{"action":"add","by":"editor","at":"2026-05-25T13:16:19.606Z","type":"expense","amount":840000},{"action":"edit","by":"editor","at":"2026-05-25T13:31:17.807Z","type":"advance","amount":840000},{"action":"add","by":"editor","at":"2026-05-27T19:22:22.958Z","type":"advance","amount":45000},{"action":"add","by":"editor","at":"2026-05-27T19:25:15.625Z","type":"expense","amount":45000},{"action":"add","by":"editor","at":"2026-05-27T19:29:07.042Z","amount":10000,"source":"tg-confirmed"},{"action":"add","by":"editor","at":"2026-05-27T19:29:54.065Z","amount":30000,"source":"tg-confirmed"},{"action":"delete","by":"editor","at":"2026-05-27T19:31:01.814Z","amount":30000},{"action":"delete","by":"editor","at":"2026-05-27T19:31:04.007Z","amount":10000},{"action":"add","by":"editor","at":"2026-05-27T19:31:46.284Z","type":"advance","amount":10000},{"action":"add","by":"editor","at":"2026-05-27T19:32:30.014Z","type":"advance","amount":30000},{"action":"add","by":"editor","at":"2026-05-27T19:33:32.037Z","type":"advance","amount":500000},{"action":"add","by":"editor","at":"2026-05-27T19:35:57.558Z","type":"expense","amount":500000},{"action":"add","by":"editor","at":"2026-05-27T19:38:49.913Z","type":"advance","amount":400000},{"action":"add","by":"editor","at":"2026-05-27T19:40:15.507Z","type":"expense","amount":200000},{"action":"add","by":"editor","at":"2026-05-27T19:41:00.110Z","type":"expense","amount":150000},{"action":"add","by":"owner","at":"2026-05-31T16:17:04.181Z","type":"advance","amount":200000,"note":"восстановление 30.05"},{"action":"add","by":"owner","at":"2026-05-31T16:17:04.181Z","type":"advance","amount":40000,"note":"восстановление 30.05"},{"action":"add","by":"owner","at":"2026-05-31T16:17:04.181Z","type":"advance","amount":200000,"note":"восстановление 30.05"},{"action":"add","by":"owner","at":"2026-05-31T16:17:04.181Z","type":"expense","amount":90000,"note":"восстановление 30.05"},{"action":"add","by":"owner","at":"2026-05-31T16:17:04.181Z","type":"expense","amount":200000,"note":"восстановление 30.05"},{"action":"edit","by":"owner","at":"2026-05-31T16:31:26.356Z","type":"expense","amount":200000},{"action":"add","by":"owner","at":"2026-05-31T16:33:28.795Z","type":"advance","amount":90000},{"action":"add","by":"owner","at":"2026-05-31T16:36:25.883Z","type":"expense","amount":100000},{"action":"add","by":"owner","at":"2026-05-31T16:39:38.719Z","type":"expense","amount":200000},{"action":"add","by":"owner","at":"2026-05-31T16:46:18.292Z","type":"advance","amount":50000,"source":"tg-confirmed"},{"action":"add","by":"owner","at":"2026-05-31T16:47:44.487Z","type":"expense","amount":50000},{"action":"edit","by":"owner","at":"2026-05-31T16:54:49.316Z","type":"expense","amount":50000,"typeChanged":"advance→expense"},{"action":"edit","by":"editor","at":"2026-05-31T18:15:17.070Z","type":"expense","amount":30000},{"action":"add","by":"owner","at":"2026-06-01T11:15:20.672Z","type":"advance","amount":952000,"source":"tg-confirmed"},{"action":"add","by":"owner","at":"2026-06-01T11:17:22.044Z","type":"expense","amount":952000}],"weeks":[],"goalsDone":{},"ks2":[],"kzDict":{},"workTypes":["Армирование","Опалубка","Бетонирование","Демонтаж опалубки","Комплекс монолит","Штукатурка","Стяжка пола","Шпаклёвка","Покраска","Кладка кирпича","Кладка блоков","Гипсокартон","Плитка","Гидроизоляция","Утепление фасада","Электромонтаж","Сантехника","Сварочные работы","Кровельные работы","Разнорабочие","Уборка","Демонтаж","Комплекс"],"kfu":[{"id":1,"name":"Темп заливки","owner":"Бекжан","target":"150 м³/нед","auto":"temp","light":1,"hist":[]},{"id":2,"name":"Деньги от заказчика","owner":"Евгений","target":"оплата КС-2 ≤15 дней","auto":"money","light":1,"hist":[]},{"id":3,"name":"Качество","owner":"Нурсултан","target":"0 переделок","auto":"quality","light":1,"hist":[]},{"id":4,"name":"Закрытие КС-2","owner":"Евгений","target":"акт помесячно","auto":"ks","light":1,"hist":[]},{"id":5,"name":"Безопасность","owner":"Бекжан","target":"0 происшествий, все в СИЗ","light":2,"hist":[]},{"id":"kfu_cash","name":"Запас кассы","owner":"Сергей","target":"≥30 дней труда","auto":"cash","light":1,"hist":[]},{"id":"kfu_launch","name":"Запуск направлений","owner":"Дмитрий","target":"старты в срок · курс на цель","auto":"launch","light":1,"hist":[]},{"id":"kfu_backlog","name":"Новые объекты","owner":"Евгений","target":"≥2 мес работы вперёд","auto":"backlog","light":1,"hist":[]}],"entries":[{"id":1001,"date":"2026-05-14","type":"advance","amount":400000,"obj":"ЖК «Алгабас», Мкр. Нуркент","from":"Дмитрий","to":"Бекжан","note":"Выдал Бекжану наличными на расходы"},{"id":1002,"date":"2026-05-15","type":"expense","amount":5000,"obj":"ЖК «Алгабас», Мкр. Нуркент","who":"Дмитрий","paySource":"own","cat":"Связь","note":"Мобильный Бекжана — оплатил Дмитрий напрямую"},{"id":1003,"date":"2026-05-16","type":"expense","amount":53100,"obj":"ЖК «Алгабас», Мкр. Нуркент","who":"Дмитрий","paySource":"own","cat":"Административные","note":"Смартфон и номер для финансовых операций"},{"id":1004,"date":"2026-05-16","type":"expense","amount":150000,"obj":"ЖК «Алгабас», Мкр. Нуркент","who":"Бекжан","paySource":"advance","cat":"Аванс / зарплата рабочим","brigade":"b1","note":"Аванс Бригада Шынгыс — перевод"},{"id":1005,"date":"2026-05-16","type":"expense","amount":100000,"obj":"ЖК «Алгабас», Мкр. Нуркент","who":"Бекжан","paySource":"advance","cat":"Аванс / зарплата рабочим","brigade":"b1","note":"Аванс Бригада Шынгыс — наличные"},{"id":1006,"date":"2026-05-16","type":"expense","amount":20000,"obj":"ЖК «Алгабас», Мкр. Нуркент","who":"Бекжан","paySource":"advance","cat":"Транспорт","note":"Такси Бригада Нурсултан до объекта"},{"id":1007,"date":"2026-05-16","type":"advance","amount":20000,"obj":"ЖК «Алгабас», Мкр. Нуркент","from":"Дмитрий","to":"Евгений","note":"Дал Евгению (личное)"},{"id":1008,"date":"2026-05-17","type":"expense","amount":70000,"obj":"ЖК «Алгабас», Мкр. Нуркент","who":"Бекжан","paySource":"advance","cat":"Инструменты и инвентарь","note":"Каски, жилеты, перчатки, диски, молоток, бур"},{"id":1009,"date":"2026-05-17","type":"advance","amount":150000,"obj":"ЖК «Алгабас», Мкр. Нуркент","from":"Дмитрий","to":"Бекжан","note":"Выдал Бекжану наличными на расходы"},{"id":1010,"date":"2026-05-17","type":"advance","amount":110000,"obj":"ЖК «Алгабас», Мкр. Нуркент","from":"Дмитрий","to":"Бекжан","note":"Проценты за Альфард — личный расход Бекжана"},{"id":1012,"date":"2026-05-18","type":"expense","amount":20000,"obj":"ЖК «Алгабас», Мкр. Нуркент","who":"Дмитрий","paySource":"own","cat":"Аванс / зарплата рабочим","brigade":"b1","note":"Аванс бригада Шынгыс"},{"id":1013,"date":"2026-05-18","type":"expense","amount":54000,"obj":"ЖК «Алгабас», Мкр. Нуркент","who":"Дмитрий","paySource":"own","cat":"Инструменты и инвентарь","note":"Рации 3 шт × 18 000"},{"id":1014,"date":"2026-05-18","type":"invest","amount":170000,"obj":"ЖК «Алгабас», Мкр. Нуркент","who":"Дмитрий","note":"Закинул на счёт компании для оплаты страховки"},{"id":1015,"date":"2026-05-18","type":"expense","amount":158100,"obj":"ЖК «Алгабас», Мкр. Нуркент","who":"Дмитрий","paySource":"cash","cat":"Административные","note":"Страховка компании"},{"id":1016,"date":"2026-05-18","type":"expense","amount":4500,"obj":"ЖК «Алгабас», Мкр. Нуркент","who":"Дмитрий","paySource":"cash","cat":"Административные","note":"Комиссия банка — Оплата К2"},{"id":1017,"date":"2026-05-18","type":"expense","amount":1000,"obj":"ЖК «Алгабас», Мкр. Нуркент","who":"Дмитрий","paySource":"cash","cat":"Административные","note":"Комиссия банка — ведение счёта"},{"id":1018,"date":"2026-05-18","type":"expense","amount":1000,"obj":"ЖК «Алгабас», Мкр. Нуркент","who":"Дмитрий","paySource":"cash","cat":"Административные","note":"Комиссия банка — Внешний перевод"},{"id":1019,"date":"2026-05-19","type":"expense","amount":500000,"obj":"ЖК «Алгабас», Мкр. Нуркент","who":"Дмитрий","paySource":"own","cat":"Аванс / зарплата рабочим","brigade":"b1","note":"Аванс наличными бригада Шынгыс"},{"id":1020,"date":"2026-05-19","type":"expense","amount":400000,"obj":"ЖК «Алгабас», Мкр. Нуркент","who":"Дмитрий","paySource":"own","cat":"Аванс / зарплата рабочим","brigade":"b2","note":"Аванс наличными бригада Нурсултан"},{"id":1021,"date":"2026-05-19","type":"expense","amount":25135,"obj":"ЖК «Алгабас», Мкр. Нуркент","who":"Дмитрий","paySource":"own","cat":"Административные","note":"Обед с заказчиками"},{"id":1022,"date":"2026-05-19","type":"expense","amount":2000,"obj":"ЖК «Алгабас», Мкр. Нуркент","who":"Дмитрий","paySource":"own","cat":"Административные","note":"Напитки заказчики на объекте"},{"id":1023,"date":"2026-05-19","type":"expense","amount":7000,"obj":"ЖК «Алгабас», Мкр. Нуркент","who":"Бекжан","paySource":"own","cat":"Инструменты и инвентарь","note":"Перчатки 2 пачки, молотки 2 шт"},{"id":1024,"date":"2026-05-19","type":"advance","amount":198000,"obj":"ЖК «Алгабас», Мкр. Нуркент","from":"Дмитрий","to":"Евгений","note":"Дал Евгению (личное)"},{"id":1025,"date":"2026-05-20","type":"expense","amount":80000,"obj":"ЖК «Алгабас», Мкр. Нуркент","who":"Дмитрий","paySource":"own","cat":"Инструменты и инвентарь","note":"Пояс монтажный 8 шт"},{"id":1026,"date":"2026-05-20","type":"advance","amount":100000,"obj":"ЖК «Алгабас», Мкр. Нуркент","from":"Дмитрий","to":"Бекжан","note":"На расходы Бекжан"},{"id":1027,"date":"2026-05-21","type":"expense","amount":65000,"obj":"ЖК «Алгабас», Мкр. Нуркент","who":"Бекжан","paySource":"advance","cat":"Инструменты и инвентарь","note":"Перчатка, перфоратор, бензин"},{"id":1028,"date":"2026-05-21","type":"advance","amount":100000,"obj":"ЖК «Алгабас», Мкр. Нуркент","from":"Дмитрий","to":"Бекжан","note":"Бекжану на расходы"},{"id":1029,"date":"2026-05-22","type":"expense","amount":45000,"obj":"ЖК «Алгабас», Мкр. Нуркент","who":"Бекжан","paySource":"advance","cat":"Инструменты и инвентарь","note":"Вибратор"},{"id":1030,"date":"2026-05-22","type":"expense","amount":10000,"obj":"ЖК «Алгабас», Мкр. Нуркент","who":"Бекжан","paySource":"advance","cat":"Материалы","note":"Дождевик 5 шт"},{"id":1031,"date":"2026-05-22","type":"expense","amount":8000,"obj":"ЖК «Алгабас», Мкр. Нуркент","who":"Бекжан","paySource":"advance","cat":"Топливо","note":"Заправка бензина"},{"id":1032,"date":"2026-05-22","type":"advance","amount":10000,"obj":"ЖК «Алгабас», Мкр. Нуркент","from":"Дмитрий","to":"Нурсултан","note":"Нурсултану на личные"},{"id":1033,"date":"2026-05-22","type":"advance","amount":75000,"obj":"ЖК «Алгабас», Мкр. Нуркент","from":"Дмитрий","to":"Бекжан","note":"Бекжану на расход отправил"},{"id":1034,"date":"2026-05-23","type":"expense","amount":15200,"obj":"ЖК «Алгабас», Мкр. Нуркент","who":"Евгений","paySource":"advance","cat":"Административные","note":"Бургеры, кола, картофель фри (из подотчётных)"},{"id":1035,"date":"2026-05-23","type":"advance","amount":100000,"obj":"ЖК «Алгабас», Мкр. Нуркент","from":"Дмитрий","to":"Бекжан","note":"На барана"},{"id":1036,"date":"2026-05-23","type":"expense","amount":50000,"obj":"ЖК «Алгабас», Мкр. Нуркент","note":"На барана, салаты, напитки","who":"Евгений","cat":"Административные","paySource":"advance"},{"id":1037,"date":"2026-05-23","type":"advance","amount":60000,"obj":"ЖК «Алгабас», Мкр. Нуркент","from":"Дмитрий","to":"Бекжан","note":"На расход Шынгыс"},{"id":1038,"date":"2026-05-23","type":"advance","amount":30000,"obj":"ЖК «Алгабас», Мкр. Нуркент","from":"Дмитрий","to":"Бекжан","note":"На расход разнорабочий"},{"id":1039,"date":"2026-05-23","type":"expense","amount":10000,"obj":"ЖК «Алгабас», Мкр. Нуркент","who":"Дмитрий","paySource":"own","cat":"Топливо","note":"Бензин"},{"id":1040,"date":"2026-05-23","type":"advance","amount":25000,"obj":"ЖК «Алгабас», Мкр. Нуркент","from":"Дмитрий","to":"Бекжан","note":"На напитки"},{"id":1041,"date":"2026-05-23","type":"expense","amount":26000,"obj":"ЖК «Алгабас», Мкр. Нуркент","who":"Бекжан","paySource":"advance","cat":"Питание","note":"Картошка, яблоки, бананы, помидоры, огурцы"},{"id":1042,"date":"2026-05-23","type":"expense","amount":105000,"obj":"ЖК «Алгабас», Мкр. Нуркент","who":"Бекжан","paySource":"advance","cat":"Питание","note":"Баран"},{"id":1043,"date":"2026-05-23","type":"expense","amount":3000,"obj":"ЖК «Алгабас», Мкр. Нуркент","who":"Бекжан","paySource":"advance","cat":"Транспорт","note":"Такси"},{"id":1044,"date":"2026-05-23","type":"expense","amount":34000,"obj":"ЖК «Алгабас», Мкр. Нуркент","who":"Бекжан","paySource":"advance","cat":"Питание","note":"Напитки, пирожное, пирожки"},{"id":1045,"date":"2026-05-23","type":"expense","amount":60000,"obj":"ЖК «Алгабас», Мкр. Нуркент","who":"Бекжан","paySource":"advance","cat":"Аванс / зарплата рабочим","brigade":"b1","note":"Аванс"},{"id":1046,"date":"2026-05-23","type":"expense","amount":30000,"obj":"ЖК «Алгабас», Мкр. Нуркент","note":"Аванс разнорабочий","who":"Бекжан","cat":"Аванс / зарплата рабочим","paySource":"advance","brigade":"b1779712091656"},{"id":1779711355747,"date":"2026-05-25","type":"advance","amount":100000,"note":"Дал Бекжану аванс 100000 бригада Нурсултан","from":"Дмитрий","to":"Бекжан","obj":"ЖК «Алгабас», Мкр. Нуркент"},{"id":1779711460539,"date":"2026-05-25","type":"expense","amount":80000,"note":"Аванс","obj":"ЖК «Алгабас», Мкр. Нуркент","cat":"Аванс / зарплата рабочим","who":"Бекжан","paySource":"advance","brigade":"b2"},{"id":1779711941102,"date":"2026-05-25","amount":840000,"obj":"ЖК «Алгабас», Мкр. Нуркент","note":"з/п за Блок 48 третий этаж отметка 7.550 стена Бригада Нурсултан","source":"telegram","tgAuthor":"Дмитрий Хегай","type":"advance","linkedId":"tg_lk1779711680923","from":"Дмитрий","to":"Бекжан"},{"id":1779711941097,"date":"2026-05-25","amount":0,"obj":"ЖК «Алгабас», Мкр. Нуркент","note":"Залили 114,5 куб бетон","source":"telegram","tgAuthor":"Дмитрий Хегай","type":"vol","volume":114.5,"unit":"м³","wtype":"Опалубка+бетон стен","brigade":"b2","amountPending":true,"linkedId":"tg_lk1779711680923","spotId":"spot_b48","spot":"spot_b48","zone":"Блок 48"},{"id":1779712051286,"date":"2026-05-25","amount":200000,"obj":"ЖК «Алгабас», Мкр. Нуркент","note":"лично","source":"telegram","tgAuthor":"Дмитрий Хегай","type":"advance","from":"Дмитрий","to":"Бекжан"},{"id":1779714979606,"date":"2026-05-25","type":"expense","amount":840000,"note":"840000 нал Бекжану дал з/п за Блок 48 третий этаж отметка  7.550 стена Бригада Нурсултан залили 114,5 куб бетон остаток долга «54000» обьем больше получился 114,5 м3","obj":"ЖК «Алгабас», Мкр. Нуркент","cat":"Аванс / зарплата рабочим","who":"Бекжан","paySource":"advance","brigade":"b2"},{"id":1779714979607,"date":"2026-05-26","type":"expense","amount":10000,"obj":"ЖК «Алгабас», Мкр. Нуркент","who":"Евгений","paySource":"advance","cat":"Административные","note":"Закуп журналов"},{"id":1779714979608,"date":"2026-05-26","type":"expense","amount":48500,"obj":"ЖК «Алгабас», Мкр. Нуркент","who":"Бекжан","paySource":"advance","cat":"Инструменты и инвентарь","note":"лазер перчатка намордник шлифовочный диск очки маленький болгарка"},{"id":1779714979609,"date":"2026-05-26","type":"advance","amount":60000,"obj":"ЖК «Алгабас», Мкр. Нуркент","from":"Дмитрий","to":"Бекжан","note":"на инструменты 60000"},{"id":1779895004208,"date":"2026-05-26","type":"expense","amount":710000,"note":"расчет за армирование 3 этаж отметка 7550 пятно 49 бригада Шынгыс","obj":"ЖК «Алгабас», Мкр. Нуркент","cat":"Аванс / зарплата рабочим","who":"Бекжан","paySource":"advance","brigade":"b1"},{"id":1779895064281,"date":"2026-05-26","type":"advance","amount":710000,"note":"Бекжану дал расчет за армирование 3 этаж отметка 7550 пятно 49 бригада Шынгыс","from":"Дмитрий","to":"Бекжан","obj":"ЖК «Алгабас», Мкр. Нуркент"},{"id":1779895202221,"date":"2026-05-26","type":"advance","amount":500000,"note":"Аванс бригада Нуржан плотники 500000 через Бекжана","from":"Дмитрий","to":"Бекжан","obj":"ЖК «Алгабас», Мкр. Нуркент"},{"id":1779909742958,"date":"2026-05-27","type":"advance","amount":45000,"note":"Бекжану дал  на пчелку","from":"Дмитрий","to":"Бекжан","obj":"ЖК «Алгабас», Мкр. Нуркент"},{"id":1779909915625,"date":"2026-05-27","type":"expense","amount":45000,"note":"Бекжану купил перчатки пчелку","obj":"ЖК «Алгабас», Мкр. Нуркент","cat":"Инструменты и инвентарь","who":"Бекжан","paySource":"advance"},{"id":1779910306284,"date":"2026-05-27","type":"advance","amount":10000,"note":"На личные расходы ","from":"Дмитрий","to":"Бекжан","obj":"ЖК «Алгабас», Мкр. Нуркент"},{"id":1779910350014,"date":"2026-05-27","type":"advance","amount":30000,"note":"На личные расходы ","from":"Дмитрий","to":"Бекжан","obj":"ЖК «Алгабас», Мкр. Нуркент"},{"id":1779910412036,"date":"2026-05-27","type":"advance","amount":500000,"note":"500000 наличные Бекжану на личные расходы для ломбард золото","from":"Дмитрий","to":"Бекжан","obj":"ЖК «Алгабас», Мкр. Нуркент"},{"id":1779910557558,"date":"2026-05-27","type":"expense","amount":500000,"note":"Аванс плотники Нуржан","obj":"ЖК «Алгабас», Мкр. Нуркент","cat":"Аванс / зарплата рабочим","who":"Бекжан","paySource":"advance","brigade":"b3"},{"id":1779910729913,"date":"2026-05-27","type":"advance","amount":400000,"note":"Аванс Бригада Шынгыс 200000 Аванс бригада Нуржан 200000","from":"Дмитрий","to":"Бекжан","obj":"ЖК «Алгабас», Мкр. Нуркент"},{"id":1779910815507,"date":"2026-05-27","type":"expense","amount":200000,"note":"Аванс ","obj":"ЖК «Алгабас», Мкр. Нуркент","cat":"Аванс / зарплата рабочим","who":"Бекжан","paySource":"advance","brigade":"b3"},{"id":1779910860110,"date":"2026-05-27","type":"expense","amount":150000,"note":"Аванс ","obj":"ЖК «Алгабас», Мкр. Нуркент","cat":"Аванс / зарплата рабочим","who":"Бекжан","paySource":"advance","brigade":"b1"},{"id":1779911078478,"date":"2026-05-26","type":"vol","brigade":"b1","volume":104,"unit":"м³","wtype":"Армирование","rateOverride":14000,"rate":14000,"amount":1456000,"zone":"Блок 49","floor":"3 этаж отметка 7550","struct":"Стена","note":"","obj":"ЖК «Алгабас», Мкр. Нуркент","spotId":"spot_b49","spot":"spot_b49","redo":false},{"id":1717030030001,"date":"2026-05-30","type":"advance","amount":200000,"from":"Дмитрий","to":"Бекжан","obj":"ЖК «Алгабас», Мкр. Нуркент","note":"расчет плотникам за две лестницы"},{"id":1717030030002,"date":"2026-05-30","type":"advance","amount":40000,"from":"Дмитрий","to":"Бекжан","obj":"ЖК «Алгабас», Мкр. Нуркент","note":"на ремонт машины"},{"id":1717030030003,"date":"2026-05-30","type":"advance","amount":200000,"from":"Дмитрий","to":"Бекжан","obj":"ЖК «Алгабас», Мкр. Нуркент","note":"Передал Бекжану 200000 аванс бригада Нурсултан"},{"id":1717030030004,"date":"2026-05-30","type":"expense","amount":90000,"who":"Бекжан","cat":"Аванс / зарплата рабочим","paySource":"advance","obj":"ЖК «Алгабас», Мкр. Нуркент","note":"расчет за демонтажные работы пятно 48 этаж 3 стены"},{"id":1717030030005,"date":"2026-05-30","type":"expense","amount":200000,"obj":"ЖК «Алгабас», Мкр. Нуркент","note":"расчет плотникам за две лестницы","who":"Бекжан","cat":"Аванс / зарплата рабочим","paySource":"advance","brigade":"b3"},{"id":1780245208795,"date":"2026-05-30","type":"advance","amount":90000,"note":"Передал Бекжану 90000 расчет за демонтажные работы пятно 48 этаж 3 стены разнорабочие наемные","from":"Дмитрий","to":"Бекжан","obj":"ЖК «Алгабас», Мкр. Нуркент"},{"id":1780245385883,"date":"2026-05-29","type":"expense","amount":100000,"note":"Расход простой бетононасос бригада Нурсултан 100000","obj":"ЖК «Алгабас», Мкр. Нуркент","cat":"Аванс / зарплата рабочим","who":"Дмитрий","paySource":"own","brigade":"b2","spotId":"spot_b49","spot":"spot_b49"},{"id":1780245578719,"date":"2026-05-30","type":"expense","amount":200000,"note":"аванс бригада Нурсултан","obj":"ЖК «Алгабас», Мкр. Нуркент","cat":"Аванс / зарплата рабочим","who":"Бекжан","paySource":"advance","brigade":"b2","spotId":"spot_b49","spot":"spot_b49"},{"id":1780245646338,"date":"2026-05-30","type":"vol","brigade":"b2","volume":104,"unit":"м³","wtype":"Опалубка+бетон стен","rateOverride":12000,"rate":12000,"amount":1248000,"zone":"Блок 49","floor":"3 этаж отметка 7550","struct":"Стена","note":"","obj":"ЖК «Алгабас», Мкр. Нуркент","spotId":"spot_b49","spot":"spot_b49","closes":true,"closed":"Все стены этажа","redo":false},{"id":1780245983809,"date":"2026-05-31","amount":50000,"obj":"ЖК «Алгабас», Мкр. Нуркент","note":"Передал Бекжану 50000 аванс бригада Нурсултан","source":"telegram","tgAuthor":"Дмитрий Хегай","type":"advance","from":"Дмитрий","to":"Бекжан","brigade":"b2"},{"id":1780246064487,"date":"2026-05-31","type":"expense","amount":50000,"note":"Аванс 50000 бригада Нурсултан","obj":"ЖК «Алгабас», Мкр. Нуркент","cat":"Аванс / зарплата рабочим","who":"Бекжан","paySource":"advance","brigade":"b2","spotId":"spot_b49","spot":"spot_b49"},{"id":1780312528885,"date":"2026-06-01","amount":952000,"obj":"ЖК «Алгабас», Мкр. Нуркент","note":"опалубка стены блок 49 этаж 3 расчет","source":"telegram","tgAuthor":"Дмитрий Хегай","type":"advance","from":"Дмитрий","to":"Бекжан","brigade":"b2"},{"id":1780312642044,"date":"2026-06-01","type":"expense","amount":952000,"note":"опалубка стены бригада Нурсултан блок 49 этаж 3    104 м3","obj":"ЖК «Алгабас», Мкр. Нуркент","cat":"Аванс / зарплата рабочим","who":"Бекжан","paySource":"advance","brigade":"b2","spotId":"spot_b49","spot":"spot_b49"}],"_schema":3,"_resetAt":"2026-05-25T12:10:29.027Z","_modified":1780335597948,"_preloaded":true,"cycles":{"1_2026-W22":{"done":"","analysisGood":"","analysisBad":"","decisions":[],"closedAt":null},"1_2026-W23":{"done":"","analysisGood":"","analysisBad":"","decisions":[],"closedAt":null}},"subgoals":[{"id":"sg_profit_100","name":"Прибыль 100 млн ₸","target":100000000,"unit":"M ₸","deadline":"2026-07-31","owner":"Все","icon":"$","color":"orange","source":"profit_2026","status":"in_progress","currentManual":0,"order":1},{"id":"sg_workers_150","name":"150 рабочих","target":150,"unit":"чел","deadline":"2026-07-31","owner":"Бекжан","icon":"#","color":"blue","source":"workers_now","status":"in_progress","currentManual":0,"order":2},{"id":"sg_formwork_2000","name":"Опалубка 2000 м² пробных","target":2000,"unit":"м²","deadline":"2026-06-30","owner":"Дмитрий+Сергей","icon":"⬢","color":"red","source":"manual","status":"planned","currentManual":0,"order":3},{"id":"sg_kaspi_100m","name":"Стартовый капитал Каспи 100 млн","target":100000000,"unit":"M ₸","deadline":"2026-08-31","owner":"Дмитрий","icon":"🛒","color":"blue","source":"manual","status":"planned","currentManual":0,"order":4},{"id":"sg_object_b","name":"Объект Тип Б","target":1,"unit":"","deadline":"2026-10-31","owner":"Евгений","icon":"B","color":"green","source":"manual","status":"planned","currentManual":0,"order":5},{"id":"sg_workers_480","name":"480 рабочих","target":480,"unit":"чел","deadline":"2026-12-31","owner":"Бекжан","icon":"#","color":"blue","source":"workers_now","status":"planned","currentManual":0,"order":6},{"id":"sg_profit_820","name":"Прибыль 820 млн ₸ (вся группа)","target":820000000,"unit":"M ₸","deadline":"2026-12-31","owner":"Все","icon":"$","color":"orange","source":"profit_2026","status":"in_progress","currentManual":0,"order":7},{"id":"sg_each_164","name":"Каждому партнёру 164 млн","target":164000000,"unit":"M ₸","deadline":"2026-12-31","owner":"Сергей","icon":"💎","color":"orange","source":"profit_per_partner","status":"planned","currentManual":0,"order":8}],"directions":[{"id":"dir_podryad","icon":"🏗","color":"teal","name":"Подряд labor-only","stars":3,"status":"активный","goal":"500 млн ₸","order":1},{"id":"dir_opalubka","icon":"⬢","color":"gold","name":"Опалубка-аренда","stars":0,"status":"план Q3 2026","goal":"2000 м² старт","order":2},{"id":"dir_torg","icon":"🛒","color":"purple","name":"Торговля (Каспи→Озон)","stars":0,"status":"план Q4 2026","goal":"100 млн оборот","order":3},{"id":"dir_tender","icon":"⚖","color":"red","name":"Тендеры (госзаказ)","stars":0,"status":"план 2027","goal":"после лицензии","order":4},{"id":"dir_develop","icon":"🏢","color":"blue","name":"Девелопмент (свой ЖК)","stars":0,"status":"план 2028","goal":"к 2030","order":5}],"milestones":[{"id":"ms_2027","year":2027,"target":"2 млрд ₸ оборот","note":"Опалубка + торговля запущены","done":false,"order":1},{"id":"ms_2028","year":2028,"target":"Свой ЖК — старт","note":"Девелопмент, первый объект","done":false,"order":2},{"id":"ms_2029","year":2029,"target":"Холдинг сформирован","note":"5 направлений работают","done":false,"order":3}],"roles":[{"id":"role_dm","name":"Дмитрий","role":"CEO + Стратегия","kfu":[],"color":"gold","order":1},{"id":"role_bk","name":"Бекжан","role":"Темп + Безопасность","kfu":[1,5],"color":"teal","order":2},{"id":"role_ev","name":"Евгений","role":"Деньги + КС-2 + Документация","kfu":[2,4],"color":"green","order":3},{"id":"role_nr","name":"Нурсултан","role":"Качество","kfu":[3],"color":"blue","order":4},{"id":"role_sr","name":"Сергей","role":"Финансы + Операционное управление","kfu":[],"color":"purple","order":5}],"chat":[{"id":"c1780241493579_293","by":"viewer","name":"viewer","at":1780241493579,"text":"Где дэнги???","tag":"msg"},{"id":"c1780241609328_43","by":"owner","name":"Дмитрий","at":1780241609329,"text":"A","tag":"msg"}],"ks2meta":{"podryad":"ТОО «LionGate Construction»","podryadBin":"250940032289","podryadAddr":"Казахстан, г. Алматы, Жетысуский р-н, ул. Мурманская, д. 26, кв. 2, 050050","podryadBank":"АО «Народный Банк Казахстана»","podryadBik":"HSBKKZKX","podryadKbe":"17","podryadIik":"KZ53601A861073028791","podryadRuk":"Ерсін Нұрсұлтан Ерланұлы","zakazchik":"Sensata Group","zakazchikAddr":"","stroyka":"ЖК «Алгабас», Мкр. Нуркент","object":"ЖК «Алгабас», Мкр. Нуркент","dogovor":"","aktnum":"1"},"ks2acts":[{"id":"ks2_1780044983910","obj":"ЖК «Алгабас», Мкр. Нуркент","aktnum":"1","period":"май 2026 г.","date":"29.05.2026","total":4401123.5200000005,"html":"<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><title>КС-2 ЖК «Алгабас», Мкр. Нуркент</title><style>@page{size:A4 landscape;margin:12mm}body{font-family:Arial,sans-serif;font-size:11px;color:#000;padding:10px}.r{text-align:right}.c{text-align:center}.head-form{text-align:right;font-size:10px;margin-bottom:8px}.title{text-align:center;font-size:16px;font-weight:bold;margin:14px 0 4px}.subtitle{text-align:center;font-size:11px;margin-bottom:14px}.meta{width:100%;font-size:11px;margin-bottom:6px}.meta td{padding:2px 6px;vertical-align:top}.meta .lbl{color:#555;width:160px}.meta .val{border-bottom:1px solid #000;font-weight:600}table.work{width:100%;border-collapse:collapse;margin:14px 0;font-size:10px}table.work th,table.work td{border:1px solid #000;padding:5px 6px}table.work th{background:#f0f0f0;text-align:center;font-weight:bold}.total-row td{font-weight:bold;background:#fafafa}.words{font-size:11px;margin:10px 0;font-style:italic}.signs{display:flex;justify-content:space-between;margin-top:40px;font-size:11px}.sign{width:45%}.sign-line{border-bottom:1px solid #000;height:30px;margin-bottom:4px}.sign-label{color:#555;font-size:10px}@media print{.noprint{display:none}}.noprint{position:fixed;top:10px;right:10px;background:#1a1f2e;color:#f0a500;padding:10px 18px;border:none;border-radius:8px;font-size:14px;cursor:pointer}</style></head><body><button class=\"noprint\" onclick=\"window.print()\">🖨 Печать / Сохранить PDF</button><div class=\"head-form\">Типовая форма № КС-2<br>Утверждена приказом № 170 от 02.05.2012</div><div class=\"title\">АКТ № 1</div><div class=\"subtitle\">приёмки выполненных работ за май 2026 г.</div><table class=\"meta\"><tbody><tr><td class=\"lbl\">Подрядчик:</td><td class=\"val\">ТОО «LionGate Construction», БИН 250940032289</td></tr><tr><td class=\"lbl\">Адрес подрядчика:</td><td class=\"val\">Казахстан, г. Алматы, Жетысуский р-н, ул. Мурманская, д. 26, кв. 2, 050050</td></tr><tr><td class=\"lbl\">Банк. реквизиты:</td><td class=\"val\">АО «Народный Банк Казахстана», БИК HSBKKZKX, ИИК KZ53601A861073028791, КБе 17</td></tr><tr><td class=\"lbl\">Заказчик (Генподрядчик):</td><td class=\"val\">Sensata Group</td></tr><tr><td class=\"lbl\">Стройка:</td><td class=\"val\">ЖК «Алгабас», Мкр. Нуркент</td></tr><tr><td class=\"lbl\">Объект:</td><td class=\"val\">ЖК «Алгабас», Мкр. Нуркент</td></tr><tr><td class=\"lbl\">Договор подряда:</td><td class=\"val\">—</td></tr><tr><td class=\"lbl\">Дата составления:</td><td class=\"val\">29.05.2026</td></tr></tbody></table><table class=\"work\"><thead><tr><th style=\"width:35px\">№<br>п/п</th><th>Наименование работ</th><th style=\"width:75px\">Номер единичной расценки</th><th style=\"width:60px\">Ед. изм.</th><th style=\"width:75px\">Кол-во</th><th style=\"width:90px\">Цена за ед., тг</th><th style=\"width:110px\">Стоимость, тг</th></tr></thead><tbody><tr><td style=\"text-align:center\">1</td><td>Устройство стен</td><td style=\"text-align:center\">—</td><td style=\"text-align:center\">м³</td><td style=\"text-align:right\">114,5</td><td style=\"text-align:right\">38 438</td><td style=\"text-align:right\">4 401 124</td></tr><tr class=\"total-row\"><td colspan=\"6\" class=\"r\">ИТОГО:</td><td class=\"r\">4 401 124</td></tr></tbody></table><div class=\"words\">Всего выполнено работ на сумму: <b>4 401 124 тг</b> (Четыре миллиона четыреста одна тысяча сто двадцать четыре тенге)</div><div class=\"signs\"><div class=\"sign\"><div style=\"font-weight:bold;margin-bottom:8px\">Сдал (Подрядчик):</div><div class=\"sign-line\"></div><div class=\"sign-label\">подпись, М.П.</div><div style=\"margin-top:10px;font-weight:600\">ТОО «LionGate Construction»</div><div style=\"margin-top:4px\">Руководитель: Ерсін Нұрсұлтан Ерланұлы</div></div><div class=\"sign\"><div style=\"font-weight:bold;margin-bottom:8px\">Принял (Заказчик):</div><div class=\"sign-line\"></div><div class=\"sign-label\">подпись, М.П.</div><div style=\"margin-top:10px;font-weight:600\">Sensata Group</div></div></div></body></html>","createdAt":1780044983910}],"retail":{"products":[],"ops":[]},"finishing":{"projects":[],"ops":[]},"development":{"projects":[],"ops":[]}};
 
 // loadLocal — БЕЗОПАСНАЯ загрузка
 // ПРАВИЛО: локальные данные ВСЕГДА главнее встроенных в файл
@@ -2564,6 +2535,7 @@ function loadLocal(){
       _saveSourceLog('preloaded-broken-local', PRELOADED_DATA);
       return PRELOADED_DATA;
     }
+    try{ lgSanitizeState(local); }catch(e){} // XSS-защита: чистим текст до первого рендера
     
     // === НОВАЯ ЛОГИКА: сравнение по времени ===
     var localTime = local._modified || 0;
@@ -2605,7 +2577,45 @@ function _saveSourceLog(source, data){
     localStorage.setItem('lg_data_source', JSON.stringify(info));
   } catch(e){}
 }
-function persist(){try{localStorage.setItem('lg_v9',JSON.stringify(S));}catch(e){}}
+/* === ЗАЩИТА ОТ XSS (Этап 1) ===
+   Свободный текст (примечания, имена) может прийти из Telegram через ИИ и выводится
+   на экран через innerHTML. Удаляем символы < и > — без них HTML-тег внедрить нельзя.
+   Идемпотентно (повторный прогон ничего не меняет), на суммы/даты/типы не влияет. */
+function lgClean(v){return (typeof v==='string') ? v.replace(/[<>]/g,'') : v;}
+function lgSanitizeState(st){
+  try{
+    if(st&&st.entries)st.entries.forEach(function(e){
+      if(!e)return;
+      e.note=lgClean(e.note); e.who=lgClean(e.who); e.from=lgClean(e.from); e.to=lgClean(e.to);
+      e.zone=lgClean(e.zone); e.floor=lgClean(e.floor);
+    });
+    if(st&&st.brigades)st.brigades.forEach(function(b){
+      if(!b)return;
+      b.name=lgClean(b.name); b.work=lgClean(b.work); b.workerName=lgClean(b.workerName);
+    });
+    if(st&&Array.isArray(st.objects))st.objects=st.objects.map(lgClean);
+  }catch(e){}
+}
+function persist(){try{lgSanitizeState(S);localStorage.setItem('lg_v9',JSON.stringify(S));}catch(e){}}
+
+/* === НЕИЗМЕНЯЕМЫЙ ЖУРНАЛ (Этап 2) ===
+   Ничего не стирается безвозвратно. При удалении/правке полная версия записи
+   сохраняется в S.trash (кто/когда/что). S.entries при этом НЕ меняется — поэтому
+   ни одна формула не затрагивается, для учётчицы поведение прежнее.
+   Список ограничен последними 300 записями, чтобы не разрастался. */
+function lgRetain(action, entry){
+  try{
+    if(!S.trash) S.trash=[];
+    S.trash.push({
+      action: action,                                  // 'delete' | 'edit'
+      by: (typeof role!=='undefined' && role) ? role : '?',
+      at: new Date().toISOString(),
+      entry: JSON.parse(JSON.stringify(entry))         // полная версия (удалённая или «было» до правки)
+    });
+    if(S.trash.length>300) S.trash = S.trash.slice(-300);
+  }catch(e){}
+}
+window.lgRetain=lgRetain;
 // Ограничение размера S.history — не более 500 последних записей
 // Иначе через год работы будет 10 000+ записей = тормоза в облаке
 function trimHistory(){
@@ -2684,7 +2694,7 @@ function autoSyncOnStart(){
       if(r.ks3acts) S.ks3acts = r.ks3acts;
       if(r.directions) S.directions = r.directions;
       if(r.roles) S.roles = r.roles;
-      if(r.milestones) S.milestones = r.milestones;
+      if(r.milestones) S.milestones = r.milestones; if(r.trash&&Array.isArray(r.trash)){var _ts={},_tm=[];(S.trash||[]).concat(r.trash).forEach(function(x){if(!x)return;var k=(x.at||'')+'|'+(x.action||'')+'|'+((x.entry&&x.entry.id)||'');if(!_ts[k]){_ts[k]=1;_tm.push(x);}});_tm.sort(function(a,b){return (a.at||'').localeCompare(b.at||'');});S.trash=_tm.slice(-300);}
       S._modified = remoteTime;
       try { persist(); } catch(e){}
       if(typeof render==='function') render();
@@ -3395,7 +3405,7 @@ function cashEffect(e){
   if(e.type==='income') return e.amount;
   if(e.type==='invest') return e.amount;
   if(e.type==='expense'){
-    var src=e.paySource||(e.source==='telegram'?'advance':e.source)||'cash';
+    var src=e.paySource||(e.who==='Дмитрий'?'own':'advance');
     return src==='cash' ? -e.amount : 0;
   }
   if(e.type==='payout' || e.type==='return') return -e.amount;
@@ -5095,21 +5105,10 @@ window.forceUploadLocal = function(){
     S._modified = Date.now();
     try { persist(); } catch(e){}
     
-    // Прямой push в облако
-    if(typeof BURL !== 'undefined' && typeof AK !== 'undefined' && AK){
+    // Прямой push в облако (Cloudflare)
+    if(window.pushToCf && AI_WORKER_URL){
       ss('↑', false);
-      var payload = JSON.parse(JSON.stringify(S));
-      payload._modified = Date.now();
-      
-      fetch(BURL, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Master-Key': AK,
-          'X-Bin-Versioning': 'false'
-        },
-        body: JSON.stringify(payload)
-      }).then(function(r){return r.json();}).then(function(){
+      window.pushToCf().then(function(){
         if(typeof showToast === 'function'){
           showToast('✅ Залито в облако: '+S.entries.length+' записей', 'success');
         } else {
@@ -5122,7 +5121,6 @@ window.forceUploadLocal = function(){
         // Не показываем alert — добавляем в очередь синхронизации
         ss('⏳', true);
         if(typeof addToSyncQueue === 'function') addToSyncQueue();
-        // Тихое уведомление в углу (исчезает через 3 сек)
         if(typeof showToast === 'function') showToast('☁️ Облако недоступно — данные сохранены локально', 'warning');
       });
     } else {
@@ -5163,7 +5161,7 @@ window.forceDownloadCloud = function(){
       if(r.ks3acts) S.ks3acts = r.ks3acts;
       if(r.directions) S.directions = r.directions;
       if(r.roles) S.roles = r.roles;
-      if(r.milestones) S.milestones = r.milestones;
+      if(r.milestones) S.milestones = r.milestones; if(r.trash&&Array.isArray(r.trash)){var _ts={},_tm=[];(S.trash||[]).concat(r.trash).forEach(function(x){if(!x)return;var k=(x.at||'')+'|'+(x.action||'')+'|'+((x.entry&&x.entry.id)||'');if(!_ts[k]){_ts[k]=1;_tm.push(x);}});_tm.sort(function(a,b){return (a.at||'').localeCompare(b.at||'');});S.trash=_tm.slice(-300);}
       S._modified = r._modified || Date.now();
       try { persist(); } catch(e){}
       var newCnt = (S.entries||[]).length;
@@ -7500,7 +7498,7 @@ function calcCo(){
     } else if(e.type==='expense'){
       expense+=e.amount;
       // paySource — наше поле для нового учёта; source='telegram' — старая метка происхождения (игнорируем при расчёте)
-      var src=e.paySource||(e.source==='telegram'?'advance':e.source)||'cash';
+      var src=e.paySource||(e.who==='Дмитрий'?'own':'advance');
       if(src==='cash'){
         cash-=e.amount;
       } else if(src==='advance'){
@@ -7572,7 +7570,7 @@ function calcPar(name){
     else if(e.type==='advance' && e.from===name) advancedOut+=e.amount;
     else if(e.type==='expense' && e.who===name){
       spent+=e.amount;
-      var src=e.paySource||(e.source==='telegram'?'advance':e.source);
+      var src=e.paySource||(e.who==='Дмитрий'?'own':'advance');
       if(src==='own') spentFromOwn+=e.amount;
       else if(src==='advance') spentFromAdvance+=e.amount;
     }
@@ -9071,6 +9069,7 @@ function openEditEntry(id){
     });
   }
   document.getElementById('ee-save').addEventListener('click',function(){
+    var _before = JSON.parse(JSON.stringify(e));  // снимок «было» для журнала
     var oldType=e.type;
     var newType=oldType;
     if(typeSel)newType=typeSel.value||oldType;
@@ -9108,6 +9107,7 @@ function openEditEntry(id){
     var obj=document.getElementById('ee-obj');if(obj)e.obj=obj.value;
     e.note=document.getElementById('ee-note').value;
     if(!S.history)S.history=[];
+    lgRetain('edit', _before);   // сохраняем полную версию «было»
     var histRec={action:'edit',by:role,at:new Date().toISOString(),type:e.type,amount:e.amount};
     if(oldType!==newType)histRec.typeChanged=oldType+'→'+newType;
     S.history.push(histRec);
@@ -9621,7 +9621,7 @@ function rPL(){
     else if(e.type==='income'||e.type==='customer_income') inCustomer+=amt;
     else if(e.type==='advance') inAdvance+=amt;
     else if(e.type==='expense'){
-      var src=e.paySource||(e.source==='telegram'?'advance':e.source)||'cash';
+      var src=e.paySource||(e.who==='Дмитрий'?'own':'advance');
       if(src==='cash') outExpenseCash+=amt;
       else if(src==='own') inOwnPaid+=amt;
     }
@@ -14335,6 +14335,7 @@ function rMore(){
   h += '<div style="font-size:13px;color:var(--mut);letter-spacing:1.5px;font-weight:700;margin:8px 4px 10px">ЗАЩИТА ДАННЫХ</div>';
   h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px">';
   h += tile('🛡', '#39d3bb', 'Защита', 'Снапшоты · Корзина', 'openDataProtection()');
+  if(typeof canAdmin==='function'&&canAdmin()) h += tile('📜', '#ffa657', 'Журнал', 'удаления · правки', 'openLedger()');
   if(canEditNow){
     h += tile('☁️↑', '#7ee787', 'В облако', 'залить локальное', 'forceUploadLocal()');
     h += tile('☁️↓', '#58a6ff', 'Из облака', 'загрузить свежее', 'forceDownloadCloud()');
@@ -14966,6 +14967,7 @@ function delEntry(id){
   if(!canDelete()){adminDenied();return;}
   if(!confirmSafe(T('confirmDel')))return;
   var d=S.entries.find(function(e){return e.id==id;});
+  if(d) lgRetain('delete', d);   // сохраняем полную запись перед удалением
   S.entries=S.entries.filter(function(e){return e.id!=id;});
   if(!S.history)S.history=[];
   if(d){
@@ -14989,6 +14991,69 @@ function delEntry(id){
   save();
   render();
 }
+/* === ЖУРНАЛ ИЗМЕНЕНИЙ (только владелец) === */
+function openLedger(){
+  if(typeof canAdmin!=='function' || !canAdmin()){ if(typeof adminDenied==='function')adminDenied(); return; }
+  function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+  var list=(S.trash||[]).slice().reverse(); // свежие сверху
+  document.getElementById('mtit').textContent='ЖУРНАЛ ИЗМЕНЕНИЙ';
+  var TL={income:'💰 Доход',invest:'💼 Вложение',advance:'🔄 Передача',expense:'🧾 Расход',payout:'↩️ Выплата',vol:'📐 Объём',workers:'👷 Рабочие',personal:'👤 Личное',return:'🔄 Возврат'};
+  var h='<div style="font-size:12px;color:var(--mut);margin-bottom:12px">История удалений и правок. Ничего не теряется — здесь можно посмотреть и при необходимости восстановить. Для учётчицы этот раздел не виден.</div>';
+  if(!list.length){
+    h+='<div style="text-align:center;color:var(--mut);padding:30px 10px;font-size:13px">Журнал пуст — удалений и правок ещё не было.</div>';
+  } else {
+    list.forEach(function(rec,i){
+      var realIdx=S.trash.length-1-i; // индекс в исходном массиве
+      var e=rec.entry||{};
+      var lbl=TL[e.type]||e.type||'?';
+      var act=rec.action==='delete'?'🗑 Удалено':'✏️ Изменено (версия «было»)';
+      var actColor=rec.action==='delete'?'var(--red)':'var(--orange)';
+      var when='';
+      try{ when=new Date(rec.at).toLocaleString('ru-RU'); }catch(_e){ when=rec.at||''; }
+      var who=(rec.by==='editor'?'Учётчица':(rec.by==='owner'?'Владелец':rec.by||'?'));
+      var details=lbl;
+      if(e.amount) details+=' · '+fmt(e.amount)+' тг';
+      if(e.volume) details+=' · '+e.volume+' '+(e.unit||'м³');
+      if(e.from&&e.to) details+=' ('+esc(e.from)+' → '+esc(e.to)+')';
+      else if(e.who) details+=' ('+esc(e.who)+')';
+      h+='<div style="background:var(--s2);border:1px solid var(--brd,#30363d);border-left:3px solid '+actColor+';border-radius:10px;padding:10px 12px;margin-bottom:8px">';
+      h+='<div style="font-size:11px;color:'+actColor+';font-weight:700">'+act+'</div>';
+      h+='<div style="font-size:13px;color:var(--text);font-weight:600;margin-top:2px">'+esc(details)+'</div>';
+      if(e.date) h+='<div style="font-size:11px;color:var(--mut);margin-top:2px">дата операции: '+esc(e.date)+'</div>';
+      if(e.note) h+='<div style="font-size:11px;color:var(--mut);margin-top:2px">примечание: '+esc(e.note)+'</div>';
+      h+='<div style="font-size:10px;color:var(--mut);margin-top:4px">'+esc(who)+' · '+esc(when)+'</div>';
+      h+='<button onclick="restoreFromLedger('+realIdx+')" style="margin-top:8px;background:transparent;border:1px solid var(--green);color:var(--green);border-radius:7px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">'+(rec.action==='delete'?'↩ Восстановить запись':'↩ Вернуть прежнюю версию')+'</button>';
+      h+='</div>';
+    });
+  }
+  h+='<button class="fcanc" onclick="closeModal()" style="margin-top:6px">Закрыть</button>';
+  document.getElementById('mbody').innerHTML=h;
+  document.getElementById('modal').style.display='flex';
+}
+function restoreFromLedger(idx){
+  if(typeof canAdmin!=='function' || !canAdmin()){ if(typeof adminDenied==='function')adminDenied(); return; }
+  var rec=(S.trash||[])[idx];
+  if(!rec||!rec.entry){ alert('Запись не найдена'); return; }
+  var e=rec.entry;
+  if(rec.action==='delete'){
+    if(S.entries.some(function(x){return x.id==e.id;})){ alert('Эта запись уже есть в учёте.'); return; }
+    if(typeof confirmSafe==='function' && !confirmSafe('Восстановить удалённую запись в учёт?')) return;
+    S.entries.push(JSON.parse(JSON.stringify(e)));
+  } else {
+    // правка: вернуть прежнюю версию
+    if(typeof confirmSafe==='function' && !confirmSafe('Вернуть прежнюю версию этой записи?')) return;
+    var cur=S.entries.find(function(x){return x.id==e.id;});
+    if(cur){ for(var k in cur){ if(k!=='id') delete cur[k]; } Object.keys(e).forEach(function(k){ cur[k]=e[k]; }); }
+    else { S.entries.push(JSON.parse(JSON.stringify(e))); } // если запись потом удалили — вернём целиком
+  }
+  S.trash.splice(idx,1); // убираем восстановленную из журнала
+  S._modified=Date.now();
+  save();
+  if(typeof render==='function') render();
+  if(typeof showToast==='function') showToast('↩ Восстановлено','success');
+  openLedger();
+}
+window.openLedger=openLedger; window.restoreFromLedger=restoreFromLedger;
 function openNewWeek(){var today=new Date().toISOString().slice(0,10);var lt=(S.weeks||[]).slice().sort(function(a,b){return b.date.localeCompare(a.date);})[0];document.getElementById('mtit').textContent='ПЛАНЁРКА';document.getElementById('mbody').innerHTML='<div style="background:var(--bllt);border:1px solid var(--blue);border-radius:8px;padding:10px;margin-bottom:14px;font-size:10px;color:var(--blue)">ТПСИ: твёрдые цифры план/факт, полный анализ, сравнение, договорённости письменно.</div><div class="fg"><label class="fl">Дата планёрки</label><input class="fi" id="w-date" type="date" value="'+today+'"/></div><div class="frow"><div class="fg"><label class="fl">ПЛАН м³</label><input class="fi" id="w-plan" type="number" step="0.1" inputmode="decimal" value="'+(lt&&lt.nextPlan?lt.nextPlan:'')+'"/></div><div class="fg"><label class="fl">ФАКТ м³</label><input class="fi" id="w-fact" type="number" step="0.1" inputmode="decimal"/></div></div><div class="fg"><label class="fl">Анализ - почему (ТПСИ)</label><textarea class="fi" id="w-why" rows="2" placeholder="С цифрами: было 5 рабочих вместо 8..."></textarea></div><div class="fg"><label class="fl">Решение</label><textarea class="fi" id="w-sol" rows="2" placeholder="Что делаем..."></textarea></div><div class="fg"><label class="fl">Договорённости (кто что обязался)</label><textarea class="fi" id="w-deals" rows="3" placeholder="Бекжан - нанять 2 рабочих до пт&#10;Сергей - проверить смету..."></textarea></div><div class="fg"><label class="fl">Действия на неделю</label><textarea class="fi" id="w-act" rows="2" placeholder="1. ...&#10;2. ..."></textarea></div><div class="fg"><label class="fl">ПЛАН на след. неделю м³</label><input class="fi" id="w-next" type="number" step="0.1" inputmode="decimal"/></div><button class="fsave" id="btn-sv-w">СОХРАНИТЬ</button><button class="fcanc" id="btn-cn-w">Отмена</button>';document.getElementById('modal').style.display='flex';document.getElementById('btn-sv-w').addEventListener('click',saveWeek);document.getElementById('btn-cn-w').addEventListener('click',closeModal);}
 function saveWeek(){var p=parseFloat(g('w-plan')),f=parseFloat(g('w-fact'));if(isNaN(p)||isNaN(f)){alert('Введите план и факт');return;}var w={id:Date.now(),date:g('w-date')||new Date().toISOString().slice(0,10),plan:p,fact:f,why:g('w-why')||'',solution:g('w-sol')||'',deals:g('w-deals')||'',actions:g('w-act')||'',nextPlan:parseFloat(g('w-next'))||0};if(!S.weeks)S.weeks=[];S.weeks.push(w);save();closeModal();setTab('plan');}
 window.openWeekCard=function(id){
@@ -16973,7 +17038,7 @@ function openPwdAdmin(){
   document.getElementById('mtit').textContent='ПАРОЛИ · СБРОС';
   var roles=[['owner','Владелец'],['editor','Учётчица']];var seen={owner:1,editor:1};
   for(var k in PWD){var rr=PWD[k];if(seen[rr])continue;seen[rr]=1;roles.push([rr,roleLabelFor(rr)]);}
-  var h='<div style="font-size:13px;color:var(--mut);margin-bottom:12px">Сброс вернёт роль к стандартному паролю. Вход владельца (Dmitry1980) — аварийный, работает всегда.</div>';
+  var h='<div style="font-size:13px;color:var(--mut);margin-bottom:12px">⚠️ Пароли теперь хранятся и проверяются на сервере. Меняйте их в Cloudflare (переменная LG_USERS), а не здесь — изменения в этом окне на вход больше не влияют.</div>';
   roles.forEach(function(pr){
     var has=!!auth[pr[0]];
     h+='<div style="display:flex;justify-content:space-between;align-items:center;background:var(--s2);border-radius:10px;padding:11px;margin-bottom:8px"><div><div style="font-weight:700;color:var(--text)">'+pr[1]+'</div><div style="font-size:11px;color:var(--mut)">'+(has?'свой пароль':'стандартный пароль')+'</div></div>'+(has?'<button class="pa-reset" data-r="'+pr[0]+'" style="background:var(--red);border:none;color:#fff;border-radius:8px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer">Сбросить</button>':'')+'</div>';
@@ -17009,7 +17074,7 @@ function openUsers(){
   if(typeof canAdmin!=='function'||!canAdmin()){if(typeof adminDenied==='function')adminDenied();return;}
   var auth=lgGetAuth();var people=lgPeopleList();
   document.getElementById('mtit').textContent='ПОЛЬЗОВАТЕЛИ';
-  var h='<div style="font-size:13px;color:var(--mut);margin-bottom:12px">Все, кто уже в системе. Задай человеку пароль — и он входит под своим. Вход владельца (Dmitry1980) — аварийный, работает всегда.</div>';
+  var h='<div style="font-size:13px;color:var(--mut);margin-bottom:12px">⚠️ Пароли теперь задаются на сервере (Cloudflare, переменная LG_USERS). Действия в этом окне на вход больше не влияют.</div>';
   people.forEach(function(pr){
     var has=!!auth[pr.role];
     var t=tierOf(pr.role); var over=!!(window.S&&S.tier&&S.tier[pr.role]);
@@ -17294,6 +17359,7 @@ function chatPendingDrafts(){
   });
 }
 function chatDraftsSection(){
+  return ''; /* ЧАТ ОТКЛЮЧЁН: блок «ИЗ ЧАТА» скрыт. Удалите эту строку, чтобы вернуть. */
   var list=chatPendingDrafts();if(!list.length)return '';
   var canC=(typeof canEdit==='function')?canEdit():false;
   var h='<div style="margin-bottom:14px"><div style="font-size:11px;letter-spacing:1.5px;color:var(--mut);font-weight:700;margin:2px 2px 8px">💬 ИЗ ЧАТА ('+list.length+')</div>';
@@ -17376,9 +17442,36 @@ window.restoreMay30=restoreMay30;
 
 function tryLogin(){
   var p=document.getElementById('lpass').value.trim();
-  var _rr=resolveRole(p);
-  if(_rr){role=_rr;sessionStorage.setItem('role',role);sessionStorage.setItem('loginPwd',p);startApp();}
-  else{document.getElementById('lerr').textContent='Неверный пароль';document.getElementById('lpass').value='';}
+  var errEl=document.getElementById('lerr');
+  var btn=document.getElementById('btn-login');
+  if(!p){ if(errEl)errEl.textContent='Введите пароль'; return; }
+  // ЭТАП 1: пароль проверяется на сервере (воркер /api/login).
+  // Сервер возвращает роль и токен синхронизации — в браузере паролей больше нет.
+  if(errEl)errEl.textContent='Проверка…';
+  if(btn)btn.disabled=true;
+  var url=(AI_WORKER_URL||'').replace(/\/$/,'')+'/api/login';
+  fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:p})})
+    .then(function(r){return r.json().catch(function(){return {ok:false};});})
+    .then(function(d){
+      if(btn)btn.disabled=false;
+      if(d&&d.ok&&d.role){
+        role=d.role;
+        try{
+          sessionStorage.setItem('role',role);
+          if(d.token){ sessionStorage.setItem('lg_token',d.token); AI_SHARED_TOKEN=d.token; window.SYNC_TOKEN=d.token; }
+        }catch(e){}
+        if(errEl)errEl.textContent='';
+        document.getElementById('lpass').value='';
+        startApp();
+      } else {
+        if(errEl)errEl.textContent='Неверный пароль';
+        document.getElementById('lpass').value='';
+      }
+    })
+    .catch(function(){
+      if(btn)btn.disabled=false;
+      if(errEl)errEl.textContent='Сервер недоступен. Проверьте интернет и повторите.';
+    });
 }
 function viewOnly(){role='viewer';sessionStorage.setItem('role','viewer');startApp();}
 function doLogout(){
@@ -18593,14 +18686,9 @@ document.getElementById('btn-refresh').addEventListener('click',function(){
   if(typeof persist==='function') persist();
   S._modified=Date.now();
   try{localStorage.setItem('lg_v9',JSON.stringify(S));}catch(e){}
-  // 2. Отправить в облако и ПОДОЖДАТЬ подтверждения перед очисткой
+  // 2. Отправить в облако (Cloudflare) и ПОДОЖДАТЬ подтверждения перед очисткой
   ss('↑ Отправка в облако...',false);
-  fetch(BURL,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':AK,'X-Bin-Versioning':'false'},body:JSON.stringify({_modified:S._modified,_schema:S._schema||3,entries:S.entries,brigades:S.brigades,objects:S.objects,objMeta:S.objMeta||{},history:S.history,weeks:S.weeks,kfu:S.kfu,settings:S.settings,goalsDone:S.goalsDone,auth:S.auth||{},tier:S.tier||{},chat:S.chat||[],kzDict:S.kzDict||{},workTypes:S.workTypes||[],subgoals:S.subgoals||[],cycles:S.cycles||{},ks2meta:S.ks2meta||{},ks2acts:S.ks2acts||[],ks3acts:S.ks3acts||[],directions:S.directions||[],roles:S.roles||[],milestones:S.milestones||[]})}).then(function(res){
-    if(!res.ok){
-      alert('❌ Не удалось сохранить в облако! Обновление отменено чтобы не потерять данные.\n\nПроверьте интернет и попробуйте снова.');
-      ss('!',true);
-      return;
-    }
+  (window.pushToCf ? window.pushToCf() : Promise.reject(new Error('Облако не настроено'))).then(function(){
     ss('✓ Сохранено',false);
     // 3. Теперь можно чистить кэши SW
     if('caches' in window){
@@ -19281,8 +19369,14 @@ setInterval(function(){
     if(isEditor()) setTimeout(pushCloud,500);
   }
 })();
-try{fetch(BURL,{headers:{'X-Master-Key':AK}}).then(function(r){return r.json();}).then(function(d){var rec=(d&&d.record)?d.record:d;if(rec&&rec.auth){try{localStorage.setItem('lg_auth',JSON.stringify(rec.auth));}catch(e){}}}).catch(function(){});}catch(e){}
-var sr=sessionStorage.getItem('role');if(sr){role=sr;startApp();}
+/* ЭТАП 1: загрузка auth из jsonbin отключена (использовала мастер-ключ в браузере
+   и больше не нужна — вход идёт через сервер). */
+var sr=sessionStorage.getItem('role');
+if(sr){
+  role=sr;
+  try{ var _t=sessionStorage.getItem('lg_token'); if(_t){ AI_SHARED_TOKEN=_t; window.SYNC_TOKEN=_t; } }catch(e){}
+  startApp();
+}
 setLang(LANG);
 });
 // ============ ГОЛОСОВОЙ ВВОД ЧЕРЕЗ ИИ ============
@@ -21343,7 +21437,7 @@ window.LGPLAN={
   try{
    var prompt=coachPrompt(p);
    var url=(typeof AI_WORKER_URL!=='undefined'?AI_WORKER_URL:'https://liongate-ai.hegaidima7.workers.dev')+'/api/ai-forecast';
-   var tok=(typeof AI_SHARED_TOKEN!=='undefined'?AI_SHARED_TOKEN:'liongate-2026-secret-x7p2k9m4');
+   var tok=(typeof AI_SHARED_TOKEN!=='undefined'?AI_SHARED_TOKEN:'');
    fetch(url,{method:'POST',headers:{'Content-Type':'application/json','X-LG-Token':tok},body:JSON.stringify({prompt:prompt,model:'claude-sonnet-4-6',max_tokens:700})})
     .then(function(r){return r.json();})
     .then(function(d){AIBUSY=false;var a=d&&d.advice;if(a&&!Array.isArray(a)&&(a.verdict||a.points||a.actions)){AICACHE[p]=a;}else if(Array.isArray(a)&&a.length){AICACHE[p]={points:a};}else{AICACHE[p]={error:(d&&d.error)||'пусто'};}refresh();})
@@ -21355,7 +21449,7 @@ window.LGPLAN={
   try{
    var prompt=stratPrompt();
    var url=(typeof AI_WORKER_URL!=='undefined'?AI_WORKER_URL:'https://liongate-ai.hegaidima7.workers.dev')+'/';
-   var tok=(typeof AI_SHARED_TOKEN!=='undefined'?AI_SHARED_TOKEN:'liongate-2026-secret-x7p2k9m4');
+   var tok=(typeof AI_SHARED_TOKEN!=='undefined'?AI_SHARED_TOKEN:'');
    fetch(url,{method:'POST',headers:{'Content-Type':'application/json','X-LG-Token':tok},body:JSON.stringify({model:'claude-opus-4-8',max_tokens:2000,messages:[{role:'user',content:prompt}]})})
     .then(function(r){return r.json();})
     .then(function(d){STRATBUSY=false;var t=(d&&d.content&&d.content[0]&&d.content[0].text)||'';if(t){var a=null;try{a=JSON.parse(t.replace(/```json|```/g,'').trim());}catch(e){}if(a&&(a.verdict||a.points||a.actions)){STRAT=a;}else{STRAT={verdict:t};}}else{STRAT={error:(d&&(d.error&&(d.error.message||d.error)))||'пусто'};}refresh();})
