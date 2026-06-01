@@ -2320,6 +2320,50 @@ function pullFromJsonbin(cb){
   });
 }
 
+// ============================================================
+// lgMergeEntries — безопасное слияние записей двух источников (LWW-element-set).
+// • Добавления с ОБЕИХ сторон сохраняются всегда (union по id).
+// • Совпадающие id: выигрывает сторона prefer ('cloud' | 'local').
+// • Удаления уважаются через томбстоны (trash, ТОЛЬКО action==='delete').
+// • 'edit'-снимки в корзине томбстонами НЕ считаются.
+// • Записи без id не теряются (дедуп по содержимому).
+// ============================================================
+function lgMergeEntries(localArr, cloudArr, localTrash, cloudTrash, prefer){
+  localArr = Array.isArray(localArr) ? localArr : [];
+  cloudArr = Array.isArray(cloudArr) ? cloudArr : [];
+  var tomb = {};
+  function collectTomb(tr){
+    (Array.isArray(tr)?tr:[]).forEach(function(x){
+      if(x && x.action==='delete' && x.entry && x.entry.id!=null){
+        var t = x.at || '';
+        if(!tomb[x.entry.id] || t > tomb[x.entry.id]) tomb[x.entry.id] = t;
+      }
+    });
+  }
+  collectTomb(localTrash); collectTomb(cloudTrash);
+  var first  = (prefer==='cloud') ? localArr : cloudArr;
+  var second = (prefer==='cloud') ? cloudArr : localArr;
+  var byId = {};
+  var noId = [];
+  function put(arr){
+    arr.forEach(function(e){
+      if(!e) return;
+      if(e.id==null){ noId.push(e); return; }
+      byId[e.id] = e;
+    });
+  }
+  put(first); put(second);
+  var out = [];
+  Object.keys(byId).forEach(function(id){
+    if(tomb[id]) return;
+    out.push(byId[id]);
+  });
+  var seen = {};
+  noId.forEach(function(e){ var k=JSON.stringify(e); if(!seen[k]){ seen[k]=1; out.push(e); } });
+  return out;
+}
+window.lgMergeEntries = lgMergeEntries;
+
 // Обработка данных из облака (общая для Cloudflare и jsonbin)
 function processCloudData(d, cb){
     if(d&&d.record){
@@ -2412,14 +2456,18 @@ function processCloudData(d, cb){
         var cloudIsMuchNewer = remoteTime > localTime + 60000 && 
                                (r.entries||[]).length >= S.entries.length;
         if(!cloudIsMuchNewer){
-          // НЕ затираем локальные. Пушим текущее состояние в облако.
+          // НЕ затираем локальные, но ПОДБИРАЕМ записи, добавленные/удалённые на другом устройстве (union по id).
+          S.entries=lgMergeEntries(S.entries, r.entries, S.trash, r.trash, 'local');
+          if(r.trash && Array.isArray(r.trash)){ var _ts={},_tm=[]; (S.trash||[]).concat(r.trash).forEach(function(x){if(!x)return;var k=(x.at||'')+'|'+(x.action||'')+'|'+((x.entry&&x.entry.id)||'');if(!_ts[k]){_ts[k]=1;_tm.push(x);}}); _tm.sort(function(a,b){return (a.at||'').localeCompare(b.at||'');}); S.trash=_tm.slice(-300); }
+          if(typeof persist==='function') persist();
           pushCloud();
           ss('↑',false);
           if(cb)cb();
           return;
         }
-        // Облако новее и записей не меньше — забираем его (проваливаемся в применение ниже)
-        S.entries=r.entries;
+        // Облако новее и записей не меньше — берём его за основу.
+        // СЛИЯНИЕ: облако приоритетно при конфликте id, но локально добавленные записи НЕ теряем (union по id).
+        S.entries=lgMergeEntries(S.entries, r.entries, S.trash, r.trash, 'cloud');
         if(r.brigades&&r.brigades.length>0)S.brigades=r.brigades;
         if(r.objects&&r.objects.length>0)S.objects=r.objects;
         if(r.history)S.history=r.history;
