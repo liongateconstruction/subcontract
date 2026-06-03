@@ -12773,6 +12773,158 @@ function spotStage(spotId){
   if(paid) stage=4;          // оплачено
   return {stage:stage,hasArm:hasArm,hasConcrete:hasConcrete,accepted:accepted,paid:paid,vol:vol,lastDate:lastDate};
 }
+// 🏢 Этажная башня прогресса по пятну (по записям объёма). Защищена try/catch.
+function spotFloorTap(ev,id){ try{ if(ev&&ev.stopPropagation) ev.stopPropagation(); }catch(e){} var el=document.getElementById(id); if(el){ el.style.display=(!el.style.display||el.style.display==='none')?'block':'none'; } }
+function spotFloorTower(spot){
+  try{
+    if(!spot) return '';
+    var sid='fdt_'+String(spot.id||spot.name||'x').replace(/[^a-zA-Z0-9_]/g,'');
+    var ents=(S.entries||[]).filter(function(e){
+      if(e.type!=='vol') return false;
+      var sp=e.spotId||e.spot||'';
+      return sp===spot.id || sp===spot.name || e.zone===spot.name;
+    });
+    function brigName(id){ var b=(S.brigades||[]).find(function(x){return x&&x.id===id;}); return b?String(b.name||'').replace(/^Бригада\s*/i,'').trim():''; }
+    function topbot(hs){ if(!hs) return null; var m=String(hs).replace(/,/g,'.').match(/-?\d+(?:\.\d+)?/g); if(!m||m.length<2) return null; var a=parseFloat(m[0]),b=parseFloat(m[m.length-1]); return {bot:Math.min(a,b),top:Math.max(a,b)}; }
+    var per=(spot.constructions||[]).find(function(c){return /перекр|плит/i.test(c.wtype||'');});
+    var wal=(spot.constructions||[]).find(function(c){return /стен/i.test(c.wtype||'');});
+    var floors=parseInt(spot.floors,10)||0;
+    if(!floors){ var tb=topbot(((per||wal||{}).heights)); if(tb){ floors=Math.round((tb.top-tb.bot)/3.4); } }
+    if(!floors||floors<1) floors=10; if(floors>40) floors=40;
+    function colOf(e){ var s=((e.struct||'')+' '+(e.wtype||'')).toLowerCase();
+      if(/перекр|плит|ригел/.test(s)) return 1;
+      if(/лестн|марш/.test(s)) return 2;
+      return 0; }
+    function floorFromText(s){ if(!s) return 0; s=String(s).toLowerCase();
+      var m=s.match(/(\d{1,2})\s*эт/); if(m) return parseInt(m[1],10);
+      var map={'перв':1,'втор':2,'трет':3,'четвёрт':4,'четверт':4,'пят':5,'шест':6,'седьм':7,'восьм':8,'девят':9,'десят':10,'одиннадцат':11,'двенадцат':12,'тринадцат':13,'четырнадцат':14,'пятнадцат':15,'шестнадцат':16,'семнадцат':17,'восемнадцат':18,'девятнадцат':19,'двадцат':20};
+      var keys=Object.keys(map).sort(function(a,b){return b.length-a.length;});
+      for(var i=0;i<keys.length;i++){ if(new RegExp(keys[i]+'[а-яё ]*эт').test(s)) return map[keys[i]]; }
+      return 0; }
+    function floorOf(e){ var f=floorFromText((e.floor||'')+' '+(e.note||'')); if(f) return f;
+      if(e.linkedId){ var lk=(S.entries||[]).filter(function(x){return x.linkedId===e.linkedId;});
+        for(var i=0;i<lk.length;i++){ var ff=floorFromText(lk[i].note||''); if(ff) return ff; } }
+      return 0; }
+    var grid={}, info={}, unplaced=0;
+    ents.forEach(function(e){
+      var txt=((e.wtype||'')+' '+(e.note||'')).toLowerCase();
+      var conc=/бетон|залит/.test(txt), arm=/армир/.test(txt);
+      if(!conc && !arm) return;
+      var f=floorOf(e), c=colOf(e);
+      if(f<1||f>floors){ if(conc && (e.volume||0)>0) unplaced+=(e.volume||0); return; }
+      grid[f]=grid[f]||[{},{},{}];
+      var cell=grid[f][c];
+      if(conc) cell.done=true; else if(arm && !cell.done) cell.work=true;
+      if(e.redo) cell.redo=true;
+      info[f]=info[f]||{vols:[],brig:'',date:''};
+      var bn=brigName(e.brigade);
+      info[f].vols.push({c:c,conc:conc,vol:(e.volume||0)});
+      if((e.date||'')>=(info[f].date||'')){ info[f].date=e.date||''; if(bn) info[f].brig=bn; }
+    });
+    var COLS=['стены','перекрытие','лестница'], LBL=['Стены','Перекрытие','Лестница'];
+    function detail(i){
+      var inf=info[i], row=grid[i]||[{},{},{}], parts=[];
+      for(var c=0;c<3;c++){ var cell=row[c]; var st=cell.redo?'переделка':(cell.done?'залито ✓':(cell.work?'армирование …':'')); if(st) parts.push(LBL[c]+' — '+st); }
+      var d='<div style="font-size:12px;color:var(--mut);line-height:1.6">';
+      if(parts.length) d+=parts.join('<br>')+'<br>';
+      if(inf){
+        var v=inf.vols.filter(function(x){return x.conc;}).map(function(x){return LBL[x.c]+' '+fmtD(x.vol)+' м³';}).join(' · ');
+        if(v) d+='<span style="color:var(--teal)">Залито: '+v+'</span><br>';
+        if(inf.brig) d+='Бригада: <b style="color:var(--text)">'+escapeHtml(inf.brig)+'</b><br>';
+        if(inf.date) d+='Дата: <b style="color:var(--text)">'+inf.date+'</b>';
+      }
+      if(!parts.length && !inf) d+='Этаж ещё не начат';
+      d+='</div>';
+      return d;
+    }
+    var h='<div style="margin-top:10px;background:var(--bg);border:1px solid var(--brd);border-radius:12px;padding:12px">';
+    h+='<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px"><span style="font-size:12px;color:var(--gold);letter-spacing:1.5px;font-weight:700">🏢 БАШНЯ ПРОГРЕССА</span><span style="font-size:10px;color:var(--mut)">тап по этажу — детали</span></div>';
+    h+='<div style="display:flex;gap:12px;font-size:11px;color:var(--mut);margin-bottom:8px;flex-wrap:wrap">'+
+       '<span><i style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--green);vertical-align:-1px;margin-right:4px"></i>залито</span>'+
+       '<span><i style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--gold);vertical-align:-1px;margin-right:4px"></i>в работе</span>'+
+       '<span><i style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#2a3344;vertical-align:-1px;margin-right:4px"></i>не начато</span>'+
+       '<span><i style="display:inline-block;width:10px;height:10px;border-radius:2px;border:1.5px solid var(--red);vertical-align:-1px;margin-right:4px"></i>переделка</span></div>';
+    h+='<div style="display:flex;gap:4px;margin:0 0 4px 64px">'+COLS.map(function(c){return '<span style="flex:1;text-align:center;font-size:9px;color:var(--mut)">'+c+'</span>';}).join('')+'</div>';
+    for(var i=floors;i>=1;i--){
+      var row=grid[i]||[{},{},{}];
+      var segs=row.map(function(cell){
+        var bg='#2a3344',tc='var(--mut)',txt='',bd='';
+        if(cell.done){bg='var(--green)';tc='#06210d';txt='✓';}
+        else if(cell.work){bg='var(--gold)';tc='#241a02';txt='…';}
+        if(cell.redo){bg='transparent';bd='border:1.5px solid var(--red);';txt='⟳';tc='var(--red)';}
+        return '<div style="flex:1;height:22px;border-radius:5px;background:'+bg+';'+bd+'display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:'+tc+'">'+txt+'</div>';
+      }).join('');
+      var inf=info[i];
+      var chip=(inf&&inf.brig)?'<br><span style="font-size:8.5px;color:var(--teal);font-weight:600">⛑ '+escapeHtml(inf.brig)+'</span>':'';
+      var fid=sid+'_'+i;
+      h+='<div onclick="spotFloorTap(event,\''+fid+'\')" style="display:flex;align-items:center;gap:6px;margin-bottom:4px;cursor:pointer">'+
+         '<span style="width:58px;flex:0 0 58px;text-align:right;font-size:11px;color:var(--text);font-weight:700;font-family:var(--fd);line-height:1.15">'+i+'эт'+chip+'</span>'+
+         '<div style="flex:1;display:flex;gap:4px">'+segs+'</div></div>';
+      h+='<div id="'+fid+'" style="display:none;background:var(--sur);border:1px solid var(--brd);border-left:3px solid var(--gold);border-radius:9px;padding:9px 11px;margin:0 0 5px 64px">'+detail(i)+'</div>';
+    }
+    if(unplaced>0){
+      h+='<div style="margin-top:8px;font-size:11px;color:var(--mut);line-height:1.4">+ '+fmtD(unplaced)+' м³ залито, но <b style="color:var(--orange)">этаж не указан</b> в записи — добавляйте «N этаж» при вводе, и закрасится автоматически.</div>';
+    }
+    h+='<div style="margin-top:8px;font-size:10px;color:var(--mut)">'+(parseInt(spot.floors,10)>0?('Этажей: '+floors+' (задано)'):('Этажность оценена по отметкам (≈'+floors+')'))+'</div>';
+    h+='</div>';
+    return h;
+  }catch(err){ return ''; }
+}
+// 💰 Сигнал: залито, но не выставлено по КС-2 (по объекту). Защищено.
+function ks2NotInAct(objName){
+  try{
+    if(typeof marginObject!=='function') return '';
+    var mo=marginObject(objName); var rev=(mo&&mo.revenue)||0;
+    var billed=0; (S.ks2acts||[]).forEach(function(a){ if(a&&a.obj===objName) billed+=(a.total||0); });
+    var gap=rev-billed;
+    if(gap<10000) return '';
+    var rate=0;
+    if(typeof custRatesList==='function'){ var L=custRatesList(objName||''); if(L&&L.length) rate=L[0].rate; }
+    var m3=rate>0?Math.round(gap/rate):0;
+    var h='<div style="margin:8px 0 12px;background:rgba(248,81,73,.10);border:1px solid var(--red);border-radius:12px;padding:13px">';
+    h+='<div style="font-size:13px;color:var(--red);font-weight:800;letter-spacing:.5px;margin-bottom:5px">⚠️ ЗАЛИТО, НО НЕ В АКТЕ КС-2</div>';
+    h+='<div style="font-size:14px;color:var(--text)">'+(m3>0?(fmtD(m3)+' м³ ≈ '):'')+'<b style="font-family:var(--fd);color:var(--red)">'+fmt(Math.round(gap))+' ₸</b> ещё не выставлено заказчику.</div>';
+    h+='<div style="font-size:12px;color:var(--mut);margin-top:5px">Это ваши деньги — сформируйте на этот объём акт КС-2.</div>';
+    h+='</div>';
+    return h;
+  }catch(e){ return ''; }
+}
+// 📊 План/факт по конструкциям пятна (факт = залитый бетон / план проекта). Защищено.
+function spotPlanFact(spot){
+  try{
+    if(!spot || !((spot.constructions||[]).length)) return '';
+    function cat(s){ s=(s||'').toLowerCase();
+      if(/перекр|плит|ригел/.test(s)) return 'slab';
+      if(/лестн|марш/.test(s)) return 'stair';
+      if(/парапет/.test(s)) return 'parapet';
+      if(/стен/.test(s)) return 'wall';
+      return 'other'; }
+    var fact={};
+    (S.entries||[]).forEach(function(e){
+      if(e.type!=='vol') return;
+      var sp=e.spotId||e.spot||''; if(!(sp===spot.id||sp===spot.name||e.zone===spot.name)) return;
+      var txt=((e.wtype||'')+' '+(e.note||'')).toLowerCase();
+      if(!/бетон|залит/.test(txt)) return;
+      var c=cat((e.struct||'')+' '+(e.wtype||''));
+      fact[c]=(fact[c]||0)+(e.volume||0);
+    });
+    var rows='', totP=0, totF=0;
+    spot.constructions.forEach(function(c){
+      var p=c.volume||0; if(p<=0) return;
+      var f=fact[cat(c.wtype)]||0; totP+=p; totF+=f;
+      var pct=p>0?Math.round(f/p*100):0; if(pct>100)pct=100;
+      var nm=(c.wtype||'').replace(/устройство\s*/i,'');
+      rows+='<div style="margin:7px 0"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><span style="color:var(--mut)">'+escapeHtml(nm)+'</span><span style="color:var(--text)"><b style="font-family:var(--fd)">'+fmtD(f)+'</b> / '+fmtD(p)+' м³ \u00b7 '+pct+'%</span></div><div style="height:7px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden"><div style="height:100%;width:'+Math.max(2,pct)+'%;background:var(--teal);border-radius:4px"></div></div></div>';
+    });
+    if(!rows) return '';
+    var tp=totP>0?Math.round(totF/totP*100):0;
+    var h='<div style="margin-top:10px;background:var(--bg);border:1px solid var(--brd);border-radius:12px;padding:12px">';
+    h+='<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px"><span style="font-size:12px;color:var(--gold);letter-spacing:1.5px;font-weight:700">📊 ПЛАН / ФАКТ</span><span style="font-size:12px;color:var(--text)"><b style="font-family:var(--fd);color:var(--teal)">'+tp+'%</b> по пятну</span></div>';
+    h+=rows;
+    h+='</div>';
+    return h;
+  }catch(e){ return ''; }
+}
 function rSpotsBoard(){
   var STAGES=[
     {key:0,name:'Ждёт',icon:'\u23f8',col:'#9aa5b4'},
@@ -13183,6 +13335,8 @@ function renderObjectCard(objName, objIdx, objects){
     // ============================================================
     // 🎯 УПРАВЛЕНИЕ ПО ОБЪЕКТУ (S-кривая, темп, узкое место, ИИ)
     // ============================================================
+    h += ks2NotInAct(objName);
+
     if(typeof objMgmtBlock==='function'){ h += objMgmtBlock(objName); }
 
     // ============================================================
@@ -13191,7 +13345,7 @@ function renderObjectCard(objName, objIdx, objects){
 
     // --- ПЯТНА ---
     if(spots.length > 0){
-      h += '<details style="margin-bottom:10px"><summary style="font-size:13px;color:var(--mut);letter-spacing:2px;font-weight:700;padding:10px 4px;cursor:pointer;list-style:none">\u{1F7E6} ПЯТНА ('+spots.length+') \u25be</summary>';
+      h += '<details style="margin-bottom:10px" open><summary style="font-size:13px;color:var(--mut);letter-spacing:2px;font-weight:700;padding:10px 4px;cursor:pointer;list-style:none">\u{1F7E6} ПЯТНА ('+spots.length+') \u25be</summary>';
       h += '<div style="margin-top:8px">';
       spots.forEach(function(spot){
         var spotId = spot.id || spot.name;
@@ -13215,6 +13369,10 @@ function renderObjectCard(objName, objIdx, objects){
         h += '<div style="text-align:right"><div style="font-family:var(--fd);font-size:17px;color:var(--teal);font-weight:800">'+fmtD(spotVol)+' м³</div>';
         if(spotPlan>0) h += '<div style="font-size:13px;color:var(--mut)">из '+fmtD(spotPlan)+'</div>';
         h += '</div></div>';
+
+        h += spotFloorTower(spot);
+
+        h += spotPlanFact(spot);
 
         if(spot.deadline){
           var daysLeft = Math.ceil((new Date(spot.deadline) - new Date())/(86400000));
@@ -13294,16 +13452,9 @@ function renderObjectCard(objName, objIdx, objects){
           }
         }
 
-        if((spot.constructions||[]).length > 0){
+        if((spot.constructions||[]).length > 0 && typeof spotChartBlock==='function' && spot.id){
           h += '<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--brd)">';
-          // график план/факт по пятну
-          if(typeof spotChartBlock==='function' && spot.id){ h += spotChartBlock(objName, spot.id); }
-          spot.constructions.forEach(function(c){
-            h += '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px">';
-            h += '<span style="color:var(--mut)">'+escapeHtml(c.wtype||'?')+(c.heights?' · отм. '+escapeHtml(c.heights):'')+'</span>';
-            h += '<span style="color:var(--text);font-weight:600">'+fmtD(c.volume||0)+' '+(c.unit||'м³')+'</span>';
-            h += '</div>';
-          });
+          h += spotChartBlock(objName, spot.id);
           h += '</div>';
         }
         h += '</div>';
@@ -13311,8 +13462,8 @@ function renderObjectCard(objName, objIdx, objects){
       h += '</div></details>';
     }
 
-    // --- БРИГАДЫ ---
-    if(brigadesOnObj.length > 0){
+    // --- БРИГАДЫ --- (скрыто: кто на каком этаже видно на башне)
+    if(false && brigadesOnObj.length > 0){
       h += '<details style="margin-bottom:10px" open><summary style="font-size:13px;color:var(--mut);letter-spacing:2px;font-weight:700;padding:10px 4px;cursor:pointer;list-style:none">\u{1FA96} БРИГАДЫ ('+brigadesOnObj.length+') \u25be</summary>';
       h += '<div style="margin-top:8px">';
       brigadesOnObj.forEach(function(b){
@@ -16725,6 +16876,7 @@ window.openSpotEdit = function(idx){
       '<div class="fg" style="flex:1"><label class="fl">Начало работ</label><input class="fi" id="sp-start" type="date" value="'+(sp.started||'')+'"/></div>'+
       '<div class="fg" style="flex:1"><label class="fl">Дедлайн (сдача)</label><input class="fi" id="sp-deadline" type="date" value="'+(sp.deadline||'')+'"/></div>'+
     '</div>'+
+    '<div class="fg"><label class="fl">Число этажей (для башни прогресса)</label><input class="fi" id="sp-floors" type="number" inputmode="numeric" value="'+(sp.floors||'')+'" placeholder="напр. 11 — если пусто, оценим по отметкам"/></div>'+
     '<label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--mut);margin:4px 0 12px"><input type="checkbox" id="sp-done" '+(sp.completed?'checked':'')+' style="width:16px;height:16px"/> Пятно сдано (завершено)</label>'+
     '<div class="sect" style="margin-bottom:6px">Конструкции (плановый объём бетона)</div>'+
     '<div style="font-size:10px;color:var(--mut);margin-bottom:8px">Стены, перекрытия, лестницы, парапет — сколько м³ по проекту. Сумма = план объёма пятна.</div>'+
@@ -16759,6 +16911,7 @@ window.openSpotEdit = function(idx){
       name: nm,
       started: g('sp-start')||'',
       deadline: g('sp-deadline')||'',
+      floors: parseInt(g('sp-floors'),10)||0,
       completed: document.getElementById('sp-done').checked ? (sp.completed||new Date().toISOString().slice(0,10)) : null,
       constructions: _spotEditConstr
     };
@@ -20374,6 +20527,8 @@ function confirmDraftGroup(linkedKey){
         entry.volume=op.volume||0;
         entry.unit=op.unit||'м³';
         entry.wtype=op.wtype||'';
+        if(op.floor) entry.floor=op.floor;
+        if(!entry.struct){ var _wl=(entry.wtype||'').toLowerCase(); entry.struct = /перекр|плит|ригел/.test(_wl)?'Перекрытие':(/лестн|марш/.test(_wl)?'Лестница':(/стен/.test(_wl)?'Стена':'')); }
         // АВТО-ПРИВЯЗКА К ПЯТНУ: ищем упоминание блока/пятна в op.note или op.spot
         (function(){
           var objName = entry.obj || S.objects[0] || '';
