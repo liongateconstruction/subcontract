@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover"/>
 <meta name="theme-color" content="#0d1117"/>
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="application-name" content="LIONGATE"/>
@@ -22342,6 +22342,52 @@ window.devDel=function(kind,id){ if(ro())return;
   window.openDevelopment();
 };
 window.developmentNAV=function(){ try{ return stats().nav; }catch(e){ return 0; } };
+})();
+</script>
+
+<script>
+/* Свой пинч-зум: пока держишь пальцы — контент увеличивается (CSS transform),
+   отпускаешь — плавно возвращается к базовому. Нативный зум iOS отключён, чтобы не конфликтовать. */
+(function(){
+  try{
+    var el=document.body;
+    var pinching=false, startDist=0, mx0=0, my0=0;
+    function dist(t){ var dx=t[0].clientX-t[1].clientX, dy=t[0].clientY-t[1].clientY; return Math.sqrt(dx*dx+dy*dy); }
+    ['gesturestart','gesturechange','gestureend'].forEach(function(ev){
+      document.addEventListener(ev, function(e){ e.preventDefault(); }, {passive:false});
+    });
+    document.addEventListener('touchstart', function(e){
+      if(e.touches.length===2){
+        pinching=true;
+        startDist=dist(e.touches);
+        mx0=(e.touches[0].clientX+e.touches[1].clientX)/2;
+        my0=(e.touches[0].clientY+e.touches[1].clientY)/2;
+        el.style.transition='none';
+        el.style.transformOrigin=(mx0+(window.pageXOffset||0))+'px '+(my0+(window.pageYOffset||0))+'px';
+      }
+    }, {passive:true});
+    document.addEventListener('touchmove', function(e){
+      if(pinching && e.touches.length===2){
+        e.preventDefault();
+        var s=dist(e.touches)/(startDist||1);
+        if(s<1) s=1; if(s>2.5) s=2.5;
+        var mx=(e.touches[0].clientX+e.touches[1].clientX)/2;
+        var my=(e.touches[0].clientY+e.touches[1].clientY)/2;
+        var panX=mx-mx0, panY=my-my0;
+        if(s<=1.02){ panX=0; panY=0; }   // без зума пальцами не таскаем
+        el.style.transform='translate('+panX+'px,'+panY+'px) scale('+s+')';
+      }
+    }, {passive:false});
+    function endPinch(){
+      if(!pinching) return;
+      pinching=false;
+      el.style.transition='transform .22s ease';
+      el.style.transform='';
+      setTimeout(function(){ el.style.transition=''; el.style.transformOrigin=''; }, 260);
+    }
+    document.addEventListener('touchend', function(e){ if(e.touches.length<2) endPinch(); }, {passive:true});
+    document.addEventListener('touchcancel', endPinch, {passive:true});
+  }catch(e){}
 })();
 </script>
 
