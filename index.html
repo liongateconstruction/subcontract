@@ -13530,7 +13530,7 @@ function renderObjectCard(objName, objIdx, objects){
             // Совет по темпу (только если отстаём)
             if(sch.neededPace && sch.pacePerWeek < sch.neededPace){
               var boost = Math.round((sch.neededPace/sch.pacePerWeek-1)*100);
-              h += '<div style="margin-top:10px;padding:9px 11px;background:rgba(240,136,62,.12);border-radius:8px;font-size:12px;color:var(--orange);line-height:1.4">\u26A0\uFE0F Ускориться на '+boost+'%: с '+sch.pacePerWeek+' до '+sch.neededPace+' м\u00b3/нед</div>';
+              h += '<div style="margin-top:10px;padding:9px 11px;background:rgba(240,136,62,.12);border-radius:8px;font-size:12px;color:var(--orange);line-height:1.4">⚠️ Ускориться на '+boost+'%: с '+sch.pacePerWeek+' до '+sch.neededPace+' м\u00b3/нед</div>';
             }
             h += '</div>';
           }
@@ -14611,70 +14611,67 @@ function rMore(){
     + '</button>';
   }
   
-  // === СТРАТЕГИЯ 2030 ===
-  h += '<div style="font-size:13px;color:var(--mut);letter-spacing:1.5px;font-weight:700;margin:8px 4px 10px">СТРАТЕГИЯ 2030</div>';
-  h += '<div style="display:grid;grid-template-columns:1fr;gap:10px;margin-bottom:18px">';
-  h += tile('🎯', '#ffd166', 'Путь к $1 млрд', 'холдинг сейчас · план · вехи', 'openStrategy2030()');
-  h += '</div>';
-  // === НАПРАВЛЕНИЯ ХОЛДИНГА ===
-  h += '<div style="font-size:13px;color:var(--mut);letter-spacing:1.5px;font-weight:700;margin:8px 4px 10px">НАПРАВЛЕНИЯ ХОЛДИНГА</div>';
-  h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px">';
-  h += tile('🛒', '#a371f7', 'Ритейл', 'товары · склад · маржа', 'openRetail()');
-  h += tile('🎨', '#58a6ff', 'Отделка', 'проекты · м² · маржа', 'openFinishing()');
-  h += tile('🏢', '#ffd166', 'Девелопмент', 'GMV · NAV · продажи', 'openDevelopment()');
-  h += '</div>';
-  // === ДОСТУП ===
-  h += '<div style=\"font-size:13px;color:var(--mut);letter-spacing:1.5px;font-weight:700;margin:8px 4px 10px\">ДОСТУП</div>';
-  h += '<div style=\"display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px\">';
-  h += tile('🔑', '#58a6ff', 'Сменить пароль', 'свой пароль', 'openChangePassword()');
-  if(typeof canAdmin==='function'&&canAdmin()) h += tile('👥', '#ffd166', 'Пользователи', 'люди и доступы', 'openUsers()');
-  h += '</div>';
-  // === ОТЧЁТЫ И ДАННЫЕ ===
-  h += '<div style="font-size:13px;color:var(--mut);letter-spacing:1.5px;font-weight:700;margin:8px 4px 10px">ОТЧЁТЫ И ДАННЫЕ</div>';
-  h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px">';
-  h += tile('📊', '#ffd166', 'Отчёт', 'для партнёров', 'openFullReport()');
-  h += tile('📋', '#39d3bb', 'Журнал', 'все операции', "setTab('journal')");
-  h += tile('📋', '#a371f7', 'Поток пятен', 'Lean-доска', 'openSpotsBoard()');
-  h += '</div>';
-  
-  // === УМНЫЕ ВОЗМОЖНОСТИ ===
-  h += '<div style="font-size:13px;color:var(--mut);letter-spacing:1.5px;font-weight:700;margin:8px 4px 10px">УМНЫЕ ВОЗМОЖНОСТИ</div>';
-  h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px">';
-  h += tile('🤖', '#ffd166', 'AI-CFO', 'спросить Claude', 'openAIChat()');
-  h += tile('✨', '#a371f7', 'Возможности', 'KPI · Прогноз', 'openMoreFeatures()');
-  h += tile('🏗', '#39d3bb', 'Объекты', 'настройки', 'openObjectsModal()');
-  h += tile('📑', '#39d3bb', 'Реестр КС-2', 'подписано · ждёт · акты', 'openKS2Registry()');
-  h += tile('🗄', '#b9c3d0', 'Архив', 'объектов', 'openArchivedObjects()');
-  h += tile('💰', '#ffd166', 'Касса', 'стартовая сумма', 'openCashSettings()');
-  h += tile('📐', '#58a6ff', 'Нормы', 'выработки бригад', 'openSettings()');
-  h += tile('📦', '#7ee787', 'Бэкап', 'JSON-файл', 'exportJSON()');
-  h += '</div>';
-  
-  // === ЗАЩИТА ДАННЫХ ===
-  h += '<div style="font-size:13px;color:var(--mut);letter-spacing:1.5px;font-weight:700;margin:8px 4px 10px">ЗАЩИТА ДАННЫХ</div>';
-  h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px">';
-  h += tile('🛡', '#39d3bb', 'Защита', 'Снапшоты · Корзина', 'openDataProtection()');
-  if(typeof canAdmin==='function'&&canAdmin()) h += tile('📜', '#ffa657', 'Журнал', 'удаления · правки', 'openLedger()');
-  if(typeof canAdmin==='function'&&canAdmin()) h += tile('🔒', '#f0a500', 'Период', (S.lockedUntil?('закрыт по '+S.lockedUntil):'правки задним числом'), 'openPeriodLock()');
-  if(canEditNow){
-    h += tile('☁️↑', '#7ee787', 'В облако', 'залить локальное', 'forceUploadLocal()');
-    h += tile('☁️↓', '#58a6ff', 'Из облака', 'загрузить свежее', 'forceDownloadCloud()');
-  } else {
-    h += tile('☁️↓', '#58a6ff', 'Из облака', 'загрузить свежее', 'forceDownloadCloud()');
+  var isOwner = (typeof canAdmin==='function')?canAdmin():false;
+  var isEdit  = (typeof canEdit==='function')?canEdit():false;
+  function section(title, tiles){
+    tiles = tiles.filter(Boolean);
+    if(!tiles.length) return '';
+    var cols = (tiles.length===1)?'1fr':'1fr 1fr';
+    return '<div style="font-size:13px;color:var(--mut);letter-spacing:1.5px;font-weight:700;margin:8px 4px 10px">'+title+'</div>'
+      +'<div style="display:grid;grid-template-columns:'+cols+';gap:10px;margin-bottom:18px">'+tiles.join('')+'</div>';
   }
-  h += '</div>';
-  
-  // === ОБСЛУЖИВАНИЕ ===
-  h += '<div style="font-size:13px;color:var(--mut);letter-spacing:1.5px;font-weight:700;margin:8px 4px 10px">ОБСЛУЖИВАНИЕ</div>';
-  h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px">';
-  h += tile('🔄', '#ffd166', 'Обновить', 'перезагрузить', 'forceReload()');
-  h += tile('🔧', '#a371f7', 'Диагностика', 'облако · версия', 'openDiagnostic()');
-  h += tile('📥', '#ffa657', 'Черновики', 'из Telegram', 'checkDraftsNow()');
-  h += tile('🔗', '#39d3bb', 'Привязать', 'расходы к пятнам', 'linkAllExpensesToSpots()');
-  if(canEditNow){
-    h += tile('⚠️', '#ff7b72', 'Сброс', 'к эталонным', 'resetToClean()');
-  }
-  h += '</div>';
+
+  // СТРАТЕГИЯ — просмотр всем
+  h += section('СТРАТЕГИЯ 2030', [
+    tile('🎯', '#ffd166', 'Путь к $1 млрд', 'холдинг · план · вехи', 'openStrategy2030()')
+  ]);
+  // НАПРАВЛЕНИЯ — только владелец
+  h += section('НАПРАВЛЕНИЯ ХОЛДИНГА', [
+    isOwner?tile('🛒', '#a371f7', 'Ритейл', 'товары · склад · маржа', 'openRetail()'):null,
+    isOwner?tile('🎨', '#58a6ff', 'Отделка', 'проекты · м² · маржа', 'openFinishing()'):null,
+    isOwner?tile('🏢', '#ffd166', 'Девелопмент', 'GMV · NAV · продажи', 'openDevelopment()'):null
+  ]);
+  // ДОСТУП
+  h += section('ДОСТУП', [
+    tile('🔑', '#58a6ff', 'Сменить пароль', 'свой пароль', 'openChangePassword()'),
+    isOwner?tile('👥', '#ffd166', 'Пользователи', 'люди и доступы', 'openUsers()'):null
+  ]);
+  // ОТЧЁТЫ И ДАННЫЕ — просмотр всем (+ Реестр для учёта)
+  h += section('ОТЧЁТЫ И ДАННЫЕ', [
+    tile('📊', '#ffd166', 'Отчёт', 'для партнёров', 'openFullReport()'),
+    tile('📋', '#39d3bb', 'Журнал', 'все операции', "setTab('journal')"),
+    tile('📋', '#a371f7', 'Поток пятен', 'Lean-доска', 'openSpotsBoard()'),
+    isEdit?tile('📑', '#39d3bb', 'Реестр КС-2', 'подписано · ждёт · акты', 'openKS2Registry()'):null
+  ]);
+  // УМНЫЕ ВОЗМОЖНОСТИ
+  h += section('УМНЫЕ ВОЗМОЖНОСТИ', [
+    tile('✨', '#a371f7', 'Возможности', 'KPI · Прогноз', 'openMoreFeatures()'),
+    isOwner?tile('🤖', '#ffd166', 'AI-CFO', 'спросить Claude', 'openAIChat()'):null
+  ]);
+  // НАСТРОЙКИ — только владелец
+  h += section('НАСТРОЙКИ', [
+    isOwner?tile('🏗', '#39d3bb', 'Объекты', 'настройки', 'openObjectsModal()'):null,
+    isOwner?tile('🗄', '#b9c3d0', 'Архив', 'объектов', 'openArchivedObjects()'):null,
+    isOwner?tile('💰', '#ffd166', 'Касса', 'стартовая сумма', 'openCashSettings()'):null,
+    isOwner?tile('📐', '#58a6ff', 'Нормы', 'выработки бригад', 'openSettings()'):null,
+    isOwner?tile('📦', '#7ee787', 'Бэкап', 'JSON-файл', 'exportJSON()'):null
+  ]);
+  // ЗАЩИТА ДАННЫХ — владелец (+ «из облака» всем)
+  h += section('ЗАЩИТА ДАННЫХ', [
+    isOwner?tile('🛡', '#39d3bb', 'Защита', 'Снапшоты · Корзина', 'openDataProtection()'):null,
+    isOwner?tile('📜', '#ffa657', 'Журнал', 'удаления · правки', 'openLedger()'):null,
+    isOwner?tile('🔒', '#f0a500', 'Период', (S.lockedUntil?('закрыт по '+S.lockedUntil):'правки задним числом'), 'openPeriodLock()'):null,
+    isOwner?tile('☁️↑', '#7ee787', 'В облако', 'залить локальное', 'forceUploadLocal()'):null,
+    tile('☁️↓', '#58a6ff', 'Из облака', 'загрузить свежее', 'forceDownloadCloud()')
+  ]);
+  // ОБСЛУЖИВАНИЕ
+  h += section('ОБСЛУЖИВАНИЕ', [
+    tile('🔄', '#ffd166', 'Обновить', 'перезагрузить', 'forceReload()'),
+    isOwner?tile('🔧', '#a371f7', 'Диагностика', 'облако · версия', 'openDiagnostic()'):null,
+    isEdit?tile('📥', '#ffa657', 'Черновики', 'из Telegram', 'checkDraftsNow()'):null,
+    isOwner?tile('🔗', '#39d3bb', 'Привязать', 'расходы к пятнам', 'linkAllExpensesToSpots()'):null,
+    isOwner?tile('⚠️', '#ff7b72', 'Сброс', 'к эталонным', 'resetToClean()'):null
+  ]);
   
   // === Информация о версии (внизу мелким) ===
   h += '<div style="margin-top:24px;padding:14px;background:#0d1117;border:1px solid var(--brd);border-radius:12px;text-align:center">';
@@ -15460,7 +15457,7 @@ window.openKFUupd=function(ki){
     if(!k.hist||!k.hist.length)return '<div style="font-size:10px;color:var(--mut);padding:8px 0">Истории пока нет</div>';
     return [].concat(k.hist).reverse().map(function(x){
       var lc=x.light===0?'var(--red)':x.light===2?'var(--green)':'var(--orange)';
-      var li=x.light===0?'\U0001F534':x.light===2?'\U0001F7E2':'\U0001F7E1';
+      var li=x.light===0?'🔴':x.light===2?'🟢':'🟡';
       return '<div style="display:flex;justify-content:space-between;align-items:flex-start;padding:7px 0;border-bottom:1px solid var(--s2)">'+
         '<div style="flex:1"><div style="font-size:11px;font-weight:700">'+li+' '+x.val+'</div>'+
         (x.note?'<div style="font-size:10px;color:var(--mut);margin-top:2px">'+x.note+'</div>':'')+
@@ -15476,9 +15473,9 @@ window.openKFUupd=function(ki){
     '<div class="fg"><label class="fl">Текущий показатель (факт)</label><input class="fi" id="ku-val" type="text" placeholder="напр: 2 переделки / КС-2 сдан"/></div>'+
     '<div class="fg"><label class="fl">Комментарий (необязательно)</label><textarea class="fi" id="ku-note" rows="2" placeholder="Что сделано, что мешает..."></textarea></div>'+
     '<div class="fg"><label class="fl">Светофор</label><div style="display:flex;gap:8px">'+
-      '<button type="button" id="kl0" class="kl-btn" style="flex:1;background:var(--s2);border:2px solid var(--brd);border-radius:8px;padding:12px;cursor:pointer;font-size:20px">\U0001F534</button>'+
-      '<button type="button" id="kl1" class="kl-btn" style="flex:1;background:var(--s2);border:2px solid var(--orange);border-radius:8px;padding:12px;cursor:pointer;font-size:20px">\U0001F7E1</button>'+
-      '<button type="button" id="kl2" class="kl-btn" style="flex:1;background:var(--s2);border:2px solid var(--brd);border-radius:8px;padding:12px;cursor:pointer;font-size:20px">\U0001F7E2</button>'+
+      '<button type="button" id="kl0" class="kl-btn" style="flex:1;background:var(--s2);border:2px solid var(--brd);border-radius:8px;padding:12px;cursor:pointer;font-size:20px">🔴</button>'+
+      '<button type="button" id="kl1" class="kl-btn" style="flex:1;background:var(--s2);border:2px solid var(--orange);border-radius:8px;padding:12px;cursor:pointer;font-size:20px">🟡</button>'+
+      '<button type="button" id="kl2" class="kl-btn" style="flex:1;background:var(--s2);border:2px solid var(--brd);border-radius:8px;padding:12px;cursor:pointer;font-size:20px">🟢</button>'+
     '</div></div>'+
     '<button class="fsave" id="ku-save">СОХРАНИТЬ ОБНОВЛЕНИЕ</button>'+
     '<button class="fcanc" id="ku-cancel">Отмена</button>'+
@@ -16842,6 +16839,7 @@ window.editObjMeta=function(idx){
   
   document.getElementById('mbody').innerHTML=
     '<div class="fg"><label class="fl">Заказчик</label><input class="fi" id="om-cust" type="text" value="'+(m.customer||'')+'" placeholder="Sensata Group / Bi Group..."/>'+hint('Кто заказчик на этом объекте')+'</div>'+
+    '<div class="fg"><label class="fl">% фонда консультантов</label><input class="fi" id="om-fundpct" type="number" step="0.1" inputmode="decimal" value="'+((+m.consultFundPct>0)?(+m.consultFundPct*100):2)+'" placeholder="2"/>'+hint('Сколько процентов от денег заказчика идёт в фонд бонусов консультантов (по умолчанию 2%)')+'</div>'+
     '<div class="sect" style="margin:14px 0 8px">Пятна / блоки объекта</div>'+
     '<div style="background:rgba(57,211,187,.06);border:1px solid rgba(57,211,187,.2);border-radius:8px;padding:11px;margin-bottom:10px">'+
       '<div style="font-size:12px;color:var(--text);margin-bottom:4px">'+((m.spots||[]).length)+' '+(((m.spots||[]).length===1)?'пятно':'пятен/блоков')+' · план '+fmtD((m.spots||[]).reduce(function(s,sp){return s+(sp.constructions||[]).reduce(function(a,c){return a+(c.volume||0);},0);},0))+' м³</div>'+
@@ -16883,6 +16881,8 @@ window.editObjMeta=function(idx){
   
   document.getElementById('bom').addEventListener('click',function(){
     m.customer=g('om-cust')||'';
+    var _fp=parseFloat(g('om-fundpct'));
+    if(_fp>0){ m.consultFundPct=_fp/100; } else { delete m.consultFundPct; }
     m.rates={};
     document.querySelectorAll('.obj-rate').forEach(function(inp){
       var c=inp.getAttribute('data-constr');
@@ -18234,7 +18234,7 @@ function showAnalyticsAI(a){
   if(/критич|тревож|опасн|кризис|разрыв|срочн|угроз|остановк|неплатёж|дефицит/.test(vtext)){
     level='danger'; accent='var(--red)'; vIcon='\u{1F6A8}'; vlabel='КРИТИЧНО';
   } else if(/внимани|риск|следить|осторож|снижен|падени|отстава/.test(vtext)){
-    level='warn'; accent='var(--orange)'; vIcon='\u26A0\uFE0F'; vlabel='ВНИМАНИЕ';
+    level='warn'; accent='var(--orange)'; vIcon='⚠️'; vlabel='ВНИМАНИЕ';
   }
 
   // ===== ВЕРДИКТ — крупная карточка с цветной полосой слева =====
@@ -22516,16 +22516,61 @@ window.developmentNAV=function(){ try{ return stats().nav; }catch(e){ return 0; 
   function consultPct(obj){ try{ var mm=S_().objMeta&&S_().objMeta[obj]; if(mm&&+mm.consultFundPct>0) return +mm.consultFundPct; }catch(e){} return CONSULT_FUND_PCT; }
   function consultWeight(p){ if(p&&p.weight!=null&&p.weight!=='') return +p.weight||0; var r=(p&&p.role)||''; return /руковод/i.test(r)?2:1; }
   function consultPeers(obj){ return (S_().staff||[]).filter(function(x){ return x&&!x.archived&&x.type==='консультант'&&x.obj===obj; }); }
+  // Пятна консультанта — только назначенные вручную (у каждого свои, в т.ч. у руководителя).
+  function consultSpotsEff(p){ return Array.isArray(p.spots)?p.spots:[]; }
   function objPaidRev(obj){ try{ if(typeof lifecycleSummary==='function') return lifecycleSummary(obj).paidRev||0; }catch(e){} return 0; }
   function consultFund(obj){ return Math.round(objPaidRev(obj)*consultPct(obj)); }
-  function consultShare(p){ var obj=p.obj||''; if(!obj) return 0; var peers=consultPeers(obj); var sw=0; peers.forEach(function(x){ sw+=consultWeight(x); }); if(sw<=0) return 0; return Math.round(consultFund(obj)*consultWeight(p)/sw); }
+  function consultShare(p){ return consultStageRev(p,'paid'); }
   function consultMonths(p){ if(!p.hireDate) return 1; var s=_pd(p.hireDate), n=new Date(); var mo=(n.getFullYear()-s.getFullYear())*12+(n.getMonth()-s.getMonth())+1; if(p.fireDate){ var f=_pd(p.fireDate); var m2=(f.getFullYear()-s.getFullYear())*12+(f.getMonth()-s.getMonth())+1; if(m2<mo)mo=m2; } return Math.max(1,mo); }
   function consultMinTotal(p){ return (+p.minSalary||0)*consultMonths(p); }
   function consultEntitled(p){ return Math.max(consultMinTotal(p), consultShare(p)); }
   function consultAccrued(p){ var a=0; (p.ledger||[]).forEach(function(m){ if(m.kind==='acc')a+=(+m.amount||0); }); return a; }
   function consultToAccrue(p){ if(objPaidRev(p.obj||'')<=0) return 0; return Math.max(0, consultEntitled(p)-consultAccrued(p)); }
   function objTotalRev(obj){ try{ if(typeof lifecycleSummary==='function') return lifecycleSummary(obj).totalRev||0; }catch(e){} return 0; }
-  function consultForecast(p){ var obj=p.obj||''; if(!obj) return 0; var peers=consultPeers(obj); var sw=0; peers.forEach(function(x){sw+=consultWeight(x);}); if(sw<=0) return 0; return Math.round(objTotalRev(obj)*consultPct(obj)*consultWeight(p)/sw); }
+  function objAcceptedRev(obj){ try{ if(typeof lifecycleSummary==='function') return lifecycleSummary(obj).acceptedRev||0; }catch(e){} return 0; }
+  // Выручка по конкретному пятну, по стадиям (выполнено/подписано/оплачено)
+  function spotStageRev(obj, spotId){
+    var meta=(S_().objMeta||{})[obj]||{}; var sp=(meta.spots||[]).find(function(x){return x.id===spotId;}); var nm=sp?sp.name:'';
+    var t=0,a=0,pd=0;
+    (S_().entries||[]).forEach(function(e){
+      if(!e||e.type!=='vol') return; if(obj&&e.obj!==obj) return;
+      if(e.spotId!==spotId&&e.spot!==spotId&&(!nm||e.zone!==nm)) return;
+      var rev=(typeof volRevenue==='function')?volRevenue(e):0; if(rev<=0) return;
+      t+=rev; if(e.accepted)a+=rev; pd+=Math.min(rev,e.paidAmount||0);
+    });
+    return {id:spotId,name:nm||spotId,total:t,accepted:a,paid:pd};
+  }
+  // Доля консультанта на стадии. Если есть пятна — сумма по его пятнам (делёж по весу среди контролёров пятна); иначе — по объекту целиком.
+  function consultStageRev(p, key){
+    var obj=p.obj||''; if(!obj) return 0; var pct=consultPct(obj);
+    var spots=consultSpotsEff(p);
+    if(spots.length){
+      var sum=0;
+      spots.forEach(function(sid){
+        var sr=spotStageRev(obj,sid); var rev=sr[key]||0; if(rev<=0) return;
+        var ctrl=consultPeers(obj).filter(function(x){return consultSpotsEff(x).indexOf(sid)>=0;});
+        var sw=0; ctrl.forEach(function(x){sw+=consultWeight(x);}); if(sw<=0) return;
+        sum+=rev*pct*consultWeight(p)/sw;
+      });
+      return Math.round(sum);
+    }
+    var peers=consultPeers(obj); var sw=0; peers.forEach(function(x){sw+=consultWeight(x);}); if(sw<=0) return 0;
+    var orev=key==='total'?objTotalRev(obj):key==='accepted'?objAcceptedRev(obj):objPaidRev(obj);
+    return Math.round(orev*pct*consultWeight(p)/sw);
+  }
+  // Разбивка бонуса консультанта по его пятнам
+  function consultSpotBreakdown(p){
+    var obj=p.obj||''; var pct=consultPct(obj); var out=[];
+    consultSpotsEff(p).forEach(function(sid){
+      var sr=spotStageRev(obj,sid);
+      var ctrl=consultPeers(obj).filter(function(x){return consultSpotsEff(x).indexOf(sid)>=0;});
+      var sw=0; ctrl.forEach(function(x){sw+=consultWeight(x);}); var f=sw>0?consultWeight(p)/sw:0;
+      out.push({name:sr.name, total:Math.round(sr.total*pct*f), accepted:Math.round(sr.accepted*pct*f), paid:Math.round(sr.paid*pct*f)});
+    });
+    return out;
+  }
+  function consultForecast(p){ return consultStageRev(p,'total'); }
+  function consultSigned(p){ return consultStageRev(p,'accepted'); }
   function consultLiveBlock(p, forCab){
     if(!(+p.minSalary>0) && !p.obj) return '';
     var obj=p.obj||'';
@@ -22533,27 +22578,41 @@ window.developmentNAV=function(){ try{ return stats().nav; }catch(e){ return 0; 
     var peers=consultPeers(obj); var sw=0; peers.forEach(function(x){sw+=consultWeight(x);}); var w=consultWeight(p);
     var months=consultMonths(p), minTot=consultMinTotal(p), entitled=consultEntitled(p), accrued=consultAccrued(p), toAcc=Math.max(0,entitled-accrued);
     if(forCab){
-      // Кабинет консультанта — без выручки заказчика и процента фонда
-      var fc=consultForecast(p);
-      return '<div style="border:1px solid var(--brd);border-radius:15px;padding:14px;margin-bottom:12px;background:linear-gradient(135deg,rgba(126,231,135,.08),transparent)">'
+      // Кабинет консультанта — воронка мотивации (без выручки заказчика и % фонда)
+      var work=consultForecast(p), signed=consultSigned(p), paidShare=consultShare(p);
+      var mx=Math.max(work,1);
+      function fnl(icon,label,val,col){ var pc=Math.round(val/mx*100); return '<div style="margin:7px 0">'
+        +'<div style="display:flex;justify-content:space-between;font-size:12.5px"><span style="color:var(--mut)">'+icon+' '+label+'</span><b style="color:'+col+'">≈ '+fmtm(val)+' ₸</b></div>'
+        +'<div style="height:7px;background:var(--bg);border-radius:5px;margin-top:4px;overflow:hidden"><div style="height:100%;width:'+pc+'%;background:'+col+'"></div></div></div>'; }
+      var bd=consultSpotBreakdown(p);
+      var bdHTML = bd.length ? ('<div style="border-top:1px solid var(--brd);margin:10px 0 6px"></div>'
+        +'<div style="font-size:11px;font-weight:800;letter-spacing:.5px;color:var(--mut);margin-bottom:6px">ПО ВАШИМ БЛОКАМ</div>'
+        +bd.map(function(s){ return '<div style="display:flex;justify-content:space-between;align-items:center;font-size:12.5px;margin:5px 0"><span style="color:var(--text);font-weight:700">🏗 '+esc(s.name)+'</span><span style="text-align:right"><b style="color:var(--teal)">'+fmtm(s.total)+'</b> <span style="color:var(--mut);font-size:10px">вып</span> · <b style="color:var(--green)">'+fmtm(s.paid)+'</b> <span style="color:var(--mut);font-size:10px">опл</span></span></div>'; }).join('')) : '';
+      return '<div style="border:1px solid var(--brd);border-radius:15px;padding:15px;margin-bottom:12px;background:linear-gradient(135deg,rgba(126,231,135,.08),transparent)">'
         +'<div style="font-size:11.5px;font-weight:800;letter-spacing:.5px;color:var(--green);margin-bottom:4px">ВАШ БОНУС · ОНЛАЙН</div>'
-        +'<div style="font-size:30px;font-weight:900;color:var(--green);margin:2px 0">≈ '+fmtm(fc)+' ₸</div>'
-        +'<div style="font-size:11px;color:var(--mut);margin-bottom:8px">набежало по выполненным работам · растёт с объёмом</div>'
-        +'<div style="font-size:12px;color:var(--text);line-height:1.85">Уже начислено: <b>'+fmtm(accrued)+' ₸</b>'
-        +(toAcc>0?' · доступно сейчас: <b style="color:var(--green)">'+fmtm(toAcc)+' ₸</b>':'')
-        +'<br>Минимум (гарантия): <b style="color:var(--gold)">'+fmtm(minTot)+' ₸</b></div>'
-        +'<div style="font-size:11px;color:var(--mut);margin-top:6px">выплата — по мере оплаты объекта заказчиком</div></div>';
+        +'<div style="font-size:30px;font-weight:900;color:var(--green);margin:2px 0 2px">≈ '+fmtm(work)+' ₸</div>'
+        +'<div style="font-size:11px;color:var(--mut);margin-bottom:10px">набежало по выполненным работам</div>'
+        +fnl('🔨','Выполнено',work,'var(--teal)')
+        +fnl('📑','Подписано КС-2',signed,'var(--gold)')
+        +fnl('💰','Оплачено · доступно',paidShare,'var(--green)')
+        +bdHTML
+        +'<div style="border-top:1px solid var(--brd);margin:10px 0 8px"></div>'
+        +'<div style="font-size:12.5px;color:var(--text)">Минимум (гарантия): <b style="color:var(--gold)">'+fmtm(minTot)+' ₸</b></div>'
+        +(toAcc>0?'<div style="font-size:12.5px;color:var(--text);margin-top:2px">К начислению сейчас: <b style="color:var(--green)">'+fmtm(toAcc)+' ₸</b></div>':'')
+        +'<div style="font-size:11px;color:var(--mut);margin-top:8px;line-height:1.5">Чем больше построим → подпишем КС-2 → получим оплату, тем больше ваш бонус.</div></div>';
     }
     var winTag = share>=minTot ? '<span style="font-size:11px;color:var(--green);font-weight:700">по выполнению</span>' : '<span style="font-size:11px;color:var(--gold);font-weight:700">по минимуму</span>';
     return '<div style="border:1px solid var(--brd);border-radius:15px;padding:14px;margin-bottom:12px;background:linear-gradient(135deg,rgba(126,231,135,.08),transparent)">'
-      +'<div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:11.5px;font-weight:800;letter-spacing:.5px;color:var(--green)">КОНСУЛЬТАНТ · от оплат заказчика</span>'+winTag+'</div>'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><span style="font-size:11.5px;font-weight:800;letter-spacing:.5px;color:var(--green)">КОНСУЛЬТАНТ · от оплат заказчика</span>'+winTag+'</div>'
       +'<div style="font-size:29px;font-weight:900;color:var(--green);margin:6px 0 2px">'+fmtm(toAcc)+' ₸ <span style="font-size:12px;color:var(--mut);font-weight:600">доступно к начислению</span></div>'
       +'<div style="font-size:11px;color:'+(paid>0?'var(--mut)':'var(--gold)')+';margin-bottom:8px">'+(paid>0?'платится только после оплаты заказчика':'заказчик ещё не оплатил — начислять нечего')+'</div>'
       +'<div style="font-size:12px;color:var(--text);line-height:1.85">Заказчик оплатил: <b>'+fmtm(paid)+' ₸</b> → фонд '+Math.round(consultPct(obj)*100)+'%: <b style="color:var(--green)">'+fmtm(fund)+' ₸</b><br>'
       +'Твоя доля (вес ×'+w+' из '+sw+'): <b style="color:var(--green)">'+fmtm(share)+' ₸</b><br>'
       +'Минимум (за '+months+' мес): <b style="color:var(--gold)">'+fmtm(minTot)+' ₸</b><br>'
       +'Положено итого: <b>'+fmtm(entitled)+' ₸</b> · уже начислено: '+fmtm(accrued)+' ₸<br>'
-      +'Прогноз по выполнению (потенциал): ≈ <b>'+fmtm(consultForecast(p))+' ₸</b></div></div>';
+      +'Стадии бонуса: выполнено ≈ <b style="color:var(--teal)">'+fmtm(consultForecast(p))+'</b> → подписано ≈ <b style="color:var(--gold)">'+fmtm(consultSigned(p))+'</b> → оплачено ≈ <b style="color:var(--green)">'+fmtm(share)+'</b> ₸'
+      +(consultSpotBreakdown(p).length?('<br><span style="color:var(--mut)">По блокам (вып/опл):</span> '+consultSpotBreakdown(p).map(function(s){return esc(s.name)+' ≈ '+fmtm(s.total)+'/'+fmtm(s.paid);}).join(' · ')):'')
+      +'</div></div>';
   }
   function liveSalaryBlock(p, forCab){
     if(p&&p.type==='консультант') return consultLiveBlock(p, forCab);
@@ -23079,14 +23138,14 @@ window.developmentNAV=function(){ try{ return stats().nav; }catch(e){ return 0; 
     try{ S_(); }catch(e){}
     var p=person(id);
     if(!p) return '<div style="padding:40px 16px;text-align:center;color:var(--mut);font-family:var(--fd,-apple-system,sans-serif)">Кабинет не найден.<br><br><button onclick="if(window.doLogout)doLogout()" style="border:1px solid var(--brd);background:var(--sur);color:var(--mut);font-family:var(--fd);font-weight:700;padding:11px 18px;border-radius:11px;cursor:pointer">Выход</button></div>';
-    if(isForeman(p)) return foremanCabinetHTML(p);
     var b=bal(p);
     var restLbl=b.rest>0?'К выдаче':(b.rest<0?'Выдано вперёд':'Всё рассчитано');
     var restCol=b.rest>0?'var(--gold)':(b.rest<0?'var(--teal)':'var(--mut)');
     var h='<div style="padding:16px 16px 44px;font-family:var(--fd,-apple-system,sans-serif)">';
-    h+='<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">'
+    if(isForeman(p)){ h+=foremanCabHeader(p); h+=foremanWorkBlocks(p); h+='<div style="font-size:12px;font-weight:800;letter-spacing:1px;color:var(--gold);margin:18px 2px 10px">МОЙ ЗАРАБОТОК</div>'; }
+    else { h+='<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">'
       +'<div style="width:50px;height:50px;border-radius:50%;flex:0 0 50px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:21px;background:rgba(255,179,32,.16);color:var(--gold)">'+esc((p.name||'?').charAt(0).toUpperCase())+'</div>'
-      +'<div><div style="font-size:20px;font-weight:800">'+esc(p.name)+'</div><div style="font-size:12px;color:var(--mut)">'+esc(p.role||'')+' · '+(p.type==='консультант'?'консультант':'штат')+'</div></div></div>';
+      +'<div><div style="font-size:20px;font-weight:800">'+esc(p.name)+'</div><div style="font-size:12px;color:var(--mut)">'+esc(p.role||'')+' · '+(p.type==='консультант'?'консультант':'штат')+'</div></div></div>'; }
     h+='<div style="border:1px solid var(--brd);border-radius:16px;padding:16px;margin-bottom:14px;background:linear-gradient(135deg,rgba(255,179,32,.07),transparent)">'
       +'<div style="font-size:12px;color:var(--mut)">'+restLbl+'</div>'
       +'<div style="font-size:34px;font-weight:900;color:'+restCol+';letter-spacing:-.5px;margin:3px 0 12px">'+(b.rest>=0?'':'−')+fmtm(b.rest)+' ₸</div>'
