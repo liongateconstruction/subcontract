@@ -595,7 +595,6 @@ canvas{display:block;width:100%;border-radius:8px}
     <input class="linp" type="password" id="lpass" placeholder="······"/>
     <div class="lerr" id="lerr"></div>
     <button class="lbtn" id="btn-login">ВОЙТИ</button>
-    <button class="lvbtn" id="btn-view">Только просмотр</button>
   </div>
 </div>
 <div id="rpt">
@@ -18991,7 +18990,7 @@ function showLeakAI(a){
 
 document.addEventListener('DOMContentLoaded',function(){
 document.getElementById('btn-login').addEventListener('click',tryLogin);
-document.getElementById('btn-view').addEventListener('click',viewOnly);
+var _btnView=document.getElementById('btn-view'); if(_btnView)_btnView.addEventListener('click',viewOnly);
 document.getElementById('lpass').addEventListener('keydown',function(e){if(e.key==='Enter')tryLogin();});
 document.getElementById('btn-out').addEventListener('click',doLogout);
 // Переключатель языка
@@ -22457,8 +22456,8 @@ window.developmentNAV=function(){ try{ return stats().nav; }catch(e){ return 0; 
   /* ---------- стартовые карточки (один раз) ---------- */
   function staffSeed(){
     var S=window.S; if(!S) return;
-    if(S._staffSeed1) return;
     if(!Array.isArray(S.staff)) S.staff=[];
+    if(S._staffSeed1) return;
     var obj=(S.objects&&S.objects[0])||'';
     var cust=''; try{ cust=(S.objMeta&&S.objMeta[obj])?(S.objMeta[obj].customer||''):''; }catch(e){}
     var n=0;
@@ -22522,8 +22521,23 @@ window.developmentNAV=function(){ try{ return stats().nav; }catch(e){ return 0; 
   function consultFund(obj){ return Math.round(objPaidRev(obj)*consultPct(obj)); }
   function consultShare(p){ return consultStageRev(p,'paid'); }
   function consultMonths(p){ if(!p.hireDate) return 1; var s=_pd(p.hireDate), n=new Date(); var mo=(n.getFullYear()-s.getFullYear())*12+(n.getMonth()-s.getMonth())+1; if(p.fireDate){ var f=_pd(p.fireDate); var m2=(f.getFullYear()-s.getFullYear())*12+(f.getMonth()-s.getMonth())+1; if(m2<mo)mo=m2; } return Math.max(1,mo); }
-  function consultMinTotal(p){ return (+p.minSalary||0)*consultMonths(p); }
-  function consultEntitled(p){ return Math.max(consultMinTotal(p), consultShare(p)); }
+  function consultMinTotal(p){
+    var rate=+p.minSalary||0; if(rate<=0) return 0;
+    if(!p.hireDate) return rate; // без даты приёма — один месяц как ориентир
+    var start=_pd(p.hireDate); var now=new Date(); var end=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+    if(p.fireDate){ var f=_pd(p.fireDate); if(f<end)end=f; } if(end<start) return 0;
+    var total=0, cur=new Date(start.getFullYear(),start.getMonth(),1);
+    while(cur<=end){ var y=cur.getFullYear(),m=cur.getMonth()+1,mS=new Date(y,m-1,1),mE=new Date(y,m,0);
+      var sS=start>mS?start:mS, sE=end<mE?end:mE;
+      if(sE>=sS){ var w=wdBetween(sS,sE),wm=wdInMonth(y,m); if(wm>0)total+=Math.round(rate*w/wm); }
+      cur.setMonth(cur.getMonth()+1); }
+    return total;
+  }
+  function consultMinDays(p){ // отработано рабочих дней с приёма (для подписи)
+    if(!p.hireDate) return 0; var start=_pd(p.hireDate); var now=new Date(); var end=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+    if(p.fireDate){ var f=_pd(p.fireDate); if(f<end)end=f; } return wdBetween(start,end);
+  }
+  function consultEntitled(p){ return consultShare(p); }
   function consultAccrued(p){ var a=0; (p.ledger||[]).forEach(function(m){ if(m.kind==='acc')a+=(+m.amount||0); }); return a; }
   function consultToAccrue(p){ if(objPaidRev(p.obj||'')<=0) return 0; return Math.max(0, consultEntitled(p)-consultAccrued(p)); }
   function objTotalRev(obj){ try{ if(typeof lifecycleSummary==='function') return lifecycleSummary(obj).totalRev||0; }catch(e){} return 0; }
@@ -22572,11 +22586,11 @@ window.developmentNAV=function(){ try{ return stats().nav; }catch(e){ return 0; 
   function consultForecast(p){ return consultStageRev(p,'total'); }
   function consultSigned(p){ return consultStageRev(p,'accepted'); }
   function consultLiveBlock(p, forCab){
-    if(!(+p.minSalary>0) && !p.obj) return '';
+    if(!p.obj) return '';
     var obj=p.obj||'';
     var paid=objPaidRev(obj), fund=consultFund(obj), share=consultShare(p);
     var peers=consultPeers(obj); var sw=0; peers.forEach(function(x){sw+=consultWeight(x);}); var w=consultWeight(p);
-    var months=consultMonths(p), minTot=consultMinTotal(p), entitled=consultEntitled(p), accrued=consultAccrued(p), toAcc=Math.max(0,entitled-accrued);
+    var accrued=consultAccrued(p), toAcc=Math.max(0,share-accrued);
     if(forCab){
       // Кабинет консультанта — воронка мотивации (без выручки заказчика и % фонда)
       var work=consultForecast(p), signed=consultSigned(p), paidShare=consultShare(p);
@@ -22597,19 +22611,17 @@ window.developmentNAV=function(){ try{ return stats().nav; }catch(e){ return 0; 
         +fnl('💰','Оплачено · доступно',paidShare,'var(--green)')
         +bdHTML
         +'<div style="border-top:1px solid var(--brd);margin:10px 0 8px"></div>'
-        +'<div style="font-size:12.5px;color:var(--text)">Минимум (гарантия): <b style="color:var(--gold)">'+fmtm(minTot)+' ₸</b></div>'
-        +(toAcc>0?'<div style="font-size:12.5px;color:var(--text);margin-top:2px">К начислению сейчас: <b style="color:var(--green)">'+fmtm(toAcc)+' ₸</b></div>':'')
+        +(toAcc>0?'<div style="font-size:12.5px;color:var(--text)">К начислению сейчас: <b style="color:var(--green)">'+fmtm(toAcc)+' ₸</b></div>':'')
         +'<div style="font-size:11px;color:var(--mut);margin-top:8px;line-height:1.5">Чем больше построим → подпишем КС-2 → получим оплату, тем больше ваш бонус.</div></div>';
     }
-    var winTag = share>=minTot ? '<span style="font-size:11px;color:var(--green);font-weight:700">по выполнению</span>' : '<span style="font-size:11px;color:var(--gold);font-weight:700">по минимуму</span>';
+    var winTag = '<span style="font-size:11px;color:var(--green);font-weight:700">от оплат</span>';
     return '<div style="border:1px solid var(--brd);border-radius:15px;padding:14px;margin-bottom:12px;background:linear-gradient(135deg,rgba(126,231,135,.08),transparent)">'
       +'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><span style="font-size:11.5px;font-weight:800;letter-spacing:.5px;color:var(--green)">КОНСУЛЬТАНТ · от оплат заказчика</span>'+winTag+'</div>'
       +'<div style="font-size:29px;font-weight:900;color:var(--green);margin:6px 0 2px">'+fmtm(toAcc)+' ₸ <span style="font-size:12px;color:var(--mut);font-weight:600">доступно к начислению</span></div>'
       +'<div style="font-size:11px;color:'+(paid>0?'var(--mut)':'var(--gold)')+';margin-bottom:8px">'+(paid>0?'платится только после оплаты заказчика':'заказчик ещё не оплатил — начислять нечего')+'</div>'
       +'<div style="font-size:12px;color:var(--text);line-height:1.85">Заказчик оплатил: <b>'+fmtm(paid)+' ₸</b> → фонд '+Math.round(consultPct(obj)*100)+'%: <b style="color:var(--green)">'+fmtm(fund)+' ₸</b><br>'
       +'Твоя доля (вес ×'+w+' из '+sw+'): <b style="color:var(--green)">'+fmtm(share)+' ₸</b><br>'
-      +'Минимум (за '+months+' мес): <b style="color:var(--gold)">'+fmtm(minTot)+' ₸</b><br>'
-      +'Положено итого: <b>'+fmtm(entitled)+' ₸</b> · уже начислено: '+fmtm(accrued)+' ₸<br>'
+      +'Положено к выплате: <b>'+fmtm(share)+' ₸</b> · уже начислено: '+fmtm(accrued)+' ₸<br>'
       +'Стадии бонуса: выполнено ≈ <b style="color:var(--teal)">'+fmtm(consultForecast(p))+'</b> → подписано ≈ <b style="color:var(--gold)">'+fmtm(consultSigned(p))+'</b> → оплачено ≈ <b style="color:var(--green)">'+fmtm(share)+'</b> ₸'
       +(consultSpotBreakdown(p).length?('<br><span style="color:var(--mut)">По блокам (вып/опл):</span> '+consultSpotBreakdown(p).map(function(s){return esc(s.name)+' ≈ '+fmtm(s.total)+'/'+fmtm(s.paid);}).join(' · ')):'')
       +'</div></div>';
@@ -22846,7 +22858,6 @@ window.developmentNAV=function(){ try{ return stats().nav; }catch(e){ return 0; 
     h+=fg('Ставка, ₸','<input id="st-rate" type="number" inputmode="numeric" style="'+fi+'" value="'+(p&&p.rate!=null?p.rate:'')+'"/>');
     h+='</div>';
     h+='<div id="st-minoklwrap" style="'+(type==='консультант'?'':'display:none')+'">';
-    h+=fg('Минимальный оклад консультанта, ₸','<input id="st-minokl" type="number" inputmode="numeric" style="'+fi+'" value="'+(p&&p.minSalary!=null?p.minSalary:'')+'" placeholder="гарантированный минимум"/>');
     h+=fg('Вес в фонде (руковод. ×2, остальные ×1)','<input id="st-weight" type="number" step="any" inputmode="numeric" style="'+fi+'" value="'+(p&&p.weight!=null&&p.weight!==''?p.weight:'')+'" placeholder="по умолчанию по роли"/>');
     h+='</div>';
     // привязка
@@ -22875,11 +22886,10 @@ window.developmentNAV=function(){ try{ return stats().nav; }catch(e){ return 0; 
     h+='<div onclick="staffNav(\'detail\')" style="font-size:13px;color:var(--mut);margin:-2px 0 12px;cursor:pointer">‹ '+esc(p.name)+'</div>';
     h+='<div style="font-size:16px;font-weight:800;margin-bottom:14px">'+titles[k]+'</div>';
     if(k==='okbon'){
-      var _paid=objPaidRev(p.obj||''), _fund=consultFund(p.obj||''), _share=consultShare(p), _minTot=consultMinTotal(p), _ent=consultEntitled(p), _acc=consultAccrued(p), _toAcc=consultToAccrue(p);
+      var _paid=objPaidRev(p.obj||''), _fund=consultFund(p.obj||''), _share=consultShare(p), _acc=consultAccrued(p), _toAcc=consultToAccrue(p);
       h+='<div style="background:linear-gradient(135deg,rgba(126,231,135,.06),transparent);border:1px solid var(--brd);border-radius:12px;padding:12px;margin-bottom:13px;font-size:12px;color:var(--text);line-height:1.85">'
         +'Заказчик оплатил: <b>'+fmtm(_paid)+' ₸</b> → фонд '+Math.round(consultPct(p.obj||'')*100)+'%: <b style="color:var(--green)">'+fmtm(_fund)+' ₸</b><br>'
-        +'Твоя доля: <b style="color:var(--green)">'+fmtm(_share)+' ₸</b> · минимум: <b style="color:var(--gold)">'+fmtm(_minTot)+' ₸</b><br>'
-        +'Положено итого: <b>'+fmtm(_ent)+' ₸</b> · уже начислено: '+fmtm(_acc)+' ₸</div>';
+        +'Твоя доля (оплачено): <b style="color:var(--green)">'+fmtm(_share)+' ₸</b> · уже начислено: '+fmtm(_acc)+' ₸</div>';
       h+=fg('К начислению, ₸ (доступно после оплаты заказчика)','<input id="stm-amount" type="number" inputmode="numeric" style="'+fi+'" value="'+(_toAcc||'')+'"/>');
     } else {
       h+=fg('Сумма, ₸','<input id="stm-amount" type="number" inputmode="numeric" style="'+fi+'"/>');
@@ -23024,7 +23034,7 @@ window.developmentNAV=function(){ try{ return stats().nav; }catch(e){ return 0; 
       if(dup){ alert('Пароль кабинета должен быть уникальным — он уже используется у другого сотрудника. Также он не должен совпадать с паролем владельца/учётчицы.'); return; }
     }
     var _wv=gvv('st-weight');
-    var obj_={ name:name, type:type, role:role, payMethod:pm, rate:(+gvv('st-rate')||0), minSalary:(+gvv('st-minokl')||0), weight:(_wv===''?'':(+_wv||0)), obj:obj, customer:objCustomer(obj), spots:spots, phone:(gvv('st-phone')||'').trim(), hireDate:gvv('st-hire')||'', fireDate:gvv('st-fire')||'', note:(gvv('st-note')||'').trim(), cabinetPass:cabp };
+    var obj_={ name:name, type:type, role:role, payMethod:pm, rate:(+gvv('st-rate')||0), minSalary:0, weight:(_wv===''?'':(+_wv||0)), obj:obj, customer:objCustomer(obj), spots:spots, phone:(gvv('st-phone')||'').trim(), hireDate:gvv('st-hire')||'', fireDate:gvv('st-fire')||'', note:(gvv('st-note')||'').trim(), cabinetPass:cabp };
     var st=S_().staff;
     if(ST.form&&ST.form.id){ var p=person(ST.form.id); if(p){ Object.keys(obj_).forEach(function(k){p[k]=obj_[k];}); } ST.pid=ST.form.id; }
     else { obj_.id='st'+Date.now(); obj_.archived=false; obj_.ledger=[]; st.push(obj_); ST.pid=obj_.id; }
