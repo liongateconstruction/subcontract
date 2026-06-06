@@ -3175,7 +3175,30 @@ function fmtShort(n){n=Math.abs(Math.round(n||0));if(n>=1000000)return (n/100000
 function fmtS(n){var v=Math.round(n||0);return (v<0?'−':'')+new Intl.NumberFormat('ru').format(Math.abs(v));}
 function fmtD(n){return new Intl.NumberFormat('ru',{maximumFractionDigits:2}).format(n||0);}
 function pCol(name){var i=PARTNERS.indexOf(name);return i>=0?PC[i]:'#8b949e';}
-function bName(id){var b=S.brigades.find(function(x){return x.id===id;});return b?b.name:'';}
+function bName(id){var b=S.brigades.find(function(x){return x.id===id;});if(b)return b.name;var p=(S.staff||[]).find(function(x){return x&&x.id===id;});return p?p.name:'';}
+function brigStaffOpts(cur){
+  function eh(s){return (typeof escapeHtml==='function')?escapeHtml(s):String(s||'');}
+  var brigs=(S.brigades||[]).map(function(b){return '<option value="'+b.id+'"'+(cur===b.id?' selected':'')+'>'+eh(b.name)+'</option>';}).join('');
+  var st=(S.staff||[]).filter(function(p){return p&&!p.archived;});
+  var emp=st.filter(function(p){return p.type!=='консультант';}).map(function(p){return '<option value="'+p.id+'"'+(cur===p.id?' selected':'')+'>'+eh(p.name)+(p.role?' ('+eh(p.role)+')':'')+'</option>';}).join('');
+  var con=st.filter(function(p){return p.type==='консультант';}).map(function(p){return '<option value="'+p.id+'"'+(cur===p.id?' selected':'')+'>'+eh(p.name)+(p.role?' ('+eh(p.role)+')':'')+'</option>';}).join('');
+  var h='<optgroup label="Бригады">'+brigs+'</optgroup>';
+  if(emp) h+='<optgroup label="Сотрудники">'+emp+'</optgroup>';
+  if(con) h+='<optgroup label="Консультанты">'+con+'</optgroup>';
+  return h;
+}
+function syncStaffPay(e){
+  if(!e) return;
+  (S.staff||[]).forEach(function(p){ if(Array.isArray(p.ledger)){ p.ledger=p.ledger.filter(function(m){return !(m&&m.fromExpense!=null && m.fromExpense==e.id);}); } });
+  var sp=e.brigade?(S.staff||[]).find(function(p){return p&&p.id===e.brigade;}):null;
+  if(e.type==='expense' && sp){
+    e.staffPay=e.brigade;
+    if(!Array.isArray(sp.ledger))sp.ledger=[];
+    sp.ledger.push({id:'mexp'+e.id, ts:Date.now(), kind:'pay', amount:(+e.amount||0), date:e.date, note:'Аванс/выплата (из расходов)'+(e.note?': '+e.note:''), fromExpense:e.id});
+  } else {
+    delete e.staffPay;
+  }
+}
 function uniqVals(field){var s={};S.entries.forEach(function(e){if(e.type==='vol'&&e[field])s[e[field]]=1;});return Object.keys(s).sort();}
 function hint(txt){return '<div style="font-size:12px;color:var(--mut);margin-top:5px;line-height:1.45">'+txt+'</div>';}
 function selWithCustom(id,opts,cur,addLabel){
@@ -8986,7 +9009,7 @@ function openEntryCard(id){
     (e.type==='expense'&&e.paySource)?{lbl:'Источник',val:(e.paySource==='cash'?'Из кассы':e.paySource==='own'?'Со своих':'Из подотчётных')}:null,
     e.cat?{lbl:'Категория',val:e.cat}:null,
     e.obj?{lbl:'Объект',val:e.obj.split(',')[0]}:null,
-    brig?{lbl:'Бригада',val:brig.name}:null,
+    e.brigade?{lbl:'Кому (бригада/сотрудник)',val:bName(e.brigade)||e.brigade}:null,
     e.note?{lbl:'Примечание',val:e.note}:null,
     e.source==='telegram'?{lbl:'Источник',val:'📱 Telegram',c:'var(--blue)'}:null,
     e.struct?{lbl:'Конструкция',val:e.struct}:null,
@@ -9098,7 +9121,7 @@ function openEditEntry(id){
   var poWho=PARTNERS.map(function(p){return '<option'+(curWho===p?' selected':'')+'>'+p+'</option>';}).join('');
   var poTo=PARTNERS.map(function(p){return '<option'+(curTo===p?' selected':'')+'>'+p+'</option>';}).join('');
   var co=EXP_CATS.map(function(c){return '<option'+(e.cat===c?' selected':'')+'>'+c+'</option>';}).join('');
-  var bo=S.brigades.map(function(b){return '<option value="'+b.id+'"'+(e.brigade===b.id?' selected':'')+'>'+b.name+'</option>';}).join('');
+  var bo=brigStaffOpts(e.brigade);
   var curSource=e.paySource||'advance';
   // Список 5 новых типов для смены
   var typeOpts='';
@@ -9134,7 +9157,7 @@ function openEditEntry(id){
     // Категория — для expense
     '<div class="fg" id="ee-cat-wrap" style="display:'+(e.type==='expense'?'block':'none')+'"><label class="fl">Категория</label><select class="fi" id="ee-cat"><option value="">— нет —</option>'+co+'</select></div>'+
     // Бригада — для expense (если аванс)
-    '<div class="fg" id="ee-brig-wrap" style="display:'+(e.type==='expense'?'block':'none')+'"><label class="fl">Бригада (если аванс)</label><select class="fi" id="ee-brig"><option value="">— не относится к бригаде —</option>'+bo+'</select></div>'+
+    '<div class="fg" id="ee-brig-wrap" style="display:'+(e.type==='expense'?'block':'none')+'"><label class="fl">Кому: бригада / сотрудник / консультант</label><select class="fi" id="ee-brig"><option value="">— не относится —</option>'+bo+'</select></div>'+
     '<div class="fg"><label class="fl">Объект</label><select class="fi" id="ee-obj">'+oo+'</select></div>'+
     '<div class="fg"><label class="fl">Примечание</label><input class="fi" id="ee-note" type="text" value="'+(e.note||'').replace(/"/g,'&quot;')+'"/></div>'+
     '<button class="fsave" id="ee-save">СОХРАНИТЬ ИЗМЕНЕНИЯ</button>'+
@@ -9206,6 +9229,7 @@ function openEditEntry(id){
     }
     var obj=document.getElementById('ee-obj');if(obj)e.obj=obj.value;
     e.note=document.getElementById('ee-note').value;
+    try{ syncStaffPay(e); }catch(_e){}
     if(!S.history)S.history=[];
     lgRetain('edit', _before);   // сохраняем полную версию «было»
     var histRec={action:'edit',by:role,at:new Date().toISOString(),type:e.type,amount:e.amount};
@@ -15048,7 +15072,7 @@ function buildModal(){
   var poEmpty = '<option value="">— выберите —</option>'+po;
   var co = EXP_CATS.map(function(c){return '<option>'+c+'</option>';}).join('');
   var oo = S.objects.map(function(o){return '<option>'+o+'</option>';}).join('');
-  var bo = S.brigades.map(function(b){return '<option value="'+b.id+'">'+b.name+'</option>';}).join('');
+  var bo = brigStaffOpts('');
   
   // === ВЫБОР ТИПА ОПЕРАЦИИ ===
   var tp=[
@@ -15126,7 +15150,7 @@ function buildModal(){
           '<option value="cash">Из кассы (со счёта)</option>'+
           '</select></div>';
     fl += '<div class="fg"><label class="fl">🏷 Статья расхода</label><select class="fi" id="f-cat">'+co+'</select></div>';
-    fl += '<div class="fg"><label class="fl">👷 Бригада (если аванс)</label><select class="fi" id="f-brig"><option value="">— не относится к бригаде —</option>'+bo+'</select></div>';
+    fl += '<div class="fg"><label class="fl">👷 Кому: бригада / сотрудник / консультант (если аванс)</label><select class="fi" id="f-brig"><option value="">— не относится —</option>'+bo+'</select></div>';
     // Опциональная привязка к пятну (для точной маржи по блокам)
     var spotOptsExp='<option value="">— не привязано к пятну —</option>';
     var firstObjExp = S.objects[0]||'';
@@ -15252,6 +15276,7 @@ function saveEntry(){
     if(pendingFileType) e.fileType = pendingFileType;
   }
   S.entries.push(e);
+  try{ syncStaffPay(e); }catch(_e){}
   if(!S.history)S.history=[];
   S.history.push({action:'add',by:role,at:new Date().toISOString(),type:e.type,amount:e.amount});
   try{if(window.chatPushTelegram)chatPushTelegram(e,(typeof userDisplayName==='function'?userDisplayName(role):''));}catch(_e){}
@@ -15271,6 +15296,8 @@ function delEntry(id){
   var d=S.entries.find(function(e){return e.id==id;});
   if(d) lgRetain('delete', d);   // сохраняем полную запись перед удалением
   S.entries=S.entries.filter(function(e){return e.id!=id;});
+  // снять связанную выплату из лицевого счёта сотрудника/консультанта
+  if(d && d.staffPay){ var _sp=(S.staff||[]).find(function(p){return p&&p.id===d.staffPay;}); if(_sp&&Array.isArray(_sp.ledger)){ _sp.ledger=_sp.ledger.filter(function(m){return m&&m.fromExpense!=d.id;}); } }
   if(!S.history)S.history=[];
   if(d){
     S.history.push({action:'delete',by:role,at:new Date().toISOString(),type:d.type,amount:d.amount});
@@ -22411,7 +22438,7 @@ window.developmentNAV=function(){ try{ return stats().nav; }catch(e){ return 0; 
 <script>
 /* === РАЗДЕЛ «СОТРУДНИКИ» (штатные + консультанты + лицевые счета + привязка к объекту/пятнам). === */
 (function(){
-  function S_(){ if(!window.S) window.S={}; if(!Array.isArray(window.S.staff)) window.S.staff=[]; try{ staffSeed(); }catch(e){} return window.S; }
+  function S_(){ if(!window.S) window.S={}; if(!Array.isArray(window.S.staff)) window.S.staff=[]; try{ staffSeed(); }catch(e){} try{ staffCabPassSeed(); }catch(e){} return window.S; }
   function fmtm(n){ try{ return window.fmt ? window.fmt(n) : Math.round(Math.abs(n||0)).toLocaleString('ru-RU'); }catch(e){ return ''+(n||0); } }
   function fmtd(n){ try{ return (Math.round((+n||0)*10)/10).toLocaleString('ru-RU'); }catch(e){ return ''+(n||0); } }
   function esc(s){ try{ return window.escapeHtml ? window.escapeHtml(s||'') : (''+(s||'')).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }catch(e){ return ''+(s||''); } }
@@ -22446,6 +22473,23 @@ window.developmentNAV=function(){ try{ return stats().nav; }catch(e){ return 0; 
     S._staffSeed1=true;
     try{ if(typeof window.save==='function')window.save(); else if(typeof window.persist==='function')window.persist(); }catch(e){}
   }
+  /* ---------- авто-пароли кабинета (один раз, всем без пароля) ---------- */
+  function staffCabPassSeed(){
+    var S=window.S; if(!S||!Array.isArray(S.staff)||S.staff.length===0) return;
+    if(S._cabPassSeed2) return;
+    var map={'Шерхан':'Sherkhan2026','Разнорабочий':'Rabochiy2026','Жанат':'Zhanat2026','Кожахмет':'Kozhakhmet2026'};
+    function tr(s){ var m={'а':'a','б':'b','в':'v','г':'g','д':'d','е':'e','ё':'e','ж':'zh','з':'z','и':'i','й':'y','к':'k','л':'l','м':'m','н':'n','о':'o','п':'p','р':'r','с':'s','т':'t','у':'u','ф':'f','х':'kh','ц':'ts','ч':'ch','ш':'sh','щ':'sch','ъ':'','ы':'y','ь':'','э':'e','ю':'yu','я':'ya'}; s=String(s||'').toLowerCase(); var r=''; for(var i=0;i<s.length;i++){ var c=m[s[i]]; r+=(c!=null?c:(/[a-z0-9]/.test(s[i])?s[i]:'')); } r=r.replace(/[^a-z0-9]/g,''); return r?(r.charAt(0).toUpperCase()+r.slice(1)):'User'; }
+    var used={}; S.staff.forEach(function(p){ if(p.cabinetPass) used[String(p.cabinetPass)]=1; });
+    var changed=false;
+    S.staff.forEach(function(p){
+      if(!p || p.archived || p.cabinetPass) return;
+      var pw=map[p.name]||(tr(p.name)+'2026');
+      var base=pw, i=2; while(used[pw]){ pw=base+(i++); }
+      p.cabinetPass=pw; used[pw]=1; changed=true;
+    });
+    S._cabPassSeed2=true;
+    if(changed){ try{ if(typeof window.save==='function')window.save(); else if(typeof window.persist==='function')window.persist(); }catch(e){} }
+  }
 
   function wdInMonth(y,m){ var d=new Date(y,m,0).getDate(),c=0; for(var i=1;i<=d;i++){ if(new Date(y,m-1,i).getDay()!==0)c++; } return c; }
   function wdBetween(d1,d2){ if(!d1||!d2||d2<d1) return 0; var c=0,a=new Date(d1.getFullYear(),d1.getMonth(),d1.getDate()),b=new Date(d2.getFullYear(),d2.getMonth(),d2.getDate()); while(a<=b){ if(a.getDay()!==0)c++; a.setDate(a.getDate()+1); } return c; }
@@ -22468,21 +22512,72 @@ window.developmentNAV=function(){ try{ return stats().nav; }catch(e){ return 0; 
     var w=wdBetween(mS,end); if(p.payMethod==='day')return w*(+p.rate);
     var wm=wdInMonth(y,m); return wm>0?Math.round((+p.rate)*w/wm):0; }
   function bal(p){ var a=0,b=0,pay=0,pen=0; (p.ledger||[]).forEach(function(m){ var v=+m.amount||0; if(m.kind==='acc')a+=v; else if(m.kind==='bon')b+=v; else if(m.kind==='pay')pay+=v; else if(m.kind==='pen')pen+=v; }); var auto=autoSalaryToDate(p,new Date()); a+=auto; return {acc:a,bon:b,pay:pay,pen:pen,auto:auto,rest:a+b-pay-pen}; }
-  function liveSalaryBlock(p){
-    if(!isSalaried(p)) return '';
-    var now=new Date(), y=now.getFullYear(), m=now.getMonth()+1;
-    var monthAcc=autoSalaryMonth(p,y,m,now), wm=wdInMonth(y,m);
-    var mS=new Date(y,m-1,1); var sH=_pd(p.hireDate); if(sH>mS)mS=sH;
+  var CONSULT_FUND_PCT=0.02;
+  function consultPct(obj){ try{ var mm=S_().objMeta&&S_().objMeta[obj]; if(mm&&+mm.consultFundPct>0) return +mm.consultFundPct; }catch(e){} return CONSULT_FUND_PCT; }
+  function consultWeight(p){ if(p&&p.weight!=null&&p.weight!=='') return +p.weight||0; var r=(p&&p.role)||''; return /руковод/i.test(r)?2:1; }
+  function consultPeers(obj){ return (S_().staff||[]).filter(function(x){ return x&&!x.archived&&x.type==='консультант'&&x.obj===obj; }); }
+  function objPaidRev(obj){ try{ if(typeof lifecycleSummary==='function') return lifecycleSummary(obj).paidRev||0; }catch(e){} return 0; }
+  function consultFund(obj){ return Math.round(objPaidRev(obj)*consultPct(obj)); }
+  function consultShare(p){ var obj=p.obj||''; if(!obj) return 0; var peers=consultPeers(obj); var sw=0; peers.forEach(function(x){ sw+=consultWeight(x); }); if(sw<=0) return 0; return Math.round(consultFund(obj)*consultWeight(p)/sw); }
+  function consultMonths(p){ if(!p.hireDate) return 1; var s=_pd(p.hireDate), n=new Date(); var mo=(n.getFullYear()-s.getFullYear())*12+(n.getMonth()-s.getMonth())+1; if(p.fireDate){ var f=_pd(p.fireDate); var m2=(f.getFullYear()-s.getFullYear())*12+(f.getMonth()-s.getMonth())+1; if(m2<mo)mo=m2; } return Math.max(1,mo); }
+  function consultMinTotal(p){ return (+p.minSalary||0)*consultMonths(p); }
+  function consultEntitled(p){ return Math.max(consultMinTotal(p), consultShare(p)); }
+  function consultAccrued(p){ var a=0; (p.ledger||[]).forEach(function(m){ if(m.kind==='acc')a+=(+m.amount||0); }); return a; }
+  function consultToAccrue(p){ if(objPaidRev(p.obj||'')<=0) return 0; return Math.max(0, consultEntitled(p)-consultAccrued(p)); }
+  function objTotalRev(obj){ try{ if(typeof lifecycleSummary==='function') return lifecycleSummary(obj).totalRev||0; }catch(e){} return 0; }
+  function consultForecast(p){ var obj=p.obj||''; if(!obj) return 0; var peers=consultPeers(obj); var sw=0; peers.forEach(function(x){sw+=consultWeight(x);}); if(sw<=0) return 0; return Math.round(objTotalRev(obj)*consultPct(obj)*consultWeight(p)/sw); }
+  function consultLiveBlock(p, forCab){
+    if(!(+p.minSalary>0) && !p.obj) return '';
+    var obj=p.obj||'';
+    var paid=objPaidRev(obj), fund=consultFund(obj), share=consultShare(p);
+    var peers=consultPeers(obj); var sw=0; peers.forEach(function(x){sw+=consultWeight(x);}); var w=consultWeight(p);
+    var months=consultMonths(p), minTot=consultMinTotal(p), entitled=consultEntitled(p), accrued=consultAccrued(p), toAcc=Math.max(0,entitled-accrued);
+    if(forCab){
+      // Кабинет консультанта — без выручки заказчика и процента фонда
+      var fc=consultForecast(p);
+      return '<div style="border:1px solid var(--brd);border-radius:15px;padding:14px;margin-bottom:12px;background:linear-gradient(135deg,rgba(126,231,135,.08),transparent)">'
+        +'<div style="font-size:11.5px;font-weight:800;letter-spacing:.5px;color:var(--green);margin-bottom:4px">ВАШ БОНУС · ОНЛАЙН</div>'
+        +'<div style="font-size:30px;font-weight:900;color:var(--green);margin:2px 0">≈ '+fmtm(fc)+' ₸</div>'
+        +'<div style="font-size:11px;color:var(--mut);margin-bottom:8px">набежало по выполненным работам · растёт с объёмом</div>'
+        +'<div style="font-size:12px;color:var(--text);line-height:1.85">Уже начислено: <b>'+fmtm(accrued)+' ₸</b>'
+        +(toAcc>0?' · доступно сейчас: <b style="color:var(--green)">'+fmtm(toAcc)+' ₸</b>':'')
+        +'<br>Минимум (гарантия): <b style="color:var(--gold)">'+fmtm(minTot)+' ₸</b></div>'
+        +'<div style="font-size:11px;color:var(--mut);margin-top:6px">выплата — по мере оплаты объекта заказчиком</div></div>';
+    }
+    var winTag = share>=minTot ? '<span style="font-size:11px;color:var(--green);font-weight:700">по выполнению</span>' : '<span style="font-size:11px;color:var(--gold);font-weight:700">по минимуму</span>';
+    return '<div style="border:1px solid var(--brd);border-radius:15px;padding:14px;margin-bottom:12px;background:linear-gradient(135deg,rgba(126,231,135,.08),transparent)">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:11.5px;font-weight:800;letter-spacing:.5px;color:var(--green)">КОНСУЛЬТАНТ · от оплат заказчика</span>'+winTag+'</div>'
+      +'<div style="font-size:29px;font-weight:900;color:var(--green);margin:6px 0 2px">'+fmtm(toAcc)+' ₸ <span style="font-size:12px;color:var(--mut);font-weight:600">доступно к начислению</span></div>'
+      +'<div style="font-size:11px;color:'+(paid>0?'var(--mut)':'var(--gold)')+';margin-bottom:8px">'+(paid>0?'платится только после оплаты заказчика':'заказчик ещё не оплатил — начислять нечего')+'</div>'
+      +'<div style="font-size:12px;color:var(--text);line-height:1.85">Заказчик оплатил: <b>'+fmtm(paid)+' ₸</b> → фонд '+Math.round(consultPct(obj)*100)+'%: <b style="color:var(--green)">'+fmtm(fund)+' ₸</b><br>'
+      +'Твоя доля (вес ×'+w+' из '+sw+'): <b style="color:var(--green)">'+fmtm(share)+' ₸</b><br>'
+      +'Минимум (за '+months+' мес): <b style="color:var(--gold)">'+fmtm(minTot)+' ₸</b><br>'
+      +'Положено итого: <b>'+fmtm(entitled)+' ₸</b> · уже начислено: '+fmtm(accrued)+' ₸<br>'
+      +'Прогноз по выполнению (потенциал): ≈ <b>'+fmtm(consultForecast(p))+' ₸</b></div></div>';
+  }
+  function liveSalaryBlock(p, forCab){
+    if(p&&p.type==='консультант') return consultLiveBlock(p, forCab);
+    var isCons=false;
+    if(!isSalaried(p) && !isCons) return '';
+    var now=new Date(), y=now.getFullYear(), m=now.getMonth()+1, wm=wdInMonth(y,m);
+    var mS=new Date(y,m-1,1); if(p.hireDate){ var sH=_pd(p.hireDate); if(sH>mS)mS=sH; }
     var today=new Date(y,m-1,now.getDate()); var end=today; if(p.fireDate){ var f=_pd(p.fireDate); if(f<end)end=f; }
     var worked=wdBetween(mS,end);
-    var perDay=p.payMethod==='day'?(+p.rate):Math.round((+p.rate)/wm);
     var fired=p.fireDate&&_pd(p.fireDate)<today;
-    var workToday=!fired && today.getDay()!==0 && _pd(p.hireDate)<=today;
+    var workToday=!fired && today.getDay()!==0 && (!p.hireDate || _pd(p.hireDate)<=today);
+    var monthAcc, perDay, title, rateLine, footer='';
+    {
+      monthAcc=autoSalaryMonth(p,y,m,now);
+      perDay=p.payMethod==='day'?(+p.rate):Math.round((+p.rate)/wm);
+      title='ЗАРПЛАТА';
+      rateLine=p.payMethod==='day'?('ставка '+fmtm(+p.rate)+' ₸/день'):('оклад '+fmtm(+p.rate)+' ₸ ≈ '+fmtm(perDay)+' ₸/день');
+    }
     var tag=workToday?'<span style="font-size:11px;color:var(--green);font-weight:700">сегодня +'+fmtm(perDay)+' ₸</span>':(fired?'<span style="font-size:11px;color:var(--red)">уволен</span>':'<span style="font-size:11px;color:var(--mut)">выходной</span>');
     return '<div style="border:1px solid var(--brd);border-radius:15px;padding:14px;margin-bottom:12px;background:linear-gradient(135deg,rgba(126,231,135,.08),transparent)">'
-      +'<div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:11.5px;font-weight:800;letter-spacing:.5px;color:var(--green)">ЗАРПЛАТА · '+monthName(m).toUpperCase()+' <span style="color:var(--mut);font-weight:600">· онлайн</span></span>'+tag+'</div>'
+      +'<div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:11.5px;font-weight:800;letter-spacing:.5px;color:var(--green)">'+title+' · '+monthName(m).toUpperCase()+' <span style="color:var(--mut);font-weight:600">· онлайн</span></span>'+tag+'</div>'
       +'<div style="font-size:29px;font-weight:900;color:var(--green);margin:6px 0 2px">'+fmtm(monthAcc)+' ₸</div>'
-      +'<div style="font-size:11.5px;color:var(--mut)">начислено на сегодня · '+worked+' из '+wm+' раб. дней · '+(p.payMethod==='day'?('ставка '+fmtm(+p.rate)+' ₸/день'):('оклад '+fmtm(+p.rate)+' ₸ ≈ '+fmtm(perDay)+' ₸/день'))+'</div></div>';
+      +'<div style="font-size:11.5px;color:var(--mut)">набежало на сегодня · '+worked+' из '+wm+' раб. дней · '+rateLine+'</div>'
+      +(footer?'<div style="font-size:10.5px;color:var(--mut);margin-top:4px">'+footer+'</div>':'')+'</div>';
   }
   function person(id){ var f=S_().staff.filter(function(p){return p.id===id;}); return f[0]; }
 
@@ -22596,7 +22691,8 @@ window.developmentNAV=function(){ try{ return stats().nav; }catch(e){ return 0; 
     h+=liveSalaryBlock(p);
     if(ed){
       h+='<div style="display:flex;gap:7px;margin-bottom:6px">'+abtn('+ Выплата','staffMForm(\'pay\')','var(--teal)')+abtn('+ Бонус','staffMForm(\'bon\')','var(--gold)')+'</div>'
-        +'<div style="display:flex;gap:7px;margin-bottom:14px">'+abtn('− Штраф','staffMForm(\'pen\')','var(--red)')+abtn('+ Начислить','staffMForm(\'acc\')','var(--green)')+'</div>';
+        +'<div style="display:flex;gap:7px;margin-bottom:'+(p.type==='консультант'?'6px':'14px')+'">'+abtn('− Штраф','staffMForm(\'pen\')','var(--red)')+abtn('+ Начислить','staffMForm(\'acc\')','var(--green)')+'</div>';
+      if(p.type==='консультант') h+='<button onclick="staffMForm(\'okbon\')" style="width:100%;border:1px solid var(--green);background:rgba(126,231,135,.08);color:var(--green);font-family:var(--fd);font-weight:800;font-size:13.5px;padding:12px;border-radius:11px;cursor:pointer;margin-bottom:14px">💼 Начислить (фонд)</button>';
     }
     // ── Блок прораба: премия по КС-2 ──
     if(isForeman(p)){
@@ -22690,6 +22786,10 @@ window.developmentNAV=function(){ try{ return stats().nav; }catch(e){ return 0; 
     h+='<input type="hidden" id="st-pm" value="'+pm+'"/>';
     h+=fg('Ставка, ₸','<input id="st-rate" type="number" inputmode="numeric" style="'+fi+'" value="'+(p&&p.rate!=null?p.rate:'')+'"/>');
     h+='</div>';
+    h+='<div id="st-minoklwrap" style="'+(type==='консультант'?'':'display:none')+'">';
+    h+=fg('Минимальный оклад консультанта, ₸','<input id="st-minokl" type="number" inputmode="numeric" style="'+fi+'" value="'+(p&&p.minSalary!=null?p.minSalary:'')+'" placeholder="гарантированный минимум"/>');
+    h+=fg('Вес в фонде (руковод. ×2, остальные ×1)','<input id="st-weight" type="number" step="any" inputmode="numeric" style="'+fi+'" value="'+(p&&p.weight!=null&&p.weight!==''?p.weight:'')+'" placeholder="по умолчанию по роли"/>');
+    h+='</div>';
     // привязка
     var objOpts=objs.length?objs.map(function(o){return '<option'+(o===curObj?' selected':'')+'>'+esc(o)+'</option>';}).join(''):'<option value="">— нет объектов —</option>';
     h+=fg('Объект','<select id="st-obj" onchange="staffObjChanged()" style="'+fi+';-webkit-appearance:none">'+objOpts+'</select>');
@@ -22709,15 +22809,24 @@ window.developmentNAV=function(){ try{ return stats().nav; }catch(e){ return 0; 
   function movementForm(){
     var p=person(ST.pid); if(!p) return listView();
     var k=ST.mform.kind;
-    var titles={pay:'Выплата',bon:'Бонус',pen:'Штраф / удержание',acc:'Начисление'};
+    var titles={pay:'Выплата',bon:'Бонус',pen:'Штраф / удержание',acc:'Начисление',okbon:'Начисление консультанту'};
     var fi='width:100%;background:var(--bg,#0d1117);border:1px solid var(--brd);color:var(--text);font-family:var(--fd);font-size:16px;padding:11px;border-radius:10px;box-sizing:border-box';
     function fg(label,inner){ return '<div style="margin-bottom:13px"><label style="display:block;font-size:11.5px;color:var(--mut);margin-bottom:5px">'+label+'</label>'+inner+'</div>'; }
     var h='<div style="font-family:var(--fd,-apple-system,sans-serif)">';
     h+='<div onclick="staffNav(\'detail\')" style="font-size:13px;color:var(--mut);margin:-2px 0 12px;cursor:pointer">‹ '+esc(p.name)+'</div>';
     h+='<div style="font-size:16px;font-weight:800;margin-bottom:14px">'+titles[k]+'</div>';
-    h+=fg('Сумма, ₸','<input id="stm-amount" type="number" inputmode="numeric" style="'+fi+'"/>');
-    if(k==='acc' && isSalaried(p)) h+='<div style="font-size:11px;color:var(--mut);margin:-6px 0 12px;line-height:1.5">Базовая зарплата по дням начисляется автоматически. Эта кнопка — для разовых доплат (не оклад/ставка).</div>';
-    if(k==='bon'||k==='pen'){ var list=(k==='bon'?BON:PEN); h+=fg('Причина','<select id="stm-reason" style="'+fi+';-webkit-appearance:none">'+list.map(function(r){return '<option>'+esc(r)+'</option>';}).join('')+'</select>'); }
+    if(k==='okbon'){
+      var _paid=objPaidRev(p.obj||''), _fund=consultFund(p.obj||''), _share=consultShare(p), _minTot=consultMinTotal(p), _ent=consultEntitled(p), _acc=consultAccrued(p), _toAcc=consultToAccrue(p);
+      h+='<div style="background:linear-gradient(135deg,rgba(126,231,135,.06),transparent);border:1px solid var(--brd);border-radius:12px;padding:12px;margin-bottom:13px;font-size:12px;color:var(--text);line-height:1.85">'
+        +'Заказчик оплатил: <b>'+fmtm(_paid)+' ₸</b> → фонд '+Math.round(consultPct(p.obj||'')*100)+'%: <b style="color:var(--green)">'+fmtm(_fund)+' ₸</b><br>'
+        +'Твоя доля: <b style="color:var(--green)">'+fmtm(_share)+' ₸</b> · минимум: <b style="color:var(--gold)">'+fmtm(_minTot)+' ₸</b><br>'
+        +'Положено итого: <b>'+fmtm(_ent)+' ₸</b> · уже начислено: '+fmtm(_acc)+' ₸</div>';
+      h+=fg('К начислению, ₸ (доступно после оплаты заказчика)','<input id="stm-amount" type="number" inputmode="numeric" style="'+fi+'" value="'+(_toAcc||'')+'"/>');
+    } else {
+      h+=fg('Сумма, ₸','<input id="stm-amount" type="number" inputmode="numeric" style="'+fi+'"/>');
+      if(k==='acc' && isSalaried(p)) h+='<div style="font-size:11px;color:var(--mut);margin:-6px 0 12px;line-height:1.5">Базовая зарплата по дням начисляется автоматически. Эта кнопка — для разовых доплат (не оклад/ставка).</div>';
+      if(k==='bon'||k==='pen'){ var list=(k==='bon'?BON:PEN); h+=fg('Причина','<select id="stm-reason" style="'+fi+';-webkit-appearance:none">'+list.map(function(r){return '<option>'+esc(r)+'</option>';}).join('')+'</select>'); }
+    }
     h+=fg('Дата','<input id="stm-date" type="date" style="'+fi+'" value="'+today()+'"/>');
     h+=fg('Заметка','<input id="stm-note" style="'+fi+'" placeholder="необязательно"/>');
     var col=kindColor(k);
@@ -22783,6 +22892,7 @@ window.developmentNAV=function(){ try{ return stats().nav; }catch(e){ return 0; 
     var mb=document.getElementById('mbody'); if(mb)mb.innerHTML=h;
     var md=document.getElementById('modal'); if(md)md.style.display='flex';
     if(ST.fmform){ try{ window.foremanRecalc(); }catch(e){} }
+    if(ST.mform&&ST.mform.kind==='okbon'){ try{ window.staffOkbonPrev(); }catch(e){} }
     var cb=document.getElementById('staff-close'); if(cb)cb.addEventListener('click',function(){ ST.form=null; ST.mform=null; ST.fmform=null; if(typeof window.closeModal==='function')window.closeModal(); else if(md)md.style.display='none'; if(typeof window.render==='function'){try{window.render();}catch(e){}} });
   };
   window.staffNav=function(v){ ST.form=null; ST.mform=null; ST.fmform=null; ST.view=v; window.openStaff(); };
@@ -22834,7 +22944,7 @@ window.developmentNAV=function(){ try{ return stats().nav; }catch(e){ return 0; 
       p.ledger.push({ id:'m'+(Date.now()+1), ts:Date.now()+1, kind:'pen', amount:cut, date:d, reason:'Гейт', note:rsn }); }
     saveS(); ST.fmform=null; ST.fm=null; ST.view='detail'; window.openStaff();
   };
-  window.staffType=function(t){ var el=document.getElementById('st-type'); if(el)el.value=t; var pw=document.getElementById('st-paywrap'); if(pw)pw.style.display=(t==='консультант'?'none':''); var rs=document.getElementById('st-role'); if(rs)rs.innerHTML=roleOptionsHTML(t,''); var rc=document.getElementById('st-role-custom'); if(rc)rc.style.display='none';
+  window.staffType=function(t){ var el=document.getElementById('st-type'); if(el)el.value=t; var pw=document.getElementById('st-paywrap'); if(pw)pw.style.display=(t==='консультант'?'none':''); var mw=document.getElementById('st-minoklwrap'); if(mw)mw.style.display=(t==='консультант'?'':'none'); var rs=document.getElementById('st-role'); if(rs)rs.innerHTML=roleOptionsHTML(t,''); var rc=document.getElementById('st-role-custom'); if(rc)rc.style.display='none';
     var bs=document.getElementById('st-t-staff'),bc=document.getElementById('st-t-cons'); if(bs&&bc){ var on='var(--gold)',onc='#241a02',off='var(--bg,#0d1117)',offc='var(--mut)'; bs.style.background=t==='штат'?on:off; bs.style.color=t==='штат'?onc:offc; bc.style.background=t==='консультант'?on:off; bc.style.color=t==='консультант'?onc:offc; }
     var _mt=document.getElementById('mtit'); if(_mt)_mt.textContent=(t==='консультант'?'КОНСУЛЬТАНТЫ':'СОТРУДНИКИ'); };
   window.staffPM=function(m){ var el=document.getElementById('st-pm'); if(el)el.value=m; var bo=document.getElementById('st-pm-ok'),bd=document.getElementById('st-pm-day'); if(bo&&bd){ var on='var(--gold)',onc='#241a02',off='var(--bg,#0d1117)',offc='var(--mut)'; bo.style.background=m==='oklad'?on:off; bo.style.color=m==='oklad'?onc:offc; bd.style.background=m==='day'?on:off; bd.style.color=m==='day'?onc:offc; } };
@@ -22854,17 +22964,34 @@ window.developmentNAV=function(){ try{ return stats().nav; }catch(e){ return 0; 
       var dup=S_().staff.some(function(x){ return x && x.id!==selfId && !x.archived && (x.cabinetPass||'')===cabp; });
       if(dup){ alert('Пароль кабинета должен быть уникальным — он уже используется у другого сотрудника. Также он не должен совпадать с паролем владельца/учётчицы.'); return; }
     }
-    var obj_={ name:name, type:type, role:role, payMethod:pm, rate:(+gvv('st-rate')||0), obj:obj, customer:objCustomer(obj), spots:spots, phone:(gvv('st-phone')||'').trim(), hireDate:gvv('st-hire')||'', fireDate:gvv('st-fire')||'', note:(gvv('st-note')||'').trim(), cabinetPass:cabp };
+    var _wv=gvv('st-weight');
+    var obj_={ name:name, type:type, role:role, payMethod:pm, rate:(+gvv('st-rate')||0), minSalary:(+gvv('st-minokl')||0), weight:(_wv===''?'':(+_wv||0)), obj:obj, customer:objCustomer(obj), spots:spots, phone:(gvv('st-phone')||'').trim(), hireDate:gvv('st-hire')||'', fireDate:gvv('st-fire')||'', note:(gvv('st-note')||'').trim(), cabinetPass:cabp };
     var st=S_().staff;
     if(ST.form&&ST.form.id){ var p=person(ST.form.id); if(p){ Object.keys(obj_).forEach(function(k){p[k]=obj_[k];}); } ST.pid=ST.form.id; }
     else { obj_.id='st'+Date.now(); obj_.archived=false; obj_.ledger=[]; st.push(obj_); ST.pid=obj_.id; }
     saveS(); ST.form=null; ST.view='detail'; window.openStaff();
   };
   window.staffArchive=function(id){ if(roo())return; if(!confirm('Перенести сотрудника в архив? (данные сохранятся)'))return; var p=person(id); if(p)p.archived=true; saveS(); ST.view='list'; window.openStaff(); };
+  window.staffOkbonPrev=function(){
+    var okl=+gvv('stm-okl')||0, bon=+gvv('stm-bonus')||0;
+    var el=document.getElementById('stm-okbon-prev'); if(!el)return;
+    var amt=Math.max(okl,bon);
+    if(amt<=0){ el.innerHTML='Введите оклад и бонус — к начислению пойдёт бóльшая сумма.'; return; }
+    var win = bon>okl ? ('зачтён <b style="color:var(--gold)">бонус</b> (больше оклада)') : (bon===okl?'оклад = бонус':'зачтён <b style="color:var(--green)">оклад</b> (бонус меньше)');
+    el.innerHTML='К начислению: <b style="color:var(--text);font-size:15px">'+fmtm(amt)+' ₸</b> — '+win;
+  };
   window.staffAddMovement=function(){ if(roo())return;
     var p=person(ST.pid); if(!p)return;
-    var amt=+gvv('stm-amount')||0; if(amt<=0){ alert('Введите сумму'); return; }
     var k=ST.mform.kind;
+    if(k==='okbon'){
+      var amt2=+gvv('stm-amount')||0;
+      if(amt2<=0){ alert('Нечего начислять — заказчик ещё не оплатил или всё уже начислено.'); return; }
+      var note2=(gvv('stm-note')||'').trim() || 'Консультант: доля фонда (после оплаты заказчика)';
+      var m2={ id:'m'+Date.now(), ts:Date.now(), kind:'acc', amount:amt2, date:gvv('stm-date')||today(), note:note2 };
+      if(!p.ledger)p.ledger=[]; p.ledger.push(m2);
+      saveS(); ST.mform=null; ST.view='detail'; window.openStaff(); return;
+    }
+    var amt=+gvv('stm-amount')||0; if(amt<=0){ alert('Введите сумму'); return; }
     var _days=+gvv('stm-days')||0;
     var _note=(gvv('stm-note')||'').trim();
     if(k==='acc' && _days>0 && !_note) _note='за '+_days+' дн';
@@ -22964,7 +23091,7 @@ window.developmentNAV=function(){ try{ return stats().nav; }catch(e){ return 0; 
       +'<div style="font-size:12px;color:var(--mut)">'+restLbl+'</div>'
       +'<div style="font-size:34px;font-weight:900;color:'+restCol+';letter-spacing:-.5px;margin:3px 0 12px">'+(b.rest>=0?'':'−')+fmtm(b.rest)+' ₸</div>'
       +'<div style="display:flex;gap:6px">'+mini('Начислено',b.acc,'var(--green)')+mini('Бонусы',b.bon,'var(--gold)')+mini('Выплачено',b.pay,'var(--text)')+mini('Удержано',b.pen,'var(--red)')+'</div></div>';
-    h+=liveSalaryBlock(p);
+    h+=liveSalaryBlock(p, true);
     if(isForeman(p)){
       var _n=new Date(), _y=_n.getFullYear(), _m=_n.getMonth()+1;
       var _cel=targetM3(_m), _rab=workMinM3(p), _fct=factM3(p,_y,_m), _rate=ksRate();
