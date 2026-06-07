@@ -12990,15 +12990,16 @@ window.coachMic = function(){
   if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia||typeof MediaRecorder==='undefined'){ if(st)st.textContent='Запись недоступна — надиктуйте через 🎤 на клавиатуре телефона.'; return; }
   navigator.mediaDevices.getUserMedia({audio:true}).then(function(stream){
     var chunks=[]; var mr;
-    try{ mr=new MediaRecorder(stream); }catch(e){ try{ mr=new MediaRecorder(stream,{mimeType:'audio/mp4'}); }catch(e2){ if(st)st.textContent='Запись не поддерживается — используйте 🎤 на клавиатуре.'; stream.getTracks().forEach(function(t){t.stop();}); return; } }
+    var pref=''; try{ if(window.MediaRecorder&&MediaRecorder.isTypeSupported){ if(MediaRecorder.isTypeSupported('audio/mp4'))pref='audio/mp4'; else if(MediaRecorder.isTypeSupported('audio/webm'))pref='audio/webm'; } }catch(e){}
+    try{ mr=pref?new MediaRecorder(stream,{mimeType:pref}):new MediaRecorder(stream); }catch(e){ try{ mr=new MediaRecorder(stream); }catch(e2){ if(st)st.textContent='Запись не поддерживается — используйте 🎤 на клавиатуре.'; stream.getTracks().forEach(function(t){t.stop();}); return; } }
     window._coachMR=mr; window._coachRecording=true;
-    if(btn){ btn.textContent='⏹ Стоп'; btn.style.background='#3a1f1f'; btn.style.color='#ff9b9b'; }
-    if(st)st.textContent='🎙 Запись… говорите на любом языке, потом «Стоп».';
+    if(btn){ btn.textContent='⏹'; btn.style.background='#3a1f1f'; btn.style.color='#ff9b9b'; }
+    if(st)st.textContent='🎙 Запись… говорите на любом языке, потом ⏹.';
     mr.ondataavailable=function(e){ if(e.data&&e.data.size)chunks.push(e.data); };
     mr.onstop=function(){
-      window._coachRecording=false; if(btn){ btn.textContent='🎤 Голос'; btn.style.background='#141925'; btn.style.color='#cdd'; }
+      window._coachRecording=false; if(btn){ btn.textContent='🎤'; btn.style.background='#141925'; btn.style.color='#cdd'; }
       try{ stream.getTracks().forEach(function(t){t.stop();}); }catch(e){}
-      var blob=new Blob(chunks,{type:(mr.mimeType||'audio/mp4')});
+      var blob=new Blob(chunks,{type:(mr.mimeType||pref||'audio/mp4')});
       if(!blob.size){ if(st)st.textContent='Пусто — попробуйте ещё раз.'; return; }
       if(st)st.textContent='Распознаю…';
       var fr=new FileReader();
@@ -13006,9 +13007,15 @@ window.coachMic = function(){
         var base=(typeof AI_WORKER_URL!=='undefined'&&AI_WORKER_URL)?AI_WORKER_URL.replace(/\/$/,''):'';
         var tok=(window.SYNC_TOKEN||(typeof AI_SHARED_TOKEN!=='undefined'?AI_SHARED_TOKEN:'')||'');
         if(!base){ if(st)st.textContent='Облако не настроено.'; return; }
-        fetch(base+'/api/transcribe',{method:'POST',headers:{'Content-Type':'application/json','X-LG-Token':tok},body:JSON.stringify({audio:b64,mime:blob.type})})
+        fetch(base+'/api/transcribe',{method:'POST',headers:{'Content-Type':'application/json','X-LG-Token':tok},body:JSON.stringify({audio:b64,mime:(blob.type||'audio/mp4')})})
           .then(function(r){return r.json();})
-          .then(function(d){ if(d&&d.text){ q.value=(q.value?q.value+' ':'')+d.text; if(st)st.textContent=''; } else if(d&&d.error==='no_stt'){ if(st)st.textContent='Распознавание не настроено на сервере.'; } else { if(st)st.textContent='Не разобрал — попробуйте ещё или наберите текстом.'; } })
+          .then(function(d){
+            if(d&&d.text){ var q2=document.getElementById('fc-q'); if(q2){ q2.value=(q2.value?q2.value+' ':'')+d.text; } if(st)st.textContent=''; }
+            else if(d&&d.error==='no_stt'){ if(st)st.textContent='Распознавание не настроено (нет ключа OpenAI в Cloudflare).'; }
+            else if(d&&d.error){ if(st)st.textContent='Ошибка: '+d.error; }
+            else if(d&&d.ok){ if(st)st.textContent='Тишина/коротко — скажите чуть дольше и чётче.'; }
+            else { if(st)st.textContent='Не разобрал. Если воркер только обновили — задеплойте его в Cloudflare.'; }
+          })
           .catch(function(){ if(st)st.textContent='Ошибка распознавания. Проверьте интернет.'; });
       };
       fr.readAsDataURL(blob);
@@ -13031,31 +13038,34 @@ window.foremanCoach = function(spotName){
   var tok=(window.SYNC_TOKEN||(typeof AI_SHARED_TOKEN!=='undefined'?AI_SHARED_TOKEN:'')||'');
   var E=window.escapeHtml||function(s){return (''+s).replace(/</g,'&lt;');};
   var ov=document.createElement('div'); ov.setAttribute('data-ovr','1');
-  ov.style.cssText='position:fixed;inset:0;background:rgba(8,10,16,.97);z-index:99999;overflow:auto;padding:16px;font-family:var(--fd,-apple-system,sans-serif)';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(8,10,16,.97);z-index:99999;overflow:auto;padding:16px;padding-top:calc(env(safe-area-inset-top,0px) + 26px);padding-bottom:28px;font-family:var(--fd,-apple-system,sans-serif)';
   var chips=['Опалубку распёрло / «пузо»','Бетон не довезли вовремя','Трещина после распалубки','Холодный шов','Арматура не по проекту','Раковины в бетоне'];
   var chipsHTML=chips.map(function(c){return '<button onclick="document.getElementById(\'fc-q\').value=this.textContent;" style="border:1px solid #2a3344;background:#141925;color:#cdd;border-radius:20px;padding:7px 12px;font-size:12px;cursor:pointer;margin:0 6px 6px 0">'+c+'</button>';}).join('');
   var btnSt='border:1px solid #2a3344;background:#141925;color:#cdd;border-radius:10px;padding:9px 13px;font-size:13px;font-weight:700;cursor:pointer';
   ov.innerHTML='<div style="max-width:640px;margin:0 auto"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><div style="font-size:16px;font-weight:800;color:#fff">🧠 Инженер-наставник</div><button onclick="var o=this.closest(\'[data-ovr]\');if(o)o.remove()" style="border:1px solid #2a3344;background:#141925;color:#9aa;border-radius:10px;padding:8px 14px;font-weight:700;cursor:pointer">Закрыть</button></div>'
     +'<div style="font-size:12px;color:#9aa;margin-bottom:8px">Опиши проблему — подскажу, что делать сейчас и почему. Блок: <b style="color:#39d3bb">'+E(spotName||'')+'</b></div>'
     +'<div style="margin-bottom:8px">'+chipsHTML+'</div>'
-    +'<textarea id="fc-q" placeholder="Напр.: при заливке стены 3 этажа опалубку начало распирать, что делать?" style="width:100%;box-sizing:border-box;min-height:80px;background:#0e1320;border:1px solid #2a3344;color:#fff;border-radius:12px;padding:12px;font-size:14px;font-family:inherit"></textarea>'
-    +'<div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap"><button id="fc-mic" onclick="coachMic()" style="'+btnSt+'">🎤 Голос</button><span id="fc-mic-st" style="font-size:11px;color:#9aa"></span></div>'
-    +'<button id="fc-go" style="width:100%;margin-top:10px;border:none;background:var(--gold,#ffb320);color:#1a1205;font-family:var(--fd);font-weight:800;font-size:15px;padding:13px;border-radius:12px;cursor:pointer">Спросить</button>'
-    +'<div id="fc-ans" style="margin-top:16px"></div></div>';
+    +'<div style="display:flex;gap:8px;align-items:flex-end;margin-top:2px">'
+      +'<textarea id="fc-q" placeholder="Опишите проблему или нажмите 🎤" style="flex:1;box-sizing:border-box;min-height:54px;max-height:170px;background:#0e1320;border:1px solid #2a3344;color:#fff;border-radius:14px;padding:12px;font-size:14px;font-family:inherit"></textarea>'
+      +'<button id="fc-mic" onclick="coachMic()" title="Голос" style="flex:0 0 auto;width:48px;height:48px;border-radius:50%;border:1px solid #2a3344;background:#141925;color:#cdd;font-size:20px;cursor:pointer">🎤</button>'
+      +'<button id="fc-go" title="Спросить" style="flex:0 0 auto;width:48px;height:48px;border-radius:50%;border:none;background:var(--gold,#ffb320);color:#1a1205;font-size:20px;font-weight:800;cursor:pointer">➤</button>'
+    +'</div>'
+    +'<div id="fc-mic-st" style="font-size:11px;color:#9aa;margin-top:6px;min-height:14px"></div>'
+    +'<div id="fc-ans" style="margin-top:14px"></div></div>';
   document.body.appendChild(ov);
   document.getElementById('fc-go').onclick=function(){
     try{ if(window._coachMR&&window._coachRecording)window._coachMR.stop(); }catch(e){}
     var q=(document.getElementById('fc-q').value||'').trim(); var ans=document.getElementById('fc-ans');
     if(!q){ ans.innerHTML='<span style="color:#e0a33a">Опиши проблему или нажми 🎤 и продиктуй.</span>'; return; }
     if(!base){ ans.innerHTML='<span style="color:#e0a33a">Облако не настроено.</span>'; return; }
-    var btn=this; btn.disabled=true; btn.textContent='Думаю…';
+    var btn=this; btn.disabled=true; btn.textContent='⋯';
     ans.innerHTML='<div style="color:#9aa;font-size:13px">🧠 Анализирую ситуацию…</div>';
     fetch(base+'/api/coach',{method:'POST',headers:{'Content-Type':'application/json','X-LG-Token':tok},body:JSON.stringify({question:q,spot:spotName||''})})
       .then(function(r){return r.json();})
       .then(function(d){ if(d&&d.error){ ans.innerHTML='<span style="color:#e0a33a">Ошибка: '+E(d.error)+'</span>'; }
         else { ans.innerHTML=window._renderCoach(d&&d.answer, d&&d.raw); }
-        btn.disabled=false; btn.textContent='Спросить ещё'; })
-      .catch(function(){ ans.innerHTML='<span style="color:#e0a33a">Не удалось получить ответ. Проверьте интернет.</span>'; btn.disabled=false; btn.textContent='Спросить'; });
+        btn.disabled=false; btn.textContent='➤'; })
+      .catch(function(){ ans.innerHTML='<span style="color:#e0a33a">Не удалось получить ответ. Проверьте интернет.</span>'; btn.disabled=false; btn.textContent='➤'; });
   };
 };
 // 📷 Просмотр фото прогресса по блоку (из рабочей группы Telegram, через прокси воркера)
@@ -13064,7 +13074,7 @@ window.foremanShowPhotos = function(spotName){
   if(!base){ alert('Облако не настроено'); return; }
   var tok=(window.SYNC_TOKEN||(typeof AI_SHARED_TOKEN!=='undefined'?AI_SHARED_TOKEN:'')||'');
   var ov=document.createElement('div'); ov.setAttribute('data-ovr','1');
-  ov.style.cssText='position:fixed;inset:0;background:rgba(8,10,16,.97);z-index:99999;overflow:auto;padding:16px;font-family:var(--fd,-apple-system,sans-serif)';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(8,10,16,.97);z-index:99999;overflow:auto;padding:16px;padding-top:calc(env(safe-area-inset-top,0px) + 26px);padding-bottom:28px;font-family:var(--fd,-apple-system,sans-serif)';
   ov.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><div style="font-size:16px;font-weight:800;color:#fff">📷 '+(spotName||"Фото").replace(/</g,"&lt;")+'</div><button onclick="var o=this.closest(\'[data-ovr]\');if(o)o.remove()" style="border:1px solid #2a3344;background:#141925;color:#9aa;border-radius:10px;padding:8px 14px;font-weight:700;cursor:pointer">Закрыть</button></div><div id="fph-body" style="color:#9aa;font-size:13px">Загрузка…</div>';
   document.body.appendChild(ov);
   fetch(base+'/api/photos',{headers:{'X-LG-Token':tok}}).then(function(r){return r.json();}).then(function(d){
