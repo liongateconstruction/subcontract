@@ -644,7 +644,7 @@ canvas{display:block;width:100%;border-radius:8px}
   <button class="fab" id="fab" onclick="toggleFab()" title="Добавить запись">+</button>
   <!-- ЧАТ ОТКЛЮЧЁН (используются группы Telegram). Чтобы вернуть — раскомментируйте строку ниже. -->
   <!-- <button class="chatfab" id="chatfab" onclick="if(window.openChat)openChat()" title="Чат команды">💬</button> -->
-  <div id="sync-stamp" style="position:fixed;left:14px;bottom:calc(62px + env(safe-area-inset-bottom));font-size:9px;color:#5a6472;z-index:88;pointer-events:none;font-family:-apple-system,system-ui,sans-serif">v4.8</div>
+  <div id="sync-stamp" style="position:fixed;left:14px;bottom:calc(62px + env(safe-area-inset-bottom));font-size:9px;color:#5a6472;z-index:88;pointer-events:none;font-family:-apple-system,system-ui,sans-serif">v4.9</div>
   <nav>
     <button class="nb active" id="tab-main">
       <span style="font-size:20px;line-height:1">🔥</span>
@@ -2363,6 +2363,63 @@ function lgMergeEntries(localArr, cloudArr, localTrash, cloudTrash, prefer){
 }
 window.lgMergeEntries = lgMergeEntries;
 
+// ============================================================
+// lgMergeStaff — безопасное слияние раздела «Сотрудники» (лицевые счета).
+// • Люди объединяются по id (union): добавленные на любом устройстве не теряются.
+// • Для общих людей: скалярные поля (имя, ставка, пятна, пароль…) — от стороны prefer.
+// • Лицевой счёт (ledger) ВСЕГДА объединяется по id движения — ни одна выплата/
+//   премия/начисление с любого устройства не теряется (деньги важнее всего).
+// • Защита от дублей-«сидов»: при совпадении имя+тип+роль клоны с ПУСТЫМ
+//   лицевым счётом схлопываются (бывает при первом запуске нового устройства).
+// ============================================================
+function lgMergeStaff(localArr, cloudArr, prefer){
+  localArr = Array.isArray(localArr) ? localArr : [];
+  cloudArr = Array.isArray(cloudArr) ? cloudArr : [];
+  function mergeLedger(a, b){
+    a = Array.isArray(a)?a:[]; b = Array.isArray(b)?b:[];
+    var byId={}, noId=[], seen={};
+    [a, b].forEach(function(arr){ arr.forEach(function(m){
+      if(!m) return;
+      if(m.id!=null){ var ex=byId[m.id]; if(!ex || (+m.ts||0) >= (+ex.ts||0)) byId[m.id]=m; }
+      else { var k=JSON.stringify(m); if(!seen[k]){ seen[k]=1; noId.push(m); } }
+    }); });
+    var out=[]; Object.keys(byId).forEach(function(k){ out.push(byId[k]); });
+    out=out.concat(noId);
+    out.sort(function(x,y){ return (+x.ts||0)-(+y.ts||0); });
+    return out;
+  }
+  var first  = (prefer==='cloud') ? localArr : cloudArr;   // проигравший — первым
+  var second = (prefer==='cloud') ? cloudArr : localArr;   // победитель скаляров — вторым
+  var byId={}, noId=[], seenP={};
+  function put(arr){ arr.forEach(function(p){
+    if(!p) return;
+    if(p.id==null){ var k=JSON.stringify(p); if(!seenP[k]){ seenP[k]=1; noId.push(p); } return; }
+    if(byId[p.id]){
+      var prev=byId[p.id], merged={};
+      Object.keys(prev).forEach(function(k){ merged[k]=prev[k]; });
+      Object.keys(p).forEach(function(k){ merged[k]=p[k]; });   // скаляры — от победителя
+      merged.ledger=mergeLedger(prev.ledger, p.ledger);          // деньги — объединяем
+      byId[p.id]=merged;
+    } else { byId[p.id]=p; }
+  }); }
+  put(first); put(second);
+  var arr2=[]; Object.keys(byId).forEach(function(k){ arr2.push(byId[k]); });
+  arr2=arr2.concat(noId);
+  // схлопывание пустых дублей-«сидов» (имя+тип+роль, у кого лицевой счёт пуст)
+  var grp={};
+  arr2.forEach(function(p){ var k=(p.name||'')+'|'+(p.type||'')+'|'+(p.role||''); (grp[k]=grp[k]||[]).push(p); });
+  var keep=[];
+  Object.keys(grp).forEach(function(k){
+    var g=grp[k];
+    if(g.length<2){ keep.push(g[0]); return; }
+    var withMoney=g.filter(function(p){ return (p.ledger||[]).length>0; });
+    if(withMoney.length>0){ withMoney.forEach(function(p){ keep.push(p); }); }
+    else { keep.push(g[0]); }   // все пустые — оставляем один
+  });
+  return keep;
+}
+window.lgMergeStaff = lgMergeStaff;
+
 // Обработка данных из облака (общая для Cloudflare и jsonbin)
 function processCloudData(d, cb){
     if(d&&d.record){
@@ -2457,6 +2514,7 @@ function processCloudData(d, cb){
         if(!cloudIsMuchNewer){
           // НЕ затираем локальные, но ПОДБИРАЕМ записи, добавленные/удалённые на другом устройстве (union по id).
           S.entries=lgMergeEntries(S.entries, r.entries, S.trash, r.trash, 'local');
+          if(r.staff!=null)S.staff=lgMergeStaff(S.staff, r.staff, 'local');   // лицевые счета — union по id, деньги не теряем
           if(r.lockedUntil!=null)S.lockedUntil=r.lockedUntil;   // не теряем замок периода, заданный на другом устройстве
           if(r.trash && Array.isArray(r.trash)){ var _ts={},_tm=[]; (S.trash||[]).concat(r.trash).forEach(function(x){if(!x)return;var k=(x.at||'')+'|'+(x.action||'')+'|'+((x.entry&&x.entry.id)||'');if(!_ts[k]){_ts[k]=1;_tm.push(x);}}); _tm.sort(function(a,b){return (a.at||'').localeCompare(b.at||'');}); S.trash=_tm.slice(-300); }
           if(typeof persist==='function') persist();
@@ -2468,6 +2526,7 @@ function processCloudData(d, cb){
         // Облако новее и записей не меньше — берём его за основу.
         // СЛИЯНИЕ: облако приоритетно при конфликте id, но локально добавленные записи НЕ теряем (union по id).
         S.entries=lgMergeEntries(S.entries, r.entries, S.trash, r.trash, 'cloud');
+        if(r.staff!=null)S.staff=lgMergeStaff(S.staff, r.staff, 'cloud');   // лицевые счета — union по id, деньги не теряем
         if(r.brigades&&r.brigades.length>0)S.brigades=r.brigades;
         if(r.objects&&r.objects.length>0)S.objects=r.objects;
         if(r.history)S.history=r.history;
@@ -2511,6 +2570,7 @@ function processCloudData(d, cb){
           r._schema=2;
         }
         S.entries=r.entries;
+        if(r.staff!=null)S.staff=lgMergeStaff(S.staff, r.staff, 'cloud');   // лицевые счета
         if(r.brigades&&r.brigades.length>0)S.brigades=r.brigades;
         if(r.objects&&r.objects.length>0)S.objects=r.objects;
         if(r.history)S.history=r.history;
@@ -2752,6 +2812,7 @@ function autoSyncOnStart(){
     // Облако новее И записей не меньше — тихо применяем (другое устройство внесло свежее)
     if(remoteTime > localTime + 5000 && remoteCnt >= localCnt){
       if(r.entries) S.entries = r.entries.slice();
+      if(r.staff!=null) S.staff = lgMergeStaff(S.staff, r.staff, 'cloud');   // лицевые счета
       if(r.brigades) S.brigades = r.brigades.slice();
       if(r.objects) S.objects = r.objects.slice();
       if(r.objMeta) S.objMeta = r.objMeta;
@@ -2794,16 +2855,16 @@ function updateSyncStamp(remoteTime){
   var el = document.getElementById('sync-stamp');
   if(!el) return;
   var t = remoteTime || S._modified || 0;
-  var txt = 'v4.8';
+  var txt = 'v4.9';
   if(t){
     var d = new Date(t);
     var now = new Date();
     var sameDay = d.toDateString()===now.toDateString();
     var timeStr = ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);
     if(sameDay){
-      txt = 'v4.8 · ☁️ '+timeStr;
+      txt = 'v4.9 · ☁️ '+timeStr;
     } else {
-      txt = 'v4.8 · ☁️ '+d.getDate()+'.'+('0'+(d.getMonth()+1)).slice(-2)+' '+timeStr;
+      txt = 'v4.9 · ☁️ '+d.getDate()+'.'+('0'+(d.getMonth()+1)).slice(-2)+' '+timeStr;
     }
   }
   el.textContent = txt;
@@ -5242,6 +5303,7 @@ window.forceDownloadCloud = function(){
       if(!r){ alert('В облаке нет данных'); ss('!',true); return; }
       // Применяем НАПРЯМУЮ, минуя защиту processCloudData
       if(r.entries) S.entries = r.entries.slice();
+      if(r.staff!=null) S.staff = lgMergeStaff(S.staff, r.staff, 'cloud');   // лицевые счета — даже при форсе деньги не теряем
       if(r.brigades) S.brigades = r.brigades.slice();
       if(r.objects) S.objects = r.objects.slice();
       if(r.objMeta) S.objMeta = r.objMeta;
