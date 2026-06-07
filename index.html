@@ -13166,6 +13166,44 @@ window.foremanAddIssue=function(obj){
 window.foremanCloseIssue=function(id){ try{ var S=window.S; (S.issues||[]).forEach(function(z){ if(z&&z.id===id){ z.done=true; z.closedTs=Date.now(); } }); if(window.save)window.save(); if(window.render)window.render(); }catch(e){} };
 // ⛑ Явка бригад
 window.setForemanAttendance=function(bid,val){ try{ var S=window.S; if(!S.attendance)S.attendance={}; var z=new Date(); var td=z.getFullYear()+'-'+('0'+(z.getMonth()+1)).slice(-2)+'-'+('0'+z.getDate()).slice(-2); if(!S.attendance[td])S.attendance[td]={}; var n=parseInt(val,10); if(isNaN(n)||n<0){ delete S.attendance[td][bid]; } else { S.attendance[td][bid]=n; } if(window.save)window.save(); if(window.render)window.render(); }catch(e){} };
+// ➕ Прораб вносит заливку: блок / этаж / конструктив / объём / бригада
+window.foremanAddPour=function(){
+  var ctx=window._fmCtx||{spots:[],brigs:[],obj:''};
+  if(!ctx.spots||!ctx.spots.length){ alert('Пятна не закреплены'); return; }
+  var E=window.escapeHtml||function(s){return (''+s).replace(/</g,'&lt;');};
+  var ov=document.createElement('div'); ov.setAttribute('data-ovr','1');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(8,10,16,.97);z-index:99999;overflow:auto;padding:16px;padding-top:calc(env(safe-area-inset-top,0px) + 26px);padding-bottom:28px;font-family:var(--fd,-apple-system,sans-serif)';
+  var inp='width:100%;box-sizing:border-box;background:#0e1320;border:1px solid #2a3344;color:#fff;border-radius:12px;padding:12px;font-size:15px;font-family:inherit;margin-top:4px';
+  var lab='font-size:12px;color:#9aa;font-weight:700';
+  var spotOpts=ctx.spots.map(function(s){return '<option value="'+s.id+'">'+E(s.name)+'</option>';}).join('');
+  var brigOpts='<option value="">— бригада (необязательно) —</option>'+(ctx.brigs||[]).map(function(b){return '<option value="'+b.id+'">'+E(b.name)+'</option>';}).join('');
+  var cOpts=['Стены','Перекрытие','Лестница','Парапет'].map(function(c){return '<option value="'+c+'">'+c+'</option>';}).join('');
+  ov.innerHTML='<div style="max-width:640px;margin:0 auto"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px"><div style="font-size:16px;font-weight:800;color:#fff">➕ Залили сегодня</div><button onclick="var o=this.closest(\'[data-ovr]\');if(o)o.remove()" style="border:1px solid #2a3344;background:#141925;color:#9aa;border-radius:10px;padding:8px 14px;font-weight:700;cursor:pointer">Закрыть</button></div>'
+    +'<div style="margin-bottom:10px"><span style="'+lab+'">Блок</span><select id="fp-spot" style="'+inp+'">'+spotOpts+'</select></div>'
+    +'<div style="margin-bottom:10px"><span style="'+lab+'">Этаж / отметка</span><input id="fp-floor" type="text" style="'+inp+'" placeholder="напр.: 3 этаж"/></div>'
+    +'<div style="margin-bottom:10px"><span style="'+lab+'">Конструктив</span><select id="fp-con" style="'+inp+'">'+cOpts+'</select></div>'
+    +'<div style="margin-bottom:10px"><span style="'+lab+'">Объём, м³</span><input id="fp-vol" type="number" inputmode="decimal" style="'+inp+'" placeholder="напр.: 104"/></div>'
+    +'<div style="margin-bottom:14px"><span style="'+lab+'">Бригада</span><select id="fp-brig" style="'+inp+'">'+brigOpts+'</select></div>'
+    +'<button id="fp-save" style="width:100%;border:none;background:var(--teal,#39d3bb);color:#04201b;font-weight:800;font-size:15px;padding:13px;border-radius:12px;cursor:pointer;font-family:var(--fd)">Сохранить</button>'
+    +'<div id="fp-st" style="font-size:12px;color:#9aa;margin-top:10px"></div></div>';
+  document.body.appendChild(ov);
+  function v(id){var e=document.getElementById(id);return e?(''+e.value).trim():'';}
+  document.getElementById('fp-save').onclick=function(){
+    var st=document.getElementById('fp-st');
+    var sid=v('fp-spot'), fl=v('fp-floor'), con=v('fp-con'), vol=parseFloat(v('fp-vol'))||0, bid=v('fp-brig');
+    if(vol<=0){ if(st)st.textContent='Введите объём в м³.'; return; }
+    var CMAP={'Стены':{wt:'Опалубка+бетон стен',st:'Стена'},'Перекрытие':{wt:'Опалубка+бетон перекрытий',st:'Перекрытие'},'Лестница':{wt:'Устройство лестничного марша',st:'Лестница'},'Парапет':{wt:'Устройство парапета',st:'Парапет'}};
+    var cm=CMAP[con]||CMAP['Стены'];
+    var sp=(ctx.spots.find(function(x){return x.id===sid;})||{}); var blockName=sp.name||'';
+    var S=window.S; if(!Array.isArray(S.entries))S.entries=[];
+    var note='Внёс прораб'+((cm.wt.indexOf('бетон')<0)?' · залили':'');
+    var e={id:'fm'+Date.now(),date:(window.today?window.today():new Date().toISOString().slice(0,10)),type:'vol',volume:vol,unit:'м³',wtype:cm.wt,struct:cm.st,zone:blockName,floor:fl,brigade:bid,obj:ctx.obj,spotId:sid,spot:sid,amount:0,amountPending:true,redo:false,source:'foreman',note:note};
+    S.entries.push(e);
+    if(window.save)window.save();
+    var o=ov; if(o)o.remove();
+    if(window.render)window.render();
+  };
+};
 // 📷 Просмотр фото прогресса по блоку (из рабочей группы Telegram, через прокси воркера)
 window.foremanShowPhotos = function(spotName){
   var base=(typeof AI_WORKER_URL!=='undefined'&&AI_WORKER_URL)?AI_WORKER_URL.replace(/\/$/,''):'';
@@ -22996,7 +23034,10 @@ window.developmentNAV=function(){ try{ return stats().nav; }catch(e){ return 0; 
       +'<div style="font-size:11.5px;color:var(--mut)">'+restLbl+'</div>'
       +'<div style="font-size:30px;font-weight:900;color:'+restCol+';letter-spacing:-.5px;margin:2px 0 11px">'+(b.rest>=0?'':'−')+fmtm(b.rest)+' ₸</div>'
       +'<div style="display:flex;gap:6px">'+mini('Начислено',b.acc,'var(--green)')+mini('Бонусы',b.bon,'var(--gold)')+mini('Выплачено',b.pay,'var(--text)')+mini('Удержано',b.pen,'var(--red)')+'</div></div>';
-    h+=liveSalaryBlock(p);
+    if(p&&p.type==='консультант'){
+      h+=consultLiveBlock(p, true);
+      if(typeof canAdmin==='function'&&canAdmin()) h+=consultLiveBlock(p, false);
+    } else { h+=liveSalaryBlock(p); }
     if(ed){
       h+='<div style="display:flex;gap:7px;margin-bottom:6px">'+abtn('+ Выплата','staffMForm(\'pay\')','var(--teal)')+abtn('+ Бонус','staffMForm(\'bon\')','var(--gold)')+'</div>'
         +'<div style="display:flex;gap:7px;margin-bottom:'+(p.type==='консультант'?'6px':'14px')+'">'+abtn('− Штраф','staffMForm(\'pen\')','var(--red)')+abtn('+ Начислить','staffMForm(\'acc\')','var(--green)')+'</div>';
@@ -23379,6 +23420,7 @@ window.developmentNAV=function(){ try{ return stats().nav; }catch(e){ return 0; 
       +'<div style="flex:1;background:var(--sur);border:1px solid var(--brd);border-radius:13px;padding:12px"><div style="font-size:11px;color:var(--mut)">Сегодня залито</div><div style="font-size:22px;font-weight:900;color:'+(todayV>0?'var(--green)':'var(--mut)')+'">'+fmtd(todayV)+'<span style="font-size:11px;color:var(--mut)"> м³</span></div></div>'
       +'<div style="flex:1;background:var(--sur);border:1px solid var(--brd);border-radius:13px;padding:12px"><div style="font-size:11px;color:var(--mut)">За 7 дней</div><div style="font-size:22px;font-weight:900;color:var(--teal)">'+fmtd(weekV)+'<span style="font-size:11px;color:var(--mut)"> м³</span></div></div></div>';
     h+='<div id="fm-weather" style="background:var(--sur);border:1px solid var(--brd);border-radius:13px;padding:11px 13px;margin-bottom:12px;font-size:12.5px;color:var(--mut)">🌡 Погода: загрузка…</div><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" onload="if(window.loadForemanWeather)loadForemanWeather()" style="display:none" alt=""/>';
+    h+='<button onclick="if(window.foremanAddPour)foremanAddPour()" style="width:100%;border:none;background:var(--teal);color:#04201b;font-family:var(--fd);font-weight:800;font-size:15px;padding:13px;border-radius:12px;cursor:pointer;margin-bottom:10px">➕ Залили сегодня</button>';
     h+='<button onclick="if(window.foremanDailyReport)foremanDailyReport()" style="width:100%;border:1px solid var(--teal);background:rgba(57,211,187,.07);color:var(--teal);font-family:var(--fd);font-weight:800;font-size:14px;padding:12px;border-radius:12px;cursor:pointer;margin-bottom:14px">📋 Отчёт за день</button>';
     h+='<div style="font-size:12px;font-weight:800;letter-spacing:1px;color:var(--gold);margin:8px 2px 10px">МОИ ПЯТНА</div>'+spotCards;
     h+='<div style="font-size:12px;font-weight:800;letter-spacing:1px;color:var(--gold);margin:14px 2px 10px">БРИГАДЫ НА ПЯТНАХ</div>'+brigHTML;
@@ -23426,6 +23468,7 @@ window.developmentNAV=function(){ try{ return stats().nav; }catch(e){ return 0; 
     if(redoV>0) repLines.push('Переделки: '+fmtd(redoPct)+'%');
     if(aPend>0) repLines.push('Ждёт КС-2: '+fmtd(aPend)+' м³');
     window._fmReport=repLines.join('\n');
+    window._fmCtx={obj:(p.obj||''), spots:spots.map(function(id){return {id:id,name:(spMap[id]&&spMap[id].name)||id};}), brigs:Object.keys(brigSet).map(function(bid){var b=brigs.find(function(x){return x.id===bid;});return {id:bid,name:(b?b.name:bid)};})};
     return alertHTML + h;
   }
   function foremanCabinetHTML(p){
