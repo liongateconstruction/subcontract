@@ -13063,7 +13063,8 @@ window.foremanCoach = function(spotName){
     fetch(base+'/api/coach',{method:'POST',headers:{'Content-Type':'application/json','X-LG-Token':tok},body:JSON.stringify({question:q,spot:spotName||''})})
       .then(function(r){return r.json();})
       .then(function(d){ if(d&&d.error){ ans.innerHTML='<span style="color:#e0a33a">Ошибка: '+E(d.error)+'</span>'; }
-        else { ans.innerHTML=window._renderCoach(d&&d.answer, d&&d.raw); }
+        else { var a=d&&d.answer; if(!a&&d&&d.raw){ try{ var mm=(''+d.raw).match(/\{[\s\S]*\}/); if(mm)a=JSON.parse(mm[0]); }catch(e){} }
+          ans.innerHTML=window._renderCoach(a, a?'':(d&&d.raw)); }
         btn.disabled=false; btn.textContent='➤'; })
       .catch(function(){ ans.innerHTML='<span style="color:#e0a33a">Не удалось получить ответ. Проверьте интернет.</span>'; btn.disabled=false; btn.textContent='➤'; });
   };
