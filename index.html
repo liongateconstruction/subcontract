@@ -12858,6 +12858,7 @@ function spotStage(spotId){
 }
 // 🏢 Этажная башня прогресса по пятну (по записям объёма). Защищена try/catch.
 function spotFloorTap(ev,id){ try{ if(ev&&ev.stopPropagation) ev.stopPropagation(); }catch(e){} var el=document.getElementById(id); if(el){ el.style.display=(!el.style.display||el.style.display==='none')?'block':'none'; } }
+function ppTick(el){ try{ var b=el.querySelector('.ppbox'); if(b){ var on=b.textContent.trim()==='☑'; b.textContent=on?'☐':'☑'; b.style.color=on?'var(--mut)':'var(--green)'; el.style.opacity=on?'1':'.6'; } }catch(e){} }
 function spotFloorTower(spot){
   try{
     if(!spot) return '';
@@ -12953,6 +12954,132 @@ function spotFloorTower(spot){
     return h;
   }catch(err){ return ''; }
 }
+// ✅ Чек-лист приёмки перед бетоном с подсказками «как правильно» + ИИ-наставник
+function prePourChecklist(spot){
+  try{
+    if(!spot) return '';
+    var sid='ppc_'+String(spot.id||spot.name||'x').replace(/[^a-zA-Z0-9_]/g,'');
+    var items=[
+      {t:'Арматура: диаметр, шаг, нахлёст, вязка',h:'Сверь с проектом диаметр и шаг стержней. Нахлёст стыков ≥ 40 диаметров (для d12 — ≥ 48 см). Вязка во всех пересечениях по краям и в шахматном порядке в поле — каркас не должен «гулять». Нет ржавчины, масла, краски. <b>Частая ошибка:</b> короткий нахлёст и пропуск вязки — при заливке арматура смещается.'},
+      {t:'Опалубка: геометрия, отметки, вертикальность',h:'Проверь размеры в плане и отметки лазером/нивелиром, вертикаль — уровнем/отвесом (отклонение ≤ 5 мм на 3 м). Стяжки, замки и подкосы затянуты, щиты не разойдутся. <b>Ошибка:</b> слабое раскрепление → распор и «пузо» стены, потом срубать.'},
+      {t:'Закладные, гильзы, проёмы',h:'Все закладные детали, гильзы под трубы/кабель и проёмы установлены строго по проекту и жёстко зафиксированы — не сдвинутся при вибрировании. <b>Ошибка:</b> забыли проём или гильзу → долбить готовый бетон и резать арматуру.'},
+      {t:'Защитный слой (фиксаторы)',h:'Поставь пластиковые фиксаторы/«стульчики» под нужный слой: стены ~20–25 мм, плита ~25–30 мм (по проекту), достаточно часто, чтобы каркас не провисал. <b>Ошибка:</b> арматура легла на опалубку → ржавеет, трескается защитный слой.'},
+      {t:'Опалубка очищена и смазана',h:'Внутри нет мусора, опилок, снега, воды и наледи (продуй/вычисти). Щиты смазаны разделительной смазкой тонким ровным слоем — но <b>не на арматуру</b>. <b>Ошибка:</b> грязь и лёд → раковины, плохое сцепление, грязная поверхность.'},
+      {t:'Подмости, вибраторы, бетон заказан',h:'Подмости и ограждения безопасны, проход свободен. Вибраторы исправны + запасной, хобот/лоток готовы. Бетон нужной марки и подвижности (осадка конуса) заказан, согласованы время, насос и объём с запасом 5–10%. <b>Ошибка:</b> не та марка/мало бетона → холодный шов или простой.'},
+      {t:'Погода и уход за бетоном',h:'Учти температуру: в жару (>25°) — заливать рано утром/вечером, сразу укрывать и проливать 3–7 дней; в холод (<+5°) — противоморозные добавки, подогрев, укрытие. <b>Ошибка:</b> бетон пересох или замёрз в первые сутки → потеря прочности и трещины.'}
+    ];
+    var body=items.map(function(it,ix){ var hid=sid+'_h'+ix;
+      return '<div style="border-bottom:1px solid rgba(61,70,85,.3);padding:8px 0">'
+        +'<div style="display:flex;gap:8px;align-items:flex-start">'
+        +'<span onclick="event.stopPropagation();var on=this.textContent.trim()===\'☑\';this.textContent=on?\'☐\':\'☑\';this.style.color=on?\'var(--mut)\':\'var(--green)\';" style="color:var(--mut);font-size:16px;line-height:1.15;cursor:pointer;flex:0 0 auto">☐</span>'
+        +'<div onclick="spotFloorTap(event,\''+hid+'\')" style="flex:1;cursor:pointer;display:flex;justify-content:space-between;gap:6px"><span style="font-size:12.5px;color:var(--text);line-height:1.4">'+escapeHtml(it.t)+'</span><span style="color:var(--teal);font-size:11px;white-space:nowrap">как? ▾</span></div></div>'
+        +'<div id="'+hid+'" style="display:none;font-size:11.5px;color:var(--mut);line-height:1.55;margin:6px 0 2px 24px;padding:8px 10px;background:var(--sur);border-left:3px solid var(--teal);border-radius:8px">'+it.h+'</div></div>'; }).join('');
+    var h='<div style="margin:-3px 0 11px;background:var(--bg);border:1px solid var(--brd);border-radius:12px;overflow:hidden">';
+    h+='<div onclick="spotFloorTap(event,\''+sid+'\')" style="display:flex;justify-content:space-between;align-items:center;padding:11px 12px;cursor:pointer"><span style="font-size:12px;color:var(--gold);letter-spacing:.5px;font-weight:700">✅ ЧЕК-ЛИСТ ПЕРЕД БЕТОНОМ</span><span style="font-size:10px;color:var(--mut)">тап — открыть</span></div>';
+    h+='<div id="'+sid+'" style="display:none;padding:2px 13px 12px">'+body
+      +'<div style="font-size:10px;color:var(--mut);margin:8px 0 10px">Тап по пункту — подсказка «как правильно». Отметки — для текущей проверки.</div>'
+      +'<button onclick="foremanCoach(\''+String(spot.name||'').replace(/'/g,"")+'\')" style="width:100%;border:1px solid var(--gold);background:rgba(255,179,32,.08);color:var(--gold);font-family:var(--fd);font-weight:800;font-size:13px;padding:11px;border-radius:11px;cursor:pointer">🧠 Спросить инженера-наставника</button></div>';
+    h+='</div>';
+    return h;
+  }catch(e){ return ''; }
+}
+// 🧠 ИИ-наставник по монолиту — решает проблему на месте (красиво, голосом рус/каз)
+window.coachMic = function(){
+  var st=document.getElementById('fc-mic-st'); var btn=document.getElementById('fc-mic'); var q=document.getElementById('fc-q'); if(!q)return;
+  if(window._coachRecording){ try{ window._coachMR && window._coachMR.stop(); }catch(e){} return; }
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia||typeof MediaRecorder==='undefined'){ if(st)st.textContent='Запись недоступна — надиктуйте через 🎤 на клавиатуре телефона.'; return; }
+  navigator.mediaDevices.getUserMedia({audio:true}).then(function(stream){
+    var chunks=[]; var mr;
+    try{ mr=new MediaRecorder(stream); }catch(e){ try{ mr=new MediaRecorder(stream,{mimeType:'audio/mp4'}); }catch(e2){ if(st)st.textContent='Запись не поддерживается — используйте 🎤 на клавиатуре.'; stream.getTracks().forEach(function(t){t.stop();}); return; } }
+    window._coachMR=mr; window._coachRecording=true;
+    if(btn){ btn.textContent='⏹ Стоп'; btn.style.background='#3a1f1f'; btn.style.color='#ff9b9b'; }
+    if(st)st.textContent='🎙 Запись… говорите на любом языке, потом «Стоп».';
+    mr.ondataavailable=function(e){ if(e.data&&e.data.size)chunks.push(e.data); };
+    mr.onstop=function(){
+      window._coachRecording=false; if(btn){ btn.textContent='🎤 Голос'; btn.style.background='#141925'; btn.style.color='#cdd'; }
+      try{ stream.getTracks().forEach(function(t){t.stop();}); }catch(e){}
+      var blob=new Blob(chunks,{type:(mr.mimeType||'audio/mp4')});
+      if(!blob.size){ if(st)st.textContent='Пусто — попробуйте ещё раз.'; return; }
+      if(st)st.textContent='Распознаю…';
+      var fr=new FileReader();
+      fr.onload=function(){ var b64=(''+fr.result).split(',')[1]||'';
+        var base=(typeof AI_WORKER_URL!=='undefined'&&AI_WORKER_URL)?AI_WORKER_URL.replace(/\/$/,''):'';
+        var tok=(window.SYNC_TOKEN||(typeof AI_SHARED_TOKEN!=='undefined'?AI_SHARED_TOKEN:'')||'');
+        if(!base){ if(st)st.textContent='Облако не настроено.'; return; }
+        fetch(base+'/api/transcribe',{method:'POST',headers:{'Content-Type':'application/json','X-LG-Token':tok},body:JSON.stringify({audio:b64,mime:blob.type})})
+          .then(function(r){return r.json();})
+          .then(function(d){ if(d&&d.text){ q.value=(q.value?q.value+' ':'')+d.text; if(st)st.textContent=''; } else if(d&&d.error==='no_stt'){ if(st)st.textContent='Распознавание не настроено на сервере.'; } else { if(st)st.textContent='Не разобрал — попробуйте ещё или наберите текстом.'; } })
+          .catch(function(){ if(st)st.textContent='Ошибка распознавания. Проверьте интернет.'; });
+      };
+      fr.readAsDataURL(blob);
+    };
+    try{ mr.start(); }catch(e){ if(st)st.textContent='Не удалось начать запись.'; window._coachRecording=false; }
+  }).catch(function(){ if(st)st.textContent='Нет доступа к микрофону (разрешите доступ в настройках).'; });
+};
+window._renderCoach = function(a, raw){
+  var E=window.escapeHtml||function(s){return (''+s).replace(/</g,'&lt;');};
+  if(!a){ return raw? E(raw).replace(/\n/g,'<br>') : 'Пустой ответ.'; }
+  var h='';
+  if(a.danger){ h+='<div style="background:rgba(255,107,107,.12);border:1px solid #ff6b6b;border-radius:13px;padding:13px;margin-bottom:13px;color:#ffb3b3;font-size:13.5px;line-height:1.5"><b style="color:#ff6b6b">⚠️ Опасно — останови работы</b><br>'+E(a.danger_note||'Останови работы, уведи людей, позови инженера/руководителя.')+'</div>'; }
+  if(Array.isArray(a.now)&&a.now.length){ h+='<div style="margin-bottom:13px"><div style="font-size:12px;font-weight:800;letter-spacing:.5px;color:var(--gold,#ffb320);margin-bottom:9px">🛠 СДЕЛАЙ СЕЙЧАС</div>'+a.now.map(function(s,i){return '<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:8px"><span style="flex:0 0 23px;height:23px;border-radius:50%;background:var(--gold,#ffb320);color:#1a1205;font-weight:800;font-size:12px;display:flex;align-items:center;justify-content:center">'+(i+1)+'</span><span style="font-size:14px;color:#fff;line-height:1.45">'+E(s)+'</span></div>';}).join('')+'</div>'; }
+  if(a.why){ h+='<div style="background:#141925;border:1px solid #2a3344;border-radius:12px;padding:11px 12px;margin-bottom:10px"><div style="font-size:11px;color:#9aa;font-weight:700;margin-bottom:3px">💡 ПОЧЕМУ</div><div style="font-size:13px;color:#cdd;line-height:1.55">'+E(a.why)+'</div></div>'; }
+  if(a.check_project){ h+='<div style="font-size:12px;color:var(--gold,#ffb320)">📐 Точные цифры сверь с проектом.</div>'; }
+  return h||'Нет рекомендаций.';
+};
+window.foremanCoach = function(spotName){
+  var base=(typeof AI_WORKER_URL!=='undefined'&&AI_WORKER_URL)?AI_WORKER_URL.replace(/\/$/,''):'';
+  var tok=(window.SYNC_TOKEN||(typeof AI_SHARED_TOKEN!=='undefined'?AI_SHARED_TOKEN:'')||'');
+  var E=window.escapeHtml||function(s){return (''+s).replace(/</g,'&lt;');};
+  var ov=document.createElement('div'); ov.setAttribute('data-ovr','1');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(8,10,16,.97);z-index:99999;overflow:auto;padding:16px;font-family:var(--fd,-apple-system,sans-serif)';
+  var chips=['Опалубку распёрло / «пузо»','Бетон не довезли вовремя','Трещина после распалубки','Холодный шов','Арматура не по проекту','Раковины в бетоне'];
+  var chipsHTML=chips.map(function(c){return '<button onclick="document.getElementById(\'fc-q\').value=this.textContent;" style="border:1px solid #2a3344;background:#141925;color:#cdd;border-radius:20px;padding:7px 12px;font-size:12px;cursor:pointer;margin:0 6px 6px 0">'+c+'</button>';}).join('');
+  var btnSt='border:1px solid #2a3344;background:#141925;color:#cdd;border-radius:10px;padding:9px 13px;font-size:13px;font-weight:700;cursor:pointer';
+  ov.innerHTML='<div style="max-width:640px;margin:0 auto"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><div style="font-size:16px;font-weight:800;color:#fff">🧠 Инженер-наставник</div><button onclick="var o=this.closest(\'[data-ovr]\');if(o)o.remove()" style="border:1px solid #2a3344;background:#141925;color:#9aa;border-radius:10px;padding:8px 14px;font-weight:700;cursor:pointer">Закрыть</button></div>'
+    +'<div style="font-size:12px;color:#9aa;margin-bottom:8px">Опиши проблему — подскажу, что делать сейчас и почему. Блок: <b style="color:#39d3bb">'+E(spotName||'')+'</b></div>'
+    +'<div style="margin-bottom:8px">'+chipsHTML+'</div>'
+    +'<textarea id="fc-q" placeholder="Напр.: при заливке стены 3 этажа опалубку начало распирать, что делать?" style="width:100%;box-sizing:border-box;min-height:80px;background:#0e1320;border:1px solid #2a3344;color:#fff;border-radius:12px;padding:12px;font-size:14px;font-family:inherit"></textarea>'
+    +'<div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap"><button id="fc-mic" onclick="coachMic()" style="'+btnSt+'">🎤 Голос</button><span id="fc-mic-st" style="font-size:11px;color:#9aa"></span></div>'
+    +'<button id="fc-go" style="width:100%;margin-top:10px;border:none;background:var(--gold,#ffb320);color:#1a1205;font-family:var(--fd);font-weight:800;font-size:15px;padding:13px;border-radius:12px;cursor:pointer">Спросить</button>'
+    +'<div id="fc-ans" style="margin-top:16px"></div></div>';
+  document.body.appendChild(ov);
+  document.getElementById('fc-go').onclick=function(){
+    try{ if(window._coachMR&&window._coachRecording)window._coachMR.stop(); }catch(e){}
+    var q=(document.getElementById('fc-q').value||'').trim(); var ans=document.getElementById('fc-ans');
+    if(!q){ ans.innerHTML='<span style="color:#e0a33a">Опиши проблему или нажми 🎤 и продиктуй.</span>'; return; }
+    if(!base){ ans.innerHTML='<span style="color:#e0a33a">Облако не настроено.</span>'; return; }
+    var btn=this; btn.disabled=true; btn.textContent='Думаю…';
+    ans.innerHTML='<div style="color:#9aa;font-size:13px">🧠 Анализирую ситуацию…</div>';
+    fetch(base+'/api/coach',{method:'POST',headers:{'Content-Type':'application/json','X-LG-Token':tok},body:JSON.stringify({question:q,spot:spotName||''})})
+      .then(function(r){return r.json();})
+      .then(function(d){ if(d&&d.error){ ans.innerHTML='<span style="color:#e0a33a">Ошибка: '+E(d.error)+'</span>'; }
+        else { ans.innerHTML=window._renderCoach(d&&d.answer, d&&d.raw); }
+        btn.disabled=false; btn.textContent='Спросить ещё'; })
+      .catch(function(){ ans.innerHTML='<span style="color:#e0a33a">Не удалось получить ответ. Проверьте интернет.</span>'; btn.disabled=false; btn.textContent='Спросить'; });
+  };
+};
+// 📷 Просмотр фото прогресса по блоку (из рабочей группы Telegram, через прокси воркера)
+window.foremanShowPhotos = function(spotName){
+  var base=(typeof AI_WORKER_URL!=='undefined'&&AI_WORKER_URL)?AI_WORKER_URL.replace(/\/$/,''):'';
+  if(!base){ alert('Облако не настроено'); return; }
+  var tok=(window.SYNC_TOKEN||(typeof AI_SHARED_TOKEN!=='undefined'?AI_SHARED_TOKEN:'')||'');
+  var ov=document.createElement('div'); ov.setAttribute('data-ovr','1');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(8,10,16,.97);z-index:99999;overflow:auto;padding:16px;font-family:var(--fd,-apple-system,sans-serif)';
+  ov.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><div style="font-size:16px;font-weight:800;color:#fff">📷 '+(spotName||"Фото").replace(/</g,"&lt;")+'</div><button onclick="var o=this.closest(\'[data-ovr]\');if(o)o.remove()" style="border:1px solid #2a3344;background:#141925;color:#9aa;border-radius:10px;padding:8px 14px;font-weight:700;cursor:pointer">Закрыть</button></div><div id="fph-body" style="color:#9aa;font-size:13px">Загрузка…</div>';
+  document.body.appendChild(ov);
+  fetch(base+'/api/photos',{headers:{'X-LG-Token':tok}}).then(function(r){return r.json();}).then(function(d){
+    var all=(d&&d.photos)||[]; var nm=(spotName||'').toLowerCase();
+    var mine=all.filter(function(p){ return (p.blockText&&p.blockText.toLowerCase()===nm) || (p.caption&&nm&&(''+p.caption).toLowerCase().indexOf(nm)>=0); });
+    var body=document.getElementById('fph-body'); if(!body)return;
+    if(!mine.length){ body.innerHTML='<div style="padding:20px 0;line-height:1.6">Фото пока нет.<br><br>Отправьте фото в <b>рабочую группу Telegram</b> с подписью, например:<br><b style="color:#39d3bb">«'+(spotName||"блок 49")+' этаж 3»</b><br>— и оно появится здесь.</div>'; return; }
+    mine.sort(function(a,b){ return (b.floor||0)-(a.floor||0) || (b.ts||0)-(a.ts||0); });
+    var h=''; mine.forEach(function(p){ var u=base+'/api/photo?file_id='+encodeURIComponent(p.file_id);
+      h+='<div style="margin-bottom:14px"><div style="font-size:12px;color:#9aa;margin-bottom:5px">'+(p.floor?('Этаж '+p.floor+' · '):'')+(p.date||'')+(p.by?(' · '+(''+p.by).replace(/</g,"&lt;")):'')+'</div>'
+        +'<a href="'+u+'" target="_blank" rel="noopener"><img src="'+u+'" loading="lazy" style="width:100%;border-radius:12px;border:1px solid #2a3344;display:block"/></a>'
+        +(p.caption?('<div style="font-size:11px;color:#778;margin-top:4px">'+(''+p.caption).replace(/</g,"&lt;")+'</div>'):'')+'</div>'; });
+    body.innerHTML=h;
+  }).catch(function(){ var b=document.getElementById('fph-body'); if(b)b.innerHTML='Не удалось загрузить фото. Проверьте интернет.'; });
+};
 // 💰 Сигнал: залито, но не выставлено по КС-2 (по объекту). Защищено.
 function ks2NotInAct(objName){
   try{
@@ -23114,8 +23241,12 @@ window.developmentNAV=function(){ try{ return stats().nav; }catch(e){ return 0; 
         +'<div style="font-size:11.5px;color:var(--mut);line-height:1.7">залито '+fmtd(done)+' / '+fmtd(tot)+' м³ · осталось <b style="color:var(--text)">'+fmtd(rem)+'</b><br>'
         +(dl?('срок '+(''+sp.deadline).split('-').reverse().join('.')+(over?' <b style="color:var(--red)">просрочен</b>':' · '+daysLeft+' дн')):'без срока')
         +(rem>0&&daysLeft&&daysLeft>0?('<br>нужно <b style="color:var(--text)">'+fmtd(pace)+' м³/день</b> · ~'+crew+' чел'):'')
+        +(rem>0&&pace>0?('<br><span style="color:var(--blue)">на 2 недели: ≈ '+fmtd(Math.min(rem,pace*14))+' м³</span>'):'')
         +(pendKS>0?('<br><span style="color:var(--gold)">ждёт КС-2: '+fmtd(pendKS)+' м³</span>'):'')
         +'</div></div>';
+      try{ if(window.spotFloorTower){ var _tw=window.spotFloorTower(sp); if(_tw) spotCards+='<div style="margin:-3px 0 11px">'+_tw+'</div>'; } }catch(_e){}
+      try{ if(window.prePourChecklist){ var _pp=window.prePourChecklist(sp); if(_pp) spotCards+=_pp; } }catch(_e){}
+      spotCards+='<button onclick="foremanShowPhotos(\''+String(sp.name||'').replace(/'/g,"")+'\')" style="width:100%;border:1px solid var(--brd);background:var(--sur);color:var(--teal);font-family:var(--fd);font-weight:700;font-size:13px;padding:11px;border-radius:11px;cursor:pointer;margin:-3px 0 16px">📷 Фото блока</button>';
     });
     if(!anySpot) spotCards='<div style="font-size:12px;color:var(--mut);padding:4px 2px 12px">пятна не закреплены</div>';
     var brigSet={}; ents.forEach(function(e){ if(e&&e.type==='vol'&&e.brigade){ var s2=e.spotId||e.spot||''; if(spots.indexOf(s2)>=0) brigSet[e.brigade]=true; } });
@@ -23129,8 +23260,20 @@ window.developmentNAV=function(){ try{ return stats().nav; }catch(e){ return 0; 
       +'<div style="display:flex;justify-content:space-between"><span style="font-size:12px;font-weight:800;letter-spacing:.5px;color:var(--teal)">ПЛАН '+monthName(m).toUpperCase()+'</span><span style="font-size:11px;color:var(--mut)">'+daysLeftMonth+' дн</span></div>'
       +'<div style="font-size:30px;font-weight:900;color:var(--teal);margin:6px 0 2px">'+fmtd(remMonth)+'<span style="font-size:13px;color:var(--mut)"> м³ залить</span></div>'
       +'<div style="font-size:12px;color:var(--mut)">факт '+fmtd(fct)+' / целевой '+fmtd(cel)+' м³ · надо '+fmtd(paceMonth)+' м³/день</div></div>';
+    var _td=(function(){var z=new Date();return z.getFullYear()+'-'+('0'+(z.getMonth()+1)).slice(-2)+'-'+('0'+z.getDate()).slice(-2);})();
+    var _wa=(function(){var z=new Date();z.setDate(z.getDate()-6);return z.getFullYear()+'-'+('0'+(z.getMonth()+1)).slice(-2)+'-'+('0'+z.getDate()).slice(-2);})();
+    var todayV=0,weekV=0;
+    ents.forEach(function(e){ if(!e||e.type!=='vol')return; var s2=e.spotId||e.spot||''; if(spots.indexOf(s2)<0)return; var tx=((e.wtype||'')+' '+(e.note||'')).toLowerCase(); if(!/бетон|залит/.test(tx))return; var v=+e.volume||0; if((e.date||'')===_td)todayV+=v; if((e.date||'')>=_wa)weekV+=v; });
+    h+='<div style="display:flex;gap:10px;margin-bottom:14px">'
+      +'<div style="flex:1;background:var(--sur);border:1px solid var(--brd);border-radius:13px;padding:12px"><div style="font-size:11px;color:var(--mut)">Сегодня залито</div><div style="font-size:22px;font-weight:900;color:'+(todayV>0?'var(--green)':'var(--mut)')+'">'+fmtd(todayV)+'<span style="font-size:11px;color:var(--mut)"> м³</span></div></div>'
+      +'<div style="flex:1;background:var(--sur);border:1px solid var(--brd);border-radius:13px;padding:12px"><div style="font-size:11px;color:var(--mut)">За 7 дней</div><div style="font-size:22px;font-weight:900;color:var(--teal)">'+fmtd(weekV)+'<span style="font-size:11px;color:var(--mut)"> м³</span></div></div></div>';
     h+='<div style="font-size:12px;font-weight:800;letter-spacing:1px;color:var(--gold);margin:8px 2px 10px">МОИ ПЯТНА</div>'+spotCards;
     h+='<div style="font-size:12px;font-weight:800;letter-spacing:1px;color:var(--gold);margin:14px 2px 10px">БРИГАДЫ НА ПЯТНАХ</div>'+brigHTML;
+    var recent=ents.filter(function(e){ if(!e||e.type!=='vol')return false; var s2=e.spotId||e.spot||''; if(spots.indexOf(s2)<0)return false; var txt=((e.wtype||'')+' '+(e.note||'')).toLowerCase(); return /бетон|залит/.test(txt) && (+e.volume||0)>0; }).sort(function(a,b){return (''+(b.date||'')).localeCompare(''+(a.date||''));}).slice(0,6);
+    var recHTML='';
+    recent.forEach(function(e){ var sp=spMap[e.spotId||e.spot||'']; var b=brigs.find(function(x){return x.id===e.brigade;}); var bn=b?String(b.name||'').replace(/^Бригада\s*/i,'').trim():'';
+      recHTML+='<div style="display:flex;justify-content:space-between;align-items:baseline;font-size:12px;padding:7px 0;border-bottom:1px solid rgba(61,70,85,.3)"><span style="color:var(--text)">'+(''+(e.date||'')).split('-').reverse().join('.')+' · '+esc((sp&&sp.name)||'')+(e.floor?(' · '+esc(e.floor)):'')+'</span><span style="color:var(--teal);font-weight:700;white-space:nowrap;text-align:right">'+fmtd(+e.volume||0)+' м³'+(bn?'<br><span style="font-size:10px;color:var(--mut);font-weight:600">⛑ '+esc(bn)+'</span>':'')+'</span></div>'; });
+    if(recHTML){ h+='<div style="font-size:12px;font-weight:800;letter-spacing:1px;color:var(--gold);margin:16px 2px 8px">ПОСЛЕДНИЕ ЗАЛИВКИ</div><div style="background:var(--sur);border:1px solid var(--brd);border-radius:13px;padding:2px 13px 6px;margin-bottom:6px">'+recHTML+'</div>'; }
     h+='<div style="font-size:12px;font-weight:800;letter-spacing:1px;color:var(--gold);margin:14px 2px 10px">КАЧЕСТВО</div>';
     h+='<div style="background:var(--sur);border:1px solid '+(gateOk?'var(--brd)':'var(--red)')+';border-radius:13px;padding:12px;margin-bottom:6px"><div style="font-size:13px">Переделки: <b style="color:'+(gateOk?'var(--green)':'var(--red)')+'">'+fmtd(redoPct)+'%</b> <span style="color:var(--mut);font-size:11.5px">('+fmtd(redoV)+' из '+fmtd(totV)+' м³)</span></div><div style="font-size:11.5px;color:var(--mut);margin-top:3px">гейт: переделки &lt; 3% '+(gateOk?'<span style="color:var(--green)">✓ ок</span>':'<span style="color:var(--red)">✗ не пройден</span>')+'</div></div>';
     return h;
