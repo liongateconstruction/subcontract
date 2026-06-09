@@ -644,7 +644,7 @@ canvas{display:block;width:100%;border-radius:8px}
   <button class="fab" id="fab" onclick="toggleFab()" title="Добавить запись">+</button>
   <!-- ЧАТ ОТКЛЮЧЁН (используются группы Telegram). Чтобы вернуть — раскомментируйте строку ниже. -->
   <!-- <button class="chatfab" id="chatfab" onclick="if(window.openChat)openChat()" title="Чат команды">💬</button> -->
-  <div id="sync-stamp" style="position:fixed;left:14px;bottom:calc(62px + env(safe-area-inset-bottom));font-size:9px;color:#5a6472;z-index:88;pointer-events:none;font-family:-apple-system,system-ui,sans-serif">v4.9</div>
+  <div id="sync-stamp" style="position:fixed;left:14px;bottom:calc(62px + env(safe-area-inset-bottom));font-size:9px;color:#5a6472;z-index:88;pointer-events:none;font-family:-apple-system,system-ui,sans-serif">v4.13</div>
   <nav>
     <button class="nb active" id="tab-main">
       <span style="font-size:20px;line-height:1">🔥</span>
@@ -1942,12 +1942,64 @@ window.checkCfWorker = function(){
 };
 
 // Сохранение в Cloudflare
-window.pushToCf = function(){
-  if(!AI_WORKER_URL) return Promise.reject(new Error('No Worker URL'));
-  
+// Объединение по id (накопительные списки без корзины): локальное приоритетно при конфликте,
+// записи из облака, которых нет локально, добавляются. Ничего не теряется.
+function _lgUnionById(localArr, cloudArr){
+  localArr = Array.isArray(localArr) ? localArr : [];
+  cloudArr = Array.isArray(cloudArr) ? cloudArr : [];
+  var byId={}, noId=[], seen={};
+  function put(arr){ arr.forEach(function(x){ if(!x) return;
+    if(x.id!=null){ byId[x.id]=x; }
+    else { var k=JSON.stringify(x); if(!seen[k]){ seen[k]=1; noId.push(x); } }
+  }); }
+  put(cloudArr); put(localArr);   // local перекрывает облако при конфликте id (мои правки приоритетны)
+  var out=[]; Object.keys(byId).forEach(function(k){ out.push(byId[k]); });
+  return out.concat(noId);
+}
+
+// СЛИТЬ ПЕРЕД ВЫГРУЗКОЙ: объединяем облачные данные с локальными (мутируя S), чтобы выгрузка
+// не затёрла чужое. Накопительное (записи/счета/бригады/КС-2/чат/корзина) — union по id ВСЕГДА.
+// План/справочники/настройки: владелец и учётчица их редактируют → оставляем СВОИ; кабинеты и
+// бригадиры их не редактируют → берём облачные (чтобы случайно не откатили чужой план).
+function lgMergeCloudBeforePush(r){
+  if(!r || typeof S==='undefined' || !S) return;
+  try{
+    if(r.entries!=null) S.entries = lgMergeEntries(S.entries, r.entries, S.trash, r.trash, 'local');
+    if(r.staff!=null)   S.staff   = lgMergeStaff(S.staff, r.staff, 'local');
+    if(r.brigadesArchived!=null) S.brigadesArchived = lgMergeBrigades(S.brigadesArchived, r.brigadesArchived, 'local');
+    if(r.brigades!=null) S.brigades = lgMergeBrigades(S.brigades, r.brigades, 'local', S.brigadesArchived, r.brigadesArchived);
+    if(r.ks2acts!=null) S.ks2acts = _lgUnionById(S.ks2acts, r.ks2acts);
+    if(r.ks3acts!=null) S.ks3acts = _lgUnionById(S.ks3acts, r.ks3acts);
+    if(r.chat){ var _seen={},_mg=[]; (S.chat||[]).concat(r.chat).forEach(function(m){ if(m&&m.id&&!_seen[m.id]){ _seen[m.id]=1; _mg.push(m); } }); _mg.sort(function(a,b){ return (a.at||0)-(b.at||0); }); S.chat=_mg.slice(-500); }
+    if(r.trash && Array.isArray(r.trash)){ var _ts={},_tm=[]; (S.trash||[]).concat(r.trash).forEach(function(x){ if(!x)return; var k=(x.at||'')+'|'+(x.action||'')+'|'+((x.entry&&x.entry.id)||''); if(!_ts[k]){ _ts[k]=1; _tm.push(x); } }); _tm.sort(function(a,b){ return (a.at||'').localeCompare(b.at||''); }); S.trash=_tm.slice(-300); }
+    var iAmEditor = (typeof canEdit==='function') && canEdit();
+    if(!iAmEditor){
+      // не редактор справочников → не затираем облачный план/настройки своими
+      if(r.settings) S.settings = r.settings;
+      if(r.objMeta) S.objMeta = r.objMeta;
+      if(r.subgoals) S.subgoals = r.subgoals;
+      if(r.directions) S.directions = r.directions;
+      if(r.roles) S.roles = r.roles;
+      if(r.milestones) S.milestones = r.milestones;
+      if(r.kfu) S.kfu = r.kfu;
+      if(r.objects && r.objects.length) S.objects = r.objects;
+      if(r.workTypes && r.workTypes.length) S.workTypes = r.workTypes;
+      if(r.ks2meta) S.ks2meta = r.ks2meta;
+      if(r.cycles) S.cycles = r.cycles;
+      if(r.goalsDone) S.goalsDone = r.goalsDone;
+      if(r.weeks) S.weeks = r.weeks;
+      if(r.history) S.history = r.history;
+      if(r.lockedUntil!=null) S.lockedUntil = r.lockedUntil;
+    }
+    try{ if(typeof persist==='function') persist(); }catch(e){}
+  }catch(e){ /* при любой ошибке слияния — выгружаем как есть, лучше чем потерять правку */ }
+}
+window.lgMergeCloudBeforePush = lgMergeCloudBeforePush;
+
+function _lgPostSToCf(){
   var payload = JSON.parse(JSON.stringify(S));
   payload._modified = Date.now();
-  
+  S._modified = payload._modified;   // локальная метка = то, что теперь в облаке
   return fetch(AI_WORKER_URL.replace(/\/$/,'') + '/api/data?key=main', {
     method: 'POST',
     headers: {
@@ -1959,6 +2011,20 @@ window.pushToCf = function(){
   }).then(function(r){
     if(!r.ok) throw new Error('HTTP ' + r.status);
     return r.json();
+  });
+}
+
+window.pushToCf = function(){
+  if(!AI_WORKER_URL) return Promise.reject(new Error('No Worker URL'));
+  // Сначала подтянуть облако и слить (не затираем чужое), потом выгрузить.
+  return window.pullFromCf().then(function(r){
+    if(r) lgMergeCloudBeforePush(r);
+    return _lgPostSToCf();
+  }, function(err){
+    // НЕ удалось подтянуть облако → НЕ выгружаем: иначе старые локальные данные могли бы
+    // затереть свежее чужое в облаке. Правка остаётся локально (уже сохранена) и уйдёт
+    // в очередь — pushCloud повторит автоматически каждые 30 сек, когда связь вернётся.
+    return Promise.reject(new Error('pull-before-push failed: ' + ((err && err.message) || 'нет связи с облаком')));
   });
 };
 
@@ -2420,6 +2486,48 @@ function lgMergeStaff(localArr, cloudArr, prefer){
 }
 window.lgMergeStaff = lgMergeStaff;
 
+// ============================================================
+// lgMergeBrigades — безопасное слияние бригад (раньше brigades заменялись целиком,
+// из-за чего новые бригады, не успевшие уйти в облако, терялись).
+// • Бригады объединяются по id (union): созданные на любом устройстве не теряются.
+// • Общие бригады: скалярные поля — от стороны prefer; посещаемость (attendance)
+//   объединяется по дням (ничего не теряем).
+// • Заархивированные (в brigadesArchived с любой стороны) НЕ воскрешаются.
+// Этой же функцией можно объединять и сам список архива (без наборов arch).
+// ============================================================
+function lgMergeBrigades(localArr, cloudArr, prefer, localArch, cloudArch){
+  localArr = Array.isArray(localArr) ? localArr : [];
+  cloudArr = Array.isArray(cloudArr) ? cloudArr : [];
+  var arch = {};
+  [localArch, cloudArch].forEach(function(a){ (Array.isArray(a)?a:[]).forEach(function(b){ if(b&&b.id!=null) arch[b.id]=true; }); });
+  function mergeAtt(a, b){
+    a = (a&&typeof a==='object') ? a : {}; b = (b&&typeof b==='object') ? b : {};
+    var out={}; Object.keys(a).forEach(function(k){ out[k]=a[k]; });
+    Object.keys(b).forEach(function(k){ out[k]=b[k]; });   // победитель перекрывает по дню
+    return out;
+  }
+  var first  = (prefer==='cloud') ? localArr : cloudArr;   // проигравший — первым
+  var second = (prefer==='cloud') ? cloudArr : localArr;   // победитель скаляров — вторым
+  var byId={}, noId=[], seen={};
+  function put(arr){ arr.forEach(function(b){
+    if(!b) return;
+    if(b.id==null){ var k=JSON.stringify(b); if(!seen[k]){ seen[k]=1; noId.push(b); } return; }
+    if(byId[b.id]){
+      var prev=byId[b.id], m={};
+      Object.keys(prev).forEach(function(k){ m[k]=prev[k]; });
+      Object.keys(b).forEach(function(k){ m[k]=b[k]; });   // скаляры — от победителя
+      m.attendance=mergeAtt(prev.attendance, b.attendance);
+      byId[b.id]=m;
+    } else { byId[b.id]=b; }
+  }); }
+  put(first); put(second);
+  var out=[];
+  Object.keys(byId).forEach(function(id){ if(!arch[id]) out.push(byId[id]); });  // архивные не воскрешаем
+  out=out.concat(noId);
+  return out;
+}
+window.lgMergeBrigades = lgMergeBrigades;
+
 // Обработка данных из облака (общая для Cloudflare и jsonbin)
 function processCloudData(d, cb){
     if(d&&d.record){
@@ -2443,7 +2551,7 @@ function processCloudData(d, cb){
       if(preloadedTime > localTime + 60000 && preloadedTime > remoteTime + 60000){
         console.log('[pull] PRELOADED свежее всех → используем встроенные данные');
         S.entries = PRELOADED_DATA.entries.slice();
-        S.brigades = PRELOADED_DATA.brigades.slice();
+        S.brigades = lgMergeBrigades(S.brigades, PRELOADED_DATA.brigades, 'cloud', S.brigadesArchived, null);
         S.objects = PRELOADED_DATA.objects.slice();
         if(PRELOADED_DATA.objMeta) S.objMeta = PRELOADED_DATA.objMeta;
         if(PRELOADED_DATA.kfu) S.kfu = PRELOADED_DATA.kfu;
@@ -2466,7 +2574,7 @@ function processCloudData(d, cb){
         if(PRELOADED_DATA._modified > remoteTime + 60000){
           console.log('[pull] PRELOADED ('+new Date(PRELOADED_DATA._modified).toISOString()+') новее облака — обновляем СПРАВОЧНИКИ (брига, KFU, settings). Entries из облака не трогаем.');
           // Справочники — из PRELOADED (новая версия кода)
-          if(PRELOADED_DATA.brigades) S.brigades = JSON.parse(JSON.stringify(PRELOADED_DATA.brigades));
+          if(PRELOADED_DATA.brigades) S.brigades = lgMergeBrigades(S.brigades, PRELOADED_DATA.brigades, 'cloud', S.brigadesArchived, null);
           if(PRELOADED_DATA.objects) S.objects = PRELOADED_DATA.objects.slice();
           if(PRELOADED_DATA.objMeta) S.objMeta = JSON.parse(JSON.stringify(PRELOADED_DATA.objMeta));
           if(PRELOADED_DATA.kfu) S.kfu = JSON.parse(JSON.stringify(PRELOADED_DATA.kfu));
@@ -2507,10 +2615,14 @@ function processCloudData(d, cb){
       
       // Случай 1: локально есть данные → ПУШИМ В ОБЛАКО (а не забираем оттуда)
       if(localHasData){
-        // Берём облако если оно новее на 60+ сек И записей не меньше (другое устройство внесло свежее)
-        // ">=" вместо ">" — покрывает случай когда число записей то же, но изменены суммы/правки
-        var cloudIsMuchNewer = remoteTime > localTime + 60000 && 
-                               (r.entries||[]).length >= S.entries.length;
+        // Облако новее по времени И в нём ЕСТЬ записи (защита от пустого/стёртого облака).
+        // Раньше дополнительно требовалось, чтобы записей в облаке было НЕ МЕНЬШЕ локальных —
+        // из-за этого телефон со старым слепком (1 июня), где записей больше, НЕ забирал из
+        // облака свежие справочники/настройки/план и показывал старые цифры (записи при этом
+        // сливались). Записи всё равно объединяются по id (union) в обеих ветках — потери
+        // исключены, поэтому счётчик убран: решает только время.
+        var cloudIsMuchNewer = remoteTime > localTime + 60000 &&
+                               (r.entries && r.entries.length > 0);
         if(!cloudIsMuchNewer){
           // НЕ затираем локальные, но ПОДБИРАЕМ записи, добавленные/удалённые на другом устройстве (union по id).
           S.entries=lgMergeEntries(S.entries, r.entries, S.trash, r.trash, 'local');
@@ -2527,7 +2639,8 @@ function processCloudData(d, cb){
         // СЛИЯНИЕ: облако приоритетно при конфликте id, но локально добавленные записи НЕ теряем (union по id).
         S.entries=lgMergeEntries(S.entries, r.entries, S.trash, r.trash, 'cloud');
         if(r.staff!=null)S.staff=lgMergeStaff(S.staff, r.staff, 'cloud');   // лицевые счета — union по id, деньги не теряем
-        if(r.brigades&&r.brigades.length>0)S.brigades=r.brigades;
+        if(r.brigadesArchived!=null)S.brigadesArchived=lgMergeBrigades(S.brigadesArchived, r.brigadesArchived, 'cloud');
+        if(r.brigades!=null)S.brigades=lgMergeBrigades(S.brigades, r.brigades, 'cloud', S.brigadesArchived, r.brigadesArchived);   // бригады — union по id, новые не теряем
         if(r.objects&&r.objects.length>0)S.objects=r.objects;
         if(r.history)S.history=r.history;
         if(r.weeks)S.weeks=r.weeks;
@@ -2571,7 +2684,8 @@ function processCloudData(d, cb){
         }
         S.entries=r.entries;
         if(r.staff!=null)S.staff=lgMergeStaff(S.staff, r.staff, 'cloud');   // лицевые счета
-        if(r.brigades&&r.brigades.length>0)S.brigades=r.brigades;
+        if(r.brigadesArchived!=null)S.brigadesArchived=lgMergeBrigades(S.brigadesArchived, r.brigadesArchived, 'cloud');
+        if(r.brigades!=null)S.brigades=lgMergeBrigades(S.brigades, r.brigades, 'cloud', S.brigadesArchived, r.brigadesArchived);   // бригады — union по id
         if(r.objects&&r.objects.length>0)S.objects=r.objects;
         if(r.history)S.history=r.history;
         if(r.weeks)S.weeks=r.weeks;
@@ -2651,17 +2765,12 @@ function loadLocal(){
     var localTime = local._modified || 0;
     var preloadedTime = PRELOADED_DATA._modified || 0;
     
-    // PRELOADED НОВЕЕ локальных → встроенные данные обновлены, берём их
-    // (это значит мы обновили версию приложения с новыми эталонными данными)
-    if(preloadedTime > localTime + 60000){ // +60 сек запас на округление
-      console.log('[loadLocal] 🔄 PRELOADED новее localStorage ('+new Date(preloadedTime).toLocaleString()+' vs '+new Date(localTime).toLocaleString()+') → обновляем');
-      // Сохраним резервную копию старых локальных данных
-      try { localStorage.setItem('lg_v9_backup_'+Date.now(), s); } catch(e){}
-      _saveSourceLog('preloaded-newer', PRELOADED_DATA);
-      // Сразу запишем PRELOADED в localStorage чтобы не повторять
-      try { localStorage.setItem('lg_v9', JSON.stringify(PRELOADED_DATA)); } catch(e){}
-      return PRELOADED_DATA;
-    }
+    // ВАЖНО: встроенный слепок (PRELOADED) используется ТОЛЬКО для засева пустого/битого
+    // устройства (см. проверки выше). Если в памяти есть валидные данные — НЕ затираем их
+    // слепком по времени: иначе любой телефон, давно не вносивший правок, откатывался к дате
+    // слепка, а свежее тянулось только при удачной авто-синхронизации. Теперь источник правды —
+    // облако, и при старте оно сливается с локальным (autoSyncOnStart, union). Слепок не воюет.
+    void preloadedTime; // оставлено для совместимости логов
     
     // Локальные данные актуальны
     console.log('[loadLocal] ✓ Локальные данные актуальны ('+local.entries.length+' записей, _modified='+new Date(localTime).toLocaleString()+')');
@@ -2809,11 +2918,16 @@ function autoSyncOnStart(){
     var localTime = S._modified || 0;
     var remoteCnt = (r.entries||[]).length;
     var localCnt = (S.entries||[]).length;
-    // Облако новее И записей не меньше — тихо применяем (другое устройство внесло свежее)
-    if(remoteTime > localTime + 5000 && remoteCnt >= localCnt){
-      if(r.entries) S.entries = r.entries.slice();
-      if(r.staff!=null) S.staff = lgMergeStaff(S.staff, r.staff, 'cloud');   // лицевые счета
-      if(r.brigades) S.brigades = r.brigades.slice();
+    // Облако пришло — СЛИВАЕМ записи и лицевые счёта (union по id, ничего не теряем),
+    // чтобы ни одно устройство не отставало независимо от количества записей и таймингов.
+    // Справочники/настройки берём из облака, только если оно новее локального.
+    var cloudNewer = remoteTime > localTime + 5000;
+    var beforeCnt = (S.entries||[]).length;
+    if(r.entries!=null) S.entries = lgMergeEntries(S.entries, r.entries, S.trash, r.trash, 'cloud');
+    if(r.staff!=null)   S.staff   = lgMergeStaff(S.staff, r.staff, 'cloud');   // лицевые счета
+    if(r.brigadesArchived!=null) S.brigadesArchived = lgMergeBrigades(S.brigadesArchived, r.brigadesArchived, 'cloud');
+    if(r.brigades!=null) S.brigades = lgMergeBrigades(S.brigades, r.brigades, 'cloud', S.brigadesArchived, r.brigadesArchived);
+    if(cloudNewer){
       if(r.objects) S.objects = r.objects.slice();
       if(r.objMeta) S.objMeta = r.objMeta;
       if(r.history) S.history = r.history;
@@ -2830,8 +2944,12 @@ function autoSyncOnStart(){
       if(r.ks3acts) S.ks3acts = r.ks3acts;
       if(r.directions) S.directions = r.directions;
       if(r.roles) S.roles = r.roles;
-      if(r.milestones) S.milestones = r.milestones; if(r.trash&&Array.isArray(r.trash)){var _ts={},_tm=[];(S.trash||[]).concat(r.trash).forEach(function(x){if(!x)return;var k=(x.at||'')+'|'+(x.action||'')+'|'+((x.entry&&x.entry.id)||'');if(!_ts[k]){_ts[k]=1;_tm.push(x);}});_tm.sort(function(a,b){return (a.at||'').localeCompare(b.at||'');});S.trash=_tm.slice(-300);}
-      S._modified = remoteTime;
+      if(r.milestones) S.milestones = r.milestones;
+    }
+    if(r.trash&&Array.isArray(r.trash)){var _ts={},_tm=[];(S.trash||[]).concat(r.trash).forEach(function(x){if(!x)return;var k=(x.at||'')+'|'+(x.action||'')+'|'+((x.entry&&x.entry.id)||'');if(!_ts[k]){_ts[k]=1;_tm.push(x);}});_tm.sort(function(a,b){return (a.at||'').localeCompare(b.at||'');});S.trash=_tm.slice(-300);}
+    var changed = cloudNewer || ((S.entries||[]).length !== beforeCnt);
+    if(changed){
+      S._modified = Math.max(remoteTime, localTime);
       try { persist(); } catch(e){}
       if(typeof render==='function') render();
       if(typeof showToast==='function') showToast('☁️ Данные обновлены из облака','success');
@@ -2855,16 +2973,16 @@ function updateSyncStamp(remoteTime){
   var el = document.getElementById('sync-stamp');
   if(!el) return;
   var t = remoteTime || S._modified || 0;
-  var txt = 'v4.9';
+  var txt = 'v4.13';
   if(t){
     var d = new Date(t);
     var now = new Date();
     var sameDay = d.toDateString()===now.toDateString();
     var timeStr = ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);
     if(sameDay){
-      txt = 'v4.9 · ☁️ '+timeStr;
+      txt = 'v4.13 · ☁️ '+timeStr;
     } else {
-      txt = 'v4.9 · ☁️ '+d.getDate()+'.'+('0'+(d.getMonth()+1)).slice(-2)+' '+timeStr;
+      txt = 'v4.13 · ☁️ '+d.getDate()+'.'+('0'+(d.getMonth()+1)).slice(-2)+' '+timeStr;
     }
   }
   el.textContent = txt;
@@ -5304,7 +5422,8 @@ window.forceDownloadCloud = function(){
       // Применяем НАПРЯМУЮ, минуя защиту processCloudData
       if(r.entries) S.entries = r.entries.slice();
       if(r.staff!=null) S.staff = lgMergeStaff(S.staff, r.staff, 'cloud');   // лицевые счета — даже при форсе деньги не теряем
-      if(r.brigades) S.brigades = r.brigades.slice();
+      if(r.brigadesArchived!=null) S.brigadesArchived = lgMergeBrigades(S.brigadesArchived, r.brigadesArchived, 'cloud');
+      if(r.brigades!=null) S.brigades = lgMergeBrigades(S.brigades, r.brigades, 'cloud', S.brigadesArchived, r.brigadesArchived);   // бригады — union, новые не теряем
       if(r.objects) S.objects = r.objects.slice();
       if(r.objMeta) S.objMeta = r.objMeta;
       if(r.history) S.history = r.history;
