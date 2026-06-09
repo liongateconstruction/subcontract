@@ -644,7 +644,7 @@ canvas{display:block;width:100%;border-radius:8px}
   <button class="fab" id="fab" onclick="toggleFab()" title="Добавить запись">+</button>
   <!-- ЧАТ ОТКЛЮЧЁН (используются группы Telegram). Чтобы вернуть — раскомментируйте строку ниже. -->
   <!-- <button class="chatfab" id="chatfab" onclick="if(window.openChat)openChat()" title="Чат команды">💬</button> -->
-  <div id="sync-stamp" style="position:fixed;left:14px;bottom:calc(62px + env(safe-area-inset-bottom));font-size:9px;color:#5a6472;z-index:88;pointer-events:none;font-family:-apple-system,system-ui,sans-serif">v4.13</div>
+  <div id="sync-stamp" style="position:fixed;left:14px;bottom:calc(62px + env(safe-area-inset-bottom));font-size:9px;color:#5a6472;z-index:88;pointer-events:none;font-family:-apple-system,system-ui,sans-serif">v4.14</div>
   <nav>
     <button class="nb active" id="tab-main">
       <span style="font-size:20px;line-height:1">🔥</span>
@@ -1966,8 +1966,7 @@ function lgMergeCloudBeforePush(r){
   try{
     if(r.entries!=null) S.entries = lgMergeEntries(S.entries, r.entries, S.trash, r.trash, 'local');
     if(r.staff!=null)   S.staff   = lgMergeStaff(S.staff, r.staff, 'local');
-    if(r.brigadesArchived!=null) S.brigadesArchived = lgMergeBrigades(S.brigadesArchived, r.brigadesArchived, 'local');
-    if(r.brigades!=null) S.brigades = lgMergeBrigades(S.brigades, r.brigades, 'local', S.brigadesArchived, r.brigadesArchived);
+    if(r.brigades!=null || r.brigadesArchived!=null){ var _bm=lgMergeBrigState(S.brigades, S.brigadesArchived, r.brigades, r.brigadesArchived, 'local'); S.brigades=_bm.active; S.brigadesArchived=_bm.archived; }
     if(r.ks2acts!=null) S.ks2acts = _lgUnionById(S.ks2acts, r.ks2acts);
     if(r.ks3acts!=null) S.ks3acts = _lgUnionById(S.ks3acts, r.ks3acts);
     if(r.chat){ var _seen={},_mg=[]; (S.chat||[]).concat(r.chat).forEach(function(m){ if(m&&m.id&&!_seen[m.id]){ _seen[m.id]=1; _mg.push(m); } }); _mg.sort(function(a,b){ return (a.at||0)-(b.at||0); }); S.chat=_mg.slice(-500); }
@@ -2528,6 +2527,52 @@ function lgMergeBrigades(localArr, cloudArr, prefer, localArch, cloudArch){
 }
 window.lgMergeBrigades = lgMergeBrigades;
 
+// ============================================================
+// lgMergeBrigState — корректное слияние АКТИВНЫХ и АРХИВНЫХ бригад вместе.
+// Раньше архивные просто объединялись по id (union), из-за чего возврат из архива
+// откатывался при следующей синхронизации (в облаке бригада ещё числилась архивной).
+// Теперь архив/актив решается по ПОСЛЕДНЕМУ действию: сравниваем archivedAt и restoredAt
+// (что позже — то и победило). Данные бригады сливаются как обычно (скаляры от prefer,
+// посещаемость — объединяется). Возвращает {active, archived}.
+// ============================================================
+function lgMergeBrigState(lAct, lArch, cAct, cArch, prefer){
+  function A(x){ return Array.isArray(x) ? x : []; }
+  lAct=A(lAct); lArch=A(lArch); cAct=A(cAct); cArch=A(cArch);
+  function mergeAtt(a,b){ a=(a&&typeof a==='object')?a:{}; b=(b&&typeof b==='object')?b:{}; var o={}; Object.keys(a).forEach(function(k){o[k]=a[k];}); Object.keys(b).forEach(function(k){o[k]=b[k];}); return o; }
+  var loserAct  = (prefer==='cloud') ? lAct  : cAct;
+  var loserArch = (prefer==='cloud') ? lArch : cArch;
+  var winAct    = (prefer==='cloud') ? cAct  : lAct;
+  var winArch   = (prefer==='cloud') ? cArch : lArch;
+  var map={}, noId=[], seen={};
+  function put(b, fromArch){
+    if(!b) return;
+    if(b.id==null){ var k=JSON.stringify(b); if(!seen[k]){ seen[k]=1; noId.push(b); } return; }
+    var e=map[b.id]; if(!e){ e=map[b.id]={ b:{}, archivedAt:0, restoredAt:0 }; }
+    var m=e.b; Object.keys(b).forEach(function(k){ if(k!=='attendance') m[k]=b[k]; });   // скаляры — победитель кладётся последним
+    m.attendance = mergeAtt(m.attendance, b.attendance);
+    var aAt=+b.archivedAt||0, rAt=+b.restoredAt||0;
+    if(fromArch && !aAt) aAt = 1;   // был в архиве без метки — считаем «архивирован давно»
+    if(aAt>e.archivedAt) e.archivedAt=aAt;
+    if(rAt>e.restoredAt) e.restoredAt=rAt;
+  }
+  // проигравшие — первыми, победители — последними (их скаляры перекрывают)
+  loserArch.forEach(function(b){ put(b,true); });
+  loserAct.forEach(function(b){ put(b,false); });
+  winArch.forEach(function(b){ put(b,true); });
+  winAct.forEach(function(b){ put(b,false); });
+  var active=[], archived=[];
+  Object.keys(map).forEach(function(id){
+    var e=map[id];
+    if(e.restoredAt>0) e.b.restoredAt=e.restoredAt;
+    var isArch = e.archivedAt>0 && e.archivedAt>=e.restoredAt;   // архив, если последнее действие — архивация
+    if(isArch){ e.b.archivedAt=e.archivedAt; archived.push(e.b); }
+    else { if(e.b.archivedAt) delete e.b.archivedAt; active.push(e.b); }
+  });
+  active=active.concat(noId);
+  return { active: active, archived: archived };
+}
+window.lgMergeBrigState = lgMergeBrigState;
+
 // Обработка данных из облака (общая для Cloudflare и jsonbin)
 function processCloudData(d, cb){
     if(d&&d.record){
@@ -2639,8 +2684,7 @@ function processCloudData(d, cb){
         // СЛИЯНИЕ: облако приоритетно при конфликте id, но локально добавленные записи НЕ теряем (union по id).
         S.entries=lgMergeEntries(S.entries, r.entries, S.trash, r.trash, 'cloud');
         if(r.staff!=null)S.staff=lgMergeStaff(S.staff, r.staff, 'cloud');   // лицевые счета — union по id, деньги не теряем
-        if(r.brigadesArchived!=null)S.brigadesArchived=lgMergeBrigades(S.brigadesArchived, r.brigadesArchived, 'cloud');
-        if(r.brigades!=null)S.brigades=lgMergeBrigades(S.brigades, r.brigades, 'cloud', S.brigadesArchived, r.brigadesArchived);   // бригады — union по id, новые не теряем
+        if(r.brigades!=null || r.brigadesArchived!=null){ var _bm=lgMergeBrigState(S.brigades, S.brigadesArchived, r.brigades, r.brigadesArchived, 'cloud'); S.brigades=_bm.active; S.brigadesArchived=_bm.archived; }   // бригады + архив: последнее действие побеждает
         if(r.objects&&r.objects.length>0)S.objects=r.objects;
         if(r.history)S.history=r.history;
         if(r.weeks)S.weeks=r.weeks;
@@ -2684,8 +2728,7 @@ function processCloudData(d, cb){
         }
         S.entries=r.entries;
         if(r.staff!=null)S.staff=lgMergeStaff(S.staff, r.staff, 'cloud');   // лицевые счета
-        if(r.brigadesArchived!=null)S.brigadesArchived=lgMergeBrigades(S.brigadesArchived, r.brigadesArchived, 'cloud');
-        if(r.brigades!=null)S.brigades=lgMergeBrigades(S.brigades, r.brigades, 'cloud', S.brigadesArchived, r.brigadesArchived);   // бригады — union по id
+        if(r.brigades!=null || r.brigadesArchived!=null){ var _bm=lgMergeBrigState(S.brigades, S.brigadesArchived, r.brigades, r.brigadesArchived, 'cloud'); S.brigades=_bm.active; S.brigadesArchived=_bm.archived; }   // бригады + архив
         if(r.objects&&r.objects.length>0)S.objects=r.objects;
         if(r.history)S.history=r.history;
         if(r.weeks)S.weeks=r.weeks;
@@ -2925,8 +2968,7 @@ function autoSyncOnStart(){
     var beforeCnt = (S.entries||[]).length;
     if(r.entries!=null) S.entries = lgMergeEntries(S.entries, r.entries, S.trash, r.trash, 'cloud');
     if(r.staff!=null)   S.staff   = lgMergeStaff(S.staff, r.staff, 'cloud');   // лицевые счета
-    if(r.brigadesArchived!=null) S.brigadesArchived = lgMergeBrigades(S.brigadesArchived, r.brigadesArchived, 'cloud');
-    if(r.brigades!=null) S.brigades = lgMergeBrigades(S.brigades, r.brigades, 'cloud', S.brigadesArchived, r.brigadesArchived);
+    if(r.brigades!=null || r.brigadesArchived!=null){ var _bm=lgMergeBrigState(S.brigades, S.brigadesArchived, r.brigades, r.brigadesArchived, 'cloud'); S.brigades=_bm.active; S.brigadesArchived=_bm.archived; }
     if(cloudNewer){
       if(r.objects) S.objects = r.objects.slice();
       if(r.objMeta) S.objMeta = r.objMeta;
@@ -2973,16 +3015,16 @@ function updateSyncStamp(remoteTime){
   var el = document.getElementById('sync-stamp');
   if(!el) return;
   var t = remoteTime || S._modified || 0;
-  var txt = 'v4.13';
+  var txt = 'v4.14';
   if(t){
     var d = new Date(t);
     var now = new Date();
     var sameDay = d.toDateString()===now.toDateString();
     var timeStr = ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);
     if(sameDay){
-      txt = 'v4.13 · ☁️ '+timeStr;
+      txt = 'v4.14 · ☁️ '+timeStr;
     } else {
-      txt = 'v4.13 · ☁️ '+d.getDate()+'.'+('0'+(d.getMonth()+1)).slice(-2)+' '+timeStr;
+      txt = 'v4.14 · ☁️ '+d.getDate()+'.'+('0'+(d.getMonth()+1)).slice(-2)+' '+timeStr;
     }
   }
   el.textContent = txt;
@@ -5422,8 +5464,7 @@ window.forceDownloadCloud = function(){
       // Применяем НАПРЯМУЮ, минуя защиту processCloudData
       if(r.entries) S.entries = r.entries.slice();
       if(r.staff!=null) S.staff = lgMergeStaff(S.staff, r.staff, 'cloud');   // лицевые счета — даже при форсе деньги не теряем
-      if(r.brigadesArchived!=null) S.brigadesArchived = lgMergeBrigades(S.brigadesArchived, r.brigadesArchived, 'cloud');
-      if(r.brigades!=null) S.brigades = lgMergeBrigades(S.brigades, r.brigades, 'cloud', S.brigadesArchived, r.brigadesArchived);   // бригады — union, новые не теряем
+      if(r.brigades!=null || r.brigadesArchived!=null){ var _bm=lgMergeBrigState(S.brigades, S.brigadesArchived, r.brigades, r.brigadesArchived, 'cloud'); S.brigades=_bm.active; S.brigadesArchived=_bm.archived; }   // бригады + архив
       if(r.objects) S.objects = r.objects.slice();
       if(r.objMeta) S.objMeta = r.objMeta;
       if(r.history) S.history = r.history;
@@ -16878,7 +16919,7 @@ function openEditBrig(bId){
   document.getElementById('bdb').addEventListener('click',function(){
     if(!confirmSafe('Архивировать бригаду «'+b.name+'»? Её можно вернуть из архива.'))return;
     if(!S.brigadesArchived)S.brigadesArchived=[];
-    b.archivedAt=Date.now();
+    b.archivedAt=Date.now(); delete b.restoredAt;
     S.brigadesArchived.push(b);
     S.brigades=S.brigades.filter(function(x){return x.id!==bId;});
     S._modified=Date.now();
@@ -16901,7 +16942,7 @@ function openBrigArchive(){
 function restoreBrig(i){
   if(!canAdmin()){adminDenied();return;}
   var arc=S.brigadesArchived||[]; var b=arc[i]; if(!b)return;
-  delete b.archivedAt; S.brigades.push(b);
+  delete b.archivedAt; b.restoredAt=Date.now(); S.brigades.push(b);
   S.brigadesArchived=arc.filter(function(x,j){return j!==i;});
   S._modified=Date.now(); save();
   setTimeout(function(){pushCloud();},100);
