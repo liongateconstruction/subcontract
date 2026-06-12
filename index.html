@@ -554,9 +554,12 @@ function calcCo(state){
       if(pay>0) debtToCompany[e.who]-=pay;
       var s=amt-pay; if(s>0) debtToPartner[e.who]=(debtToPartner[e.who]||0)+s;
     } else if(e.type==='advance'){
-      debtToPartner[e.from]=(debtToPartner[e.from]||0)+amt;
-      debtToCompany[e.to]=(debtToCompany[e.to]||0)+amt;
+      var asrc=e.paySource||'own';
+      debtToCompany[e.to]=(debtToCompany[e.to]||0)+amt;   // получатель всегда берёт в подотчёт
       advances[e.to]=(advances[e.to]||0)+amt;
+      if(asrc==='cash'){ cash-=amt; }                                                  // из кассы → уменьшает кассу
+      else if(asrc==='advance'){ debtToCompany[e.from]=(debtToCompany[e.from]||0)-amt; } // из своего подотчёта → гасит подотчёт отправителя
+      else { debtToPartner[e.from]=(debtToPartner[e.from]||0)+amt; }                    // свои деньги (по умолчанию) → компания должна отправителю
     } else if(e.type==='expense'){
       expense+=amt;
       var src=e.paySource||(e.who==='Дмитрий'?'own':'advance');
@@ -585,7 +588,7 @@ function calcPar(state, name){
     if(e.type==='invest' && e.who===name) invested+=amt;
     else if((e.type==='return'||e.type==='payout') && e.who===name) returned+=amt;
     else if(e.type==='advance' && e.to===name) received+=amt;
-    else if(e.type==='advance' && e.from===name) advancedOut+=amt;
+    else if(e.type==='advance' && e.from===name){ if((e.paySource||'own')==='own') advancedOut+=amt; }
     else if(e.type==='expense' && e.who===name){ spent+=amt;
       var src=e.paySource||(e.who==='Дмитрий'?'own':'advance');
       if(src==='own') spentFromOwn+=amt; else if(src==='advance') spentFromAdvance+=amt; }
@@ -634,7 +637,7 @@ function partnersOverview(state){
   var C=calcCo(state), toKassa=0, fromOwn=0, handed=0;
   (state.entries||[]).forEach(function(e){ if(!e)return; var a=Number(e.amount)||0;
     if(e.type==='invest') toKassa+=a;
-    else if(e.type==='advance') handed+=a;
+    else if(e.type==='advance'){ if((e.paySource||'own')==='own') handed+=a; }
     else if(e.type==='expense'){ var src=e.paySource||(e.who==='Дмитрий'?'own':'advance'); if(src==='own') fromOwn+=a; } });
   var owesPos=0, owedPos=0;
   Object.keys(C.debtToPartner).forEach(function(p){ if(C.debtToPartner[p]>0) owedPos+=C.debtToPartner[p]; });
@@ -3251,7 +3254,8 @@ function renderEntryFields(){
     h+=fld('От кого','<select id="in-from">'+selOpts(PARTNERS, d.from||'Дмитрий')+'</select>');
     h+=fld('Кому','<select id="in-to">'+selOpts(PARTNERS, d.to||'Бекжан')+'</select>');
     h+=fld('Сумма, ₸',amtInput);
-    h+='<div style="font-size:12px;color:var(--mut);margin:-4px 0 10px;line-height:1.5">↪️ Передача из рук в руки, <b style="color:var(--blue)">минуя кассу</b>. Получатель берёт сумму <b style="color:var(--blue)">в подотчёт</b> и потом отчитывается расходами.</div>';
+    h+=fld('Источник денег','<select id="in-src">'+selOpts(PAYSRC, d.paySource||'own')+'</select>');
+    h+='<div style="font-size:12px;color:var(--mut);margin:-4px 0 10px;line-height:1.5">↪️ Передача из рук в руки, <b style="color:var(--blue)">минуя кассу</b>. Получатель берёт сумму <b style="color:var(--blue)">в подотчёт</b>.<br>«Свои» → компания вернёт отправителю · «Из кассы» → уменьшает кассу · «Из подотчётных» → гасит подотчёт отправителя.</div>';
   } else if(d.type==='income'){
     h+=fld('Сумма, ₸',amtInput);
     h+='<div style="font-size:12px;color:var(--mut);margin:-4px 0 10px">Оплата от заказчика — пополняет кассу.</div>';
@@ -3318,7 +3322,7 @@ function saveEntry(){
     p.amount=amt;
     if(d.type==='expense'){ p.cat=gv('in-cat'); p.who=gv('in-who'); p.paySource=gv('in-src'); var eb=gv('in-brig'); if(eb)p.brigade=eb;
       var esp=gv('in-spot'); if(esp){ p.spotId=esp; p.spot=esp; var smeta=(view.objMeta&&view.objMeta[obj])||{}; var ess=(smeta.spots||[]).find(function(s){return s.id===esp;}); p.zone=ess?ess.name:''; } }
-    else if(d.type==='advance'){ p.from=gv('in-from'); p.to=gv('in-to'); if(p.from===p.to){ document.getElementById('entry-err').textContent='«От» и «Кому» должны отличаться.'; return; } }
+    else if(d.type==='advance'){ p.from=gv('in-from'); p.to=gv('in-to'); p.paySource=gv('in-src')||'own'; if(p.from===p.to){ document.getElementById('entry-err').textContent='«От» и «Кому» должны отличаться.'; return; } }
     else if(d.type==='invest'){ p.who=gv('in-who'); }
     else if(d.type==='payout'){ p.who=gv('in-who'); }
   }
