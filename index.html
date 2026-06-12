@@ -374,6 +374,10 @@ function brigRevenue(state, b, m3){ if(!isPourWork(b.work)) return 0; var L=cust
 function projected(baseState, queue){
   var s=JSON.parse(JSON.stringify(baseState||{}));
   (queue||[]).forEach(function(ev){ applyEventLocal(s, ev); });
+  // черновики (draft:true) выносим отдельно — они НЕ участвуют в расчётах и списках до подтверждения
+  var _all=Array.isArray(s.entries)?s.entries:[];
+  s.draftEntries=_all.filter(function(e){ return e && e.draft; });
+  s.entries=_all.filter(function(e){ return !(e && e.draft); });
   return s;
 }
 // ── ДВИЖОК ПРИБЫЛИ (порт из старого приложения: marginObject/dueFromCustomer) ──
@@ -1012,7 +1016,7 @@ function emit(ev){
 /* ── РЕНДЕР ───────────────────────────────────────────────────────────────── */
 var fmt = function(n){ n=Math.round(Number(n)||0); var s=Math.abs(n).toLocaleString('ru-RU'); return (n<0?'−':'')+s+' ₸'; };
 var TYPE_META = {
-  advance:{l:'Аванс', c:'var(--blue)'}, expense:{l:'Расход', c:'var(--red)'},
+  advance:{l:'Передача', c:'var(--blue)'}, expense:{l:'Расход', c:'var(--red)'},
   income:{l:'Приход', c:'var(--green)'}, invest:{l:'Вложение', c:'var(--teal)'},
   vol:{l:'Объём', c:'var(--gold)'}, payout:{l:'Выплата', c:'var(--violet)'}
 };
@@ -1082,6 +1086,7 @@ function renderPulse(view, app){
   var sub=LG.sub.pulse||'svodka';
   var items=[{id:'tasks',label:'Мои задачи'},{id:'svodka',label:'Сводка'},{id:'months',label:'Месяцы'},{id:'spots',label:'Пятна'},{id:'flow',label:'Поток'},{id:'kfu',label:'КФУ'},{id:'constr',label:'Ограничения'},{id:'ppc',label:'PPC'},{id:'cfg',label:'⚙️'}];
   var h='<div style="display:flex;align-items:baseline;gap:8px;margin:2px 0 12px"><span style="font-size:26px">🔥</span><span style="font-size:24px;font-weight:800;color:var(--gold);letter-spacing:2px">ПУЛЬС</span></div>';
+  h+=draftReviewCard(view);
   h+=subBar('pulse',items);
   if(sub==='svodka')      h+=pulseSvodka(view);
   else if(sub==='months') h+=pulseMonths(view);
@@ -2562,7 +2567,7 @@ function kshort(n){ n=Math.round(Number(n)||0); var a=Math.abs(n);
 
 function renderMoney(view, app){
   var sub=LG.sub.money||'pl';
-  var h=subBar('money',[{id:'pl',label:'P&L'},{id:'flow',label:'Поток'},{id:'balance',label:'Баланс'}]);
+  var h=draftReviewCard(view)+subBar('money',[{id:'pl',label:'P&L'},{id:'flow',label:'Поток'},{id:'balance',label:'Баланс'}]);
   if(sub==='flow')        h += moneyFlow(view);
   else if(sub==='balance') h += moneyBalance(view);
   else                     h += moneyPL(view);
@@ -3191,7 +3196,8 @@ var PAYSRC=[['advance','Из подотчётных'],['own','Свои день�
 function selOpts(arr,cur){ return arr.map(function(o){ var v=Array.isArray(o)?o[0]:o, l=Array.isArray(o)?o[1]:o; return '<option value="'+esc(v)+'"'+(v===cur?' selected':'')+'>'+esc(l)+'</option>'; }).join(''); }
 function openEntryEditById(id){
   var view=projected(LG.base, LG.queue);
-  var e=(view.entries||[]).find(function(x){return String(x.id)===String(id);});
+  var e=(view.entries||[]).find(function(x){return String(x.id)===String(id);})
+      ||(view.draftEntries||[]).find(function(x){return String(x.id)===String(id);});
   if(!e) return;
   lgCloseSheet();
   var preset=Object.assign({}, e, {editId:e.id});
@@ -3239,11 +3245,13 @@ function renderEntryFields(){
     h+=fld('Сумма, ₸',amtInput);
     h+=fld('Кто платит','<select id="in-who">'+selOpts(PARTNERS, d.who||'Дмитрий')+'</select>');
     h+=fld('Источник','<select id="in-src">'+selOpts(PAYSRC, d.paySource||'advance')+'</select>');
+    if(spots.length) h+=fld('Пятно (куда идёт расход)','<select id="in-spot"><option value="">— не привязано —</option>'+selOpts(spots.map(function(s){return [s.id,s.name];}), d.spotId)+'</select>');
     h+=fld('Бригада (если зарплата)','<select id="in-brig"><option value="">— нет —</option>'+selOpts(brigs.map(function(b){return [b.id,(b.name||'').replace(/^Бригада\s*/,'')];}), d.brigade)+'</select>');
   } else if(d.type==='advance'){
     h+=fld('От кого','<select id="in-from">'+selOpts(PARTNERS, d.from||'Дмитрий')+'</select>');
     h+=fld('Кому','<select id="in-to">'+selOpts(PARTNERS, d.to||'Бекжан')+'</select>');
     h+=fld('Сумма, ₸',amtInput);
+    h+='<div style="font-size:12px;color:var(--mut);margin:-4px 0 10px;line-height:1.5">↪️ Передача из рук в руки, <b style="color:var(--blue)">минуя кассу</b>. Получатель берёт сумму <b style="color:var(--blue)">в подотчёт</b> и потом отчитывается расходами.</div>';
   } else if(d.type==='income'){
     h+=fld('Сумма, ₸',amtInput);
     h+='<div style="font-size:12px;color:var(--mut);margin:-4px 0 10px">Оплата от заказчика — пополняет кассу.</div>';
@@ -3257,6 +3265,41 @@ function renderEntryFields(){
   document.getElementById('entry-body').innerHTML=h+(LG.draft.editId?'<button type="button" onclick="deleteEntry(\''+esc(String(LG.draft.editId))+'\')" style="width:100%;margin-top:8px;background:transparent;border:1px solid var(--red);color:var(--red);border-radius:10px;padding:11px;font-size:14px;font-weight:700;cursor:pointer">🗑 Удалить запись</button>':'');
 }
 function deleteEntry(id){ emit({kind:'entry.delete', entryId:id}); document.getElementById('ov-entry').classList.remove('show'); render(); }
+
+/* ── ЧЕРНОВИКИ ИЗ TELEGRAM ────────────────────────────────────────────────── */
+function draftLabel(e){
+  var a=fmt0(Number(e.amount)||0);
+  if(e.type==='vol') return '📐 Объём '+(e.volume||0)+' м³'+(e.wtype?' · '+esc(e.wtype):'');
+  if(e.type==='advance') return '🔄 Передача '+a+' ₸'+((e.from||e.to)?' ('+esc(e.from||'?')+'→'+esc(e.to||'?')+')':'');
+  if(e.type==='expense') return '🧾 Расход '+a+' ₸'+(e.cat?' · '+esc(e.cat):'');
+  if(e.type==='income') return '💰 Приход '+a+' ₸';
+  if(e.type==='invest') return '💼 Вложение '+a+' ₸';
+  if(e.type==='payout') return '↩️ Выплата '+a+' ₸';
+  return esc(e.type||'')+' '+a;
+}
+function draftReviewCard(view){
+  if(!canWriteLedger()) return '';
+  var drafts=(view.draftEntries||[]);
+  if(!drafts.length) return '';
+  var h='<div class="ledger" style="border-color:var(--gold);background:rgba(240,165,0,.06)">';
+  h+='<div style="font-size:13px;color:var(--gold);letter-spacing:1.5px;font-weight:800;margin-bottom:3px">📥 ИЗ TELEGRAM · ЧЕРНОВИКИ ('+drafts.length+')</div>';
+  h+='<div style="font-size:12px;color:var(--mut);margin-bottom:12px">Пока не подтверждены — в суммах не учитываются. Проверьте и подтвердите ✅ или удалите 🗑.</div>';
+  drafts.forEach(function(e){
+    h+='<div style="background:var(--bg);border:1px solid var(--brd);border-radius:12px;padding:12px;margin-bottom:10px">';
+    h+='<div style="font-size:15px;font-weight:700;margin-bottom:3px">'+draftLabel(e)+'</div>';
+    if(e.note) h+='<div style="font-size:12px;color:var(--mut);margin-bottom:3px">'+esc(e.note)+'</div>';
+    if(e.tgAuthor) h+='<div style="font-size:11px;color:var(--mut);margin-bottom:9px">✍️ '+esc(e.tgAuthor)+'</div>';
+    h+='<div style="display:flex;gap:8px">'
+      +'<button onclick="confirmDraft(\''+esc(String(e.id))+'\')" style="flex:1;background:var(--green);color:#04201b;border:none;border-radius:10px;padding:11px;font-weight:800;font-size:14px;cursor:pointer">✅ Подтвердить</button>'
+      +'<button onclick="openEntryEditById(\''+esc(String(e.id))+'\')" style="background:rgba(255,255,255,.06);color:var(--fg);border:1px solid var(--brd);border-radius:10px;padding:11px 13px;font-weight:700;cursor:pointer">✏️</button>'
+      +'<button onclick="deleteDraft(\''+esc(String(e.id))+'\')" style="background:transparent;color:var(--red);border:1px solid var(--red);border-radius:10px;padding:11px 13px;font-weight:700;cursor:pointer">🗑</button>'
+      +'</div></div>';
+  });
+  h+='</div>';
+  return h;
+}
+function confirmDraft(id){ emit({kind:'entry.edit', entryId:id, payload:{draft:false}}); render(); }
+function deleteDraft(id){ emit({kind:'entry.delete', entryId:id}); render(); }
 function gv(id){ var el=document.getElementById(id); return el?el.value:''; }
 function saveEntry(){
   var view=projected(LG.base, LG.queue);
@@ -3273,7 +3316,8 @@ function saveEntry(){
   } else {
     var amt=Number(gv('in-amt'))||0; if(amt<=0){ document.getElementById('entry-err').textContent='Введите сумму больше нуля.'; return; }
     p.amount=amt;
-    if(d.type==='expense'){ p.cat=gv('in-cat'); p.who=gv('in-who'); p.paySource=gv('in-src'); var eb=gv('in-brig'); if(eb)p.brigade=eb; }
+    if(d.type==='expense'){ p.cat=gv('in-cat'); p.who=gv('in-who'); p.paySource=gv('in-src'); var eb=gv('in-brig'); if(eb)p.brigade=eb;
+      var esp=gv('in-spot'); if(esp){ p.spotId=esp; p.spot=esp; var smeta=(view.objMeta&&view.objMeta[obj])||{}; var ess=(smeta.spots||[]).find(function(s){return s.id===esp;}); p.zone=ess?ess.name:''; } }
     else if(d.type==='advance'){ p.from=gv('in-from'); p.to=gv('in-to'); if(p.from===p.to){ document.getElementById('entry-err').textContent='«От» и «Кому» должны отличаться.'; return; } }
     else if(d.type==='invest'){ p.who=gv('in-who'); }
     else if(d.type==='payout'){ p.who=gv('in-who'); }
