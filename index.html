@@ -90,7 +90,8 @@
   /* ── Кнопки/формы ── */
   .fab{position:fixed; right:18px; bottom:calc(76px + var(--safe-b)); width:56px; height:56px;
     border-radius:50%; background:var(--gold); color:#0d1117; border:none; font-size:30px; font-weight:300;
-    box-shadow:0 6px 20px rgba(0,0,0,.45); z-index:20; line-height:54px}
+    box-shadow:0 6px 20px rgba(0,0,0,.45); z-index:20; line-height:1;
+    align-items:center; justify-content:center; cursor:pointer}
   .empty{text-align:center; color:var(--mut); padding:38px 16px; border:1px dashed var(--brd); border-radius:12px}
 
   /* ── Оверлеи (вход / форма) ── */
@@ -1072,9 +1073,9 @@ function render(){
   else if(LG.tab==="more")      renderMore(view, app);
   else                          renderPlaceholder(LG.tab, app);
 
-  // кнопка «+»: Деньги — проводка; Люди→Бригады — бригада; иначе скрыта
-  var fabTab = canWriteLedger() && ( LG.tab==='money' || (LG.tab==='people' && (LG.sub.people||'brigades')==='brigades') );
-  fab.style.display = fabTab ? 'block' : 'none';
+  // кнопка «+»: для owner/editor доступна на ВСЕХ вкладках (быстрый ручной ввод).
+  // На Люди→Бригады открывает форму бригады, в остальных случаях — форму операции (см. fab.onclick).
+  fab.style.display = canWriteLedger() ? 'flex' : 'none';
 }
 
 function renderPulse(view, app){
