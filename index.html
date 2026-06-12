@@ -1785,19 +1785,18 @@ function renderAnalytics(view, app){
 
   // 5) ПРОГРЕСС vs ДЕНЬГИ
   var spc=(view.objMeta&&view.objMeta[obj]&&view.objMeta[obj].spots||[]).map(function(s){return spotProgressCash(view,obj,s.id);}).filter(Boolean);
-  if(spc.length){ h+='<div class="ledger"><div style="font-size:13px;color:var(--mut);letter-spacing:2px;font-weight:800;margin-bottom:2px">📐 ПРОГРЕСС vs ДЕНЬГИ</div><div style="font-size:12px;color:var(--mut);margin-bottom:14px">сколько сделано против сколько потрачено</div>';
-    spc.forEach(function(p){ var bal=p.progressPct>=p.cashPct, dot=bal?'🟢':'🔴', col=bal?'var(--green)':'var(--red)';
-      h+='<div style="margin-bottom:14px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><span style="font-size:16px;font-weight:800">'+esc(p.name)+' '+dot+'</span><span style="font-size:15px;color:'+col+';font-weight:800">'+p.progressPct+'% работ / '+p.cashPct+'% денег</span></div>';
-      h+='<div style="font-size:12px;color:var(--mut);margin-bottom:3px">Готово работ</div><div style="height:9px;background:var(--sur2);border-radius:5px;overflow:hidden;margin-bottom:7px"><div style="height:100%;width:'+Math.max(2,Math.min(100,p.progressPct))+'%;background:var(--teal);border-radius:5px"></div></div>';
-      h+='<div style="font-size:12px;color:var(--mut);margin-bottom:3px">Потрачено денег</div><div style="height:9px;background:var(--sur2);border-radius:5px;overflow:hidden"><div style="height:100%;width:'+Math.max(2,Math.min(100,p.cashPct))+'%;background:var(--orange);border-radius:5px"></div></div></div>'; });
-    // сравнение
-    h+='<div style="border-top:1px solid var(--brd);margin:6px 0 12px;padding-top:12px;text-align:center;font-size:13px;color:var(--mut)">сравнение: <span style="color:var(--teal)">▮</span> работа · <span style="color:var(--orange)">▮</span> деньги</div>';
-    h+='<div style="display:flex;justify-content:space-around;align-items:flex-end;height:160px">';
-    spc.forEach(function(p){ h+='<div style="display:flex;flex-direction:column;align-items:center;height:100%;justify-content:flex-end"><div style="display:flex;align-items:flex-end;gap:8px;height:130px">'
-      +'<div style="display:flex;flex-direction:column;align-items:center;justify-content:flex-end"><div class="num" style="font-size:12px;color:var(--teal);font-weight:700">'+p.progressPct+'%</div><div style="width:30px;height:'+Math.max(3,p.progressPct/100*110)+'px;background:var(--teal);border-radius:4px 4px 0 0"></div></div>'
-      +'<div style="display:flex;flex-direction:column;align-items:center;justify-content:flex-end"><div class="num" style="font-size:12px;color:var(--orange);font-weight:700">'+p.cashPct+'%</div><div style="width:30px;height:'+Math.max(3,p.cashPct/100*110)+'px;background:var(--orange);border-radius:4px 4px 0 0"></div></div>'
-      +'</div><div style="font-size:12px;color:var(--mut);margin-top:6px">'+esc(p.name)+'</div></div>'; });
-    h+='</div></div>'; }
+  if(spc.length){ h+='<div class="ledger"><div style="font-size:13px;color:var(--mut);letter-spacing:2px;font-weight:800;margin-bottom:2px">📐 ПРОГРЕСС vs ДЕНЬГИ</div><div style="font-size:12px;color:var(--mut);margin-bottom:4px">сколько сделано против сколько потрачено</div>';
+    h+='<div style="font-size:12px;color:var(--mut);margin-bottom:14px">здоровая экономика — когда <span style="color:var(--teal)">▮ работа</span> впереди <span style="color:var(--orange)">▮ денег</span></div>';
+    spc.forEach(function(p,i){ var diff=p.progressPct-p.cashPct; var bal=diff>=0, dot=bal?'🟢':'🔴', col=bal?'var(--green)':'var(--red)';
+      h+='<div style="'+(i<spc.length-1?'border-bottom:1px solid var(--brd);padding-bottom:14px;':'')+'margin-bottom:14px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span style="font-size:16px;font-weight:800">'+esc(p.name)+' '+dot+'</span><span style="font-size:15px;color:'+col+';font-weight:800">'+p.progressPct+'% работ / '+p.cashPct+'% денег</span></div>';
+      // две полосы в одной шкале — прямое сравнение без пустого графика
+      h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span style="flex:none;width:52px;font-size:11px;color:var(--teal);font-weight:700">работа</span><div style="flex:1;height:13px;background:var(--sur2);border-radius:7px;overflow:hidden"><div style="height:100%;width:'+Math.max(2,Math.min(100,p.progressPct))+'%;background:var(--teal);border-radius:7px"></div></div><span class="num" style="flex:none;width:36px;text-align:right;font-size:12px;color:var(--teal);font-weight:700">'+p.progressPct+'%</span></div>';
+      h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="flex:none;width:52px;font-size:11px;color:var(--orange);font-weight:700">деньги</span><div style="flex:1;height:13px;background:var(--sur2);border-radius:7px;overflow:hidden"><div style="height:100%;width:'+Math.max(2,Math.min(100,p.cashPct))+'%;background:var(--orange);border-radius:7px"></div></div><span class="num" style="flex:none;width:36px;text-align:right;font-size:12px;color:var(--orange);font-weight:700">'+p.cashPct+'%</span></div>';
+      // вывод словами + суммы
+      h+='<div style="font-size:12px;color:'+col+';font-weight:600">'+(bal?('✓ Работы опережают траты на '+diff+' п.п. — экономика здоровая'):('⚠ Траты опережают работы на '+Math.abs(diff)+' п.п. — деньги уходят быстрее, чем строится'))+'</div>';
+      h+='<div style="font-size:11px;color:var(--mut);margin-top:3px">потрачено '+aK(p.spent)+' из бюджета '+aK(p.budget)+' · сделано '+fmtD(p.doneVol)+' из '+fmtD(p.planVol)+' м³</div>';
+      h+='</div>'; });
+    h+='</div>'; }
 
   // 6) СКОЛЬКО ЕЩЁ ДОСТРОИТЬ
   if(ctc.spots.length){ h+='<div class="ledger"><div style="font-size:13px;color:var(--mut);letter-spacing:2px;font-weight:800;margin-bottom:2px">🏗 СКОЛЬКО ЕЩЁ ДОСТРОИТЬ</div><div style="font-size:12px;color:var(--mut);margin-bottom:14px">прогноз расходов до завершения</div>';
