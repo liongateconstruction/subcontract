@@ -99,6 +99,8 @@
     display:none; align-items:flex-end; justify-content:center; z-index:50}
   /* мгновенный отклик тапа на iOS: без 350мс ожидания двойного нажатия */
   button,[onclick],[data-sub],[data-pf],[data-floor]{touch-action:manipulation;-webkit-tap-highlight-color:rgba(255,255,255,.08)}
+  /* формы операции/бригады открываются ПОВЕРХ шторки (кабинет владельца) */
+  #ov-entry,#ov-brig{z-index:70}
   .ov.show{display:flex}
   .sheet{width:100%; max-width:520px; background:var(--sur); border:1px solid var(--brd);
     border-radius:18px 18px 0 0; padding:20px 18px calc(20px + var(--safe-b)); animation:up .22s ease;
@@ -3150,9 +3152,9 @@ function addIssue(){
   var t=(typeof prompt==='function')?prompt('Текст замечания:'):''; if(!t) return;
   var fl=(typeof prompt==='function')?prompt('Этаж / место (необязательно):'):'';
   emit({kind:'issue.add', payload:{id:'iss'+Date.now()+Math.floor(Math.random()*1000), text:t, floor:fl||''}});
-  render();
+  render(); lgRefreshCabSheet();
 }
-function closeIssue(id){ emit({kind:'issue.close', payload:{id:id}}); render(); }
+function closeIssue(id){ emit({kind:'issue.close', payload:{id:id}}); render(); lgRefreshCabSheet(); }
 function coachPrompt(view){
   var brigId = LG.role.indexOf('brigadier_')===0 ? LG.role.slice('brigadier_'.length) : null;
   var obj=(view.objects||[])[0]||''; var td=new Date().toISOString().slice(0,10);
@@ -3194,7 +3196,7 @@ function setAttendance(){
   var cur=((view.attendance||{})[td])||0;
   var v=(typeof prompt==='function')?prompt('Сколько человек вышло сегодня?', String(cur)):null;
   if(v===null||v==='') return;
-  emit({kind:'att.set', payload:{date:td, count:Math.max(0,parseInt(v,10)||0)}}); render();
+  emit({kind:'att.set', payload:{date:td, count:Math.max(0,parseInt(v,10)||0)}}); render(); lgRefreshCabSheet();
 }
 var PREPOUR=[
   {t:'Арматура: диаметр, шаг, нахлёст, вязка', h:'Сверь с проектом диаметр и шаг стержней. Нахлёст стыков ≥ 40 диаметров (для d12 — ≥ 48 см). Вязка во всех пересечениях по краям и в шахматном порядке в поле — каркас не должен «гулять». Нет ржавчины, масла, краски. <b>Частая ошибка:</b> короткий нахлёст и пропуск вязки — при заливке арматура смещается.'},
@@ -3226,8 +3228,18 @@ function openForemanCabinet(id){ var v=projected(LG.base,LG.queue); var p=(staff
 function openCabinetView(scope){
   var view=projected(LG.base, LG.queue);
   var isBrig=scope&&scope.brigId; var nm=(scope&&scope.name)?(' · '+scope.name.replace(/^Бригада\s*/,'')):'';
+  LG._cabScope=scope||null;   // запоминаем, чтобы обновлять кабинет после действий
   lgSheet((isBrig?'⛑ Кабинет бригадира':'👷 Кабинет прораба')+nm, '<div style="font-size:12px;color:var(--mut);margin-bottom:10px">Операционный экран сотрудника (без финансов). Вы можете смотреть и редактировать за него.</div><div id="cabview"></div>');
   var el=document.getElementById('cabview'); if(el) renderCabinet(view, el, scope||null);
+}
+/* Если открыт кабинет или журнал в шторке — перерисовать свежими данными (после заливки/явки/правки) */
+function lgRefreshCabSheet(){
+  try{
+    var st=LG.sheetStack; if(!st.length) return;
+    var top=st[st.length-1]; if(!top) return;
+    if(/Кабинет/.test(top.title||'')) openCabinetView(LG._cabScope||null);
+    else if(/Журнал операций/.test(top.title||'')) MORE.journal();
+  }catch(e){}
 }
 function openConcreteOrder(){
   var view=projected(LG.base, LG.queue); var obj=(view.objects||[])[0]||'';
@@ -3302,7 +3314,7 @@ function openEntryEditById(id){
   var e=(view.entries||[]).find(function(x){return String(x.id)===String(id);})
       ||(view.draftEntries||[]).find(function(x){return String(x.id)===String(id);});
   if(!e) return;
-  lgCloseSheet();
+  // шторку не закрываем: форма открывается поверх, после сохранения вернёмся в неё
   var preset=Object.assign({}, e, {editId:e.id});
   openEntry(preset);
   document.getElementById('entry-title').textContent='Изменить запись';
@@ -3447,6 +3459,7 @@ function saveEntry(){
   else { p.ts=Date.now(); emit({ kind:'entry.add', payload:p }); }
   document.getElementById('ov-entry').classList.remove('show');
   render();
+  lgRefreshCabSheet();   // если запись внесена из кабинета в шторке — кабинет сразу покажет её
 }
 
 /* ── ФОРМА БРИГАДЫ ───────────────────────────────────────────────────────── */
