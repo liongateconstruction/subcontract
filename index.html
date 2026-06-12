@@ -99,7 +99,8 @@
     display:none; align-items:flex-end; justify-content:center; z-index:50}
   .ov.show{display:flex}
   .sheet{width:100%; max-width:520px; background:var(--sur); border:1px solid var(--brd);
-    border-radius:18px 18px 0 0; padding:20px 18px calc(20px + var(--safe-b)); animation:up .22s ease}
+    border-radius:18px 18px 0 0; padding:20px 18px calc(20px + var(--safe-b)); animation:up .22s ease;
+    max-height:90vh; max-height:calc(100dvh - var(--safe-t) - 10px); overflow-y:auto; -webkit-overflow-scrolling:touch}
   @keyframes up{from{transform:translateY(40px); opacity:0} to{transform:translateY(0); opacity:1}}
   .sheet h3{margin:0 0 14px; font-size:17px}
   .f{margin-bottom:12px}
@@ -2760,7 +2761,7 @@ function peopleBrigades(view){
   var weekTarget=Math.min(planMonth||Infinity, capacity||Infinity); if(!isFinite(weekTarget)) weekTarget=0;
   var monthName=now.toLocaleString('ru-RU',{month:'long'});
 
-  var h='<div class="shdr" style="display:flex;justify-content:space-between;align-items:center;margin:6px 0 12px"><h2 style="margin:0;font-size:24px;color:var(--gold)">👷 БРИГАДЫ</h2>'+(canWrite?'<button id="fab-brig" class="fedit" style="background:rgba(240,165,0,.12);border:1px solid var(--gold);color:var(--gold);border-radius:10px;padding:9px 14px;font-weight:700">+ Бригада</button>':'')+'</div>';
+  var h='<div class="shdr" style="display:flex;justify-content:space-between;align-items:center;margin:6px 0 12px"><h2 style="margin:0;font-size:24px;color:var(--gold)">👷 БРИГАДЫ</h2>'+(canWrite?'<button id="fab-brig" onclick="openBrigade(null)" class="fedit" style="background:rgba(240,165,0,.12);border:1px solid var(--gold);color:var(--gold);border-radius:10px;padding:9px 14px;font-weight:700">+ Бригада</button>':'')+'</div>';
 
   // ── КФУ №1 ТЕМП ЗАЛИВКИ
   var weekPct=weekTarget>0?Math.min(150,Math.round(fact/weekTarget*100)):0;
@@ -2808,7 +2809,7 @@ function peopleBrigades(view){
     var start=brigStartDate(view,b); var startTxt=start?start.split('-').reverse().join('.'):'—';
     h+='<div class="bcard" '+(canWrite?'data-brig="'+esc(s.id)+'" style="cursor:pointer"':'')+'>';
     // header tile
-    h+='<div style="background:rgba(45,212,191,.06);border-radius:12px;padding:14px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:flex-start"><div><div style="font-size:20px;font-weight:700;color:'+col+'">'+esc(s.name)+'</div><div style="font-size:13px;color:var(--mut);margin-top:4px">'+(b.workers||0)+' чел · '+esc(b.work||'—')+'</div><div style="font-size:13px;color:var(--mut);margin-top:2px">старт '+startTxt+'</div></div>'+(canWrite?'<button class="fedit" data-noopen="1" style="background:rgba(240,165,0,.10);border:1px solid var(--gold);color:var(--gold);border-radius:8px;padding:7px 12px;font-weight:700">ред</button>':'')+'</div>';
+    h+='<div style="background:rgba(45,212,191,.06);border-radius:12px;padding:14px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:flex-start"><div><div style="font-size:20px;font-weight:700;color:'+col+'">'+esc(s.name)+'</div><div style="font-size:13px;color:var(--mut);margin-top:4px">'+(b.workers||0)+' чел · '+esc(b.work||'—')+'</div><div style="font-size:13px;color:var(--mut);margin-top:2px">старт '+startTxt+'</div></div>'+(canWrite?'<button class="fedit" data-noopen="1" data-edit="'+esc(s.id)+'" style="background:rgba(240,165,0,.10);border:1px solid var(--gold);color:var(--gold);border-radius:8px;padding:7px 12px;font-weight:700">ред</button>':'')+'</div>';
     // НЕДЕЛЯ цель/факт
     if(isTemp && target>0){
       h+='<div style="background:rgba(255,255,255,.03);border-radius:8px;padding:10px;margin-bottom:10px"><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px"><span style="font-size:13px;color:var(--mut);letter-spacing:.5px">НЕДЕЛЯ '+wk+' · ЦЕЛЬ → ФАКТ</span><span style="font-size:13px;color:'+tc+';font-weight:700">'+pctT+'%</span></div><div style="display:flex;align-items:baseline;gap:8px;margin-bottom:5px"><span class="num" style="font-size:22px;color:'+tc+';font-weight:800">'+fmtD(factW)+'</span><span style="color:var(--mut);font-size:13px">/ '+fmtD(target)+' м³</span></div><div style="height:6px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden"><div style="height:100%;width:'+Math.min(100,pctT)+'%;background:'+tc+';border-radius:3px"></div></div><div style="font-size:12px;color:var(--mut);margin-top:4px">норма '+b.norm+' м³/чел/день × '+(b.workers||0)+' чел × 7 дн = '+fmtD(capTarget)+' м³/нед</div></div>';
@@ -3726,7 +3727,7 @@ window.addEventListener('online', function(){ if(LG.token) flush(); });
 
 document.getElementById('do-login').onclick=doLogin;
 document.getElementById('in-pwd').addEventListener('keydown', function(e){ if(e.key==='Enter') doLogin(); });
-document.getElementById('fab').onclick=function(){ if(LG.tab==='people' && (LG.sub.people||'brigades')==='brigades') openBrigade(null); else openEntry(); };
+document.getElementById('fab').onclick=function(){ openEntry(); };
 buildNav();
 document.getElementById('brig-cancel').onclick=function(){ document.getElementById('ov-brig').classList.remove('show'); };
 document.getElementById('brig-save').onclick=saveBrigade;
@@ -3754,6 +3755,8 @@ document.getElementById('app').addEventListener('click', function(e){
   if(volB){ var sid=volB.getAttribute('data-vol'); var bb=(view.brigades||[]).find(function(x){return x.id===sid;}); openEntry({type:'vol', brigade:sid, wtype:bb&&bb.work}); return; }
   if(payB){ openEntry({type:'expense', cat:'Аванс / зарплата рабочим', paySource:'advance', brigade:payB.getAttribute('data-pay')}); return; }
   if(addS){ openStaffForm(addS.getAttribute('data-addstaff')==='consult'); return; }
+  var edB=e.target.closest && e.target.closest('[data-edit]');
+  if(edB){ editBrigadeById(edB.getAttribute('data-edit')); return; }
   if(noopen){ soon('Редактирование'); return; }
   if(staffC){ var p=staffList(view).find(function(x){return x.id===staffC.getAttribute('data-staff');}); if(p) openStaffCard(p); return; }
   var card=e.target.closest && e.target.closest('[data-brig]'); if(!card) return;
