@@ -97,6 +97,8 @@
   /* ── Оверлеи (вход / форма) ── */
   .ov{position:fixed; inset:0; background:rgba(13,17,23,.75); backdrop-filter:blur(4px);
     display:none; align-items:flex-end; justify-content:center; z-index:50}
+  /* мгновенный отклик тапа на iOS: без 350мс ожидания двойного нажатия */
+  button,[onclick],[data-sub],[data-pf],[data-floor]{touch-action:manipulation;-webkit-tap-highlight-color:rgba(255,255,255,.08)}
   .ov.show{display:flex}
   .sheet{width:100%; max-width:520px; background:var(--sur); border:1px solid var(--brd);
     border-radius:18px 18px 0 0; padding:20px 18px calc(20px + var(--safe-b)); animation:up .22s ease;
@@ -213,12 +215,13 @@
   </div>
 </div>
 
-<!-- Универсальный лист (Ещё: стратегия, отчёт, инфо) -->
+<!-- Универсальный лист (Ещё: стратегия, отчёт, инфо). Экраны складываются в стек: «‹» — назад, «✕» — закрыть всё. -->
 <div class="ov" id="ov-sheet" style="align-items:flex-end">
-  <div class="sheet" style="max-height:90vh;overflow:auto">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-      <h3 id="sheet-title" style="margin:0">—</h3>
-      <button onclick="lgCloseSheet()" style="background:var(--sur2);border:none;color:var(--mut);font-size:20px;width:34px;height:34px;border-radius:50%;line-height:1">✕</button>
+  <div class="sheet" style="max-height:90vh;overflow:auto;padding-top:0">
+    <div style="position:sticky;top:0;z-index:6;background:var(--sur);display:flex;align-items:center;gap:10px;padding:16px 0 12px;border-bottom:1px solid var(--brd);margin-bottom:12px">
+      <button id="sheet-back" onclick="lgSheetBack()" style="display:none;flex:none;background:var(--sur2);border:none;color:var(--fg);font-size:14px;font-weight:700;height:38px;padding:0 14px;border-radius:19px;cursor:pointer">‹ Назад</button>
+      <h3 id="sheet-title" style="margin:0;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">—</h3>
+      <button onclick="lgCloseSheet()" style="flex:none;background:var(--sur2);border:none;color:var(--mut);font-size:20px;width:38px;height:38px;border-radius:50%;line-height:1;cursor:pointer">✕</button>
     </div>
     <div id="sheet-body"></div>
   </div>
@@ -991,7 +994,10 @@ function pull(){
     if(!r.ok) throw 'http_'+r.status;
     return r.json();
   }).then(function(d){
-    LG.base=d.state; LG.version=d.version; setDot('ok'); render();
+    // перерисовываем ТОЛЬКО при реальном изменении данных: иначе фоновый pull
+    // каждые 20с подменял DOM под пальцем — тапы терялись, скролл прыгал
+    var changed = !LG.base || d.version!==LG.version;
+    LG.base=d.state; LG.version=d.version; setDot('ok'); if(changed) render();
     return d;
   });
 }
@@ -1027,6 +1033,11 @@ function flush(){
 function setTab(tab){ LG.tab=tab; render(); }
 window.setTab=setTab;
 function lgId(prefix){ return (prefix||'e')+Date.now().toString(36)+Math.floor(Math.random()*1e4).toString(36); }
+/* Время создания записи: ts (метка клиента) или _at (штамп сервера). Старые записи — без времени. */
+function entryTs(e){ if(!e) return 0; var t=Number(e.ts)||0; if(t) return t; if(e._at){ var p=Date.parse(e._at); if(isFinite(p)) return p; } return 0; }
+function entryTime(e){ var t=entryTs(e); if(!t) return ''; var d=new Date(t); return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2); }
+/* Журнальная сортировка: по дате работы ↓, внутри дня — по времени создания ↓ */
+function entryCmp(a,b){ return String((b&&b.date)||'').localeCompare(String((a&&a.date)||'')) || (entryTs(b)-entryTs(a)) || String((b&&b.id)||'').localeCompare(String((a&&a.id)||'')); }
 var LG_LANG='ru';
 function lgEnsureGT(cb){
   try{ if(window.google&&window.google.translate){ cb&&cb(); return; } }catch(e){}
@@ -1484,8 +1495,62 @@ function dashHead(t){ return '<div style="display:flex;align-items:center;gap:8p
 function dashMini(ic,lab,val,unit,col){ return '<div style="background:var(--sur);border:1px solid var(--brd);border-radius:14px;padding:13px 10px;text-align:center;display:flex;flex-direction:column;align-items:center;min-height:104px"><div style="font-size:26px;margin-bottom:8px">'+ic+'</div><div style="font-size:12px;color:var(--mut);letter-spacing:.8px;font-weight:700;line-height:1.2;margin-bottom:auto">'+lab+'</div><div style="font-size:17px;color:'+col+';font-weight:800;margin-top:8px;line-height:1">'+val+'</div><div style="font-size:12px;color:var(--mut);margin-top:3px">'+unit+'</div></div>'; }
 
 // ── ЕЩЁ ───────────────────────────────────────────────────────────────────
-function lgSheet(title, html){ var b=document.getElementById('sheet-body'); document.getElementById('sheet-title').textContent=title; b.innerHTML=html; document.getElementById('ov-sheet').classList.add('show'); }
-function lgCloseSheet(){ document.getElementById('ov-sheet').classList.remove('show'); }
+/* ── ШТОРКИ: СТЕК ЭКРАНОВ ─────────────────────────────────────────────────────
+   Открытие экрана поверх текущего НЕ затирает его: «‹ Назад» возвращает,
+   «✕» закрывает всё. Живое состояние экрана (погода, чек-лист, кабинет)
+   снимается перед переходом и восстанавливается при возврате. */
+LG.sheetStack = [];
+function lgSheetRender(){
+  var st=LG.sheetStack, top=st[st.length-1];
+  var ov=document.getElementById('ov-sheet');
+  if(!top){ ov.classList.remove('show'); return; }
+  document.getElementById('sheet-title').textContent=top.title;
+  document.getElementById('sheet-body').innerHTML=top.html;
+  var bk=document.getElementById('sheet-back'); if(bk) bk.style.display = st.length>1 ? '' : 'none';
+  ov.classList.add('show');
+  var sh=ov.querySelector('.sheet'); if(sh) sh.scrollTop=0;
+}
+function lgSheet(title, html){
+  var st=LG.sheetStack;
+  if(st.length){
+    // снимок живого DOM текущего экрана — чтобы «Назад» вернул его как было
+    try{ st[st.length-1].html=document.getElementById('sheet-body').innerHTML; }catch(e){}
+  }
+  if(st.length && st[st.length-1].title===title){ st[st.length-1].html=html; }  // обновление того же экрана
+  else st.push({title:title, html:html});
+  lgSheetRender();
+}
+function lgSheetBack(){ LG.sheetStack.pop(); lgSheetRender(); }
+function lgCloseSheet(){ LG.sheetStack=[]; lgSheetRender(); }
+
+/* ── СИСТЕМНЫЙ «НАЗАД» (свайп от края / кнопка браузера) ─────────────────────
+   Пока открыт любой слой (шторка, форма, документ) — держим одну запись в
+   истории. Системный «назад» закрывает верхний слой, а не выкидывает из
+   приложения. */
+function lgAnyOverlayOpen(){
+  if(document.getElementById('doc-ov')) return true;
+  if(LG.sheetStack.length) return true;
+  return ['ov-entry','ov-brig'].some(function(id){ var el=document.getElementById(id); return el&&el.classList.contains('show'); });
+}
+LG._hist=false; LG._histClosing=false;
+function lgHistSync(){
+  var open=lgAnyOverlayOpen();
+  if(open && !LG._hist){ try{ history.pushState({lgOv:1},''); LG._hist=true; }catch(e){} }
+  else if(!open && LG._hist){ LG._hist=false; LG._histClosing=true; try{ history.back(); }catch(e){ LG._histClosing=false; } }
+}
+window.addEventListener('popstate', function(){
+  if(LG._histClosing){ LG._histClosing=false; return; }   // это мы сами откатили историю
+  LG._hist=false;
+  var doc=document.getElementById('doc-ov');
+  if(doc){ doc.remove(); }
+  else { var entry=document.getElementById('ov-entry'), brig=document.getElementById('ov-brig');
+    if(entry&&entry.classList.contains('show')) entry.classList.remove('show');
+    else if(brig&&brig.classList.contains('show')) brig.classList.remove('show');
+    else if(LG.sheetStack.length>1) lgSheetBack();
+    else if(LG.sheetStack.length===1) lgCloseSheet();
+  }
+  lgHistSync();   // если слои ещё остались — вернуть запись в историю
+});
 window.lgCloseSheet=lgCloseSheet;
 var CVAR={teal:'var(--teal)',gold:'var(--gold)',blue:'var(--blue)',violet:'var(--violet)',green:'var(--green)',red:'var(--red)',orange:'var(--gold)',purple:'var(--violet)'};
 function renderMore(view, app){
@@ -1619,12 +1684,13 @@ window.MORE={
   telegram:function(){ openTelegramView(); },
   soon:function(name){ lgSheet(name,'<div style="text-align:center;padding:28px 8px"><div style="font-size:44px">🚧</div><div style="font-size:16px;font-weight:700;margin-top:10px">'+esc(name)+'</div><div style="color:var(--mut);font-size:13px;margin-top:8px;line-height:1.6">Раздел переносится из старого приложения. Данные уже в облаке и не теряются — экран добавлю следующим шагом.</div></div>'); },
   journal:function(){ var v=LG.base?projected(LG.base,LG.queue):{};
-    var entries=(v.entries||[]).slice().sort(function(a,b){return String(b.date||'').localeCompare(String(a.date||''))||(b.id>a.id?1:-1);});
-    var h='<div style="font-size:12px;color:var(--mut);margin-bottom:10px">Все операции · '+entries.length+'</div>';
+    var entries=(v.entries||[]).slice().sort(entryCmp);
+    var h='<div style="font-size:12px;color:var(--mut);margin-bottom:10px">Все операции · '+entries.length+' · внутри дня — по времени внесения</div>';
     if(!entries.length) h+='<div class="empty">Пока пусто.</div>';
     entries.slice(0,300).forEach(function(e){ var mt=TYPE_META[e.type]||{l:e.type||'?',c:'var(--mut)'};
       var amount=e.amountPending?'—':fmt((e.type==='expense'||e.type==='payout')?-(e.amount||0):(e.amount||0));
-      var sub=mt.l+' · '+esc(e.date||'')+(e.type==='vol'&&e.volume?(' · '+e.volume+' м³'):'')+(e.brigade?(' · '+esc(brigName(v,e.brigade))):'');
+      var tm=entryTime(e);
+      var sub=mt.l+' · '+esc(e.date||'')+(tm?(' <span style="color:var(--teal)">'+tm+'</span>'):'')+(e.type==='vol'&&e.volume?(' · '+e.volume+' м³'):'')+(e.brigade?(' · '+esc(brigName(v,e.brigade))):'');
       var clk=canWriteLedger()?(' onclick="openEntryEditById(\''+esc(String(e.id))+'\')" style="cursor:pointer"'):'';
       h+='<div'+clk+' style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--brd)'+(canWriteLedger()?';cursor:pointer':'')+'"><span style="width:8px;height:8px;border-radius:50%;background:'+mt.c+';flex:none"></span><div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(e.note||mt.l)+'</div><div style="font-size:11px;color:var(--mut)">'+sub+'</div></div><div style="font-weight:700;color:'+mt.c+';white-space:nowrap">'+amount+'</div>'+(canWriteLedger()?'<span style="color:var(--mut);font-size:13px">✏️</span>':'')+'</div>';
     });
@@ -3038,9 +3104,11 @@ function renderCabinet(view, app, scope){
         +'<div style="height:8px;background:var(--sur2);border-radius:4px;overflow:hidden"><div style="height:100%;width:'+Math.max(2,Math.min(100,pc.progressPct))+'%;background:var(--teal)"></div></div>'
         +spotFloorTower(view,sp)+'</div>'; });
   }
-  // последние заливки
-  if(pours.length){ h+='<div style="font-size:12px;font-weight:800;letter-spacing:1px;color:var(--gold);margin:14px 2px 8px">ПОСЛЕДНИЕ ЗАЛИВКИ</div><div class="ledger" style="padding:4px 14px;margin-bottom:6px">';
-    pours.slice(0,8).forEach(function(e){ var bn=((view.brigades||[]).find(function(x){return x.id===e.brigade;})||{}).name||''; h+='<div style="display:flex;justify-content:space-between;align-items:baseline;font-size:13px;padding:8px 0;border-bottom:1px solid var(--brd)"><span style="color:var(--fg)">'+String(e.date||'').split('-').reverse().join('.')+' · '+esc(e.zone||spotNameOf(view,e.spotId)||'')+(e.floor?(' · '+esc(e.floor)):'')+(e.redo?' <span style="color:var(--red)">⟲</span>':'')+'</span><span style="color:var(--teal);font-weight:700;white-space:nowrap">'+fmtD(Number(e.volume)||0)+' м³'+(!isBrig&&bn?('<br><span style="font-size:10px;color:var(--mut)">⛑ '+esc(bn.replace(/^Бригада\s*/,''))+'</span>'):'')+'</span></div>'; });
+  // последние заливки (владелец/учётчица: тап по строке — правка записи)
+  if(pours.length){ var canEd=canWriteLedger();
+    h+='<div style="font-size:12px;font-weight:800;letter-spacing:1px;color:var(--gold);margin:14px 2px 8px">ПОСЛЕДНИЕ ЗАЛИВКИ'+(canEd?' <span style="color:var(--mut);font-weight:400;letter-spacing:0">· тап — изменить</span>':'')+'</div><div class="ledger" style="padding:4px 14px;margin-bottom:6px">';
+    pours.slice().sort(entryCmp).slice(0,8).forEach(function(e){ var bn=((view.brigades||[]).find(function(x){return x.id===e.brigade;})||{}).name||''; var tm=entryTime(e);
+      h+='<div'+(canEd?(' onclick="openEntryEditById(\''+esc(String(e.id))+'\')"'):'')+' style="display:flex;justify-content:space-between;align-items:baseline;font-size:13px;padding:8px 0;border-bottom:1px solid var(--brd)'+(canEd?';cursor:pointer':'')+'"><span style="color:var(--fg)">'+String(e.date||'').split('-').reverse().join('.')+(tm?(' <span style="color:var(--mut);font-size:11px">'+tm+'</span>'):'')+' · '+esc(e.zone||spotNameOf(view,e.spotId)||'')+(e.floor?(' · '+esc(e.floor)):'')+(e.redo?' <span style="color:var(--red)">⟲</span>':'')+(e.amountPending&&canEd?' <span style="color:var(--gold)" title="ждёт сумму">💰?</span>':'')+'</span><span style="color:var(--teal);font-weight:700;white-space:nowrap">'+fmtD(Number(e.volume)||0)+' м³'+(!isBrig&&bn?('<br><span style="font-size:10px;color:var(--mut)">⛑ '+esc(bn.replace(/^Бригада\s*/,''))+'</span>'):'')+(canEd?' <span style="color:var(--mut);font-size:12px">✏️</span>':'')+'</span></div>'; });
     h+='</div>'; }
   // качество
   h+='<div style="font-size:12px;font-weight:800;letter-spacing:1px;color:var(--gold);margin:14px 2px 8px">КАЧЕСТВО</div>';
@@ -3315,9 +3383,24 @@ function draftLabel(e){
 }
 function draftReviewCard(view){
   if(!canWriteLedger()) return '';
+  var h='';
+  // заливки прораба/бригадира без суммы — владельцу на проставление
+  var pend=(view.entries||[]).filter(function(e){return e&&e.type==='vol'&&e.amountPending;}).sort(entryCmp);
+  if(pend.length){
+    h+='<div class="ledger" style="border-color:var(--teal);background:rgba(45,212,191,.05)">';
+    h+='<div style="font-size:13px;color:var(--teal);letter-spacing:1.5px;font-weight:800;margin-bottom:3px">💰 ЖДУТ СУММУ ('+pend.length+')</div>';
+    h+='<div style="font-size:12px;color:var(--mut);margin-bottom:10px">Заливки с площадки без начисления. Тап — проставить сумму.</div>';
+    pend.slice(0,6).forEach(function(e){ var bn=brigName(view,e.brigade)||'?'; var tm=entryTime(e);
+      h+='<div onclick="openEntryEditById(\''+esc(String(e.id))+'\')" style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;background:var(--bg);border:1px solid var(--brd);border-radius:11px;padding:10px 12px;margin-bottom:7px;cursor:pointer">'
+        +'<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:700">'+String(e.date||'').split('-').reverse().join('.')+(tm?(' <span style="color:var(--mut);font-weight:400;font-size:11px">'+tm+'</span>'):'')+' · '+fmtD(Number(e.volume)||0)+' м³</div>'
+        +'<div style="font-size:11px;color:var(--mut);margin-top:2px">⛑ '+esc(bn.replace(/^Бригада\s*/,''))+(e.floor?(' · '+esc(e.floor)):'')+(e.source==='brigadier'?' · от бригадира':' · от прораба')+'</div></div>'
+        +'<span style="color:var(--teal);font-weight:800">✏️</span></div>'; });
+    if(pend.length>6) h+='<div style="font-size:12px;color:var(--mut);text-align:center">…и ещё '+(pend.length-6)+' в журнале</div>';
+    h+='</div>';
+  }
   var drafts=(view.draftEntries||[]);
-  if(!drafts.length) return '';
-  var h='<div class="ledger" style="border-color:var(--gold);background:rgba(240,165,0,.06)">';
+  if(!drafts.length) return h;
+  h+='<div class="ledger" style="border-color:var(--gold);background:rgba(240,165,0,.06)">';
   h+='<div style="font-size:13px;color:var(--gold);letter-spacing:1.5px;font-weight:800;margin-bottom:3px">📥 ИЗ TELEGRAM · ЧЕРНОВИКИ ('+drafts.length+')</div>';
   h+='<div style="font-size:12px;color:var(--mut);margin-bottom:12px">Пока не подтверждены — в суммах не учитываются. Проверьте и подтвердите ✅ или удалите 🗑.</div>';
   drafts.forEach(function(e){
@@ -3348,7 +3431,9 @@ function saveEntry(){
     var spotId=gv('in-spot'); var meta=(view.objMeta&&view.objMeta[obj])||{}; var sp=(meta.spots||[]).find(function(s){return s.id===spotId;});
     var bid=gv('in-brig'); var b=(view.brigades||[]).find(function(x){return x.id===bid;});
     var wtype=gv('in-wtype'); var rate=b?brigPriceFor(b,wtype,'м³'):0;
-    p.volume=vol; p.unit='м³'; p.wtype=wtype; p.brigade=bid; p.spotId=spotId; p.spot=spotId; p.zone=sp?sp.name:''; p.floor=gv('in-floor'); p.struct=wtype; p.redo=!!(document.getElementById('in-redo')&&document.getElementById('in-redo').checked); p.rate=rate; p.amount=Math.round(vol*rate);
+    p.volume=vol; p.unit='м³'; p.wtype=wtype; p.brigade=bid; p.spotId=spotId; p.spot=spotId; p.zone=sp?sp.name:''; p.floor=gv('in-floor'); p.struct=wtype; p.redo=!!(document.getElementById('in-redo')&&document.getElementById('in-redo').checked); p.rate=rate;
+    if(rate>0||!LG.draft.editId) p.amount=Math.round(vol*rate);   // при правке без ставки старую сумму не затираем нулём
+    p.amountPending=false;   // владелец/учётчица просмотрели запись — «ждёт сумму» снимается (кабинетам сервер вернёт флаг сам)
   } else {
     var amt=Number(gv('in-amt'))||0; if(amt<=0){ document.getElementById('entry-err').textContent='Введите сумму больше нуля.'; return; }
     p.amount=amt;
@@ -3359,7 +3444,7 @@ function saveEntry(){
     else if(d.type==='payout'){ p.who=gv('in-who'); }
   }
   if(LG.draft.editId){ emit({ kind:'entry.edit', entryId:LG.draft.editId, payload:p }); }
-  else { emit({ kind:'entry.add', payload:p }); }
+  else { p.ts=Date.now(); emit({ kind:'entry.add', payload:p }); }
   document.getElementById('ov-entry').classList.remove('show');
   render();
 }
@@ -3743,6 +3828,7 @@ function boot(){
     var roles=[['owner','владелец'],['cabinet_f1','прораб'],['brigadier_b2','бригадир']]; var ri=0;
     sw.onclick=function(){ ri=(ri+1)%roles.length; LG.role=roles[ri][0]; sw.textContent='👁 роль: '+roles[ri][1];
       ['ov-sheet','ov-entry','doc-ov'].forEach(function(id){ var el=document.getElementById(id); if(el) el.classList.remove('show'); });
+      LG.sheetStack=[];
       var dv=document.getElementById('doc-ov'); if(dv&&dv.parentNode) dv.parentNode.removeChild(dv);
       LG.tab='pulse'; LG.sub=''; render(); };
     document.body.appendChild(sw);
@@ -3753,6 +3839,14 @@ function boot(){
 }
 // автоподтягивание чужих изменений и дослыка очереди
 setInterval(function(){ if(LG.token){ if(LG.queue.length) flush(); else pull().catch(function(){}); } }, 20000);
+// слежение за слоями: любая шторка/форма/документ ↔ запись в истории (для системного «назад»)
+(function(){
+  try{
+    var mo=new MutationObserver(function(){ lgHistSync(); });
+    ['ov-entry','ov-brig','ov-sheet'].forEach(function(id){ var el=document.getElementById(id); if(el) mo.observe(el,{attributes:true,attributeFilter:['class']}); });
+    mo.observe(document.body,{childList:true});   // doc-ov добавляется/удаляется в body
+  }catch(e){}
+})();
 document.addEventListener('visibilitychange', function(){ if(!document.hidden && LG.token){ flush(); pull().catch(function(){}); } });
 window.addEventListener('online', function(){ if(LG.token) flush(); });
 
