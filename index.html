@@ -288,6 +288,10 @@ function applyEventLocal(state, ev){
     if(!Array.isArray(state.staff)) state.staff=[];
     var sek=state.staff.findIndex(function(x){return x&&x.id===ev.entryId;});
     if(sek>=0) state.staff[sek]=Object.assign({}, state.staff[sek], {archived:true});
+  } else if(ev.kind==='staff.restore'){
+    if(!Array.isArray(state.staff)) state.staff=[];
+    var srk=state.staff.findIndex(function(x){return x&&x.id===ev.entryId;});
+    if(srk>=0) state.staff[srk]=Object.assign({}, state.staff[srk], {archived:false});
   } else if(ev.kind==='ks2.add'){
     if(!Array.isArray(state.ks2acts)) state.ks2acts=[];
     var ka=Object.assign({}, ev.payload); var kai=state.ks2acts.findIndex(function(x){return x&&x.id===ka.id;});
@@ -375,10 +379,14 @@ function brigRevenue(state, b, m3){ if(!isPourWork(b.work)) return 0; var L=cust
 function projected(baseState, queue){
   var s=JSON.parse(JSON.stringify(baseState||{}));
   (queue||[]).forEach(function(ev){ applyEventLocal(s, ev); });
+  // защита: одна null/битая запись в базе не должна ронять рендер целиком
+  if(Array.isArray(s.brigades)) s.brigades=s.brigades.filter(Boolean);
+  if(Array.isArray(s.staff))    s.staff=s.staff.filter(Boolean);
+  if(Array.isArray(s.issues))   s.issues=s.issues.filter(Boolean);
   // черновики (draft:true) выносим отдельно — они НЕ участвуют в расчётах и списках до подтверждения
   var _all=Array.isArray(s.entries)?s.entries:[];
   s.draftEntries=_all.filter(function(e){ return e && e.draft; });
-  s.entries=_all.filter(function(e){ return !(e && e.draft); });
+  s.entries=_all.filter(function(e){ return e && !e.draft; });
   return s;
 }
 // ── ДВИЖОК ПРИБЫЛИ (порт из старого приложения: marginObject/dueFromCustomer) ──
@@ -955,6 +963,23 @@ var LG = {
   sub:{ money:'pl', people:'brigades', pulse:'svodka' }, pfPeriod:'week'
 };
 function saveQueue(){ store.set('lg2_queue', JSON.stringify(LG.queue)); }
+/* Всплывающее уведомление. Раньше функции не было — все вызовы toast() молча пропадали. */
+function toast(msg, ms){
+  try{
+    var el=document.getElementById('lg-toast');
+    if(!el){ el=document.createElement('div'); el.id='lg-toast';
+      el.style.cssText='position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:99999;background:#1c2128;color:#e6edf3;border:1px solid rgba(240,165,0,.55);border-radius:12px;padding:11px 16px;font-size:13px;font-weight:600;max-width:86vw;box-shadow:0 8px 24px rgba(0,0,0,.5);opacity:0;transition:opacity .25s;line-height:1.4';
+      document.body.appendChild(el); }
+    el.textContent=String(msg||''); el.style.opacity='1';
+    clearTimeout(el._t); el._t=setTimeout(function(){ el.style.opacity='0'; }, ms||3500);
+  }catch(e){}
+}
+/* Человеческое описание причины отказа сервера */
+function rejectLabel(r){
+  var K={'entry.add':'операция','entry.edit':'правка операции','entry.delete':'удаление операции','staff.archive':'удаление сотрудника','staff.ledger':'начисление/выплата','brigade.edit':'правка бригады','ks2.add':'акт КС-2','ks2.delete':'удаление КС-2','att.set':'явка','issue.add':'проблема','cycle.set':'итоги недели','meta.set':'настройка','plan.op':'план'};
+  var E={'period_locked':'период закрыт замком','owner_only':'только владелец','forbidden':'нет прав','read_only':'только просмотр','not_found':'запись не найдена','brigadier_scope':'только своя бригада','cabinet_scope':'нет прав кабинета','dup_id':'дубль записи','bad_entry':'некорректные данные'};
+  return (K[r.kind]||r.kind||'событие')+': '+(E[r.error]||r.error||'отклонено');
+}
 function api(path){ return LG.url.replace(/\/$/,'') + path; }
 function headers(){ return {'Content-Type':'application/json','X-LG-Token':LG.token,'X-Author':LG.role||'?'}; }
 
@@ -986,6 +1011,12 @@ function flush(){
       LG.flushing=false; return flush();           // повтор уже на новой версии
     }
     if(res.status!==200){ throw 'http_'+res.status; }
+    // отклонённые сервером события: молча не теряем — показываем причину
+    if(res.d && Array.isArray(res.d.rejected) && res.d.rejected.length){
+      var msgs=res.d.rejected.slice(0,3).map(rejectLabel);
+      var more=res.d.rejected.length-msgs.length;
+      toast('⚠️ Не принято сервером — '+msgs.join('; ')+(more>0?(' и ещё '+more):''), 6000);
+    }
     // успех: убираем отправленные события, версия = серверная
     LG.queue = LG.queue.filter(function(ev){ return batch.indexOf(ev)===-1; });
     saveQueue(); LG.version=res.d.version; LG.flushing=false;
