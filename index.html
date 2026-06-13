@@ -938,10 +938,116 @@ function budgetVsActual(state){ var cats={}; (state.entries||[]).forEach(functio
 function debtorAging(state,obj){ var rev=profitEngine(state,obj).revenue; var acc=customerAccepted(state,obj); var paid=customerPaid(state); return {total:rev-paid, accepted:acc, unsigned:Math.max(0,rev-acc), paid:paid}; }
 // ── ПРЕМИЯ ПРОРАБА (тиры 0.5%/1%/1.5% от V×расценку) ──
 function foremanPremium(fact, rab, cel, rate){
-  var v=Math.max(0,Number(fact)||0); rate=Number(rate)||0; rab=Math.max(0,Number(rab)||0); cel=Math.max(rab,Number(cel)||0);
-  var v1=Math.min(v,rab), v2=Math.max(0,Math.min(v,cel)-rab), v3=Math.max(0,v-cel);
-  var p1=v1*rate*0.005, p2=v2*rate*0.01, p3=v3*rate*0.015;
+  var v=Math.max(0,Number(fact)||0); rate=Number(rate)||0;
+  var lo=Math.max(0,Math.min(Number(rab)||0,Number(cel)||0)), hi=Math.max(0,Math.max(Number(rab)||0,Number(cel)||0));
+  var v1,v2,v3;
+  if(hi<=0){ v1=v; v2=0; v3=0; }                                  // планов нет → 1% на всё
+  else { v1=Math.min(v,lo); v2=Math.max(0,Math.min(v,hi)-lo); v3=Math.max(0,v-hi); }
+  var p1=v1*rate*0.01, p2=v2*rate*0.0125, p3=v3*rate*0.015;        // до рабочего 1%, до целевого 1,25%, сверх 1,5%
   return {v1:v1,v2:v2,v3:v3,p1:Math.round(p1),p2:Math.round(p2),p3:Math.round(p3),total:Math.round(p1+p2+p3)};
+}
+// Блок «Моя зарплата» прораба: оклад капает ежедневно, бонус набегает с каждой заливки
+// (≈ начислено), к выплате — только принятое по КС-2; график по дням + прогноз месяца.
+function foremanPayBlock(view, p, inScope, spots, obj){
+  var now=new Date(); var ym=now.toISOString().slice(0,7);
+  var year=now.getFullYear(), mon=now.getMonth()+1;
+  var dim=new Date(year, mon, 0).getDate(); var dom=Math.min(now.getDate(), dim);
+  var cfg=planCfg(view);
+  var normArm=Number(cfg.normArm)||4.4, normWall=Number(cfg.normWall)||4.7;
+  var mdM3=(1/normArm)+(1/normWall); var perWorker=mdM3>0?(1/mdM3):0;
+  var wl=1-((Number(cfg.weatherLoss)||0)/100); var effDays=dim*wl;
+  // рабочие прораба — суммарно по бригадам, работающим на его пятнах
+  var brigSet={}; (view.entries||[]).forEach(function(e){ if(e&&e.brigade&&(typeof inScope!=='function'||inScope(e))) brigSet[e.brigade]=1; });
+  var workers=0; (view.brigades||[]).forEach(function(b){ if(b&&!b.archivedAt&&brigSet[b.id]) workers+=Number(b.workers)||0; });
+  if(!workers) workers=(spots.length||1)*(Number(cfg.peoplePerSpot)||12);
+  var defRate=Math.round(((view.objMeta&&view.objMeta[obj]&&(view.objMeta[obj].custRates||[]).find(function(r){return r&&r.rate>0;}))||{rate:38437.76}).rate);
+  var rate=Number(p.premRate)>0?Number(p.premRate):defRate;
+  var rab=Math.round(workers*effDays*perWorker);          // рабочий план (авто): люди × норма × дни
+  // целевой — из плана приложения (доля прораба по плановому объёму его блоков); премCel — ручной override
+  var autoCel=0;
+  try{ var R=compute(view); var row=(R.rows||[]).find(function(x){return x.m===R.curM;}); var monoMonth=row?row.m3:0;
+    var allSp=((view.objMeta&&view.objMeta[obj]&&view.objMeta[obj].spots)||[]);
+    function spv(s){ return (s.constructions||[]).reduce(function(a,c){return a+(Number(c.volume)||0);},0)||Number(s.volume)||0; }
+    var totPlan=allSp.reduce(function(a,s){return a+spv(s);},0);
+    var myIds={}; (spots||[]).forEach(function(s){myIds[s.id]=1;});
+    var mineSp=allSp.filter(function(s){return myIds[s.id];}); var myPlan=mineSp.reduce(function(a,s){return a+spv(s);},0);
+    var frac= totPlan>0 ? (myPlan/totPlan) : ((spots&&spots.length&&allSp.length)? (spots.length/allSp.length) : 1);
+    autoCel=Math.round(monoMonth*frac);
+  }catch(e){ autoCel=0; }
+  var cel=(Number(p.premCel)>0)?Math.round(Number(p.premCel)):autoCel; var hasTarget=cel>0;
+  // заливки месяца в scope: всего/принято, по дням и по блокам→конструктиву
+  var allVol=0, accVol=0, byBlock={}, dayVol={};
+  (view.entries||[]).forEach(function(e){
+    if(!e||e.type!=='vol'||!isConcrete(view,e)) return;
+    if(String(e.date||'').slice(0,7)!==ym) return;
+    if(typeof inScope==='function' && !inScope(e)) return;
+    var v=Number(e.volume)||0, day=parseInt(String(e.date).slice(8,10),10)||1;
+    allVol+=v; dayVol[day]=(dayVol[day]||0)+v; if(e.accepted) accVol+=v;
+    var sn=e.zone||spotNameOf(view,e.spotId)||'Прочее';
+    var bk=byBlock[sn]||(byBlock[sn]={vol:0,acc:0,wt:{}}); bk.vol+=v; if(e.accepted)bk.acc+=v;
+    var wt=(e.wtype||'Бетон'); bk.wt[wt]=(bk.wt[wt]||0)+v;
+  });
+  allVol=Math.round(allVol*10)/10; accVol=Math.round(accVol*10)/10;
+  var oklad=(p.payMethod==='oklad')?(Number(p.rate)||0):0;
+  var okToDate=Math.round(oklad*(dom/dim));
+  function bonus(vol){ return foremanPremium(vol, rab, cel, rate).total; }
+  var bonusAll=bonus(allVol), bonusAcc=bonus(accVol);
+  var accrued=okToDate+bonusAll, payable=okToDate+bonusAcc;
+  var projVol=dom>0?Math.round(allVol/dom*dim*10)/10:allVol;
+  var forecast=oklad+bonus(projVol);
+  var eff=allVol>0?bonusAll/allVol:0;
+  // график: накопленное начислено по дням + пунктир-прогноз
+  var pts=[], cum=0;
+  for(var dday=1; dday<=dom; dday++){ cum+=(dayVol[dday]||0); pts.push([dday, Math.round(oklad*(dday/dim))+bonus(Math.round(cum*10)/10)]); }
+  var maxY=Math.max(forecast, accrued, 1);
+  var W=300, Hh=84, padB=4;
+  function X(d){ return ((d)/dim)*W; }
+  function Y(v){ return Hh - padB - (v/maxY)*(Hh-padB-4); }
+  var line=pts.map(function(q){ return X(q[0]).toFixed(1)+','+Y(q[1]).toFixed(1); }).join(' ');
+  var svg='<svg viewBox="0 0 '+W+' '+Hh+'" preserveAspectRatio="none" style="width:100%;height:84px;display:block">';
+  // цель (целевой план в деньгах ≈ bonus(cel)+oklad) как горизонтальный ориентир
+  if(hasTarget){ var ty=Y(Math.min(maxY, oklad+bonus(cel))); svg+='<line x1="0" y1="'+ty.toFixed(1)+'" x2="'+W+'" y2="'+ty.toFixed(1)+'" stroke="var(--gold)" stroke-width="1" stroke-dasharray="3 3" opacity="0.55"/>'; }
+  if(pts.length){ svg+='<polyline points="'+line+'" fill="none" stroke="var(--teal)" stroke-width="2.5"/>';
+    // прогноз: от последней точки к концу месяца
+    var last=pts[pts.length-1]; svg+='<line x1="'+X(last[0]).toFixed(1)+'" y1="'+Y(last[1]).toFixed(1)+'" x2="'+X(dim).toFixed(1)+'" y2="'+Y(forecast).toFixed(1)+'" stroke="var(--gold)" stroke-width="2" stroke-dasharray="4 3"/>';
+    svg+='<circle cx="'+X(last[0]).toFixed(1)+'" cy="'+Y(last[1]).toFixed(1)+'" r="3" fill="var(--teal)"/>';
+    svg+='<circle cx="'+X(dim).toFixed(1)+'" cy="'+Y(forecast).toFixed(1)+'" r="3" fill="var(--gold)"/>'; }
+  svg+='</svg>';
+  // прогресс по объёму
+  var pctCel=hasTarget?Math.round(allVol/cel*100):0;
+  var _pr=foremanPremium(allVol, rab, cel, rate);
+  var H='<div style="border:1px solid var(--gold);border-radius:15px;padding:15px;margin-bottom:14px;background:linear-gradient(135deg,rgba(240,165,0,.10),transparent)">';
+  H+='<div style="font-size:11.5px;font-weight:800;letter-spacing:.5px;color:var(--gold);margin-bottom:2px">💰 МОЯ ЗАРПЛАТА · '+(['','янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'][mon])+'</div>';
+  H+='<div style="font-size:32px;font-weight:900;color:var(--gold);line-height:1.1">'+fmt0(accrued)+' ₸</div>';
+  H+='<div style="font-size:11px;color:var(--mut);margin-bottom:8px">начислено на сегодня (растёт с каждой заливкой)</div>';
+  H+=svg;
+  H+='<div style="display:flex;justify-content:space-between;gap:8px;margin:8px 0 2px">'
+    +'<div style="flex:1;text-align:center;background:var(--sur2);border:1px solid var(--brd);border-radius:10px;padding:8px"><div style="font-size:10px;color:var(--mut)">💰 К выплате (КС-2)</div><div style="font-size:15px;font-weight:800;color:var(--green)">'+fmt0(payable)+'</div></div>'
+    +'<div style="flex:1;text-align:center;background:var(--sur2);border:1px solid var(--brd);border-radius:10px;padding:8px"><div style="font-size:10px;color:var(--mut)">📈 Прогноз месяца</div><div style="font-size:15px;font-weight:800;color:var(--gold)">'+fmt0(forecast)+'</div></div></div>';
+  // расшифровка оклад/бонус
+  if(oklad>0) H+='<div style="display:flex;justify-content:space-between;font-size:12.5px;padding:5px 0;border-top:1px solid var(--brd)"><span style="color:var(--mut)">Оклад · '+dom+' из '+dim+' дн</span><span style="font-weight:700">'+fmt0(okToDate)+' ₸</span></div>';
+  H+='<div style="display:flex;justify-content:space-between;font-size:12.5px;padding:5px 0'+(oklad>0?'':';border-top:1px solid var(--brd)')+'"><span style="color:var(--mut)">Бонус · набежал (≈)</span><span style="font-weight:700;color:var(--teal)">'+fmt0(bonusAll)+' ₸</span></div>';
+  H+='<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0"><span style="color:var(--mut)">из них подтверждено КС-2</span><span style="font-weight:700;color:var(--green)">'+fmt0(bonusAcc)+' ₸</span></div>';
+  // план
+  H+='<div style="border-top:1px solid var(--brd);margin-top:8px;padding-top:8px;font-size:12px;color:var(--mut);line-height:1.7">'
+    +'Залито за месяц: <b style="color:var(--fg)">'+fmtD(allVol)+' м³</b>'+(hasTarget?(' · '+pctCel+'% целевого'):'')+'<br>'
+    +fmtD(_pr.v1)+' м³ × 1% = '+fmt0(_pr.p1)+' ₸<br>'
+    +fmtD(_pr.v2)+' м³ × 1,25% = '+fmt0(_pr.p2)+' ₸<br>'
+    +fmtD(_pr.v3)+' м³ × 1,5% = '+fmt0(_pr.p3)+' ₸<br>'
+    +'<span style="font-size:11px">Рабочий план (люди×норма): '+fmtD(rab)+' м³ · Целевой (из плана): '+(hasTarget?fmtD(cel):'—')+' м³</span></div>';
+  // путь начисления: блок → конструктив
+  H+='<div style="border-top:1px solid var(--brd);margin-top:8px;padding-top:8px"><div style="font-size:11px;font-weight:800;letter-spacing:.5px;color:var(--mut);margin-bottom:6px">ПУТЬ НАЧИСЛЕНИЯ · ЗАЛИТО '+fmtD(allVol)+' м³ (принято КС-2 '+fmtD(accVol)+')</div>';
+  var blockNames=Object.keys(byBlock);
+  if(!blockNames.length) H+='<div style="font-size:12px;color:var(--mut)">В этом месяце заливок ещё нет.</div>';
+  blockNames.forEach(function(sn){ var bk=byBlock[sn]; var be=Math.round(bk.vol*eff);
+    H+='<div style="display:flex;justify-content:space-between;align-items:baseline;font-size:12.5px;margin:6px 0 2px"><span style="font-weight:700">🏗 '+esc(sn)+'</span><span><b style="color:var(--teal)">'+fmtD(bk.vol)+' м³</b> · <b style="color:var(--gold)">'+fmt0(be)+' ₸</b></span></div>';
+    Object.keys(bk.wt).forEach(function(wt){ var wv=bk.wt[wt];
+      H+='<div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--mut);padding:1px 0 1px 14px"><span>└ '+esc(wt)+'</span><span>'+fmtD(wv)+' м³ · '+fmt0(Math.round(wv*eff))+' ₸</span></div>';
+    });
+  });
+  H+='</div>';
+  H+='<div style="font-size:10.5px;color:var(--mut);margin-top:8px;line-height:1.5">Бонус набегает с каждой заливки. Выплачивается то, что подписано по КС-2 — доказывай и подписывай объёмы, и сумма становится «к выплате».</div></div>';
+  return H;
 }
 // ── ФОНД КОНСУЛЬТАНТОВ (2% выручки заказчика, доли по весам) ──
 function consultPct(view, obj){ var mm=(view.objMeta&&view.objMeta[obj]); if(mm&&Number(mm.consultFundPct)>0) return Number(mm.consultFundPct); return 0.02; }
@@ -1156,7 +1262,7 @@ function render(){
     var cid = LG.role.indexOf('cabinet_')===0 ? LG.role.slice('cabinet_'.length) : null;
     var cst = cid ? (view.staff||[]).find(function(p){return p&&p.id===cid;}) : null;
     if(cst && cst.type==='консультант'){ renderConsultantCabinet(view, app, cid); fab.style.display='none'; }
-    else { renderCabinet(view, app); fab.style.display = (LG.role.indexOf('cabinet_')===0||LG.role.indexOf('brigadier_')===0)?'flex':'none'; }
+    else { renderCabinet(view, app, cst?{spots:(cst.spots||[]), name:(cst.name||''), staffId:cst.id}:null); fab.style.display = (LG.role.indexOf('cabinet_')===0||LG.role.indexOf('brigadier_')===0)?'flex':'none'; }
     nav.className='';
     return;
   }
@@ -3471,6 +3577,7 @@ function renderCabinet(view, app, scope){
   if(arguments.length<3){ brigId = LG.role.indexOf('brigadier_')===0 ? LG.role.slice('brigadier_'.length) : null; }
   else if(scope && typeof scope==='object'){ brigId=scope.brigId||null; spotFilter=(scope.spots&&scope.spots.length)?scope.spots:null; who=scope.name||''; }
   else { brigId=scope||null; }
+  var payStaffId=(scope&&typeof scope==='object')?(scope.staffId||null):null;
   var isBrig=!!brigId;
   // набор пятен прораба (id + названия) для фильтра
   var spotIdSet={}, spotNameSet={};
@@ -3495,13 +3602,15 @@ function renderCabinet(view, app, scope){
   if(!PREVIEW && !store.get('lg2_seen_cab')){
     h+='<div style="background:rgba(45,212,191,.08);border:1px solid var(--teal);border-radius:13px;padding:14px;margin-bottom:14px">'
       +'<div style="font-size:14px;font-weight:800;color:var(--teal);margin-bottom:8px">👋 Добро пожаловать!</div>'
-      +'<div style="font-size:12.5px;line-height:1.7;color:var(--text)">Это ваш рабочий экран. Главное:<br>• <b>➕ Залили сегодня</b> — записать объём бетона после заливки<br>• <b>🚚 Заявка на бетон</b> — заказать бетон сообщением<br>• <b>📋 Отчёт за день</b> — отправить итог в WhatsApp<br>• <b>Отметить</b> явку — сколько человек вышло<br>• <b>✅ Чек-лист</b> — проверка перед заливкой<br><br>Денег и финансов здесь нет — только ваша работа.</div>'
+      +'<div style="font-size:12.5px;line-height:1.7;color:var(--text)">Это ваш рабочий экран. Главное:<br>• <b>➕ Залили сегодня</b> — записать объём бетона после заливки<br>• <b>🚚 Заявка на бетон</b> — заказать бетон сообщением<br>• <b>📋 Отчёт за день</b> — отправить итог в WhatsApp<br>• <b>Отметить</b> явку — сколько человек вышло<br>• <b>✅ Чек-лист</b> — проверка перед заливкой<br><br>Финансов компании здесь нет — только ваша работа и ваша зарплата.</div>'
       +'<button onclick="dismissCabHint(this)" style="width:100%;margin-top:11px;border:none;background:var(--teal);color:#04201b;font-weight:800;font-size:14px;padding:11px;border-radius:11px;cursor:pointer">Понятно, начать</button></div>';
   }
   // плитки сегодня/неделя
   h+='<div style="display:flex;gap:10px;margin-bottom:14px">'
     +'<div style="flex:1;background:var(--sur);border:1px solid var(--brd);border-radius:13px;padding:13px"><div style="font-size:12px;color:var(--mut)">Сегодня залито</div><div class="num" style="font-size:24px;font-weight:900;color:'+(todayV>0?'var(--green)':'var(--mut)')+'">'+fmtD(todayV)+'<span style="font-size:12px;color:var(--mut)"> м³</span></div></div>'
     +'<div style="flex:1;background:var(--sur);border:1px solid var(--brd);border-radius:13px;padding:13px"><div style="font-size:12px;color:var(--mut)">За 7 дней</div><div class="num" style="font-size:24px;font-weight:900;color:var(--teal)">'+fmtD(weekV)+'<span style="font-size:12px;color:var(--mut)"> м³</span></div></div></div>';
+  // 💰 зарплата прораба — оклад + премия по КС-2 с разбивкой блок → конструктив
+  if(!isBrig && payStaffId){ var _pp=(view.staff||[]).find(function(x){return x&&x.id===payStaffId;}); if(_pp) h+=foremanPayBlock(view,_pp,inScope,spots,obj); }
   // алерты (без денег — операционные)
   var pendV=0; ent.forEach(function(e){ if(e.type==='vol'&&isConcrete(view,e)&&inScope(e)&&!e.accepted) pendV+=Number(e.volume)||0; });
   var lastDate=pours.length?pours[0].date:''; var lastDays=lastDate?Math.floor((Date.now()-new Date(lastDate))/86400000):999;
@@ -3706,7 +3815,7 @@ function ppCheck(i){ var b=document.getElementById('pp-box-'+i); if(!b)return; v
   var n=0; for(var k=0;k<PREPOUR.length;k++){ var bx=document.getElementById('pp-box-'+k); if(bx&&bx.textContent==='✓')n++; }
   var d=document.getElementById('pp-done'); if(d) d.innerHTML = n===PREPOUR.length?'<b style="color:var(--green)">✅ Всё готово — можно заливать</b>':('Отмечено '+n+' из '+PREPOUR.length); }
 function openBrigCabinet(id){ var v=projected(LG.base,LG.queue); var b=(v.brigades||[]).find(function(x){return x.id===id;})||{}; lgCloseSheet(); openCabinetView({brigId:id, name:b.name||''}); }
-function openForemanCabinet(id){ var v=projected(LG.base,LG.queue); var p=(staffList(v).find(function(x){return x.id===id;}))||{}; lgCloseSheet(); openCabinetView({spots:p.spots||[], name:p.name||''}); }
+function openForemanCabinet(id){ var v=projected(LG.base,LG.queue); var p=(staffList(v).find(function(x){return x.id===id;}))||{}; lgCloseSheet(); openCabinetView({spots:p.spots||[], name:p.name||'', staffId:p.id}); }
 function openCabinetView(scope){
   var view=projected(LG.base, LG.queue);
   var isBrig=scope&&scope.brigId; var nm=(scope&&scope.name)?(' · '+scope.name.replace(/^Бригада\s*/,'')):'';
@@ -4201,6 +4310,9 @@ function openStaffForm(isConsult, existing){
   if(!isConsult){
     h+='<div><label style="font-size:13px;color:var(--mut)">Тип оплаты</label><select id="sf-pm" style="width:100%;margin-top:4px;padding:11px;background:var(--sur2);border:1px solid var(--brd);border-radius:10px;color:var(--fg);font-size:15px">'+selOpts([['oklad','Оклад (фикс. в месяц)'],['day','Ставка за день'],['manual','Вручную']], pm)+'</select></div>';
     h+='<div><label style="font-size:13px;color:var(--mut)">Сумма (оклад/ставка), ₸</label><input id="sf-rate" type="number" inputmode="numeric" value="'+(p.rate||'')+'" placeholder="0" style="width:100%;margin-top:4px;padding:11px;background:var(--sur2);border:1px solid var(--brd);border-radius:10px;color:var(--fg);font-size:15px"/></div>';
+    h+='<div style="border-top:1px solid var(--brd);padding-top:10px;margin-top:2px"><label style="font-size:13px;color:var(--gold);font-weight:700">Премия прораба по КС-2 (необязательно)</label><div style="font-size:11px;color:var(--mut);margin-top:3px">Рабочий и целевой планы считаются сами (люди × нормы и план объекта). Здесь — расценка КС-2; целевой можно переопределить вручную.</div></div>';
+    h+='<div><label style="font-size:13px;color:var(--mut)">Расценка КС-2, ₸/м³</label><input id="sf-premrate" type="number" inputmode="numeric" value="'+(p.premRate||'')+'" placeholder="напр. 38438" style="width:100%;margin-top:4px;padding:11px;background:var(--sur2);border:1px solid var(--brd);border-radius:10px;color:var(--fg);font-size:15px"/></div>';
+    h+='<div><label style="font-size:13px;color:var(--mut)">Целевой план, м³/мес (необязательно — иначе из плана объекта)</label><input id="sf-premcel" type="number" inputmode="numeric" value="'+(p.premCel||'')+'" placeholder="авто из плана" style="width:100%;margin-top:4px;padding:11px;background:var(--sur2);border:1px solid var(--brd);border-radius:10px;color:var(--fg);font-size:15px"/></div>';
   }
   if(spots.length){ h+='<div><label style="font-size:13px;color:var(--mut)">Пятна (через запятую — необязательно)</label><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">'+spots.map(function(s){ var on=(p.spots||[]).indexOf(s.id)>=0; return '<label style="display:flex;align-items:center;gap:5px;background:var(--sur2);border:1px solid '+(on?'var(--teal)':'var(--brd)')+';border-radius:8px;padding:7px 10px;cursor:pointer;font-size:13px"><input type="checkbox" class="sf-spot" value="'+s.id+'"'+(on?' checked':'')+' style="width:auto"/> '+esc(s.name)+'</label>'; }).join('')+'</div></div>'; }
   h+='<div id="sf-err" style="color:var(--red);font-size:13px;min-height:14px"></div>';
@@ -4215,7 +4327,7 @@ function saveStaff(){
   var isConsult=LG.staffConsult;
   var spots=[].slice.call(document.querySelectorAll('.sf-spot')).filter(function(c){return c.checked;}).map(function(c){return c.value;});
   var p={ name:name, role:(document.getElementById('sf-role').value||'').trim(), type:isConsult?'консультант':'штат', spots:spots };
-  if(!isConsult){ p.payMethod=gv('sf-pm'); p.rate=Number(gv('sf-rate'))||0; }
+  if(!isConsult){ p.payMethod=gv('sf-pm'); p.rate=Number(gv('sf-rate'))||0; p.premRate=Number(gv('sf-premrate'))||0; p.premCel=Number(gv('sf-premcel'))||0; }
   else { p.payMethod='manual'; }
   if(LG.staffEdit){ emit({kind:'staff.edit', entryId:LG.staffEdit.id, payload:p}); }
   else { p.id='st_'+Date.now(); emit({kind:'staff.add', payload:p}); }
@@ -4279,7 +4391,7 @@ function openStaffCard(p){
     h+='<button onclick="openForemanCabinet(\''+esc(p.id)+'\')" style="width:100%;margin-top:8px;background:rgba(167,139,250,.1);border:1px solid var(--violet);color:var(--violet);border-radius:12px;padding:13px;font-size:14px;font-weight:700;cursor:pointer">👷 Открыть кабинет прораба</button>';
     h+='<button onclick="openForemanPremium(\''+esc(p.id)+'\')" style="width:100%;margin-top:8px;background:rgba(45,212,191,.08);border:1px solid var(--teal);color:var(--teal);border-radius:12px;padding:13px;font-size:14px;font-weight:700;cursor:pointer">📐 Рассчитать премию по КС-2</button>';
   }
-  if(canWriteLedger()) h+='<button onclick="openStaffForm('+(consult?'true':'false')+', '+JSON.stringify({id:p.id,name:p.name,role:p.role,type:consult?'консультант':'штат',payMethod:p.payMethod,rate:p.rate,spots:p.spots}).replace(/"/g,'&quot;')+')" style="width:100%;margin-top:10px;background:rgba(240,165,0,.12);border:1px solid var(--gold);color:var(--gold);border-radius:12px;padding:12px;font-size:14px;font-weight:700;cursor:pointer">✏️ Изменить</button>';
+  if(canWriteLedger()) h+='<button onclick="openStaffForm('+(consult?'true':'false')+', '+JSON.stringify({id:p.id,name:p.name,role:p.role,type:consult?'консультант':'штат',payMethod:p.payMethod,rate:p.rate,spots:p.spots,premRate:p.premRate,premCel:p.premCel}).replace(/"/g,'&quot;')+')" style="width:100%;margin-top:10px;background:rgba(240,165,0,.12);border:1px solid var(--gold);color:var(--gold);border-radius:12px;padding:12px;font-size:14px;font-weight:700;cursor:pointer">✏️ Изменить</button>';
   lgSheet((consult?'👤 ':'👷 ')+esc(p.name), h);
 }
 function openBrigade(b){
@@ -4604,10 +4716,10 @@ function openForemanPremium(pid){
   fact=Math.round(fact*10)/10; var cel=150, rab=100;
   var fi='width:100%;background:var(--sur2);border:1px solid var(--brd);color:var(--fg);border-radius:10px;padding:11px;font-size:15px;box-sizing:border-box';
   function fg(l,inner){ return '<div style="margin-bottom:12px"><label style="display:block;font-size:12px;color:var(--mut);margin-bottom:5px">'+l+'</label>'+inner+'</div>'; }
-  var h='<div style="font-size:13px;color:var(--mut);margin-bottom:12px">Тиры: до рабочего плана — 0,5%, до целевого — 1%, сверх — 1,5% от (объём × расценку КС-2).</div>';
+  var h='<div style="font-size:13px;color:var(--mut);margin-bottom:12px">До рабочего плана — 1%, до целевого — 1,25%, сверх — 1,5% от (объём × расценку КС-2).</div>';
   h+=fg('Факт КС-2 за месяц, м³','<input id="fp-fact" type="number" step="any" oninput="fpRecalc()" value="'+fact+'" style="'+fi+'"/>');
-  h+=fg('Рабочий план (мин.), м³ · 0,5%','<input id="fp-rab" type="number" step="any" oninput="fpRecalc()" value="'+rab+'" style="'+fi+'"/>');
-  h+=fg('Целевой план (Пульс), м³ · 1%','<input id="fp-cel" type="number" step="any" oninput="fpRecalc()" value="'+cel+'" style="'+fi+'"/>');
+  h+=fg('Рабочий план, м³ · до него 1%','<input id="fp-rab" type="number" step="any" oninput="fpRecalc()" value="'+rab+'" style="'+fi+'"/>');
+  h+=fg('Целевой план, м³ · до него 1,25%, сверх 1,5%','<input id="fp-cel" type="number" step="any" oninput="fpRecalc()" value="'+cel+'" style="'+fi+'"/>');
   h+=fg('Расценка КС-2, ₸/м³','<input id="fp-rate" type="number" step="any" oninput="fpRecalc()" value="'+rate+'" style="'+fi+'"/>');
   h+='<div id="fp-out" style="border:1px solid var(--teal);border-radius:12px;padding:14px;background:rgba(45,212,191,.06);margin-top:4px"></div>';
   h+='<div style="font-size:12px;color:var(--mut);margin-top:10px;line-height:1.5">Гейты (переделки ≥3%, нарушение ТБ) обнуляют/режут премию — учитывайте вручную.</div>';
@@ -4618,8 +4730,8 @@ function fpRecalc(){
   function gv(id){ var el=document.getElementById(id); return el?Number(el.value)||0:0; }
   var r=foremanPremium(gv('fp-fact'), gv('fp-rab'), gv('fp-cel'), gv('fp-rate'));
   var out=document.getElementById('fp-out'); if(!out)return;
-  out.innerHTML='<div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0"><span style="color:var(--mut)">'+fmtD(r.v1)+' м³ × 0,5%</span><span class="num" style="font-weight:700">'+fmt0(r.p1)+' ₸</span></div>'
-    +'<div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0"><span style="color:var(--mut)">'+fmtD(r.v2)+' м³ × 1%</span><span class="num" style="font-weight:700">'+fmt0(r.p2)+' ₸</span></div>'
+  out.innerHTML='<div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0"><span style="color:var(--mut)">'+fmtD(r.v1)+' м³ × 1%</span><span class="num" style="font-weight:700">'+fmt0(r.p1)+' ₸</span></div>'
+    +'<div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0"><span style="color:var(--mut)">'+fmtD(r.v2)+' м³ × 1,25%</span><span class="num" style="font-weight:700">'+fmt0(r.p2)+' ₸</span></div>'
     +'<div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0"><span style="color:var(--mut)">'+fmtD(r.v3)+' м³ × 1,5%</span><span class="num" style="font-weight:700">'+fmt0(r.p3)+' ₸</span></div>'
     +'<div style="display:flex;justify-content:space-between;border-top:1px solid var(--brd);margin-top:6px;padding-top:8px"><span style="font-weight:800">ПРЕМИЯ</span><span class="num" style="font-size:18px;font-weight:800;color:var(--teal)">'+fmt0(r.total)+' ₸</span></div>';
 }
