@@ -3840,7 +3840,7 @@ function askCoach(){
     return;
   }
   lgSheet(title,'<div style="padding:30px;text-align:center"><div style="font-size:36px">🧠</div><div style="color:var(--mut);margin-top:10px">Наставник анализирует участок…</div></div>');
-  fetch(api('/api/ai'),{method:'POST',headers:headers(),body:JSON.stringify({prompt:coachPrompt(view)})})
+  fetch(api('/api/ai'),{method:'POST',headers:headers(),body:JSON.stringify({prompt:coachPrompt(view),pro:true})})
     .then(function(r){return r.json();})
     .then(function(d){ var txt=(d&&d.text)||'Не удалось получить ответ.'; lgSheet(title, aiBubble('',aiMd(txt))); })
     .catch(function(e){ lgSheet(title,'<div style="padding:20px;color:var(--red);text-align:center">Ошибка: '+esc(String(e))+'</div>'); });
@@ -3876,7 +3876,7 @@ function askAccelerate(){
     return;
   }
   lgSheet(title,'<div style="padding:30px;text-align:center"><div style="font-size:36px">🚀</div><div style="color:var(--mut);margin-top:10px">ИИ строит план догона…</div></div>');
-  fetch(api('/api/ai'),{method:'POST',headers:headers(),body:JSON.stringify({prompt:acceleratePrompt(view)})})
+  fetch(api('/api/ai'),{method:'POST',headers:headers(),body:JSON.stringify({prompt:acceleratePrompt(view),pro:true})})
     .then(function(r){return r.json();})
     .then(function(d){ var txt=(d&&d.text)||'Не удалось получить ответ.'; lgSheet(title, aiBubble('',aiMd(txt))); })
     .catch(function(e){ lgSheet(title,'<div style="padding:20px;color:var(--red);text-align:center">Ошибка: '+esc(String(e))+'</div>'); });
@@ -4558,7 +4558,7 @@ function renderHActForm(){
   var d=LG.hactDraft; if(!d)return;
   var inp='width:100%;background:var(--sur2);border:1px solid var(--brd);color:var(--fg);border-radius:9px;padding:9px;font-size:13px;box-sizing:border-box;margin-bottom:9px';
   var h='<div style="padding:2px">';
-  h+='<label style="display:block;width:100%;text-align:center;background:var(--sur2);border:1px dashed var(--gold);color:var(--gold);border-radius:11px;padding:11px;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:6px">📸 Заполнить по фото образца<input type="file" accept="image/*" capture="environment" onchange="hactPhoto(this)" style="display:none"/></label>';
+  h+='<label style="display:block;width:100%;text-align:center;background:var(--sur2);border:1px dashed var(--gold);color:var(--gold);border-radius:11px;padding:11px;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:6px">📸 Заполнить по фото образца<input type="file" accept="image/*,application/pdf" onchange="hactPhoto(this)" style="display:none"/></label>';
   h+='<div id="hact-photo-st" style="font-size:11px;color:var(--mut);text-align:center;margin-bottom:12px"></div>';
   function fld(lbl,id,val){ return '<label style="font-size:11px;color:var(--mut)">'+lbl+'</label><input id="'+id+'" value="'+esc(val||'')+'" style="'+inp+'"/>'; }
   h+='<div style="display:flex;gap:8px"><div style="flex:1">'+fld('№ акта','hact-num',d.num)+'</div><div style="flex:1">'+fld('Дата','hact-date',d.date)+'</div></div>';
@@ -4635,7 +4635,7 @@ function renderInvForm(){
   var inp='width:100%;background:var(--sur2);border:1px solid var(--brd);color:var(--fg);border-radius:9px;padding:9px;font-size:13px;box-sizing:border-box;margin-bottom:9px';
   function fld(lbl,id,val){ return '<label style="font-size:11px;color:var(--mut)">'+lbl+'</label><input id="'+id+'" value="'+esc(val||'')+'" style="'+inp+'"/>'; }
   var h='<div style="padding:2px">';
-  h+='<label style="display:block;width:100%;text-align:center;background:var(--sur2);border:1px dashed var(--gold);color:var(--gold);border-radius:11px;padding:11px;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:6px">📸 Заполнить по фото<input type="file" accept="image/*" capture="environment" onchange="invPhoto(this)" style="display:none"/></label>';
+  h+='<label style="display:block;width:100%;text-align:center;background:var(--sur2);border:1px dashed var(--gold);color:var(--gold);border-radius:11px;padding:11px;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:6px">📸 Заполнить по фото<input type="file" accept="image/*,application/pdf" onchange="invPhoto(this)" style="display:none"/></label>';
   h+='<div id="inv-photo-st" style="font-size:11px;color:var(--mut);text-align:center;margin-bottom:12px"></div>';
   h+='<div style="display:flex;gap:8px"><div style="flex:1">'+fld('№','inv-num',d.num)+'</div><div style="flex:1">'+fld('Дата','inv-date',d.date)+'</div></div>';
   h+=fld('Поставщик','inv-seller',d.seller)+fld('БИН поставщика','inv-sellerbin',d.sellerBin);
@@ -4692,7 +4692,7 @@ function renderR1Form(){
   var inp='width:100%;background:var(--sur2);border:1px solid var(--brd);color:var(--fg);border-radius:9px;padding:9px;font-size:13px;box-sizing:border-box;margin-bottom:9px';
   function fld(lbl,id,val){ return '<label style="font-size:11px;color:var(--mut)">'+lbl+'</label><input id="'+id+'" value="'+esc(val||'')+'" style="'+inp+'"/>'; }
   var h='<div style="padding:2px">';
-  h+='<label style="display:block;width:100%;text-align:center;background:var(--sur2);border:1px dashed var(--gold);color:var(--gold);border-radius:11px;padding:11px;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:6px">📸 Заполнить по фото образца<input type="file" accept="image/*" capture="environment" onchange="r1Photo(this)" style="display:none"/></label>';
+  h+='<label style="display:block;width:100%;text-align:center;background:var(--sur2);border:1px dashed var(--gold);color:var(--gold);border-radius:11px;padding:11px;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:6px">📸 Заполнить по фото образца<input type="file" accept="image/*,application/pdf" onchange="r1Photo(this)" style="display:none"/></label>';
   h+='<div id="r1-photo-st" style="font-size:11px;color:var(--mut);text-align:center;margin-bottom:12px"></div>';
   h+='<div style="display:flex;gap:8px"><div style="flex:1">'+fld('№','r1-num',d.num)+'</div><div style="flex:1">'+fld('Дата','r1-date',d.date)+'</div></div>';
   h+=fld('Период','r1-period',d.period)+fld('Объект','r1-object',d.object)+fld('Подрядчик','r1-podryad',d.podryad)+fld('Заказчик','r1-zak',d.zakazchik);
@@ -5016,7 +5016,7 @@ function openImportKP(){
   LG.kpDraft=null;
   var h='<div style="padding:2px">';
   h+='<div style="font-size:13px;color:var(--mut);margin-bottom:12px">Сфотографируйте или загрузите КП / смету / договор — ИИ распознает виды работ, цены (с/без НДС), объёмы и сроки. Потом всё можно поправить.</div>';
-  h+='<label style="display:block;width:100%;background:var(--gold);color:#1a1205;font-weight:800;text-align:center;border-radius:12px;padding:14px;font-size:15px;cursor:pointer">📸 Выбрать фото КП<input type="file" accept="image/*" capture="environment" onchange="kpFile(this)" style="display:none"/></label>';
+  h+='<label style="display:block;width:100%;background:var(--gold);color:#1a1205;font-weight:800;text-align:center;border-radius:12px;padding:14px;font-size:15px;cursor:pointer">📎 Фото или PDF (КП)<input type="file" accept="image/*,application/pdf" onchange="kpFile(this)" style="display:none"/></label>';
   h+='<div id="kp-box" style="margin-top:14px"></div>';
   h+='</div>';
   lgSheet('🆕 Объект из КП', h);
