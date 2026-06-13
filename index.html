@@ -1805,19 +1805,7 @@ window.MORE={
   lockPeriod:function(){ openLockPeriod(); },
   telegram:function(){ openTelegramView(); },
   soon:function(name){ lgSheet(name,'<div style="text-align:center;padding:28px 8px"><div style="font-size:44px">🚧</div><div style="font-size:16px;font-weight:700;margin-top:10px">'+esc(name)+'</div><div style="color:var(--mut);font-size:13px;margin-top:8px;line-height:1.6">Раздел переносится из старого приложения. Данные уже в облаке и не теряются — экран добавлю следующим шагом.</div></div>'); },
-  journal:function(){ var v=LG.base?projected(LG.base,LG.queue):{};
-    var entries=(v.entries||[]).slice().sort(entryCmp);
-    var h='<div style="font-size:12px;color:var(--mut);margin-bottom:10px">Все операции · '+entries.length+' · внутри дня — по времени внесения</div>';
-    if(!entries.length) h+='<div class="empty">Пока пусто.</div>';
-    entries.slice(0,300).forEach(function(e){ var mt=TYPE_META[e.type]||{l:e.type||'?',c:'var(--mut)'};
-      var amount=e.amountPending?'—':fmt((e.type==='expense'||e.type==='payout')?-(e.amount||0):(e.amount||0));
-      var tm=entryTime(e);
-      var sub=mt.l+' · '+esc(e.date||'')+(tm?(' <span style="color:var(--teal)">'+tm+'</span>'):'')+(e.type==='vol'&&e.volume?(' · '+e.volume+' м³'):'')+(e.brigade?(' · '+esc(brigName(v,e.brigade))):'');
-      var clk=canWriteLedger()?(' onclick="openEntryEditById(\''+esc(String(e.id))+'\')" style="cursor:pointer"'):'';
-      h+='<div'+clk+' style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--brd)'+(canWriteLedger()?';cursor:pointer':'')+'"><span style="width:8px;height:8px;border-radius:50%;background:'+mt.c+';flex:none"></span><div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(e.note||mt.l)+'</div><div style="font-size:11px;color:var(--mut)">'+sub+'</div></div><div style="font-weight:700;color:'+mt.c+';white-space:nowrap">'+amount+'</div>'+(canWriteLedger()?'<span style="color:var(--mut);font-size:13px">✏️</span>':'')+'</div>';
-    });
-    lgSheet('Журнал операций', h);
-  },
+  journal:function(){ LG.jrnFilter={q:'',type:'',period:'all'}; lgSheet('📋 Журнал операций', jrnShell()); jrnRender(); },
   cfg:function(){ lgCloseSheet(); LG.tab='pulse'; LG.sub.pulse='cfg'; render(); },
   reload:function(){ try{location.reload();}catch(e){} },
   pull:function(){ if(PREVIEW){ lgSheet('Из облака','<div style="padding:20px;text-align:center;color:var(--mut)">В превью-режиме сеть отключена.</div>'); return; } if(typeof pull==='function'){ pull(); lgSheet('Из облака','<div style="padding:20px;text-align:center;color:var(--green)">✓ Запросил свежие данные с сервера.</div>'); } },
@@ -2350,6 +2338,90 @@ function openCapabilities(){
   var feats=[['🔥','Пульс','цель, прогноз, подцели, КФУ, поток пятен'],['💰','Деньги','P&L, поток, баланс'],['👷','Люди','бригады, оклады, консультанты, кабинеты'],['🏗','Объекты','пятна, этажи, ставки, статусы'],['📊','Аналитика','13 разрезов + ИИ + быстрые вопросы'],['📑','КС-2 / КС-3','акты, реестр, печать'],['✈️','Telegram','голос/фото/текст RU·KZ → черновики'],['🛡','Защита','событийный лог, корзина, блокировка периода']];
   feats.forEach(function(f){ h+='<div style="display:flex;gap:10px;align-items:flex-start;background:var(--sur2);border-radius:10px;padding:10px 12px;margin-bottom:6px"><span style="font-size:20px">'+f[0]+'</span><div><div style="font-size:13px;font-weight:700">'+f[1]+'</div><div style="font-size:11px;color:var(--mut)">'+f[2]+'</div></div></div>'; });
   lgSheet('✨ Возможности', h);
+}
+/* ── ЖУРНАЛ ОПЕРАЦИЙ: поиск + фильтры + группировка по дням ─────────────────── */
+function jrnShell(){
+  var s='background:var(--sur2);border:1px solid var(--brd);color:var(--fg);border-radius:10px;font-size:13px';
+  var types=[['','Все'],['vol','Объём'],['expense','Расход'],['advance','Передача'],['income','Приход'],['invest','Вложение'],['payout','Выплата'],['return','Возврат'],['customer_income','Оплата заказчика']];
+  var periods=[['all','Всё время'],['7','7 дней'],['30','30 дней'],['month','Этот месяц'],['prev','Прошлый месяц']];
+  var h='';
+  // поиск
+  h+='<div style="position:sticky;top:54px;z-index:5;background:var(--sur);padding-bottom:10px">';
+  h+='<input id="jrn-q" oninput="jrnSet(\'q\',this.value)" placeholder="🔍 Поиск: примечание, кому, бригада…" style="width:100%;box-sizing:border-box;padding:11px 13px;margin-bottom:8px;'+s+'"/>';
+  // фильтр типа — чипы
+  h+='<div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;-webkit-overflow-scrolling:touch" id="jrn-types">';
+  types.forEach(function(t){ h+='<button onclick="jrnSet(\'type\',\''+t[0]+'\')" data-jt="'+t[0]+'" style="flex:none;border:1px solid var(--brd);background:var(--sur2);color:var(--mut);border-radius:16px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap">'+t[1]+'</button>'; });
+  h+='</div>';
+  // период
+  h+='<div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;-webkit-overflow-scrolling:touch" id="jrn-periods">';
+  periods.forEach(function(p){ h+='<button onclick="jrnSet(\'period\',\''+p[0]+'\')" data-jp="'+p[0]+'" style="flex:none;border:1px solid var(--brd);background:var(--sur2);color:var(--mut);border-radius:16px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap">'+p[1]+'</button>'; });
+  h+='</div></div>';
+  h+='<div id="jrn-list"></div>';
+  return h;
+}
+function jrnSet(field,val){ if(!LG.jrnFilter)LG.jrnFilter={q:'',type:'',period:'all'}; LG.jrnFilter[field]=val; jrnRender(); }
+function jrnRender(){
+  var f=LG.jrnFilter||{q:'',type:'',period:'all'};
+  // подсветка активных чипов
+  try{
+    Array.prototype.forEach.call(document.querySelectorAll('#jrn-types [data-jt]'),function(b){ var a=b.getAttribute('data-jt')===f.type; b.style.background=a?'var(--gold)':'var(--sur2)'; b.style.color=a?'#1a1a1a':'var(--mut)'; b.style.borderColor=a?'var(--gold)':'var(--brd)'; });
+    Array.prototype.forEach.call(document.querySelectorAll('#jrn-periods [data-jp]'),function(b){ var a=b.getAttribute('data-jp')===(f.period||'all'); b.style.background=a?'var(--teal)':'var(--sur2)'; b.style.color=a?'#04201b':'var(--mut)'; b.style.borderColor=a?'var(--teal)':'var(--brd)'; });
+  }catch(e){}
+  var box=document.getElementById('jrn-list'); if(!box) return;
+  var v=LG.base?projected(LG.base,LG.queue):{};
+  var all=(v.entries||[]).slice().sort(entryCmp);
+  // период
+  var now=new Date(), from=null, to=null;
+  if(f.period==='7') from=new Date(now.getTime()-7*86400000);
+  else if(f.period==='30') from=new Date(now.getTime()-30*86400000);
+  else if(f.period==='month') from=new Date(now.getFullYear(),now.getMonth(),1);
+  else if(f.period==='prev'){ from=new Date(now.getFullYear(),now.getMonth()-1,1); to=new Date(now.getFullYear(),now.getMonth(),1); }
+  var fromS=from?from.toISOString().slice(0,10):null, toS=to?to.toISOString().slice(0,10):null;
+  var q=(f.q||'').trim().toLowerCase();
+  var list=all.filter(function(e){
+    if(!e) return false;
+    if(f.type && e.type!==f.type) return false;
+    if(fromS && (e.date||'')<fromS) return false;
+    if(toS && (e.date||'')>=toS) return false;
+    if(q){ var hay=((e.note||'')+' '+(e.to||'')+' '+(e.from||'')+' '+(TYPE_META[e.type]||{}).l+' '+brigName(v,e.brigade)+' '+(e.zone||'')+' '+(e.floor||'')).toLowerCase(); if(hay.indexOf(q)<0) return false; }
+    return true;
+  });
+  // сводка
+  var sums={};
+  list.forEach(function(e){ sums[e.type]=(sums[e.type]||0)+((e.type==='vol')?(Number(e.volume)||0):(Number(e.amount)||0)); });
+  var h='';
+  h+='<div style="display:flex;justify-content:space-between;align-items:center;margin:4px 2px 10px"><span style="font-size:12px;color:var(--mut)">Найдено: <b style="color:var(--fg)">'+list.length+'</b></span>';
+  var sumBits=[];
+  if(sums.vol) sumBits.push('<span style="color:var(--gold)">'+fmtD(sums.vol)+' м³</span>');
+  if(sums.expense) sumBits.push('<span style="color:var(--red)">−'+fmt0(sums.expense)+'</span>');
+  if(sums.income) sumBits.push('<span style="color:var(--green)">+'+fmt0(sums.income)+'</span>');
+  if(sumBits.length) h+='<span style="font-size:12px;font-weight:700">'+sumBits.join(' · ')+'</span>';
+  h+='</div>';
+  if(!list.length){ box.innerHTML=h+'<div style="text-align:center;padding:30px 10px;color:var(--mut)"><div style="font-size:36px">🔍</div><div style="margin-top:8px;font-size:13px">Ничего не найдено. Измените фильтр или поиск.</div></div>'; return; }
+  // группировка по дням
+  var lastDay='';
+  list.slice(0,400).forEach(function(e){
+    var day=e.date||'—';
+    if(day!==lastDay){
+      var dd=day==='—'?'без даты':day.split('-').reverse().join('.');
+      var dn=''; try{ var dt=new Date(day); if(isFinite(dt)){ dn=['вс','пн','вт','ср','чт','пт','сб'][dt.getDay()]; } }catch(_){}
+      h+='<div style="position:sticky;top:150px;z-index:3;background:var(--sur);font-size:11px;font-weight:800;letter-spacing:1px;color:var(--gold);padding:8px 2px 5px">'+dd+(dn?(' · '+dn):'')+'</div>';
+      lastDay=day;
+    }
+    var mt=TYPE_META[e.type]||{l:e.type||'?',c:'var(--mut)'};
+    var amount=e.amountPending?'<span style="color:var(--gold)">ждёт</span>':fmt((e.type==='expense'||e.type==='payout'||e.type==='advance')?-(e.amount||0):(e.amount||0));
+    var tm=entryTime(e);
+    var extra=[]; if(e.type==='vol'&&e.volume) extra.push(fmtD(e.volume)+' м³'); if(e.brigade) extra.push(esc(brigName(v,e.brigade)).replace(/^Бригада\s*/,'')); if(e.to) extra.push('→ '+esc(e.to)); if(e.from) extra.push('← '+esc(e.from)); if(e.floor) extra.push(esc(e.floor));
+    var clk=canWriteLedger()?(' onclick="openEntryEditById(\''+esc(String(e.id))+'\')"'):'';
+    h+='<div'+clk+' style="display:flex;align-items:center;gap:11px;padding:10px 2px;border-bottom:1px solid var(--brd)'+(canWriteLedger()?';cursor:pointer':'')+'">'
+      +'<span style="width:9px;height:9px;border-radius:50%;background:'+mt.c+';flex:none"></span>'
+      +'<div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(e.note||mt.l)+(e.photoId?' 📷':'')+'</div>'
+      +'<div style="font-size:11px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+mt.l+(tm?(' · <span style="color:var(--teal)">'+tm+'</span>'):'')+(extra.length?(' · '+extra.join(' · ')):'')+'</div></div>'
+      +'<div style="text-align:right;white-space:nowrap"><div style="font-weight:700;color:'+mt.c+';font-size:14px">'+amount+'</div>'+(canWriteLedger()?'<div style="color:var(--mut);font-size:12px">✏️</div>':'')+'</div>'
+      +'</div>';
+  });
+  if(list.length>400) h+='<div style="text-align:center;padding:14px;color:var(--mut);font-size:12px">Показаны первые 400. Уточните фильтр, чтобы увидеть остальное.</div>';
+  box.innerHTML=h;
 }
 /* ── ОТКАТ К ПРОШЛОМУ ДНЮ (снапшоты сервера) ───────────────────────────────── */
 function openRestoreView(){
@@ -3637,7 +3709,7 @@ function lgRefreshCabSheet(){
     var st=LG.sheetStack; if(!st.length) return;
     var top=st[st.length-1]; if(!top) return;
     if(/Кабинет/.test(top.title||'')) openCabinetView(LG._cabScope||null);
-    else if(/Журнал операций/.test(top.title||'')) MORE.journal();
+    else if(/Журнал операций/.test(top.title||'')){ if(typeof jrnRender==='function') jrnRender(); }
   }catch(e){}
 }
 function openConcreteOrder(){
