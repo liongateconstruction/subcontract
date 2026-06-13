@@ -2583,12 +2583,24 @@ function jrnRender(){
     var mt=TYPE_META[e.type]||{l:e.type||'?',c:'var(--mut)'};
     var amount=e.amountPending?'<span style="color:var(--gold)">ждёт</span>':fmt((e.type==='expense'||e.type==='payout'||e.type==='advance')?-(e.amount||0):(e.amount||0));
     var tm=entryTime(e);
-    var extra=[]; if(e.type==='vol'&&e.volume) extra.push(fmtD(e.volume)+' м³'); if(e.type==='vol'&&e.wtype) extra.push(esc(e.wtype)); if(e.type==='vol'&&e.stage) extra.push('<span style="color:var(--teal)">'+esc(e.stage)+'</span>'); if(e.brigade) extra.push(esc(brigName(v,e.brigade)).replace(/^Бригада\s*/,'')); if(e.to) extra.push('→ '+esc(e.to)); if(e.from) extra.push('← '+esc(e.from)); if(e.floor) extra.push(esc(e.floor));
+    var extra=[];
+    if(e.type==='vol'){
+      if(e.volume) extra.push('<span style="color:var(--gold);font-weight:700">'+fmtD(e.volume)+' м³</span>');
+      if(e.wtype) extra.push(esc(e.wtype));
+      if(e.stage) extra.push('<span style="color:var(--teal)">'+esc(e.stage)+'</span>');
+      if(e.zone) extra.push('🧱 '+esc(e.zone));
+      if(e.floor) extra.push('🏢 '+esc(e.floor));
+      if(e.brigade) extra.push('👷 '+esc(brigName(v,e.brigade)).replace(/^Бригада\s*/,''));
+    } else {
+      if(e.brigade) extra.push(esc(brigName(v,e.brigade)).replace(/^Бригада\s*/,''));
+      if(e.to) extra.push('→ '+esc(e.to)); if(e.from) extra.push('← '+esc(e.from)); if(e.floor) extra.push(esc(e.floor));
+    }
+    var jwrap=(e.type==='vol');
     var clk=canWriteLedger()?(' onclick="openEntryEditById(\''+esc(String(e.id))+'\')"'):'';
     h+='<div'+clk+' style="display:flex;align-items:center;gap:11px;padding:10px 2px;border-bottom:1px solid var(--brd)'+(canWriteLedger()?';cursor:pointer':'')+'">'
       +'<span style="width:9px;height:9px;border-radius:50%;background:'+mt.c+';flex:none"></span>'
-      +'<div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(e.note||mt.l)+(e.photoId?' 📷':'')+'</div>'
-      +'<div style="font-size:11px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+mt.l+(tm?(' · <span style="color:var(--teal)">'+tm+'</span>'):'')+(extra.length?(' · '+extra.join(' · ')):'')+'</div></div>'
+      +'<div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:600;'+(jwrap?'white-space:normal;line-height:1.3':'white-space:nowrap;overflow:hidden;text-overflow:ellipsis')+'">'+esc(e.note||mt.l)+(e.photoId?' 📷':'')+'</div>'
+      +'<div style="font-size:11px;color:var(--mut);margin-top:'+(jwrap?'3px':'0')+';'+(jwrap?'white-space:normal;line-height:1.5':'white-space:nowrap;overflow:hidden;text-overflow:ellipsis')+'">'+mt.l+(tm?(' · <span style="color:var(--teal)">'+tm+'</span>'):'')+(extra.length?(' · '+extra.join(' · ')):'')+'</div></div>'
       +'<div style="text-align:right;white-space:nowrap"><div style="font-weight:700;color:'+mt.c+';font-size:14px">'+amount+'</div>'+(canWriteLedger()?'<div style="color:var(--mut);font-size:12px">✏️</div>':'')+'</div>'
       +'</div>';
   });
