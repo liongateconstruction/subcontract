@@ -214,10 +214,10 @@
     <div class="f"><label>Название</label><input id="b-name" placeholder="Бригада …"/></div>
     <div class="f"><label>Основной вид работ</label><select id="b-work"></select></div>
     <div class="f"><label>Рабочих</label><input id="b-workers" type="number" inputmode="numeric" placeholder="0"/></div>
-    <div class="f"><label>Расценки по видам работ (₸ за м³)</label>
+    <div class="f"><label>Расценки рабочим по видам работ</label>
       <div id="b-prices"></div>
       <button type="button" id="b-addprice" style="width:100%;margin-top:8px;border:1px dashed var(--teal);background:rgba(45,212,191,.06);color:var(--teal);font-weight:700;font-size:13px;padding:10px;border-radius:10px;cursor:pointer">+ Добавить расценку</button>
-      <div style="font-size:11px;color:var(--mut);margin-top:6px;line-height:1.5">По этим ставкам начисляется бригаде за залитый объём. Если расценки нет — начисление будет 0.</div>
+      <div style="font-size:11px;color:var(--mut);margin-top:6px;line-height:1.5">Вид работ и единицу можно выбрать из списка или ввести своё. ✓ — вид есть в расценках заказчика (удобно сверять). По этим ставкам начисляется бригаде за выполненный объём.</div>
     </div>
     <div class="err" id="brig-err"></div>
     <div class="actions">
@@ -4180,35 +4180,80 @@ function openBrigade(b){
   var types=(LG.base&&LG.base.workTypes)||['Армирование','Опалубка','Бетонирование','Комплекс монолит','Разнорабочие'];
   types.forEach(function(t){ var o=document.createElement('option'); o.value=t; o.textContent=t; if(b&&b.work===t)o.selected=true; sel.appendChild(o); });
   // расценки
-  LG.brigPrices = (b && Array.isArray(b.prices)) ? b.prices.map(function(p){ return { wtype:p.wtype||'', unit:p.unit||'м³', rate:Number(p.rate)||0 }; }) : [];
+  LG.brigPrices = (b && Array.isArray(b.prices)) ? b.prices.map(function(p){ return { wtype:p.wtype||'', stage:p.stage||'Комплекс (всё)', unit:p.unit||'м³', rate:Number(p.rate)||0 }; }) : [];
   renderBrigPrices();
   document.getElementById('brig-archive').style.display = b ? 'block' : 'none';
   document.getElementById('ov-brig').classList.add('show');
 }
+function brigWorkTypeList(){
+  // Виды работ: сначала заказчика (✓), потом общие из базы. Этапы — отдельный селект рядом.
+  var obj=(LG.base&&LG.base.objects&&LG.base.objects[0])||'';
+  var cust=custRatesList(LG.base||{},obj).map(function(r){return r.wtype;}).filter(Boolean);
+  var common=(LG.base&&LG.base.workTypes)||['Устройство стен','Разнорабочие'];
+  var seen={}, res=[];
+  cust.forEach(function(t){ if(!seen[t]){seen[t]=1; res.push({name:t, cust:true});} });
+  common.forEach(function(t){ if(!seen[t]){seen[t]=1; res.push({name:t, cust:false});} });
+  return res;
+}
+var BRIG_UNITS=['м³','шт','м²','т','п.м','компл','м','кг','смена'];
+var BRIG_STAGES=['Армирование','Опалубка','Заливка бетона','Демонтаж опалубки','Комплекс (всё)','Комплекс без арматуры'];
 function renderBrigPrices(){
   var box=document.getElementById('b-prices'); if(!box) return;
-  var types=(LG.base&&LG.base.workTypes)||['Армирование','Опалубка','Бетонирование','Комплекс монолит','Разнорабочие'];
+  var types=brigWorkTypeList();
   if(!LG.brigPrices.length){ box.innerHTML='<div style="font-size:12px;color:var(--mut);padding:6px 2px">Расценок пока нет — добавьте хотя бы одну.</div>'; return; }
+  var sel='background:var(--sur2);border:1px solid var(--brd);color:var(--fg);border-radius:9px;padding:9px;font-size:13px';
+  var inp='background:var(--sur2);border:1px solid var(--teal);color:var(--fg);border-radius:9px;padding:9px;font-size:13px;box-sizing:border-box';
   var h='';
   LG.brigPrices.forEach(function(p,i){
-    h+='<div style="display:flex;gap:6px;align-items:center;margin-bottom:7px">'
-      +'<select onchange="brigPriceSet('+i+',\'wtype\',this.value)" style="flex:1;min-width:0;background:var(--sur2);border:1px solid var(--brd);color:var(--fg);border-radius:9px;padding:9px;font-size:13px">'
-      +types.map(function(t){ return '<option value="'+esc(t)+'"'+(p.wtype===t?' selected':'')+'>'+esc(t)+'</option>'; }).join('')
-      +'</select>'
-      +'<input type="number" inputmode="numeric" value="'+(p.rate||'')+'" placeholder="₸/м³" onchange="brigPriceSet('+i+',\'rate\',this.value)" style="width:92px;flex:none;background:var(--sur2);border:1px solid var(--brd);color:var(--fg);border-radius:9px;padding:9px;font-size:13px"/>'
-      +'<button type="button" onclick="brigPriceDel('+i+')" style="flex:none;background:none;border:none;color:var(--red);font-size:18px;padding:4px 6px;cursor:pointer">✕</button>'
-      +'</div>';
+    var known=types.some(function(t){return t.name===p.wtype;});
+    var custMark=types.find(function(t){return t.name===p.wtype;});
+    h+='<div style="border:1px solid var(--brd);border-radius:12px;padding:10px;margin-bottom:9px;background:var(--bg)">';
+    // строка 1: вид работ + удалить
+    h+='<div style="display:flex;gap:6px;align-items:center;margin-bottom:7px">';
+    h+='<select onchange="brigWtypeSel('+i+',this.value)" style="flex:1;min-width:0;'+sel+'">';
+    types.forEach(function(t){ h+='<option value="'+esc(t.name)+'"'+((p.wtype===t.name&&known)?' selected':'')+'>'+(t.cust?'✓ ':'')+esc(t.name)+'</option>'; });
+    h+='<option value="__custom__"'+(!known?' selected':'')+'>➕ свой вид…</option>';
+    h+='</select>';
+    h+='<button type="button" onclick="brigPriceDel('+i+')" style="flex:none;background:none;border:none;color:var(--red);font-size:18px;padding:4px 6px;cursor:pointer">✕</button>';
+    h+='</div>';
+    if(!known) h+='<input value="'+esc(p.wtype||'')+'" placeholder="Название своего вида работ" onchange="brigPriceSet('+i+',\'wtype\',this.value)" style="width:100%;margin-bottom:7px;'+inp+'"/>';
+    else if(custMark&&custMark.cust) h+='<div style="font-size:10px;color:var(--teal);margin-bottom:7px">✓ есть в расценках заказчика</div>';
+    // строка 2: ЭТАП
+    h+='<div style="display:flex;gap:6px;align-items:center;margin-bottom:7px"><span style="flex:none;font-size:12px;color:var(--mut);width:42px">этап</span>';
+    h+='<select onchange="brigPriceSet('+i+',\'stage\',this.value)" style="flex:1;min-width:0;'+sel+'">';
+    BRIG_STAGES.forEach(function(st){ h+='<option value="'+esc(st)+'"'+(p.stage===st?' selected':'')+'>'+esc(st)+'</option>'; });
+    h+='</select></div>';
+    // строка 3: ставка + единица
+    h+='<div style="display:flex;gap:6px;align-items:center">';
+    h+='<input type="number" inputmode="numeric" value="'+(p.rate||'')+'" placeholder="ставка ₸" onchange="brigPriceSet('+i+',\'rate\',this.value)" style="flex:1;min-width:0;'+sel+'"/>';
+    h+='<span style="color:var(--mut);font-size:13px">₸ за</span>';
+    var knownU=BRIG_UNITS.indexOf(p.unit)>=0;
+    h+='<select onchange="brigUnitSel('+i+',this.value)" style="flex:none;width:84px;'+sel+'">';
+    BRIG_UNITS.forEach(function(u){ h+='<option value="'+esc(u)+'"'+((p.unit===u&&knownU)?' selected':'')+'>'+esc(u)+'</option>'; });
+    h+='<option value="__custom__"'+(!knownU?' selected':'')+'>➕…</option>';
+    h+='</select>';
+    h+='</div>';
+    if(!knownU) h+='<input value="'+esc(p.unit||'')+'" placeholder="Своя единица (напр. этаж)" onchange="brigPriceSet('+i+',\'unit\',this.value)" style="width:100%;margin-top:7px;'+inp+'"/>';
+    h+='</div>';
   });
   box.innerHTML=h;
+}
+function brigWtypeSel(i,val){ if(!LG.brigPrices[i])return;
+  if(val==='__custom__'){ LG.brigPrices[i].wtype=''; LG.brigPrices[i]._customW=true; }
+  else { LG.brigPrices[i].wtype=val; LG.brigPrices[i]._customW=false; }
+  renderBrigPrices();
+}
+function brigUnitSel(i,val){ if(!LG.brigPrices[i])return;
+  if(val==='__custom__'){ LG.brigPrices[i].unit=''; LG.brigPrices[i]._customU=true; }
+  else { LG.brigPrices[i].unit=val; LG.brigPrices[i]._customU=false; }
+  renderBrigPrices();
 }
 function brigPriceSet(i,field,val){ if(!LG.brigPrices[i])return; LG.brigPrices[i][field] = field==='rate' ? (Number(val)||0) : val; }
 function brigPriceDel(i){ LG.brigPrices.splice(i,1); renderBrigPrices(); }
 function brigPriceAdd(){
-  var types=(LG.base&&LG.base.workTypes)||['Бетонирование'];
-  // подставим первый вид, которого ещё нет в списке
-  var used={}; LG.brigPrices.forEach(function(p){used[p.wtype]=1;});
-  var next=types.find(function(t){return !used[t];})||types[0];
-  LG.brigPrices.push({ wtype:next, unit:'м³', rate:0 });
+  var types=brigWorkTypeList();
+  var next=(types[0]||{name:''}).name;
+  LG.brigPrices.push({ wtype:next, stage:'Комплекс (всё)', unit:'м³', rate:0 });
   renderBrigPrices();
 }
 function saveBrigade(){
@@ -4217,7 +4262,7 @@ function saveBrigade(){
   var workers=Number(document.getElementById('b-workers').value)||0;
   if(!name){ document.getElementById('brig-err').textContent='Введите название бригады.'; return; }
   // чистим расценки: только заполненные строки, без дублей видов работ (последняя побеждает)
-  var pmap={}; (LG.brigPrices||[]).forEach(function(p){ if(p&&p.wtype&&(Number(p.rate)||0)>0) pmap[p.wtype]={ wtype:p.wtype, unit:p.unit||'м³', rate:Number(p.rate)||0 }; });
+  var pmap={}; (LG.brigPrices||[]).forEach(function(p){ if(p&&p.wtype&&(Number(p.rate)||0)>0){ var key=p.wtype+'|'+(p.stage||''); pmap[key]={ wtype:p.wtype, stage:p.stage||'', unit:p.unit||'м³', rate:Number(p.rate)||0 }; } });
   var prices=Object.keys(pmap).map(function(k){return pmap[k];});
   if(LG.brigEdit){
     emit({ kind:'brigade.edit', entryId:LG.brigEdit.id, payload:{ name:name, work:work, workers:workers, prices:prices } });
