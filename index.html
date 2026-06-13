@@ -376,9 +376,14 @@ function applyPlanOp(lp, op){
 // Бригада активна, если не в архиве, либо восстановлена позже архивации.
 function isActiveBrig(b){ if(!b) return false; if(!b.archivedAt) return true; return !!(b.restoredAt && String(b.restoredAt) > String(b.archivedAt)); }
 // Агрегаты по бригаде: объём м³, заработано (объём×расценка), выплачено, долг бригаде.
-function brigPriceFor(b, wtype, unit){
-  var list=(b&&b.prices)||[];
-  var exact=list.find(function(p){return p&&p.wtype===wtype && p.unit===(unit||'м³');});
+function brigPriceFor(b, wtype, unit, stage){
+  var list=(b&&b.prices)||[]; var u=unit||'м³';
+  // приоритет: вид+этап+единица → вид+этап → вид+единица → вид
+  if(stage){
+    var es=list.find(function(p){return p&&p.wtype===wtype&&p.stage===stage&&p.unit===u;}); if(es) return es.rate||0;
+    var s=list.find(function(p){return p&&p.wtype===wtype&&p.stage===stage;}); if(s) return s.rate||0;
+  }
+  var exact=list.find(function(p){return p&&p.wtype===wtype && p.unit===u;});
   if(exact) return exact.rate||0;
   var byWt=list.find(function(p){return p&&p.wtype===wtype;});
   return byWt?(byWt.rate||0):0;
@@ -387,7 +392,7 @@ function brigPriceFor(b, wtype, unit){
 function entryAmount(b, e){
   if(e.amount && e.amount>0 && !e.amountPending) return Number(e.amount)||0;
   if(!e.wtype || !e.volume) return 0;
-  return brigPriceFor(b, e.wtype, e.unit||'м³') * (Number(e.volume)||0);
+  return brigPriceFor(b, e.wtype, e.unit||'м³', e.stage) * (Number(e.volume)||0);
 }
 function brigStats(view){
   var ent = view.entries||[];
@@ -3823,6 +3828,7 @@ function allWorkTypes(view){
   return res;
 }
 function entryWtypeChange(val){ LG.draft.wtype = (val==='__custom__') ? '' : val; LG.draft._wcustom=(val==='__custom__'); if(typeof renderEntryFields==='function') renderEntryFields(); }
+function entryUnitChange(val){ LG.draft.unit = (val==='__custom__') ? '' : val; LG.draft._ucustom=(val==='__custom__'); if(typeof renderEntryFields==='function') renderEntryFields(); }
 function renderEntryFields(){
   var view=projected(LG.base, LG.queue);
   var d=LG.draft, obj=(view.objects||[])[0]||'';
@@ -3840,7 +3846,13 @@ function renderEntryFields(){
     var showCustom=d._wcustom||(d.wtype&&!knownW);
     h+=fld('Вид работ','<select id="in-wtype" onchange="entryWtypeChange(this.value)">'+wt.map(function(t){return '<option value="'+esc(t.v)+'"'+((d.wtype===t.v&&!d._wcustom)?' selected':'')+'>'+esc(t.label)+'</option>';}).join('')+'<option value="__custom__"'+(showCustom?' selected':'')+'>➕ свой вид…</option></select>');
     if(showCustom) h+=fld('Свой вид работ','<input id="in-wtype-custom" value="'+esc(d.wtype||'')+'" placeholder="Название вида работ"/>');
-    h+=fld('Объём, м³','<input id="in-vol" type="number" inputmode="decimal" placeholder="0" value="'+(d.volume||'')+'"/>');
+    // этап работ (как в расценках бригады)
+    h+=fld('Этап','<select id="in-stage">'+BRIG_STAGES.map(function(st){return '<option value="'+esc(st)+'"'+((d.stage||'Комплекс (всё)')===st?' selected':'')+'>'+esc(st)+'</option>';}).join('')+'</select>');
+    // количество + единица измерения
+    var du=d.unit||'м³'; var knownU=BRIG_UNITS.indexOf(du)>=0; var showU=d._ucustom||(du&&!knownU);
+    h+='<div class="f"><label>Количество</label><div style="display:flex;gap:8px"><input id="in-vol" type="number" inputmode="decimal" placeholder="0" value="'+(d.volume||'')+'" style="flex:1"/>'
+      +'<select id="in-unit" onchange="entryUnitChange(this.value)" style="flex:none;width:96px">'+BRIG_UNITS.map(function(u){return '<option value="'+esc(u)+'"'+((du===u&&knownU&&!d._ucustom)?' selected':'')+'>'+esc(u)+'</option>';}).join('')+'<option value="__custom__"'+(showU?' selected':'')+'>➕…</option></select></div></div>';
+    if(showU) h+=fld('Своя единица','<input id="in-unit-custom" value="'+esc(du||'')+'" placeholder="напр. шт, марш"/>');
     h+=fld('Этаж','<input id="in-floor" placeholder="напр. 3 этаж отметка 7550" value="'+esc(d.floor||'')+'"/>');
     h+='<div class="f"><label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input id="in-redo" type="checkbox"'+(d.redo?' checked':'')+' style="width:auto"/> Переделка (брак)</label></div>';
   } else if(d.type==='expense'){
@@ -3932,8 +3944,12 @@ function saveEntry(){
     var bid=gv('in-brig'); var b=(view.brigades||[]).find(function(x){return x.id===bid;});
     var wtype=gv('in-wtype');
     if(wtype==='__custom__'){ var cw=document.getElementById('in-wtype-custom'); wtype=(cw&&cw.value.trim())||''; }
-    var rate=b?brigPriceFor(b,wtype,'м³'):0;
-    p.volume=vol; p.unit='м³'; p.wtype=wtype; p.brigade=bid; p.spotId=spotId; p.spot=spotId; p.zone=sp?sp.name:''; p.floor=gv('in-floor'); p.struct=wtype; p.redo=!!(document.getElementById('in-redo')&&document.getElementById('in-redo').checked); p.rate=rate;
+    var stage=gv('in-stage')||'';
+    var unit=gv('in-unit');
+    if(unit==='__custom__'){ var cu=document.getElementById('in-unit-custom'); unit=(cu&&cu.value.trim())||'м³'; }
+    unit=unit||'м³';
+    var rate=b?brigPriceFor(b,wtype,unit,stage):0;
+    p.volume=vol; p.unit=unit; p.wtype=wtype; p.stage=stage; p.brigade=bid; p.spotId=spotId; p.spot=spotId; p.zone=sp?sp.name:''; p.floor=gv('in-floor'); p.struct=wtype; p.redo=!!(document.getElementById('in-redo')&&document.getElementById('in-redo').checked); p.rate=rate;
     if(rate>0||!LG.draft.editId) p.amount=Math.round(vol*rate);   // при правке без ставки старую сумму не затираем нулём
     p.amountPending=false;   // владелец/учётчица просмотрели запись — «ждёт сумму» снимается (кабинетам сервер вернёт флаг сам)
   } else {
