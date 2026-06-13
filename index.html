@@ -212,8 +212,13 @@
   <div class="sheet">
     <h3 id="brig-title">Новая бригада</h3>
     <div class="f"><label>Название</label><input id="b-name" placeholder="Бригада …"/></div>
-    <div class="f"><label>Вид работ</label><select id="b-work"></select></div>
+    <div class="f"><label>Основной вид работ</label><select id="b-work"></select></div>
     <div class="f"><label>Рабочих</label><input id="b-workers" type="number" inputmode="numeric" placeholder="0"/></div>
+    <div class="f"><label>Расценки по видам работ (₸ за м³)</label>
+      <div id="b-prices"></div>
+      <button type="button" id="b-addprice" style="width:100%;margin-top:8px;border:1px dashed var(--teal);background:rgba(45,212,191,.06);color:var(--teal);font-weight:700;font-size:13px;padding:10px;border-radius:10px;cursor:pointer">+ Добавить расценку</button>
+      <div style="font-size:11px;color:var(--mut);margin-top:6px;line-height:1.5">По этим ставкам начисляется бригаде за залитый объём. Если расценки нет — начисление будет 0.</div>
+    </div>
     <div class="err" id="brig-err"></div>
     <div class="actions">
       <button class="btn cancel" id="brig-cancel">Отмена</button>
@@ -3325,6 +3330,8 @@ function brigOfV(view,id){ return (view.brigades||[]).find(function(b){return b&
 function cell(k,v,color,raw){ return '<div class="cell"><div class="k">'+k+'</div><div class="v num" style="color:'+(color||'var(--text)')+'">'+(raw?v:fmt(v))+'</div></div>'; }
 
 function renderConsultantCabinet(view, app, consultantId){
+  // владелец/учётчица видят полную «кухню» расчёта; сам консультант — только итог и драйверы
+  var viewerIsOwner = (LG.role==='owner' || LG.role==='editor');
   var obj=(view.objects||[])[0]||'';
   var cf=consultFundInfo(view, obj);
   var me=(cf.shares||[]).find(function(s){return s.id===consultantId;})||{forecast:0,signed:0,paid:0,weight:1};
@@ -3362,17 +3369,19 @@ function renderConsultantCabinet(view, app, consultantId){
     blocks.forEach(function(s){ h+='<div style="display:flex;justify-content:space-between;align-items:center;font-size:12.5px;margin:5px 0"><span style="color:var(--fg);font-weight:700">🏗 '+esc(s.name)+'</span><span><b style="color:var(--teal)">'+fmtm(s.total)+'</b> <span style="color:var(--mut);font-size:10px">вып</span> · <b style="color:var(--green)">'+fmtm(s.paid)+'</b> <span style="color:var(--mut);font-size:10px">опл</span></span></div>'; }); }
   h+='<div style="font-size:11px;color:var(--mut);margin-top:10px;line-height:1.5">Чем больше построим → подпишем КС-2 → получим оплату, тем больше ваш бонус.</div></div>';
 
-  // от оплат заказчика
-  h+='<div style="border:1px solid var(--brd);border-radius:15px;padding:14px;margin-bottom:12px;background:linear-gradient(135deg,rgba(46,160,67,.08),transparent)">'
-    +'<div style="font-size:11.5px;font-weight:800;letter-spacing:.5px;color:var(--green);margin-bottom:2px">КОНСУЛЬТАНТ · от оплат заказчика</div>'
-    +'<div style="font-size:27px;font-weight:900;color:var(--green);margin:4px 0">'+fmtm(toAcc)+' ₸ <span style="font-size:12px;color:var(--mut);font-weight:600">доступно к начислению</span></div>'
-    +'<div style="font-size:11px;color:'+(paid>0?'var(--mut)':'var(--gold)')+';margin-bottom:8px">'+(paid>0?'платится только после оплаты заказчика':'заказчик ещё не оплатил — начислять нечего')+'</div>'
-    +'<div style="font-size:12px;color:var(--fg);line-height:1.85">Заказчик оплатил: <b>'+fmtm(paid)+' ₸</b> → фонд '+Math.round(pct*100)+'%: <b style="color:var(--green)">'+fmtm(fund)+' ₸</b><br>'
-    +'Твоя доля (вес ×'+w+' из '+sw+'): <b style="color:var(--green)">'+fmtm(paidShare)+' ₸</b><br>'
-    +'Положено к выплате: <b>'+fmtm(paidShare)+' ₸</b> · уже начислено: '+fmtm(accruedLedger)+' ₸<br>'
-    +'Стадии бонуса: выполнено ≈ <b style="color:var(--teal)">'+fmtm(work)+'</b> → подписано ≈ <b style="color:var(--gold)">'+fmtm(signed)+'</b> → оплачено ≈ <b style="color:var(--green)">'+fmtm(paidShare)+'</b> ₸'
-    +(blocks.length?('<br><span style="color:var(--mut)">По блокам (вып/опл):</span> '+blocks.map(function(s){return esc(s.name)+' ≈ '+fmtm(s.total)+'/'+fmtm(s.paid);}).join(' · ')):'')
-    +'</div></div>';
+  if(viewerIsOwner){
+    // ВЛАДЕЛЬЦУ — полная кухня расчёта (формула фонда, процент, вес, доли)
+    h+='<div style="border:1px solid var(--brd);border-radius:15px;padding:14px;margin-bottom:12px;background:linear-gradient(135deg,rgba(46,160,67,.08),transparent)">'
+      +'<div style="font-size:11.5px;font-weight:800;letter-spacing:.5px;color:var(--gold);margin-bottom:6px">🔐 РАСЧЁТ (виден только вам)</div>'
+      +'<div style="font-size:27px;font-weight:900;color:var(--green);margin:4px 0">'+fmtm(toAcc)+' ₸ <span style="font-size:12px;color:var(--mut);font-weight:600">доступно к начислению</span></div>'
+      +'<div style="font-size:11px;color:'+(paid>0?'var(--mut)':'var(--gold)')+';margin-bottom:8px">'+(paid>0?'платится только после оплаты заказчика':'заказчик ещё не оплатил — начислять нечего')+'</div>'
+      +'<div style="font-size:12px;color:var(--fg);line-height:1.85">Заказчик оплатил: <b>'+fmtm(paid)+' ₸</b> → фонд '+Math.round(pct*100)+'%: <b style="color:var(--green)">'+fmtm(fund)+' ₸</b><br>'
+      +'Доля консультанта (вес ×'+w+' из '+sw+'): <b style="color:var(--green)">'+fmtm(paidShare)+' ₸</b><br>'
+      +'Положено к выплате: <b>'+fmtm(paidShare)+' ₸</b> · уже начислено: '+fmtm(accruedLedger)+' ₸<br>'
+      +'Стадии: выполнено ≈ <b style="color:var(--teal)">'+fmtm(work)+'</b> → подписано ≈ <b style="color:var(--gold)">'+fmtm(signed)+'</b> → оплачено ≈ <b style="color:var(--green)">'+fmtm(paidShare)+'</b> ₸'
+      +(blocks.length?('<br><span style="color:var(--mut)">По блокам (вып/опл):</span> '+blocks.map(function(s){return esc(s.name)+' ≈ '+fmtm(s.total)+'/'+fmtm(s.paid);}).join(' · ')):'')
+      +'</div></div>';
+  }
   app.innerHTML=h;
 }
 function consultLedger(id, kind){
@@ -4170,21 +4179,53 @@ function openBrigade(b){
   var sel=document.getElementById('b-work'); sel.innerHTML='';
   var types=(LG.base&&LG.base.workTypes)||['Армирование','Опалубка','Бетонирование','Комплекс монолит','Разнорабочие'];
   types.forEach(function(t){ var o=document.createElement('option'); o.value=t; o.textContent=t; if(b&&b.work===t)o.selected=true; sel.appendChild(o); });
+  // расценки
+  LG.brigPrices = (b && Array.isArray(b.prices)) ? b.prices.map(function(p){ return { wtype:p.wtype||'', unit:p.unit||'м³', rate:Number(p.rate)||0 }; }) : [];
+  renderBrigPrices();
   document.getElementById('brig-archive').style.display = b ? 'block' : 'none';
   document.getElementById('ov-brig').classList.add('show');
+}
+function renderBrigPrices(){
+  var box=document.getElementById('b-prices'); if(!box) return;
+  var types=(LG.base&&LG.base.workTypes)||['Армирование','Опалубка','Бетонирование','Комплекс монолит','Разнорабочие'];
+  if(!LG.brigPrices.length){ box.innerHTML='<div style="font-size:12px;color:var(--mut);padding:6px 2px">Расценок пока нет — добавьте хотя бы одну.</div>'; return; }
+  var h='';
+  LG.brigPrices.forEach(function(p,i){
+    h+='<div style="display:flex;gap:6px;align-items:center;margin-bottom:7px">'
+      +'<select onchange="brigPriceSet('+i+',\'wtype\',this.value)" style="flex:1;min-width:0;background:var(--sur2);border:1px solid var(--brd);color:var(--fg);border-radius:9px;padding:9px;font-size:13px">'
+      +types.map(function(t){ return '<option value="'+esc(t)+'"'+(p.wtype===t?' selected':'')+'>'+esc(t)+'</option>'; }).join('')
+      +'</select>'
+      +'<input type="number" inputmode="numeric" value="'+(p.rate||'')+'" placeholder="₸/м³" onchange="brigPriceSet('+i+',\'rate\',this.value)" style="width:92px;flex:none;background:var(--sur2);border:1px solid var(--brd);color:var(--fg);border-radius:9px;padding:9px;font-size:13px"/>'
+      +'<button type="button" onclick="brigPriceDel('+i+')" style="flex:none;background:none;border:none;color:var(--red);font-size:18px;padding:4px 6px;cursor:pointer">✕</button>'
+      +'</div>';
+  });
+  box.innerHTML=h;
+}
+function brigPriceSet(i,field,val){ if(!LG.brigPrices[i])return; LG.brigPrices[i][field] = field==='rate' ? (Number(val)||0) : val; }
+function brigPriceDel(i){ LG.brigPrices.splice(i,1); renderBrigPrices(); }
+function brigPriceAdd(){
+  var types=(LG.base&&LG.base.workTypes)||['Бетонирование'];
+  // подставим первый вид, которого ещё нет в списке
+  var used={}; LG.brigPrices.forEach(function(p){used[p.wtype]=1;});
+  var next=types.find(function(t){return !used[t];})||types[0];
+  LG.brigPrices.push({ wtype:next, unit:'м³', rate:0 });
+  renderBrigPrices();
 }
 function saveBrigade(){
   var name=document.getElementById('b-name').value.trim();
   var work=document.getElementById('b-work').value;
   var workers=Number(document.getElementById('b-workers').value)||0;
   if(!name){ document.getElementById('brig-err').textContent='Введите название бригады.'; return; }
+  // чистим расценки: только заполненные строки, без дублей видов работ (последняя побеждает)
+  var pmap={}; (LG.brigPrices||[]).forEach(function(p){ if(p&&p.wtype&&(Number(p.rate)||0)>0) pmap[p.wtype]={ wtype:p.wtype, unit:p.unit||'м³', rate:Number(p.rate)||0 }; });
+  var prices=Object.keys(pmap).map(function(k){return pmap[k];});
   if(LG.brigEdit){
-    emit({ kind:'brigade.edit', entryId:LG.brigEdit.id, payload:{ name:name, work:work, workers:workers } });
+    emit({ kind:'brigade.edit', entryId:LG.brigEdit.id, payload:{ name:name, work:work, workers:workers, prices:prices } });
   } else {
     var id='b'+Date.now();
     emit({ kind:'brigade.add', payload:{ id:id, name:name, work:work, workers:workers,
       obj:(LG.base&&LG.base.objects&&LG.base.objects[0])||'', started:new Date().toISOString().slice(0,10),
-      prices:[], people:[], attendance:{} } });
+      prices:prices, people:[], attendance:{} } });
   }
   document.getElementById('ov-brig').classList.remove('show');
 }
@@ -4273,6 +4314,7 @@ buildNav();
 document.getElementById('brig-cancel').onclick=function(){ document.getElementById('ov-brig').classList.remove('show'); };
 document.getElementById('brig-save').onclick=saveBrigade;
 document.getElementById('brig-archive').onclick=archiveBrigade;
+document.getElementById('b-addprice').onclick=brigPriceAdd;
 // открыть бригаду по тапу на карточку (делегирование)
 document.getElementById('app').addEventListener('click', function(e){
   var sb=e.target.closest && e.target.closest('[data-sub]');
