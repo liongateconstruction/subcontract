@@ -4,6 +4,11 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no"/>
 <meta name="theme-color" content="#0d1117"/>
+<link rel="manifest" href="./manifest.json"/>
+<link rel="apple-touch-icon" href="./icon192.png"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="LIONGATE"/>
 <title>LIONGATE</title>
 <style>
   :root{
@@ -151,6 +156,7 @@
     <span class="ver" id="ver">v—</span>
     <span class="dot" id="dot" title="нет связи"></span>
     <button id="refresh" style="background:none;border:none;color:var(--mut);font-size:16px;padding:2px 4px">↻</button>
+    <button id="logoutbtn" onclick="confirmLogout()" title="Выйти" style="background:none;border:none;color:var(--mut);font-size:15px;padding:2px 4px;cursor:pointer">⏻</button>
   </div>
 </header>
 
@@ -318,7 +324,27 @@ function applyEventLocal(state, ev){
     var _iid=(ev.payload&&ev.payload.id)||ev.id; (state.issues||[]).forEach(function(z){ if(z&&z.id===_iid){ z.closed=true; z.closedAt=Date.now(); } });
   } else if(ev.kind==='att.set'){
     if(!state.attendance||typeof state.attendance!=='object') state.attendance={};
-    var _m=ev.payload||{}; state.attendance[String(_m.date||new Date().toISOString().slice(0,10))]=Math.max(0,Number(_m.count)||0);
+    var _m=ev.payload||{}; var _ad=String(_m.date||new Date().toISOString().slice(0,10));
+    if(_m.brigade){
+      if(!state.attendanceB||typeof state.attendanceB!=='object') state.attendanceB={};
+      if(!state.attendanceB[_ad]||typeof state.attendanceB[_ad]!=='object') state.attendanceB[_ad]={};
+      state.attendanceB[_ad][String(_m.brigade)]=Math.max(0,Number(_m.count)||0);
+      var _s=0; Object.keys(state.attendanceB[_ad]).forEach(function(k){_s+=Number(state.attendanceB[_ad][k])||0;});
+      state.attendance[_ad]=_s;
+    } else state.attendance[_ad]=Math.max(0,Number(_m.count)||0);
+  } else if(ev.kind==='dayfail.set'){
+    if(!state.dayFails||typeof state.dayFails!=='object') state.dayFails={};
+    var _dm=ev.payload||{}; var _dd=String(_dm.date||new Date().toISOString().slice(0,10));
+    if(_dm.reason) state.dayFails[_dd]={reason:String(_dm.reason).slice(0,40)}; else delete state.dayFails[_dd];
+  } else if(ev.kind==='oblig.add'){
+    if(!Array.isArray(state.obligations)) state.obligations=[];
+    var _om=ev.payload||{}; var _oid=_om.id||ev.id;
+    if(!state.obligations.some(function(x){return x&&x.id===_oid;}))
+      state.obligations.push({id:_oid,title:String(_om.title||'').slice(0,120),amount:Math.max(0,Number(_om.amount)||0),due:String(_om.due||'').slice(0,10),who:String(_om.who||'').slice(0,60),note:String(_om.note||'').slice(0,200),status:'open'});
+  } else if(ev.kind==='oblig.close'){
+    (state.obligations||[]).forEach(function(o){ if(o&&o.id===ev.entryId){o.status='closed';} });
+  } else if(ev.kind==='oblig.delete'){
+    state.obligations=(state.obligations||[]).filter(function(o){return !(o&&o.id===ev.entryId);});
   } else if(ev.kind==='cycle.set'){
     if(!state.cycles||typeof state.cycles!=='object') state.cycles={};
     var _cm=ev.payload||{}; if(_cm.key) state.cycles[_cm.key]=Object.assign({}, state.cycles[_cm.key]||{}, _cm.data||{});
@@ -953,7 +979,8 @@ var store={
   set:function(k,v){ try{localStorage.setItem(k,v);}catch(e){_mem[k]=v;} },
   sget:function(k){ try{return sessionStorage.getItem(k);}catch(e){return (k in _mem)?_mem[k]:null;} },
   sset:function(k,v){ try{sessionStorage.setItem(k,v);}catch(e){_mem[k]=v;} },
-  srem:function(k){ try{sessionStorage.removeItem(k);}catch(e){delete _mem[k];} }
+  srem:function(k){ try{sessionStorage.removeItem(k);}catch(e){delete _mem[k];} },
+  rem:function(k){ try{localStorage.removeItem(k);}catch(e){delete _mem[k];} }
 };
 
 var DEFAULT_WORKER_URL = 'https://liongate-ai.hegaidima7.workers.dev';
@@ -986,13 +1013,19 @@ function rejectLabel(r){
   return (K[r.kind]||r.kind||'событие')+': '+(E[r.error]||r.error||'отклонено');
 }
 function api(path){ return LG.url.replace(/\/$/,'') + path; }
+/* Фото из Telegram (чек/заливка): ссылка через прокси воркера */
+function photoUrl(fileId){ if(!fileId||!LG.url) return ''; return api('/api/photo?file_id='+encodeURIComponent(fileId)); }
+function openPhoto(fileId){
+  var u=photoUrl(fileId); if(!u){ toast('Фото недоступно'); return; }
+  lgSheet('📷 Фото', '<img src="'+u+'" style="width:100%;border-radius:12px;display:block" onerror="this.replaceWith(Object.assign(document.createElement(\'div\'),{textContent:\'Не удалось загрузить фото\',style:\'color:var(--mut);padding:30px;text-align:center\'}))"/>');
+}
 function headers(){ return {'Content-Type':'application/json','X-LG-Token':LG.token,'X-Author':LG.role||'?'}; }
 
 /* ── СЕТЬ ─────────────────────────────────────────────────────────────────── */
 function pull(){
   if(!LG.url||!LG.token) return Promise.reject('no_session');
   return fetch(api('/api/state'),{headers:headers()}).then(function(r){
-    if(r.status===401){ logout(); throw 'unauthorized'; }
+    if(r.status===401){ logout(true); throw 'unauthorized'; }
     if(!r.ok) throw 'http_'+r.status;
     return r.json();
   }).then(function(d){
@@ -1149,6 +1182,24 @@ function renderPulse(view, app){
   h+=pulseDash(view);
   app.innerHTML=h;
 }
+function forecastCorridor(view,R,F){
+  try{
+    if(!F||F.plannedToDate<=1) return '';
+    // реалист — текущий годовой ratio; момент — темп последних 4 недель против плана недели
+    var cur=pRowFor(R,R.curM); var planW=cur?cur.week:0;
+    var fact4=0; for(var i=0;i<4;i++){ var d=new Date(); d.setDate(d.getDate()-7*i); fact4+=tempoFactWeek(view,d); }
+    var ratio4=planW>0?(fact4/4)/planW:F.ratioYear;
+    var em=R.em||1;
+    function chip(t,m3,col){ return '<div style="flex:1;background:var(--sur2);border-radius:11px;padding:10px 6px;text-align:center"><div style="font-size:10px;color:var(--mut)">'+t+'</div><div class="num" style="font-size:15px;font-weight:800;color:'+col+';margin-top:2px">'+kshort(m3*em)+'</div><div style="font-size:9px;color:var(--mut)">'+fmtD(Math.round(m3))+' м³</div></div>'; }
+    var lo=Math.min(F.ratioYear,ratio4), hi=Math.max(F.ratioYear,ratio4);
+    var h='<div style="margin:10px 0 4px;font-size:11px;color:var(--mut);letter-spacing:1px;font-weight:700">КОРИДОР ПРОГНОЗА ГОДА</div><div style="display:flex;gap:8px">';
+    h+=chip('ПЕССИМИСТ',F.goalM3*lo,'var(--red)');
+    h+=chip('РЕАЛИСТ',F.forecastM3,'var(--gold)');
+    h+=chip('ОПТИМИСТ',F.goalM3*Math.max(hi,F.ratioYear*1.0001),'var(--green)');
+    h+='</div><div style="font-size:10px;color:var(--mut);margin-top:5px">пессимист/оптимист — по худшему и лучшему из: темп года · темп последних 4 недель</div>';
+    return h;
+  }catch(e){ return ''; }
+}
 function pulseSvodka(view){
   var R=compute(view), F=yearForecast(view,R), now=new Date(); var h='';
   // Прогноз года
@@ -1190,6 +1241,7 @@ function pulseSvodka(view){
       +'<div><div style="font-size:20px;font-weight:800;color:var(--violet)">'+fmt0(nx.week)+'</div><div style="font-size:10px;color:var(--mut)">м³/неделя</div></div></div>'
       +(dP!==0?'<div style="font-size:11px;margin-top:8px;font-weight:600;color:'+(dP>0?'var(--gold)':'var(--green)')+'">'+(dP>0?'▲ +'+dP+' чел — нагрузка растёт':'▼ '+Math.abs(dP)+' чел')+'</div>':'')+'</div>';}
   h+=svodkaGoals(view);
+  h+=forecastCorridor(view,R,F);
   return h;
 }
 function subgoalCurrent(view, sg){
@@ -1370,8 +1422,28 @@ function pulseCfg(view){
   h+='<div style="font-size:11px;color:var(--mut);margin-top:8px;padding:0 2px">Эти настройки пересчитывают весь план и КФУ во всём приложении.</div>';
   return h;
 }
+function lookaheadBlock(view){
+  try{
+    var R=compute(view); var cur=pRowFor(R,R.curM); if(!cur) return '';
+    var wk=Math.round(cur.week||0); if(wk<=0) return '';
+    var fact=tempoFactWeek(view,new Date());
+    var nxt=new Date(); nxt.setDate(nxt.getDate()+7); var wk2row=pRowFor(R,nxt.getMonth()+1); var wk2=Math.round((wk2row&&wk2row.week)||wk);
+    var lp=planCfg(view); var open=(lp.constraints||[]).filter(function(x){return x&&x.status!=='cleared';});
+    var dot=open.length?'🟡':'🟢';
+    var h='<div class="ledger" style="border-color:var(--teal)"><div style="font-size:13px;color:var(--teal);letter-spacing:2px;font-weight:800;margin-bottom:2px">🔭 ВЗГЛЯД ВПЕРЁД · 2 НЕДЕЛИ</div>';
+    h+='<div style="font-size:12px;color:var(--mut);margin-bottom:10px">Last Planner: план готов, только если ограничения сняты ДО заливки.</div>';
+    h+='<div style="display:flex;gap:10px;margin-bottom:10px">';
+    h+='<div style="flex:1;background:var(--sur2);border-radius:12px;padding:12px;text-align:center"><div style="font-size:11px;color:var(--mut)">ЭТА НЕДЕЛЯ</div><div class="num" style="font-size:19px;font-weight:800;margin-top:3px">'+fmtD(fact)+' / '+wk+'</div><div style="font-size:10px;color:var(--mut)">м³ факт / план</div></div>';
+    h+='<div style="flex:1;background:var(--sur2);border-radius:12px;padding:12px;text-align:center"><div style="font-size:11px;color:var(--mut)">СЛЕДУЮЩАЯ</div><div class="num" style="font-size:19px;font-weight:800;margin-top:3px">'+wk2+'</div><div style="font-size:10px;color:var(--mut)">м³ план</div></div></div>';
+    h+='<div style="font-size:13px">'+dot+' Открытых ограничений: <b>'+open.length+'</b>'+(open.length?' — снять до заливок:':'')+'</div>';
+    open.slice(0,4).forEach(function(x){ h+='<div style="font-size:12px;color:var(--mut);margin-top:5px">• '+esc(x.what||x.title||'?')+(x.owner?(' <span style="color:var(--teal)">'+esc(x.owner)+'</span>'):'')+(x.due?(' · к '+esc(String(x.due).split('-').reverse().join('.'))):'')+'</div>'; });
+    h+='</div>';
+    return h;
+  }catch(e){ return ''; }
+}
 function pulseConstr(view){
-  var c=planCfg(view); var h='';
+  var _la=lookaheadBlock(view);
+  var c=planCfg(view); var h=_la+'';
   if(PFORM&&PFORM.kind==='constr'){
     var ch=PCATS.map(function(x){return '<div onclick="PLAN.f(\'cat\',\''+x.k+'\');render()" style="cursor:pointer;padding:7px 10px;border-radius:16px;font-size:12px;font-weight:700;color:'+(PFORM.cat===x.k?'var(--bg)':x.c)+';background:'+(PFORM.cat===x.k?x.c:'var(--sur)')+';border:1px solid '+x.c+'">'+x.ic+' '+x.n+'</div>';}).join('');
     return '<div class="bcard"><div class="bn" style="margin-bottom:10px">Новое ограничение</div>'+(PFORM._err?'<div style="color:var(--red);font-size:12px;margin-bottom:8px">'+esc(PFORM._err)+'</div>':'')
@@ -1399,6 +1471,20 @@ function pulsePPC(view){
   } else h+='<div onclick="PLAN.mAdd()" class="pbtn">+ Обязательство на неделю</div>';
   mine.forEach(function(x){
     h+='<div class="bcard"><div style="display:flex;align-items:center;gap:10px"><div onclick="PLAN.mTog(\''+x.id+'\')" style="cursor:pointer;font-size:20px;color:'+(x.done?'var(--green)':'var(--mut)')+'">'+(x.done?'✓':'○')+'</div><div style="flex:1"><div style="font-size:13px;'+(x.done?'text-decoration:line-through;color:var(--mut)':'')+'">'+esc(x.title)+'</div>'+(x.owner?'<div style="font-size:11px;color:var(--mut)">'+esc(x.owner)+'</div>':'')+'</div><div onclick="PLAN.mDel(\''+x.id+'\')" style="cursor:pointer;color:var(--red);padding:4px">✕</div></div></div>';});
+  h+=ppcReasonsBlock(view);
+  return h;
+}
+/* ── ПРИЧИНЫ СРЫВА (Last Planner): чему систематически мешаем темпу ─────────── */
+var DAYFAIL_REASONS=['Бетон не приехал','Погода','Не хватило людей','Нет проекта/решения','Заказчик/площадка','Техника','Другое'];
+function ppcReasonsBlock(view){
+  var df=view.dayFails||{}; var from=new Date(Date.now()-28*86400000).toISOString().slice(0,10);
+  var agg={},tot=0; Object.keys(df).forEach(function(d){ if(d<from)return; var r=(df[d]&&df[d].reason)||''; if(!r)return; agg[r]=(agg[r]||0)+1; tot++; });
+  if(!tot) return '<div style="font-size:12px;color:var(--mut);padding:8px 2px">Срывов дней за 28 дней не отмечено — или прорабы не отмечают причины (кнопка в кабинете при нуле заливки).</div>';
+  var keys=Object.keys(agg).sort(function(a,b){return agg[b]-agg[a];}); var max=agg[keys[0]];
+  var h='<div class="bcard"><div class="bn" style="margin-bottom:4px">Причины срыва · 28 дней</div><div style="font-size:11px;color:var(--mut);margin-bottom:10px">что систематически крадёт темп — устраняем главное</div>';
+  keys.forEach(function(k,i){ var pct=Math.round(agg[k]/tot*100);
+    h+='<div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><span>'+(i===0?'🎯 ':'')+esc(k)+'</span><span style="color:var(--mut)">'+agg[k]+' дн · '+pct+'%</span></div><div style="height:8px;background:var(--sur2);border-radius:4px;overflow:hidden"><div style="height:100%;width:'+Math.max(4,Math.round(agg[k]/max*100))+'%;background:'+(i===0?'var(--red)':'var(--orange)')+';border-radius:4px"></div></div></div>'; });
+  h+='</div>';
   return h;
 }
 
@@ -1596,6 +1682,8 @@ function renderMore(view, app){
     isOwner?tile('📦','var(--green)','Бэкап','JSON-файл','MORE.backup()'):null ]);
   h+=section('ЗАЩИТА ДАННЫХ',[
     isOwner?tile('🛡','var(--teal)','Защита','снапшоты · корзина','MORE.protect()'):null,
+    isOwner?tile('↩️','var(--orange)','Откат','вернуть прошлый день','MORE.restore()'):null,
+    isEdit?tile('📜','var(--blue)','История','кто что менял','MORE.changelog()'):null,
     isOwner?tile('🔒','var(--gold)','Период','правки задним числом','MORE.lockPeriod()'):null,
     tile('☁️↓','var(--blue)','Из облака','загрузить свежее','MORE.pull()') ]);
   h+=section('ОБСЛУЖИВАНИЕ',[
@@ -1682,6 +1770,8 @@ window.MORE={
   capabilities:function(){ openCapabilities(); },
   aicfo:function(){ if(typeof askAI==='function') askAI('all'); },
   protect:function(){ openDataProtection(); },
+  restore:function(){ openRestoreView(); },
+  changelog:function(){ openChangelogView(); },
   lockPeriod:function(){ openLockPeriod(); },
   telegram:function(){ openTelegramView(); },
   soon:function(name){ lgSheet(name,'<div style="text-align:center;padding:28px 8px"><div style="font-size:44px">🚧</div><div style="font-size:16px;font-weight:700;margin-top:10px">'+esc(name)+'</div><div style="color:var(--mut);font-size:13px;margin-top:8px;line-height:1.6">Раздел переносится из старого приложения. Данные уже в облаке и не теряются — экран добавлю следующим шагом.</div></div>'); },
@@ -1742,6 +1832,77 @@ function renderPlaceholder(tab, app){
 
 function aK(n){ n=Number(n)||0; var a=Math.abs(n),s=n<0?'−':''; if(a>=1e6){ var v=Math.round(a/1e5)/10; return s+(v%1===0?v.toFixed(0):(''+v).replace('.',','))+'M'; } if(a>=1e3) return s+Math.round(a/1000)+'к'; return s+Math.round(a); }
 function sparkSVG(data,color,w,h){ w=w||120;h=h||40; if(!data||data.length<2)return ''; var mx=Math.max.apply(null,data),mn=Math.min.apply(null,data),rg=(mx-mn)||1; var pts=data.map(function(v,i){ var x=i/(data.length-1)*w; var y=h-2-((v-mn)/rg)*(h-4); return x.toFixed(1)+','+y.toFixed(1); }).join(' '); return '<svg width="'+w+'" height="'+h+'" style="overflow:visible"><polyline points="'+pts+'" fill="none" stroke="'+color+'" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/></svg>'; }
+/* ── S-КРИВАЯ: накопленный план vs факт, м³ по месяцам ─────────────────────── */
+function sCurveBlock(view){
+  try{
+    var R=compute(view); var c=R.c; if(!R.rows.length) return '';
+    var now=new Date(); if(now.getFullYear()!==c.year) return '';
+    var months=R.rows.map(function(r){return r.m;});
+    var planCum=[],factCum=[],pc=0,fc=0;
+    months.forEach(function(m){ pc+=pRowFor(R,m).m3; planCum.push(pc); fc+=pDoneInMonth(view,m,c.year); factCum.push(fc); });
+    var curIdx=months.indexOf(R.curM); if(curIdx<0)curIdx=months.length-1;
+    var maxV=Math.max(1,planCum[planCum.length-1],factCum[curIdx]||0)*1.06;
+    var W=320,H=120,PX=8;
+    function x(i){ return PX+(W-2*PX)*i/Math.max(1,months.length-1); }
+    function y(v){ return H-6-(H-16)*v/maxV; }
+    function path(arr,upto){ var p=''; arr.forEach(function(v,i){ if(upto!=null&&i>upto)return; p+=(i===0?'M':'L')+x(i).toFixed(1)+' '+y(v).toFixed(1)+' '; }); return p; }
+    var mn=['','янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+    var svg='<svg viewBox="0 0 '+W+' '+(H+16)+'" style="width:100%;height:auto;display:block">';
+    svg+='<path d="'+path(planCum)+'" fill="none" stroke="var(--brd)" stroke-width="2" stroke-dasharray="5 4"/>';
+    svg+='<path d="'+path(factCum,curIdx)+'" fill="none" stroke="var(--teal)" stroke-width="3" stroke-linecap="round"/>';
+    svg+='<circle cx="'+x(curIdx).toFixed(1)+'" cy="'+y(factCum[curIdx]).toFixed(1)+'" r="4" fill="var(--teal)"/>';
+    months.forEach(function(m,i){ if(i%2===0||i===months.length-1) svg+='<text x="'+x(i).toFixed(1)+'" y="'+(H+12)+'" font-size="9" fill="#8b949e" text-anchor="middle">'+mn[m]+'</text>'; });
+    svg+='</svg>';
+    var gap=Math.round(factCum[curIdx]-planCum[curIdx]*( (now.getDate())/new Date(c.year,R.curM,0).getDate() + (curIdx>0?0:0) ));
+    var planToDate=0; R.rows.forEach(function(r){ if(r.m<R.curM)planToDate+=r.m3; else if(r.m===R.curM){var dim=new Date(c.year,r.m,0).getDate(); planToDate+=r.m3*Math.min(now.getDate(),dim)/dim;} });
+    var delta=Math.round(factCum[curIdx]-planToDate); var dc=delta>=0?'var(--green)':'var(--red)';
+    var h='<div class="ledger"><div style="font-size:13px;color:var(--mut);letter-spacing:2px;font-weight:800;margin-bottom:2px">📈 S-КРИВАЯ · '+c.year+'</div>';
+    h+='<div style="font-size:12px;color:var(--mut);margin-bottom:10px">накопленный объём: <span style="color:var(--teal)">— факт</span> · <span style="color:var(--mut)">- - план</span></div>';
+    h+=svg;
+    h+='<div style="display:flex;justify-content:space-between;font-size:12px;margin-top:8px"><span style="color:var(--mut)">сделано <b style="color:var(--fg)">'+fmtD(Math.round(factCum[curIdx]))+'</b> из '+fmtD(Math.round(planCum[planCum.length-1]))+' м³ плана года</span><span style="color:'+dc+';font-weight:800">'+(delta>=0?'+':'−')+fmtD(Math.abs(delta))+' м³ к графику</span></div></div>';
+    return h;
+  }catch(e){ return ''; }
+}
+/* ── EARNED VALUE: CPI/SPI как в Primavera ─────────────────────────────────── */
+function earnedValueBlock(view,obj){
+  try{
+    var meta=(view.objMeta&&view.objMeta[obj])||{}; var EV=0,AC=0;
+    (meta.spots||[]).forEach(function(s){ var p=spotProgressCash(view,obj,s.id); if(!p)return; EV+=p.budget*(p.progressPct/100); AC+=p.spent; });
+    if(AC<=0&&EV<=0) return '';
+    var cpi=AC>0?EV/AC:0;
+    var R=compute(view), F=yearForecast(view,R); var spi=F&&F.plannedToDate>1?F.doneM3/F.plannedToDate:null;
+    function card(t,v,good,desc){ var col=v==null?'var(--mut)':(good?'var(--green)':'var(--red)');
+      return '<div style="flex:1;background:var(--sur2);border-radius:12px;padding:13px;text-align:center"><div style="font-size:12px;color:var(--mut)">'+t+'</div><div class="num" style="font-size:24px;font-weight:800;color:'+col+';margin:4px 0">'+(v==null?'—':v.toFixed(2))+'</div><div style="font-size:11px;color:var(--mut);line-height:1.4">'+desc+'</div></div>'; }
+    var h='<div class="ledger"><div style="font-size:13px;color:var(--mut);letter-spacing:2px;font-weight:800;margin-bottom:2px">🎯 ИНДЕКСЫ ЭФФЕКТИВНОСТИ</div>';
+    h+='<div style="font-size:12px;color:var(--mut);margin-bottom:12px">мировой стандарт Earned Value · норма ≥ 1,00</div>';
+    h+='<div style="display:flex;gap:10px">';
+    h+=card('CPI · деньги',cpi,cpi>=1, cpi>=1?'на 1000 ₸ затрат создаём '+Math.round(cpi*1000)+' ₸ ценности':'на каждой 1000 ₸ теряем '+Math.round((1-cpi)*1000)+' ₸');
+    h+=card('SPI · график',spi,spi==null?true:spi>=1, spi==null?'нет плана на год':(spi>=1?'идём с опережением графика':'отстаём: сделано '+Math.round(spi*100)+'% от плана к дате'));
+    h+='</div></div>';
+    return h;
+  }catch(e){ return ''; }
+}
+/* ── ТРЕНД МАРЖИ по месяцам ────────────────────────────────────────────────── */
+function marginTrendBlock(view){
+  try{
+    var now=new Date(); var pts=[];
+    for(var i=5;i>=0;i--){ var d=new Date(now.getFullYear(),now.getMonth()-i,1); var ym=d.toISOString().slice(0,7);
+      var rev=0,exp=0; (view.entries||[]).forEach(function(e){ if(!e||!e.date||e.date.slice(0,7)!==ym)return;
+        if(e.type==='expense')exp+=(Number(e.amount)||0);
+        if(e.type==='vol'&&isConcrete(view,e))rev+=(Number(e.volume)||0)*rateForEntry(view,e); });
+      if(rev>0||exp>0) pts.push({ym:ym,m:d.getMonth()+1,pct:rev>0?Math.round((rev-exp)/rev*100):(exp>0?-100:0)}); }
+    if(pts.length<2) return '';
+    var mn=['','янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+    var last=pts[pts.length-1], prev=pts[pts.length-2]; var up=last.pct>=prev.pct;
+    var h='<div class="ledger"><div style="font-size:13px;color:var(--mut);letter-spacing:2px;font-weight:800;margin-bottom:10px">📉 ТРЕНД МАРЖИ</div>';
+    h+='<div style="display:flex;align-items:flex-end;gap:8px;height:74px">';
+    pts.forEach(function(p){ var hh=Math.max(4,Math.min(64,Math.abs(p.pct)*0.64)); var col=p.pct>=15?'var(--green)':(p.pct>=0?'var(--gold)':'var(--red)');
+      h+='<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%"><div class="num" style="font-size:11px;color:'+col+';font-weight:700">'+p.pct+'%</div><div style="width:70%;max-width:34px;height:'+hh+'px;background:'+col+';border-radius:4px 4px 0 0;opacity:'+(p.pct<0?'.55':'1')+'"></div></div>'; });
+    h+='</div><div style="display:flex;gap:8px;margin-top:4px">'+pts.map(function(p){return '<div style="flex:1;text-align:center;font-size:10px;color:var(--mut)">'+mn[p.m]+'</div>';}).join('')+'</div>';
+    h+='<div style="font-size:12px;color:'+(up?'var(--green)':'var(--red)')+';margin-top:8px;font-weight:600">'+(up?'↗ Маржа растёт':'↘ Маржа падает')+': '+prev.pct+'% → '+last.pct+'% за месяц</div></div>';
+    return h;
+  }catch(e){ return ''; }
+}
 function renderAnalytics(view, app){
   var obj=(view.objects||[])[0]||'';
   var run=runwayDays(view), burn=burnRate(view), cash=(calcCo(view).cash)||0;
@@ -1752,6 +1913,13 @@ function renderAnalytics(view, app){
   var h='';
   h+='<div class="shdr" style="margin:6px 0 2px"><h2 style="margin:0;font-size:30px;color:var(--gold)">📊 АНАЛИТИКА</h2></div>';
   h+='<div style="font-size:14px;color:var(--mut);margin-bottom:16px">Здоровье · деньги · тренды</div>';
+
+  // 0a) S-КРИВАЯ: накопленный план vs факт по месяцам (главный график мировой стройки)
+  h+=sCurveBlock(view);
+  // 0b) EARNED VALUE: CPI/SPI
+  h+=earnedValueBlock(view,obj);
+  // 0c) ТРЕНД МАРЖИ по месяцам
+  h+=marginTrendBlock(view);
 
   // 1) ЗДОРОВЬЕ БИЗНЕСА
   var rc=run<=3?'var(--red)':(run<14?'var(--orange)':'var(--green)'), ri=run<=3?'🔴':(run<14?'🟡':'🟢');
@@ -2153,6 +2321,53 @@ function openCapabilities(){
   feats.forEach(function(f){ h+='<div style="display:flex;gap:10px;align-items:flex-start;background:var(--sur2);border-radius:10px;padding:10px 12px;margin-bottom:6px"><span style="font-size:20px">'+f[0]+'</span><div><div style="font-size:13px;font-weight:700">'+f[1]+'</div><div style="font-size:11px;color:var(--mut)">'+f[2]+'</div></div></div>'; });
   lgSheet('✨ Возможности', h);
 }
+/* ── ОТКАТ К ПРОШЛОМУ ДНЮ (снапшоты сервера) ───────────────────────────────── */
+function openRestoreView(){
+  if(PREVIEW || !LG.url || !LG.token){ lgSheet('↩️ Откат','<div style="color:var(--mut);font-size:13px;padding:20px;text-align:center">Доступно только онлайн.</div>'); return; }
+  lgSheet('↩️ Откат к прошлому дню','<div style="color:var(--mut);font-size:13px;padding:20px;text-align:center">Загружаю список сохранённых дней…</div>');
+  fetch(api('/api/snapshots'),{headers:headers()})
+    .then(function(r){return r.json();})
+    .then(function(d){
+      if(!d.ok||!d.snapshots||!d.snapshots.length){ document.getElementById('sheet-body').innerHTML='<div style="color:var(--mut);font-size:13px;padding:20px;text-align:center">Снапшотов пока нет. Они создаются автоматически раз в день при изменениях — заходите завтра.</div>'; return; }
+      var h='<div style="font-size:12px;color:var(--mut);margin-bottom:12px">Сохранённые состояния по дням (хранятся 14 дней). Откат вернёт все данные на выбранный день. Текущее состояние тоже сохранится — откат можно отменить.</div>';
+      d.snapshots.forEach(function(s){
+        h+='<div class="bcard" style="display:flex;justify-content:space-between;align-items:center"><div><div style="font-size:14px;font-weight:700">'+esc(String(s.day).split('-').reverse().join('.'))+'</div><div style="font-size:11px;color:var(--mut);margin-top:2px">'+s.entries+' операций · '+s.brigades+' бригад · v'+s.version+'</div></div>'
+          +'<button onclick="doRestore(\''+esc(s.day)+'\')" style="border:1px solid var(--orange);background:rgba(240,136,62,.08);color:var(--orange);border-radius:10px;padding:9px 14px;font-size:13px;font-weight:700;cursor:pointer">Вернуть</button></div>';
+      });
+      document.getElementById('sheet-body').innerHTML=h;
+    })
+    .catch(function(){ document.getElementById('sheet-body').innerHTML='<div style="color:var(--red);font-size:13px;padding:20px;text-align:center">Не удалось загрузить снапшоты.</div>'; });
+}
+function doRestore(day){
+  if(typeof confirm==='function' && !confirm('Вернуть все данные на '+String(day).split('-').reverse().join('.')+'?\n\nВсе изменения после этого дня будут отменены. Текущее состояние сохранится — откат можно будет отменить, вернувшись на «before-restore».')) return;
+  if((LG.queue&&LG.queue.length) && typeof confirm==='function' && !confirm('⚠️ У вас '+LG.queue.length+' несохранённых записей — они НЕ войдут в откат. Продолжить?')) return;
+  fetch(api('/api/restore'),{method:'POST',headers:headers(),body:JSON.stringify({day:day})})
+    .then(function(r){return r.json();})
+    .then(function(d){
+      if(d.ok){ toast('✓ Откат выполнен на '+String(day).split('-').reverse().join('.')); LG.queue=[]; store.rem('lg2_queue'); lgCloseSheet(); pull().then(render); }
+      else toast('Ошибка отката: '+(d.error||'?'));
+    })
+    .catch(function(){ toast('Не удалось выполнить откат'); });
+}
+/* ── ИСТОРИЯ ИЗМЕНЕНИЙ (журнал _log) ───────────────────────────────────────── */
+function logKindLabel(k){
+  var M={'entry.add':'добавлена операция','entry.edit':'изменена операция','entry.delete':'удалена операция','brigade.add':'создана бригада','brigade.edit':'изменена бригада','brigade.archive':'бригада в архив','brigade.restore':'бригада восстановлена','staff.add':'добавлен сотрудник','staff.edit':'изменён сотрудник','staff.archive':'сотрудник удалён','staff.ledger':'начисление/выплата','ks2.add':'добавлен акт КС-2','ks2.delete':'удалён акт КС-2','ks3.add':'добавлен КС-3','att.set':'отмечена явка','issue.add':'добавлено замечание','issue.close':'закрыто замечание','cycle.set':'итоги недели','meta.set':'изменена настройка','plan.op':'изменён план','oblig.add':'добавлено обязательство','oblig.close':'обязательство исполнено','dayfail.set':'причина простоя','state.restore':'⚠️ ОТКАТ ДАННЫХ'};
+  return M[k]||k;
+}
+function openChangelogView(){
+  var v=LG.base||{}; var log=(v._log||[]).slice().reverse();
+  if(!log.length){ lgSheet('📜 История','<div style="color:var(--mut);font-size:13px;padding:20px;text-align:center">Журнал пуст или ещё не подгрузился из облака. Нажмите ☁️↓ «Из облака».</div>'); return; }
+  var h='<div style="font-size:12px;color:var(--mut);margin-bottom:12px">Кто и что менял · последние '+log.length+' действий (по времени, новые сверху)</div>';
+  var lastDay='';
+  log.forEach(function(e){
+    var d=new Date(e.at||0); var day=isFinite(d)?d.toLocaleDateString('ru-RU'):'';
+    var tm=isFinite(d)?(('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2)):'';
+    if(day!==lastDay){ h+='<div style="font-size:11px;color:var(--gold);font-weight:700;letter-spacing:1px;margin:14px 2px 7px">'+day+'</div>'; lastDay=day; }
+    var who=roleLabel(e.by||''); var isRestore=e.kind==='state.restore';
+    h+='<div style="display:flex;gap:10px;align-items:baseline;padding:8px 0;border-bottom:1px solid var(--brd)'+(isRestore?';background:rgba(240,136,62,.06)':'')+'"><span style="flex:none;font-size:11px;color:var(--mut);width:42px">'+tm+'</span><span style="flex:1;font-size:13px'+(isRestore?';color:var(--orange);font-weight:700':'')+'">'+esc(logKindLabel(e.kind))+'</span><span style="flex:none;font-size:11px;color:var(--teal)">'+esc(who)+'</span></div>';
+  });
+  lgSheet('📜 История изменений', h);
+}
 function openDataProtection(){
   var v=projected(LG.base,LG.queue); var trash=(v.trash||[]).slice().reverse();
   var lock=v.lockedUntil||'';
@@ -2426,6 +2641,25 @@ window.PARTNER={ details:function(p){
 function daysTo(dateStr){ if(!dateStr) return null; return Math.ceil((new Date(dateStr)-new Date())/86400000); }
 
 function spotFloorTap(id){ var el=document.getElementById(id); if(el) el.style.display=(!el.style.display||el.style.display==='none')?'block':'none'; }
+/* ── ФОТОЛЕНТА ПЯТНА: фото из Telegram, привязанные к заливкам (Fieldwire/PlanGrid) ── */
+function spotPhotoStrip(view, sp){
+  if(!LG.url||!LG.token) return '';
+  var photos=[];
+  (view.entries||[]).concat(view.draftEntries||[]).forEach(function(e){
+    if(!e||!e.photoId) return;
+    if(e.spotId!==sp.id && e.spot!==sp.id && e.zone!==sp.name) return;
+    photos.push({id:e.photoId, date:e.date||'', floor:e.floor||'', vol:e.volume||0});
+  });
+  if(!photos.length) return '';
+  photos.sort(function(a,b){ return String(b.date).localeCompare(String(a.date)); });
+  var h='<div style="margin-top:10px"><div style="font-size:11px;color:var(--mut);letter-spacing:1px;font-weight:700;margin-bottom:6px">📷 ФОТО С ПЛОЩАДКИ · '+photos.length+'</div>';
+  h+='<div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch">';
+  photos.slice(0,12).forEach(function(p){
+    h+='<div onclick="openPhoto(\''+esc(p.id)+'\')" style="flex:none;width:88px;cursor:pointer"><img src="'+photoUrl(p.id)+'" loading="lazy" style="width:88px;height:88px;object-fit:cover;border-radius:10px;background:var(--sur2)" onerror="this.style.opacity=.3"/><div style="font-size:9px;color:var(--mut);margin-top:3px;text-align:center">'+(p.date?String(p.date).slice(5).split('-').reverse().join('.'):'')+(p.floor?(' · '+esc(p.floor)):'')+'</div></div>';
+  });
+  h+='</div></div>';
+  return h;
+}
 function spotFloorTower(view, spot){
   try{
     if(!spot) return '';
@@ -2594,6 +2828,8 @@ function renderObjects(view, app){
 
     // Башня прогресса
     h+=spotFloorTower(view,spMeta);
+    // Фотолента пятна (фото из Telegram, привязанные к заливкам пятна)
+    h+=spotPhotoStrip(view,sp);
     // План/факт по конструкциям
     var pf=spotPlanRows(view,spMeta);
     if(pf.rows.length){
@@ -2722,9 +2958,52 @@ function moneyPL(view){
   var mdColor=mD.pct>=30?'var(--green)':(mD.pct>=15?'var(--gold)':'var(--red)');
   h+=marginCard({title:'Прямая бригадная маржа',desc:'выручка − начисления бригадам',color:mdColor,profit:mD.profit,pct:mD.pct,revenue:mD.revenue,cost:mD.cost,foot:'⚠ без материалов, инструмента, админа',fc:'var(--gold)'});
   h+=marginCard({title:'Объектная маржа (gross) — ИТОГОВАЯ',kc:'var(--gold)',desc:'выручка − все расходы объекта',color:moColor,big:24,profit:mO.profit,pct:mO.pct,revenue:mO.revenue,cost:mO.cost,foot:mO.profit<0?'🔴 Объект пока убыточен — расходы выше выручки':'',fc:'var(--red)'});
+  h+=obligationsBlock(view);
   h+=moneyExpenseStruct(view);
   h+=moneyLeak(view);
   return h;
+}
+/* ── ОБЯЗАТЕЛЬСТВА (committed costs): обещано, но ещё не потрачено ─────────── */
+function obligationsBlock(view){
+  var open=(view.obligations||[]).filter(function(o){return o&&o.status==='open';}).sort(function(a,b){return String(a.due||'9999').localeCompare(String(b.due||'9999'));});
+  var sum=open.reduce(function(s,o){return s+(Number(o.amount)||0);},0);
+  var td=new Date().toISOString().slice(0,10);
+  var h=mSecH('📌 ОБЯЗАТЕЛЬСТВА · COMMITTED');
+  h+='<div style="font-size:12px;color:var(--mut);margin:0 2px 10px">Деньги, которые обещаны (бетон, бригады, аренда), но ещё не потрачены. Мировой стандарт: расход + обязательства = реальная картина.</div>';
+  if(open.length){
+    h+='<div class="bcard" style="border-left:3px solid var(--violet)"><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px"><span style="font-size:13px;color:var(--violet);font-weight:800">Обещано всего</span><span class="num" style="font-size:20px;font-weight:800;color:var(--violet)">'+fmt0(sum)+' ₸</span></div>';
+    open.forEach(function(o){ var ov=o.due&&o.due<td;
+      h+='<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:9px 0;border-top:1px solid var(--brd)"><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600">'+esc(o.title||'?')+(ov?' <span style="color:var(--red);font-size:11px">просрочено</span>':'')+'</div><div style="font-size:11px;color:var(--mut);margin-top:2px">'+(o.due?('к '+String(o.due).split('-').reverse().join('.')):'без срока')+(o.who?(' · '+esc(o.who)):'')+'</div></div><div style="text-align:right;white-space:nowrap"><div class="num" style="font-weight:700;color:'+(ov?'var(--red)':'var(--fg)')+'">'+fmt0(o.amount||0)+'</div>'+(canWriteLedger()?('<span onclick="closeOblig(\''+esc(o.id)+'\')" style="font-size:11px;color:var(--green);text-decoration:underline;cursor:pointer">исполнено ✓</span>'):'')+'</div></div>'; });
+    h+='</div>';
+  } else h+='<div style="font-size:12px;color:var(--mut);padding:0 2px 8px">Открытых обязательств нет.</div>';
+  if(canWriteLedger()) h+='<button onclick="openObligForm()" style="width:100%;border:1px dashed var(--violet);background:rgba(167,139,250,.06);color:var(--violet);font-weight:700;font-size:13px;padding:11px;border-radius:11px;cursor:pointer;margin-bottom:6px">+ Добавить обязательство</button>';
+  return h;
+}
+function openObligForm(){
+  var fi='width:100%;background:var(--sur2);border:1px solid var(--brd);color:var(--fg);border-radius:10px;padding:11px;font-size:15px;box-sizing:border-box';
+  function fg(l,inner){ return '<div style="margin-bottom:12px"><label style="display:block;font-size:12px;color:var(--mut);margin-bottom:5px">'+l+'</label>'+inner+'</div>'; }
+  var h=fg('Что обещано','<input id="ob-title" placeholder="Бетон М300 на блок 48" style="'+fi+'"/>');
+  h+=fg('Сумма, ₸','<input id="ob-amt" type="number" inputmode="numeric" placeholder="0" style="'+fi+'"/>');
+  h+=fg('Срок','<input id="ob-due" type="date" value="'+new Date(Date.now()+7*86400000).toISOString().slice(0,10)+'" style="'+fi+'"/>');
+  h+=fg('Кому / контрагент','<input id="ob-who" placeholder="БетонСервис" style="'+fi+'"/>');
+  h+='<button onclick="saveOblig()" style="width:100%;background:var(--violet);border:none;color:#fff;border-radius:12px;padding:14px;font-size:15px;font-weight:800;cursor:pointer">Сохранить</button>';
+  lgSheet('📌 Новое обязательство', h);
+}
+function saveOblig(){
+  var t=(document.getElementById('ob-title')||{}).value||''; var a=Number((document.getElementById('ob-amt')||{}).value)||0;
+  if(!t.trim()||a<=0){ toast('Заполните название и сумму'); return; }
+  emit({kind:'oblig.add', payload:{id:'ob'+Date.now(), title:t.trim(), amount:a, due:(document.getElementById('ob-due')||{}).value||'', who:((document.getElementById('ob-who')||{}).value||'').trim()}});
+  lgCloseSheet(); render();
+}
+function closeOblig(id){ emit({kind:'oblig.close', entryId:id}); render(); }
+function setDayFail(reason){
+  var td=new Date().toISOString().slice(0,10);
+  emit({kind:'dayfail.set', payload:{date:td, reason:reason||''}});
+  render(); lgRefreshCabSheet();
+}
+function dismissCabHint(btn){
+  store.set('lg2_seen_cab','1');
+  try{ var card=btn.parentElement; if(card) card.style.display='none'; }catch(e){}
 }
 // СТРУКТУРА РАСХОДОВ: переменные % / постоянные ₸ + точка безубыточности
 function moneyExpenseStruct(view){
@@ -2806,6 +3085,29 @@ function moneyFlow(view){
   if(outPayout>0) h+=row('↩️ Выплаты партнёрам',outPayout,'var(--red)');
   h+='<div style="font-size:12px;color:var(--mut);margin-top:9px;line-height:1.5">ℹ️ Большинство расходов идёт через подотчётные (не из общей кассы), поэтому касса меняется меньше общих трат.</div></div>';
   h+='<div class="bcard" style="text-align:center"><div style="font-size:12px;color:var(--mut);font-weight:700">📍 Итог: касса сейчас</div><div style="font-size:26px;font-weight:800;color:'+hc+';margin-top:7px">'+(cash<0?'−':'')+fmt0(Math.abs(cash))+' ₸</div></div>';
+  h+=cashCalendarBlock(view, cash);
+  return h;
+}
+/* ── КАЛЕНДАРЬ ДЕНЕГ: будущие события с бегущим остатком ───────────────────── */
+function cashCalendarBlock(view, cash){
+  var td=new Date().toISOString().slice(0,10); var ev=[];
+  // обязательства по срокам — минус
+  (view.obligations||[]).forEach(function(o){ if(o&&o.status==='open'&&(Number(o.amount)||0)>0) ev.push({date:o.due||'', label:'📌 '+(o.title||'обязательство'), amt:-(Number(o.amount)||0)}); });
+  // оклады штата — 1-е число следующего месяца
+  var sal=0; (view.staff||[]).forEach(function(p){ if(p&&!p.archived&&Number(p.salary)>0) sal+=Number(p.salary); });
+  if(sal>0){ var n=new Date(); var first=new Date(n.getFullYear(),n.getMonth()+1,1).toISOString().slice(0,10); ev.push({date:first,label:'👥 Оклады штата',amt:-sal}); }
+  // ожидаем от заказчика (подписано, не оплачено)
+  try{ var da=debtorAging(view,(view.objects||[])[0]||''); var wait=Math.max(0,(da.accepted||0)-(da.paid||0));
+    if(wait>0) ev.push({date:'', label:'🏢 Заказчик за подписанное', amt:wait}); }catch(e){}
+  if(!ev.length) return '';
+  ev.sort(function(a,b){ return String(a.date||'9999').localeCompare(String(b.date||'9999')); });
+  var h=mSecH('🗓 КАЛЕНДАРЬ ДЕНЕГ');
+  h+='<div style="font-size:12px;color:var(--mut);margin:0 2px 10px">Будущие движения и остаток кассы после каждого.</div><div class="bcard">';
+  h+='<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px"><span style="color:var(--mut)">Сейчас в кассе</span><span class="num" style="font-weight:800">'+fmt0(cash)+' ₸</span></div>';
+  var run=cash;
+  ev.slice(0,8).forEach(function(x){ run+=x.amt; var oc=x.amt>=0?'var(--green)':'var(--red)'; var rc=run<0?'var(--red)':'var(--mut)'; var ov=x.date&&x.date<td;
+    h+='<div style="padding:8px 0;border-top:1px solid var(--brd)"><div style="display:flex;justify-content:space-between;font-size:13px"><span>'+(x.date?('<span style="color:'+(ov?'var(--red)':'var(--mut)')+'">'+String(x.date).split('-').reverse().join('.')+(ov?' ⚠':'')+'</span> '):'<span style="color:var(--mut)">по факту</span> ')+esc(x.label)+'</span><span class="num" style="font-weight:700;color:'+oc+'">'+(x.amt>=0?'+':'−')+fmt0(Math.abs(x.amt))+'</span></div><div style="text-align:right;font-size:11px;color:'+rc+'">остаток '+(run<0?'−':'')+fmt0(Math.abs(run))+' ₸'+(run<0?' 🔴':'')+'</div></div>'; });
+  h+='</div>';
   return h;
 }
 function moneyBalance(view){
@@ -2846,6 +3148,30 @@ function renderPeople(view, app){
   app.innerHTML=h;
 }
 function spotNameOf(view,id){ var m=(view.objMeta&&view.objMeta[(view.objects||[])[0]])||{}; var sp=(m.spots||[]).find(function(s){return s.id===id;}); return sp?sp.name:id; }
+/* ── РЕЙТИНГ БРИГАД: производительность м³/чел-день за 30 дней (Raken/Rhumbix) ── */
+function brigRatingBlock(view){
+  var from=new Date(Date.now()-30*86400000).toISOString().slice(0,10);
+  var rows=(view.brigades||[]).filter(function(b){return b&&!b.archivedAt;}).map(function(b){
+    var vol=0,days={}; (view.entries||[]).forEach(function(e){ if(!e||e.type!=='vol'||e.brigade!==b.id||!e.date||e.date<from)return; vol+=Number(e.volume)||0; days[e.date]=true; });
+    var workDays=Object.keys(days).length;
+    // чел-дни: явка по бригаде если есть, иначе численность × рабочие дни
+    var manDays=0, ab=view.attendanceB||{};
+    Object.keys(ab).forEach(function(d){ if(d<from)return; if(ab[d]&&ab[d][b.id]!=null) manDays+=Number(ab[d][b.id])||0; });
+    if(manDays<=0) manDays=(Number(b.workers)||0)*workDays;
+    var perMD=manDays>0?vol/manDays:0;
+    return {name:(b.name||'?').replace(/^Бригада\s*/,''), vol:vol, workers:Number(b.workers)||0, workDays:workDays, perMD:perMD};
+  }).filter(function(r){return r.vol>0;}).sort(function(a,b){return b.perMD-a.perMD;});
+  if(!rows.length) return '';
+  var max=rows[0].perMD||1;
+  var h='<div class="ledger"><div style="font-size:13px;color:var(--mut);letter-spacing:2px;font-weight:800;margin-bottom:2px">🏆 РЕЙТИНГ БРИГАД · 30 ДН</div>';
+  h+='<div style="font-size:12px;color:var(--mut);margin-bottom:12px">производительность м³ на человека в день — кто эффективнее</div>';
+  rows.forEach(function(r,i){ var medal=i===0?'🥇':(i===1?'🥈':(i===2?'🥉':(i+1)+'.')); var col=i===0?'var(--green)':'var(--teal)';
+    h+='<div style="margin-bottom:11px"><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px"><span style="font-size:14px;font-weight:700">'+medal+' '+esc(r.name)+'</span><span class="num" style="font-size:15px;font-weight:800;color:'+col+'">'+fmtD(Math.round(r.perMD*100)/100)+' <span style="font-size:11px;color:var(--mut);font-weight:400">м³/чел·день</span></span></div>';
+    h+='<div style="height:8px;background:var(--sur2);border-radius:4px;overflow:hidden"><div style="height:100%;width:'+Math.max(5,Math.round(r.perMD/max*100))+'%;background:'+col+';border-radius:4px"></div></div>';
+    h+='<div style="font-size:11px;color:var(--mut);margin-top:3px">'+fmtD(r.vol)+' м³ · '+r.workers+' чел · заливок в '+r.workDays+' дн</div></div>'; });
+  h+='</div>';
+  return h;
+}
 function peopleBrigades(view){
   var canWrite=canWriteLedger();
   var now=new Date();
@@ -2864,6 +3190,7 @@ function peopleBrigades(view){
   // ── КФУ №1 ТЕМП ЗАЛИВКИ
   var weekPct=weekTarget>0?Math.min(150,Math.round(fact/weekTarget*100)):0;
   var wc=weekPct>=100?'var(--green)':(weekPct>=70?'var(--gold)':'var(--red)');
+  h+=brigRatingBlock(view);
   h+='<div class="ledger" style="border-color:var(--gold)">';
   h+='<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px"><div><div style="font-size:12px;color:var(--mut);letter-spacing:1px">КФУ № 1 · ХОЗЯИН БЕКЖАН</div><div style="font-size:18px;font-weight:800;color:var(--gold);margin-top:2px">ТЕМП ЗАЛИВКИ</div><div style="font-size:13px;color:var(--mut);margin-top:2px">Неделя '+wk+' · '+range+'</div></div><div style="background:rgba(240,165,0,.12);border:1px solid var(--gold);color:var(--gold);font-size:12px;font-weight:700;padding:5px 9px;border-radius:6px">ЦИКЛ →</div></div>';
   h+='<div style="background:rgba(255,255,255,.03);border-radius:8px;padding:12px;margin-bottom:12px">';
@@ -3072,6 +3399,13 @@ function renderCabinet(view, app, scope){
 
   var h='<div class="shdr" style="margin:6px 0 2px"><h2 style="margin:0;font-size:26px;color:var(--gold)">'+(isBrig?'⛑ БРИГАДИР':'👷 ПРОРАБ')+(subWho?(' · '+esc(subWho.replace(/^Бригада\s*/,''))):'')+'</h2></div>';
   h+='<div style="font-size:13px;color:var(--mut);margin-bottom:14px">'+esc(obj)+'</div>';
+  // онбординг: показываем один раз новому пользователю кабинета (флаг в localStorage)
+  if(!PREVIEW && !store.get('lg2_seen_cab')){
+    h+='<div style="background:rgba(45,212,191,.08);border:1px solid var(--teal);border-radius:13px;padding:14px;margin-bottom:14px">'
+      +'<div style="font-size:14px;font-weight:800;color:var(--teal);margin-bottom:8px">👋 Добро пожаловать!</div>'
+      +'<div style="font-size:12.5px;line-height:1.7;color:var(--text)">Это ваш рабочий экран. Главное:<br>• <b>➕ Залили сегодня</b> — записать объём бетона после заливки<br>• <b>🚚 Заявка на бетон</b> — заказать бетон сообщением<br>• <b>📋 Отчёт за день</b> — отправить итог в WhatsApp<br>• <b>Отметить</b> явку — сколько человек вышло<br>• <b>✅ Чек-лист</b> — проверка перед заливкой<br><br>Денег и финансов здесь нет — только ваша работа.</div>'
+      +'<button onclick="dismissCabHint(this)" style="width:100%;margin-top:11px;border:none;background:var(--teal);color:#04201b;font-weight:800;font-size:14px;padding:11px;border-radius:11px;cursor:pointer">Понятно, начать</button></div>';
+  }
   // плитки сегодня/неделя
   h+='<div style="display:flex;gap:10px;margin-bottom:14px">'
     +'<div style="flex:1;background:var(--sur);border:1px solid var(--brd);border-radius:13px;padding:13px"><div style="font-size:12px;color:var(--mut)">Сегодня залито</div><div class="num" style="font-size:24px;font-weight:900;color:'+(todayV>0?'var(--green)':'var(--mut)')+'">'+fmtD(todayV)+'<span style="font-size:12px;color:var(--mut)"> м³</span></div></div>'
@@ -3098,6 +3432,16 @@ function renderCabinet(view, app, scope){
   var attToday=((view.attendance||{})[td])||0;
   h+='<div class="ledger" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px"><div><div style="font-size:13px;color:var(--mut)">Явка сегодня</div><div class="num" style="font-size:22px;font-weight:800;color:'+(attToday>0?'var(--teal)':'var(--mut)')+'">'+attToday+' <span style="font-size:12px;color:var(--mut)">чел</span></div></div>'
     +'<button onclick="setAttendance()" style="border:1px solid var(--teal);background:rgba(45,212,191,.07);color:var(--teal);border-radius:10px;padding:10px 14px;font-size:13px;font-weight:700;cursor:pointer">Отметить</button></div>';
+  // причина срыва дня — если сегодня заливки нет (кормит статистику Last Planner на Пульсе)
+  if(todayV<=0){
+    var curR=((view.dayFails||{})[td]||{}).reason||'';
+    h+='<div class="ledger" style="margin-bottom:14px;border-color:'+(curR?'var(--gold)':'var(--brd)')+'"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:'+(curR?'4':'8')+'px"><div style="font-size:13px;font-weight:700">Сегодня без заливки — почему?</div>'+(curR?'<span onclick="setDayFail(\'\')" style="font-size:11px;color:var(--mut);text-decoration:underline;cursor:pointer">сброс</span>':'')+'</div>';
+    if(curR) h+='<div style="font-size:13px;color:var(--gold);font-weight:700">📌 '+esc(curR)+'</div>';
+    else { h+='<div style="display:flex;flex-wrap:wrap;gap:6px">';
+      DAYFAIL_REASONS.forEach(function(r){ h+='<button onclick="setDayFail(\''+esc(r)+'\')" style="border:1px solid var(--brd);background:var(--sur2);color:var(--fg);border-radius:9px;padding:7px 11px;font-size:12px;cursor:pointer">'+esc(r)+'</button>'; });
+      h+='</div>'; }
+    h+='</div>';
+  }
   // мои пятна
   if(!isBrig && spots.length){ h+='<div style="font-size:12px;font-weight:800;letter-spacing:1px;color:var(--gold);margin:8px 2px 10px">МОИ ПЯТНА</div>';
     spots.forEach(function(sp){ var pc=spotProgressCash(view,obj,sp.id)||{progressPct:0,doneVol:0,planVol:0};
@@ -3192,10 +3536,32 @@ function askCoach(){
 }
 function setAttendance(){
   var view=projected(LG.base,LG.queue); var td=new Date().toISOString().slice(0,10);
-  var cur=((view.attendance||{})[td])||0;
-  var v=(typeof prompt==='function')?prompt('Сколько человек вышло сегодня?', String(cur)):null;
-  if(v===null||v==='') return;
-  emit({kind:'att.set', payload:{date:td, count:Math.max(0,parseInt(v,10)||0)}}); render(); lgRefreshCabSheet();
+  // бригадир — отмечает только свою бригаду
+  var brigId=LG.role.indexOf('brigadier_')===0?LG.role.slice('brigadier_'.length):(LG._cabScope&&LG._cabScope.brigId)||null;
+  if(brigId){
+    var curB=(((view.attendanceB||{})[td])||{})[brigId]||0;
+    var vb=(typeof prompt==='function')?prompt('Сколько человек вышло сегодня (ваша бригада)?', String(curB)):null;
+    if(vb===null||vb==='') return;
+    emit({kind:'att.set', payload:{date:td, brigade:brigId, count:Math.max(0,parseInt(vb,10)||0)}}); render(); lgRefreshCabSheet(); return;
+  }
+  // прораб/владелец — по каждой активной бригаде (так производительность считается честно)
+  var brigs=(view.brigades||[]).filter(function(b){return b&&!b.archivedAt;});
+  if(brigs.length>=2 && typeof prompt==='function'){
+    var any=false;
+    for(var i=0;i<brigs.length;i++){ var b=brigs[i]; var nm=(b.name||'').replace(/^Бригада\s*/,'');
+      var cur=(((view.attendanceB||{})[td])||{})[b.id];
+      var v=prompt('Явка · '+nm+' (Отмена — пропустить):', String(cur!=null?cur:(b.workers||0)));
+      if(v===null) continue;
+      emit({kind:'att.set', payload:{date:td, brigade:b.id, count:Math.max(0,parseInt(v,10)||0)}}); any=true;
+    }
+    if(any){ render(); lgRefreshCabSheet(); }
+    return;
+  }
+  // одна бригада или нет prompt — общее число
+  var cur1=((view.attendance||{})[td])||0;
+  var v1=(typeof prompt==='function')?prompt('Сколько человек вышло сегодня?', String(cur1)):null;
+  if(v1===null||v1==='') return;
+  emit({kind:'att.set', payload:{date:td, count:Math.max(0,parseInt(v1,10)||0)}}); render(); lgRefreshCabSheet();
 }
 var PREPOUR=[
   {t:'Арматура: диаметр, шаг, нахлёст, вязка', h:'Сверь с проектом диаметр и шаг стержней. Нахлёст стыков ≥ 40 диаметров (для d12 — ≥ 48 см). Вязка во всех пересечениях по краям и в шахматном порядке в поле — каркас не должен «гулять». Нет ржавчины, масла, краски. <b>Частая ошибка:</b> короткий нахлёст и пропуск вязки — при заливке арматура смещается.'},
@@ -3404,7 +3770,7 @@ function draftReviewCard(view){
     pend.slice(0,6).forEach(function(e){ var bn=brigName(view,e.brigade)||'?'; var tm=entryTime(e);
       h+='<div onclick="openEntryEditById(\''+esc(String(e.id))+'\')" style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;background:var(--bg);border:1px solid var(--brd);border-radius:11px;padding:10px 12px;margin-bottom:7px;cursor:pointer">'
         +'<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:700">'+String(e.date||'').split('-').reverse().join('.')+(tm?(' <span style="color:var(--mut);font-weight:400;font-size:11px">'+tm+'</span>'):'')+' · '+fmtD(Number(e.volume)||0)+' м³</div>'
-        +'<div style="font-size:11px;color:var(--mut);margin-top:2px">⛑ '+esc(bn.replace(/^Бригада\s*/,''))+(e.floor?(' · '+esc(e.floor)):'')+(e.source==='brigadier'?' · от бригадира':' · от прораба')+'</div></div>'
+        +'<div style="font-size:11px;color:var(--mut);margin-top:2px">⛑ '+esc(bn.replace(/^Бригада\s*/,''))+(e.floor?(' · '+esc(e.floor)):'')+(e.source==='brigadier'?' · от бригадира':' · от прораба')+(e.photoId?' · 📷':'')+'</div></div>'
         +'<span style="color:var(--teal);font-weight:800">✏️</span></div>'; });
     if(pend.length>6) h+='<div style="font-size:12px;color:var(--mut);text-align:center">…и ещё '+(pend.length-6)+' в журнале</div>';
     h+='</div>';
@@ -3829,7 +4195,15 @@ function doLogin(){
   })
   .catch(function(){ err.textContent='Нет связи с сервером. Проверьте адрес.'; });
 }
-function logout(){ store.srem('lg2_token'); store.srem('lg2_role'); LG.token=''; LG.role=''; showLogin(); }
+function logout(keepQueue){ store.srem('lg2_token'); store.srem('lg2_role'); if(!keepQueue){ store.rem('lg2_queue'); LG.queue=[]; } LG.token=''; LG.role=''; showLogin(); }
+function confirmLogout(){
+  var pend=(LG.queue&&LG.queue.length)||0;
+  var msg=pend>0
+    ? ('Выйти из аккаунта?\n\n⚠️ '+pend+' несохранённых записей ещё не ушли на сервер — при выходе они потеряются. Лучше дождаться связи (значок станет зелёным).')
+    : 'Выйти из аккаунта? Вход нужно будет выполнить заново по паролю.';
+  if(typeof confirm==='function' && !confirm(msg)) return;
+  logout();
+}
 
 /* ── ЗАПУСК ───────────────────────────────────────────────────────────────── */
 function boot(){
@@ -4024,6 +4398,14 @@ document.getElementById('entry-save').onclick=saveEntry;
 document.getElementById('refresh').onclick=function(){ if(LG.token) pull().catch(function(){ setDot('err'); }); else showLogin(); };
 
 boot();
+
+// PWA: регистрация Service Worker (офлайн-кэш + установка на домашний экран).
+// Файлы sw.js и manifest.json лежат рядом с index.html на Vercel.
+if('serviceWorker' in navigator){
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('./sw.js').catch(function(){ /* офлайн-режим просто не включится — приложение работает как обычно */ });
+  });
+}
 </script>
 </body>
 </html>
