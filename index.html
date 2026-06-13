@@ -2299,7 +2299,7 @@ function openUsers(){
   roles.forEach(function(r){ h+='<div style="background:var(--sur2);border:1px solid var(--brd);border-radius:10px;padding:11px 13px;margin-bottom:7px"><div style="font-size:14px;font-weight:700">'+esc(r[0])+'</div><div style="font-size:11px;color:var(--mut)">'+esc(r[2])+'</div></div>'; });
   h+='<div style="font-size:11px;color:var(--mut);margin:4px 2px 14px">Пароли ролей заданы в воркере (Cloudflare). Доп. доступы можно завести ниже.</div>';
   // кабинеты сотрудников
-  var cabs=(v.staff||[]).filter(function(p){return p&&!p.archived&&(p.type==='прораб'||p.type==='бригадир'||p.type==='консультант'||p.cabinetPassHash||p.hasCabinet);});
+  var cabs=(v.staff||[]).filter(function(p){ if(!p||p.archived) return false; var s=((p.role||'')+' '+(p.type||'')).toLowerCase(); return /прораб|бригадир|консультант/.test(s) || p.cabinetPassHash || p.hasCabinet; });
   h+='<div style="font-size:12px;color:var(--gold);letter-spacing:1px;font-weight:700;margin-bottom:8px">КАБИНЕТЫ СОТРУДНИКОВ</div>';
   if(!cabs.length) h+='<div style="font-size:12px;color:var(--mut);margin-bottom:10px">Сотрудники с кабинетом появятся здесь.</div>';
   cabs.forEach(function(p){ h+='<div style="background:var(--sur2);border:1px solid var(--brd);border-radius:10px;padding:11px 13px;margin-bottom:7px;display:flex;justify-content:space-between;align-items:center"><div><div style="font-size:14px;font-weight:700">'+esc(p.name||'?')+'</div><div style="font-size:11px;color:var(--mut)">'+esc(p.type||p.role||'')+(p.cabinetPassHash?' · 🔑 пароль задан':' · без пароля')+'</div></div>'
@@ -3628,33 +3628,58 @@ function askCoach(){
 }
 function setAttendance(){
   var view=projected(LG.base,LG.queue); var td=new Date().toISOString().slice(0,10);
-  // бригадир — отмечает только свою бригаду
+  var attB=((view.attendanceB||{})[td])||{};
+  // бригадир — только своя бригада
   var brigId=LG.role.indexOf('brigadier_')===0?LG.role.slice('brigadier_'.length):(LG._cabScope&&LG._cabScope.brigId)||null;
   if(brigId){
-    var curB=(((view.attendanceB||{})[td])||{})[brigId]||0;
-    var vb=(typeof prompt==='function')?prompt('Сколько человек вышло сегодня (ваша бригада)?', String(curB)):null;
-    if(vb===null||vb==='') return;
-    emit({kind:'att.set', payload:{date:td, brigade:brigId, count:Math.max(0,parseInt(vb,10)||0)}}); render(); lgRefreshCabSheet(); return;
-  }
-  // прораб/владелец — по каждой активной бригаде (так производительность считается честно)
-  var brigs=(view.brigades||[]).filter(function(b){return b&&!b.archivedAt;});
-  if(brigs.length>=2 && typeof prompt==='function'){
-    var any=false;
-    for(var i=0;i<brigs.length;i++){ var b=brigs[i]; var nm=(b.name||'').replace(/^Бригада\s*/,'');
-      var cur=(((view.attendanceB||{})[td])||{})[b.id];
-      var v=prompt('Явка · '+nm+' (Отмена — пропустить):', String(cur!=null?cur:(b.workers||0)));
-      if(v===null) continue;
-      emit({kind:'att.set', payload:{date:td, brigade:b.id, count:Math.max(0,parseInt(v,10)||0)}}); any=true;
-    }
-    if(any){ render(); lgRefreshCabSheet(); }
+    var bb=(view.brigades||[]).find(function(x){return x.id===brigId;})||{};
+    openAttSheet(td,[{id:brigId,name:(bb.name||'Моя бригада'),workers:(bb.workers||0),cur:(attB[brigId]!=null?attB[brigId]:(bb.workers||0))}]);
     return;
   }
-  // одна бригада или нет prompt — общее число
-  var cur1=((view.attendance||{})[td])||0;
-  var v1=(typeof prompt==='function')?prompt('Сколько человек вышло сегодня?', String(cur1)):null;
-  if(v1===null||v1==='') return;
-  emit({kind:'att.set', payload:{date:td, count:Math.max(0,parseInt(v1,10)||0)}}); render(); lgRefreshCabSheet();
+  // прораб/владелец — все активные бригады на одном экране
+  var brigs=(view.brigades||[]).filter(function(b){return b&&!b.archivedAt;});
+  if(brigs.length){
+    openAttSheet(td, brigs.map(function(b){return {id:b.id,name:(b.name||''),workers:(b.workers||0),cur:(attB[b.id]!=null?attB[b.id]:(b.workers||0))};}));
+    return;
+  }
+  openAttSheet(td, null);   // бригад нет — общее число
 }
+function attDateLabel(td){ var p=String(td).split('-'); return p.length===3?(p[2]+'.'+p[1]):String(td); }
+function attStepBtn(sym,onc){ return '<button onclick="'+onc+'" style="width:40px;height:40px;flex:none;border:1px solid var(--teal);background:rgba(45,212,191,.08);color:var(--teal);border-radius:11px;font-size:22px;font-weight:800;line-height:1;cursor:pointer">'+sym+'</button>'; }
+function openAttSheet(td, rows){
+  var view=projected(LG.base,LG.queue);
+  var h='<div style="font-size:13px;color:var(--mut);margin-bottom:12px">Сколько человек вышло сегодня, '+attDateLabel(td)+'. По каждой бригаде — кнопками − / + или впишите число.</div>';
+  if(rows&&rows.length){
+    rows.forEach(function(r){
+      var nm=(r.name||'').replace(/^Бригада\s*/,'')||'Бригада';
+      h+='<div style="background:var(--sur2);border:1px solid var(--brd);border-radius:12px;padding:11px 13px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:10px">'
+        +'<div style="min-width:0;flex:1"><div style="font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">⛑ '+esc(nm)+'</div>'
+        +'<div style="font-size:11px;color:var(--mut);margin-top:2px">обычно '+(r.workers||0)+' чел</div></div>'
+        +'<div style="display:flex;align-items:center;gap:7px;flex:none">'
+        +attStepBtn('−',"attStep('"+r.id+"',-1)")
+        +'<input id="att-in-'+r.id+'" class="att-in" data-bid="'+r.id+'" inputmode="numeric" value="'+(parseInt(r.cur,10)||0)+'" oninput="attTotal()" style="width:52px;text-align:center;background:var(--sur);border:1px solid var(--brd);border-radius:10px;padding:9px 2px;color:var(--fg);font-size:18px;font-weight:800;outline:none">'
+        +attStepBtn('+',"attStep('"+r.id+"',1)")
+        +'</div></div>';
+    });
+    h+='<div style="display:flex;align-items:center;justify-content:space-between;margin:14px 4px 12px"><span style="color:var(--mut);font-size:14px">Итого вышло</span><span style="font-weight:800;font-size:19px;color:var(--teal)"><span id="att-total">0</span> чел</span></div>';
+    h+='<button onclick="attSave(\''+td+'\')" style="width:100%;background:var(--teal);color:#04201b;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:800;cursor:pointer">Сохранить явку</button>';
+  } else {
+    var cur1=((view.attendance||{})[td])||0;
+    h+='<div style="background:var(--sur2);border:1px solid var(--brd);border-radius:12px;padding:13px;display:flex;align-items:center;justify-content:space-between;gap:10px"><div style="font-size:14px;font-weight:700">Вышло сегодня</div>'
+      +'<div style="display:flex;align-items:center;gap:7px;flex:none">'
+      +attStepBtn('−',"attStep('_total',-1)")
+      +'<input id="att-in-_total" class="att-in" data-bid="_total" inputmode="numeric" value="'+cur1+'" style="width:52px;text-align:center;background:var(--sur);border:1px solid var(--brd);border-radius:10px;padding:9px 2px;color:var(--fg);font-size:18px;font-weight:800;outline:none">'
+      +attStepBtn('+',"attStep('_total',1)")
+      +'</div></div>';
+    h+='<button onclick="attSaveTotal(\''+td+'\')" style="width:100%;margin-top:14px;background:var(--teal);color:#04201b;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:800;cursor:pointer">Сохранить</button>';
+  }
+  lgSheet('📅 Явка · '+attDateLabel(td), h);
+  attTotal();
+}
+function attStep(id,d){ var el=document.getElementById('att-in-'+id); if(!el)return; el.value=Math.max(0,(parseInt(el.value,10)||0)+d); attTotal(); }
+function attTotal(){ var s=0,els=document.querySelectorAll('.att-in'); for(var i=0;i<els.length;i++){ s+=Math.max(0,parseInt(els[i].value,10)||0); } var t=document.getElementById('att-total'); if(t)t.textContent=s; }
+function attSave(td){ var els=document.querySelectorAll('.att-in'),any=false; for(var i=0;i<els.length;i++){ var bid=els[i].getAttribute('data-bid'); if(bid==='_total')continue; emit({kind:'att.set', payload:{date:td, brigade:bid, count:Math.max(0,parseInt(els[i].value,10)||0)}}); any=true; } if(any)render(); lgSheetBack(); lgRefreshCabSheet(); toast('Явка сохранена'); }
+function attSaveTotal(td){ var el=document.getElementById('att-in-_total'); emit({kind:'att.set', payload:{date:td, count:Math.max(0,parseInt(el?el.value:0,10)||0)}}); render(); lgSheetBack(); lgRefreshCabSheet(); toast('Явка сохранена'); }
 var PREPOUR=[
   {t:'Арматура: диаметр, шаг, нахлёст, вязка', h:'Сверь с проектом диаметр и шаг стержней. Нахлёст стыков ≥ 40 диаметров (для d12 — ≥ 48 см). Вязка во всех пересечениях по краям и в шахматном порядке в поле — каркас не должен «гулять». Нет ржавчины, масла, краски. <b>Частая ошибка:</b> короткий нахлёст и пропуск вязки — при заливке арматура смещается.'},
   {t:'Опалубка: геометрия, отметки, вертикальность', h:'Проверь размеры в плане и отметки лазером/нивелиром, вертикаль — уровнем/отвесом (отклонение ≤ 5 мм на 3 м). Стяжки, замки и подкосы затянуты, щиты не разойдутся. <b>Ошибка:</b> слабое раскрепление → распор и «пузо» стены, потом срубать.'},
