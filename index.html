@@ -728,7 +728,7 @@ function staffList(view){
     var b=staffBal(p); var isConsult=(p.type==='консультант');
     var o={ id:p.id, name:p.name||'?', role:p.role||'', type:p.type||'штат', payMethod:p.payMethod||'', rate:Number(p.rate)||0,
              salaried:isSalaried(p), accrued:b.auto, rest:b.rest, paid:b.pay, held:b.pen, bonusKS2:0, bonusAll:0,
-             isConsult:isConsult, spots:p.spots||[], premRate:p.premRate, premCel:p.premCel };
+             isConsult:isConsult, spots:p.spots||[], premRate:p.premRate, premCel:p.premCel, hireDate:p.hireDate||'', fireDate:p.fireDate||'' };
     if(!isConsult && /прораб/i.test(p.role||'')){
       try{ var e=foremanEarnings(view,p);
         var lAcc=0,lBon=0; (p.ledger||[]).forEach(function(m){ var v=+m.amount||0; if(m.kind==='acc')lAcc+=v; else if(m.kind==='bon'||m.kind==='bonus')lBon+=v; });
@@ -4865,6 +4865,8 @@ function openStaffForm(isConsult, existing){
   var h='<div style="display:flex;flex-direction:column;gap:12px">';
   h+='<div><label style="font-size:13px;color:var(--mut)">Имя</label><input id="sf-name" value="'+esc(p.name||'')+'" placeholder="Имя" style="width:100%;margin-top:4px;padding:11px;background:var(--sur2);border:1px solid var(--brd);border-radius:10px;color:var(--fg);font-size:15px"/></div>';
   h+='<div><label style="font-size:13px;color:var(--mut)">Должность</label><input id="sf-role" value="'+esc(p.role||'')+'" placeholder="напр. Прораб, Снабженец" style="width:100%;margin-top:4px;padding:11px;background:var(--sur2);border:1px solid var(--brd);border-radius:10px;color:var(--fg);font-size:15px"/></div>';
+  h+='<div><label style="font-size:13px;color:var(--mut)">Дата приёма на работу</label><input id="sf-hire" type="date" value="'+esc(p.hireDate||'')+'" style="width:100%;margin-top:4px;padding:11px;background:var(--sur2);border:1px solid var(--brd);border-radius:10px;color:var(--fg);font-size:15px"/>'+(!isConsult?'<div style="font-size:11px;color:var(--mut);margin-top:4px">С этой даты автоматически набегает оклад/ставка (по рабочим дням).</div>':'')+'</div>';
+  h+='<div><label style="font-size:13px;color:var(--mut)">Дата увольнения (если уволен)</label><input id="sf-fire" type="date" value="'+esc(p.fireDate||'')+'" style="width:100%;margin-top:4px;padding:11px;background:var(--sur2);border:1px solid var(--brd);border-radius:10px;color:var(--fg);font-size:15px"/>'+(!isConsult?'<div style="font-size:11px;color:var(--mut);margin-top:4px">С этой даты оклад/ставка больше не начисляется. Оставьте пустым, если работает.</div>':'')+'</div>';
   if(!isConsult){
     h+='<div><label style="font-size:13px;color:var(--mut)">Тип оплаты</label><select id="sf-pm" style="width:100%;margin-top:4px;padding:11px;background:var(--sur2);border:1px solid var(--brd);border-radius:10px;color:var(--fg);font-size:15px">'+selOpts([['oklad','Оклад (фикс. в месяц)'],['day','Ставка за день'],['manual','Вручную']], pm)+'</select></div>';
     h+='<div><label style="font-size:13px;color:var(--mut)">Сумма (оклад/ставка), ₸</label><input id="sf-rate" type="number" inputmode="numeric" value="'+(p.rate||'')+'" placeholder="0" style="width:100%;margin-top:4px;padding:11px;background:var(--sur2);border:1px solid var(--brd);border-radius:10px;color:var(--fg);font-size:15px"/></div>';
@@ -4884,7 +4886,7 @@ function saveStaff(){
   if(!name){ document.getElementById('sf-err').textContent='Укажите имя.'; return; }
   var isConsult=LG.staffConsult;
   var spots=[].slice.call(document.querySelectorAll('.sf-spot')).filter(function(c){return c.checked;}).map(function(c){return c.value;});
-  var p={ name:name, role:(document.getElementById('sf-role').value||'').trim(), type:isConsult?'консультант':'штат', spots:spots };
+  var p={ name:name, role:(document.getElementById('sf-role').value||'').trim(), type:isConsult?'консультант':'штат', spots:spots, hireDate:(gv('sf-hire')||'').trim(), fireDate:(gv('sf-fire')||'').trim() };
   if(!isConsult){ p.payMethod=gv('sf-pm'); p.rate=Number(gv('sf-rate'))||0; p.premRate=Number(gv('sf-premrate'))||0; p.premCel=Number(gv('sf-premcel'))||0; }
   else { p.payMethod='manual'; }
   if(LG.staffEdit){ emit({kind:'staff.edit', entryId:LG.staffEdit.id, payload:p}); }
@@ -4900,7 +4902,7 @@ function openStaffCard(p){
   var payTxt = p.payMethod==='oklad'?('оклад '+fmt0(p.rate)+' ₸') : (p.payMethod==='day'?(fmt0(p.rate)+' ₸/день') : 'вручную');
   var spotsTxt=(p.spots&&p.spots.length)?p.spots.map(function(id){return spotNameOf(projected(LG.base,LG.queue),id);}).join(', '):'—';
   var h='<div style="font-size:13px;color:var(--mut);margin-bottom:10px">'+esc(p.role||'')+' · '+(consult?'консультант':'штат')+'</div>';
-  h+='<div class="ledger" style="margin-bottom:12px"><div style="font-size:13px;color:var(--mut)">Объект: <b style="color:var(--fg)">ЖК «Алгабас», Мкр. Нуркент</b></div><div style="font-size:13px;color:var(--mut);margin-top:4px">Заказчик: <b style="color:var(--fg)">Sensata Group</b></div><div style="font-size:13px;color:var(--mut);margin-top:4px">Пятна: <b style="color:var(--teal)">'+esc(spotsTxt)+'</b></div>'+(!consult?'<div style="font-size:13px;color:var(--mut);margin-top:4px">Оплата: <b style="color:var(--fg)">'+payTxt+'</b></div>':'')+'</div>';
+  h+='<div class="ledger" style="margin-bottom:12px"><div style="font-size:13px;color:var(--mut)">Объект: <b style="color:var(--fg)">ЖК «Алгабас», Мкр. Нуркент</b></div><div style="font-size:13px;color:var(--mut);margin-top:4px">Заказчик: <b style="color:var(--fg)">Sensata Group</b></div><div style="font-size:13px;color:var(--mut);margin-top:4px">Пятна: <b style="color:var(--teal)">'+esc(spotsTxt)+'</b></div>'+(p.hireDate?'<div style="font-size:13px;color:var(--mut);margin-top:4px">Дата приёма: <b style="color:var(--fg)">'+p.hireDate.split('-').reverse().join('.')+'</b></div>':'')+(p.fireDate?'<div style="font-size:13px;color:var(--mut);margin-top:4px">Дата увольнения: <b style="color:var(--red)">'+p.fireDate.split('-').reverse().join('.')+'</b></div>':'')+(!consult?'<div style="font-size:13px;color:var(--mut);margin-top:4px">Оплата: <b style="color:var(--fg)">'+payTxt+'</b></div>':'')+'</div>';
   h+='<div class="ledger"><div style="font-size:12px;color:var(--mut);text-transform:uppercase;letter-spacing:.05em">'+(consult?'Всё рассчитано':'Остаток к выдаче')+'</div><div class="num" style="font-size:32px;font-weight:800;color:'+restCol+';margin:4px 0 12px">'+(rest<0?'−':'')+fmt0(Math.abs(rest))+' ₸</div>';
   h+='<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;text-align:center">'
     +'<div style="background:var(--sur2);border-radius:8px;padding:8px"><div style="font-size:11px;color:var(--mut)">Начислено</div><div class="num" style="color:var(--green);font-weight:700">'+fmt0(p.accrued)+'</div></div>'
@@ -4954,7 +4956,7 @@ function openStaffCard(p){
     h+='<button onclick="openForemanCabinet(\''+esc(p.id)+'\')" style="width:100%;margin-top:8px;background:rgba(167,139,250,.1);border:1px solid var(--violet);color:var(--violet);border-radius:12px;padding:13px;font-size:14px;font-weight:700;cursor:pointer">👷 Открыть кабинет прораба</button>';
     h+='<button onclick="openForemanPremium(\''+esc(p.id)+'\')" style="width:100%;margin-top:8px;background:rgba(45,212,191,.08);border:1px solid var(--teal);color:var(--teal);border-radius:12px;padding:13px;font-size:14px;font-weight:700;cursor:pointer">📐 Рассчитать премию по КС-2</button>';
   }
-  if(canWriteLedger()) h+='<button onclick="openStaffForm('+(consult?'true':'false')+', '+JSON.stringify({id:p.id,name:p.name,role:p.role,type:consult?'консультант':'штат',payMethod:p.payMethod,rate:p.rate,spots:p.spots,premRate:p.premRate,premCel:p.premCel}).replace(/"/g,'&quot;')+')" style="width:100%;margin-top:10px;background:rgba(240,165,0,.12);border:1px solid var(--gold);color:var(--gold);border-radius:12px;padding:12px;font-size:14px;font-weight:700;cursor:pointer">✏️ Изменить</button>';
+  if(canWriteLedger()) h+='<button onclick="openStaffForm('+(consult?'true':'false')+', '+JSON.stringify({id:p.id,name:p.name,role:p.role,type:consult?'консультант':'штат',payMethod:p.payMethod,rate:p.rate,spots:p.spots,premRate:p.premRate,premCel:p.premCel,hireDate:p.hireDate,fireDate:p.fireDate}).replace(/"/g,'&quot;')+')" style="width:100%;margin-top:10px;background:rgba(240,165,0,.12);border:1px solid var(--gold);color:var(--gold);border-radius:12px;padding:12px;font-size:14px;font-weight:700;cursor:pointer">✏️ Изменить</button>';
   lgSheet((consult?'👤 ':'👷 ')+esc(p.name), h);
 }
 function openBrigade(b){
