@@ -13,8 +13,8 @@
 <style>
   :root{
     --bg:#0d1117; --sur:#161b22; --sur2:#1c2330; --brd:#2a3340;
-    --text:#e6edf3; --mut:#8b98a5; --gold:#f0a500; --green:#3fb950;
-    --red:#f85149; --teal:#2dd4bf; --blue:#58a6ff; --violet:#bc8cff;
+    --text:#e6edf3; --fg:#e6edf3; --mut:#8b98a5; --gold:#f0a500; --green:#3fb950;
+    --red:#f85149; --teal:#2dd4bf; --blue:#58a6ff; --violet:#bc8cff; --orange:#ff9d3d;
     --safe-t:env(safe-area-inset-top); --safe-b:env(safe-area-inset-bottom);
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
@@ -97,7 +97,7 @@
     border-radius:50%; background:var(--gold); color:#0d1117; border:none; font-size:30px; font-weight:300;
     box-shadow:0 6px 20px rgba(0,0,0,.45); z-index:20; line-height:1;
     align-items:center; justify-content:center; cursor:pointer}
-  .empty{text-align:center; color:var(--mut); padding:38px 16px; border:1px dashed var(--brd); border-radius:12px}
+  .empty{text-align:center; color:var(--mut); padding:44px 20px; border:1px dashed var(--brd); border-radius:14px; background:rgba(255,255,255,.015); font-size:14px; line-height:1.6}
 
   /* ── Оверлеи (вход / форма) ── */
   .ov{position:fixed; inset:0; background:rgba(13,17,23,.75); backdrop-filter:blur(4px);
@@ -145,6 +145,35 @@
     border-radius:10px; padding:10px 12px; margin-bottom:12px}
   .goog-te-banner-frame,.skiptranslate{display:none!important} body{top:0!important}
   #goog-gt-tt,.goog-te-balloon-frame{display:none!important} font font{background:none!important;box-shadow:none!important}
+
+  /* ── Полировка интерфейса (тактильность · фокус · глубина · отклик) ── */
+  button{transition:transform .12s ease, opacity .12s ease, background-color .15s ease, border-color .15s ease, box-shadow .15s ease}
+  button:active{transform:scale(.97)}
+  .fab:active{transform:scale(.92)}
+  a[href]{transition:opacity .12s ease, transform .12s ease}
+  a[href]:active{transform:scale(.98); opacity:.9}
+  input,select,textarea{transition:border-color .15s ease, box-shadow .15s ease}
+  input:focus,select:focus,textarea:focus{outline:none; border-color:var(--gold)!important; box-shadow:0 0 0 3px rgba(240,165,0,.13)}
+  .subbar button{transition:all .16s ease}
+  .subbar button.act{box-shadow:0 3px 12px rgba(240,165,0,.35)}
+  .ledger,.row,.bcard{box-shadow:0 1px 2px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.025)}
+  .row[onclick],.bcard[onclick],[data-spot],[data-brigcard]{transition:transform .12s ease, border-color .15s ease}
+  .row[onclick]:active,.bcard[onclick]:active,[data-spot]:active,[data-brigcard]:active{transform:scale(.992); border-color:var(--mut)}
+  nav button{transition:color .15s ease, transform .12s ease}
+  nav button.act .ic{transform:translateY(-1px) scale(1.08)}
+  nav button.act{position:relative}
+  nav button.act::before{content:''; position:absolute; top:0; left:50%; transform:translateX(-50%); width:26px; height:2.5px; border-radius:0 0 3px 3px; background:var(--gold)}
+  ::selection{background:rgba(240,165,0,.3); color:#fff}
+  ::-webkit-scrollbar{width:8px; height:8px}
+  ::-webkit-scrollbar-thumb{background:var(--brd); border-radius:4px}
+  ::-webkit-scrollbar-thumb:hover{background:var(--mut)}
+  ::-webkit-scrollbar-track{background:transparent}
+  @media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important; animation-iteration-count:1!important; transition-duration:.01ms!important}}
+
+  /* ── Скелетоны загрузки ── */
+  @keyframes shimmer{0%{background-position:-280px 0}100%{background-position:280px 0}}
+  .skel{background:linear-gradient(90deg,var(--sur2) 25%,#2b3445 50%,var(--sur2) 75%); background-size:560px 100%; animation:shimmer 1.25s infinite linear; border-radius:8px}
+  .skel-card{background:var(--sur); border:1px solid var(--brd); border-radius:14px; padding:16px; margin-bottom:14px}
 </style>
 </head>
 <body>
@@ -155,12 +184,26 @@
     <button id="langbtn" onclick="lgToggleLang()" style="background:none;border:1px solid var(--brd);border-radius:8px;color:var(--gold);font-size:12px;font-weight:700;padding:3px 8px;margin-right:2px;cursor:pointer">🌐 RU</button>
     <span class="ver" id="ver">v—</span>
     <span class="dot" id="dot" title="нет связи"></span>
-    <button id="refresh" style="background:none;border:none;color:var(--mut);font-size:16px;padding:2px 4px">↻</button>
-    <button id="logoutbtn" onclick="confirmLogout()" title="Выйти" style="background:none;border:none;color:var(--mut);font-size:15px;padding:2px 4px;cursor:pointer">⏻</button>
+    <button id="refresh" style="background:none;border:none;color:var(--mut);font-size:16px;padding:5px 7px">↻</button>
+    <button id="logoutbtn" onclick="confirmLogout()" title="Выйти" style="background:none;border:none;color:var(--mut);font-size:15px;padding:5px 7px;cursor:pointer">⏻</button>
   </div>
 </header>
 
-<main id="app"><div class="empty">Загрузка…</div></main>
+<main id="app">
+  <div class="skel-card">
+    <div class="skel" style="height:11px;width:38%;margin-bottom:12px"></div>
+    <div class="skel" style="height:34px;width:62%;margin-bottom:14px"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div class="skel" style="height:46px"></div><div class="skel" style="height:46px"></div>
+    </div>
+  </div>
+  <div class="skel-card">
+    <div class="skel" style="height:13px;width:48%;margin-bottom:12px"></div>
+    <div class="skel" style="height:58px"></div>
+  </div>
+  <div class="skel" style="height:62px;margin-bottom:9px"></div>
+  <div class="skel" style="height:62px;margin-bottom:9px"></div>
+</main>
 
 <button class="fab" id="fab" style="display:none">+</button>
 
@@ -232,9 +275,9 @@
 <div class="ov" id="ov-sheet" style="align-items:flex-end">
   <div class="sheet" style="max-height:90vh;overflow:auto;padding-top:0">
     <div style="position:sticky;top:0;z-index:6;background:var(--sur);display:flex;align-items:center;gap:10px;padding:16px 0 12px;border-bottom:1px solid var(--brd);margin-bottom:12px">
-      <button id="sheet-back" onclick="lgSheetBack()" style="display:none;flex:none;background:var(--sur2);border:none;color:var(--fg);font-size:14px;font-weight:700;height:38px;padding:0 14px;border-radius:19px;cursor:pointer">‹ Назад</button>
+      <button id="sheet-back" onclick="lgSheetBack()" style="display:none;flex:none;background:var(--sur2);border:none;color:var(--fg);font-size:14px;font-weight:700;height:40px;padding:0 15px;border-radius:20px;cursor:pointer">‹ Назад</button>
       <h3 id="sheet-title" style="margin:0;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">—</h3>
-      <button onclick="lgCloseSheet()" style="flex:none;background:var(--sur2);border:none;color:var(--mut);font-size:20px;width:38px;height:38px;border-radius:50%;line-height:1;cursor:pointer">✕</button>
+      <button onclick="lgCloseSheet()" style="flex:none;background:var(--sur2);border:none;color:var(--text);font-size:20px;width:40px;height:40px;border-radius:50%;line-height:1;cursor:pointer">✕</button>
     </div>
     <div id="sheet-body"></div>
   </div>
@@ -1821,6 +1864,7 @@ function renderMore(view, app){
     tile('🗣','var(--orange)','Планёрка','план/факт · договорённости','MORE.planerka()'),
     tile('📤','var(--teal)','Поделиться','сводка в WhatsApp','MORE.shareSvodka()'),
     tile('✈️','#229ED9','Telegram','отчёт в группу','MORE.telegram()'),
+    canWriteLedger()?tile('🚚','var(--blue)','Заявка на бетон','заказ поставщику · номер','openConcreteOrder()'):null,
     tile('📥','var(--green)','Экспорт CSV','все операции','MORE.exportCSV()'),
     isEdit?tile('📑','var(--teal)','Реестр КС-2','подписано · ждёт · акты','MORE.ks2reg()'):null ]);
   h+=section('УМНЫЕ ВОЗМОЖНОСТИ',[
@@ -3521,7 +3565,7 @@ function peopleStaff(view, consultOnly){
     h+='<div class="bcard" '+(canWrite?'data-staff="'+esc(p.id)+'" style="cursor:pointer"':'')+'><div style="display:flex;align-items:center;gap:14px">'
       +'<div style="width:52px;height:52px;border-radius:50%;background:rgba(240,165,0,.12);border:1px solid rgba(240,165,0,.4);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:22px;font-weight:800;color:'+col+'">'+esc((p.name||'?').charAt(0))+'</div>'
       +'<div style="flex:1;min-width:0"><div style="font-size:18px;font-weight:700">'+esc(p.name)+'</div><div style="font-size:13px;color:var(--mut);margin-top:2px">'+esc(p.role||'')+' · '+payTxt+'</div>'+(spotsTxt?'<div style="font-size:13px;color:var(--teal);margin-top:2px">'+esc(spotsTxt)+'</div>':'')+'</div>'
-      +'<div style="text-align:right"><div class="num" style="font-size:22px;font-weight:800;color:'+rc+'">'+(rest<0?'−':'')+rv+'</div><div style="font-size:12px;color:var(--mut)">'+rl+'</div></div></div></div>';
+      +'<div style="text-align:right"><div class="num" style="font-size:22px;font-weight:800;color:'+rc+'">'+(rest<0?'−':'')+rv+'</div><div style="font-size:12px;color:var(--mut)">'+rl+'</div></div>'+(canWrite?'<div style="flex:none;color:var(--mut);font-size:24px;font-weight:300;margin-left:2px;line-height:1">›</div>':'')+'</div></div>';
   });
   if(canWrite){ h+='<button data-addstaff="'+(consultOnly?'consult':'staff')+'" style="width:100%;background:transparent;border:1.5px dashed var(--green);color:var(--green);border-radius:14px;padding:16px;font-size:16px;font-weight:700;margin-top:6px;cursor:pointer">+ Добавить '+(consultOnly?'консультанта':'сотрудника')+'</button>'; }
   return h;
@@ -3909,6 +3953,11 @@ function openConcreteOrder(){
   var spots=((view.objMeta&&view.objMeta[obj])||{}).spots||[];
   var fi='width:100%;background:var(--sur2);border:1px solid var(--brd);color:var(--fg);border-radius:10px;padding:11px;font-size:15px;box-sizing:border-box';
   var h='<div style="font-size:13px;color:var(--mut);margin-bottom:12px">Заявка формирует текст для отправки в WhatsApp/SMS поставщику.</div>';
+  h+='<div style="margin-bottom:12px;padding:10px;border:1px solid var(--brd);border-radius:10px;background:var(--sur2)">'
+    +'<label style="font-size:12px;color:var(--mut)">Номер поставщика (WhatsApp)</label>'
+    +'<div style="display:flex;gap:8px;margin-top:4px"><input id="co-phone" type="tel" inputmode="numeric" value="'+esc(view.betonPhone||'')+'" placeholder="напр. 77011234567" style="flex:1;min-width:0;'+fi+'"/>'
+    +'<button onclick="saveBetonPhone()" style="flex:none;background:rgba(46,160,67,.12);border:1px solid var(--green);color:var(--green);border-radius:10px;padding:0 16px;font-size:18px;font-weight:700;cursor:pointer">💾</button></div>'
+    +'<div id="co-phone-st" style="font-size:11px;color:var(--mut);margin-top:5px">'+(view.betonPhone?('Заявка уйдёт прямо на +'+esc(view.betonPhone)):'Без номера WhatsApp откроется с выбором контакта')+'</div></div>';
   h+='<div style="margin-bottom:12px"><label style="font-size:12px;color:var(--mut)">Пятно / блок</label><select id="co-spot" style="'+fi+';margin-top:4px">'+selOpts(spots.map(function(s){return [s.name,s.name];}), spots[0]&&spots[0].name)+'</select></div>';
   h+='<div style="margin-bottom:12px"><label style="font-size:12px;color:var(--mut)">Объём, м³</label><input id="co-vol" type="number" step="any" placeholder="0" style="'+fi+';margin-top:4px"/></div>';
   h+='<div style="margin-bottom:12px"><label style="font-size:12px;color:var(--mut)">Марка бетона</label><input id="co-grade" value="М300 (B22.5)" style="'+fi+';margin-top:4px"/></div>';
@@ -3923,10 +3972,19 @@ function genConcreteOrder(){
   var view=projected(LG.base, LG.queue); var obj=(view.objects||[])[0]||'';
   var txt='Заявка на бетон\nОбъект: '+obj+'\nБлок: '+spot+'\nОбъём: '+vol+' м³\nМарка: '+grade+'\nКогда: '+when+'\nКонтакт прораба: ___';
   var enc=encodeURIComponent(txt);
+  var phEl=document.getElementById('co-phone'); var ph=phEl?String(phEl.value||'').replace(/[^\d]/g,''):'';
+  var waUrl = ph ? ('https://wa.me/'+ph+'?text='+enc) : ('https://wa.me/?text='+enc);
   var out=document.getElementById('co-out');
   out.innerHTML='<div style="background:var(--sur2);border:1px solid var(--brd);border-radius:10px;padding:12px;font-size:13px;white-space:pre-wrap;color:var(--fg);margin-bottom:10px">'+esc(txt)+'</div>'
-    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><a href="https://wa.me/?text='+enc+'" target="_blank" style="text-align:center;background:#25D366;color:#04210d;border-radius:10px;padding:12px;font-weight:800;text-decoration:none">WhatsApp</a>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><a href="'+waUrl+'" target="_blank" style="text-align:center;background:#25D366;color:#04210d;border-radius:10px;padding:12px;font-weight:800;text-decoration:none">WhatsApp</a>'
     +'<a href="sms:?&body='+enc+'" style="text-align:center;background:var(--sur2);border:1px solid var(--brd);color:var(--fg);border-radius:10px;padding:12px;font-weight:700;text-decoration:none">SMS</a></div>';
+}
+function saveBetonPhone(){
+  var el=document.getElementById('co-phone'); if(!el) return;
+  var p=String(el.value||'').replace(/[^\d]/g,'').slice(0,20);
+  el.value=p;
+  emit({kind:'meta.set', key:'betonPhone', value:p});
+  var s=document.getElementById('co-phone-st'); if(s){ s.textContent = p?('✓ Сохранён · заявка уйдёт на +'+p):'Номер очищен — откроется выбор контакта'; s.style.color='var(--green)'; }
 }
 function openDailyReport(){
   var view=projected(LG.base, LG.queue); var obj=(view.objects||[])[0]||'';
