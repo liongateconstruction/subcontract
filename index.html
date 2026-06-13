@@ -1255,6 +1255,7 @@ var TYPE_META = {
 function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
 
 function canWriteLedger(){ return LG.role==='owner' || LG.role==='editor'; }
+function canAdvise(){ return LG.role==='owner' || LG.role==='editor' || (LG.role||'').indexOf('partner_')===0; }
 
 var TABS=[
   {id:'pulse',    ic:'🔥', label:'Пульс'},
@@ -1824,7 +1825,7 @@ function renderMore(view, app){
     isEdit?tile('📑','var(--teal)','Реестр КС-2','подписано · ждёт · акты','MORE.ks2reg()'):null ]);
   h+=section('УМНЫЕ ВОЗМОЖНОСТИ',[
     tile('✨','var(--violet)','Возможности','KPI · Прогноз','MORE.capabilities()'),
-    isOwner?tile('🤖','var(--gold)','AI-CFO','спросить Claude','MORE.aicfo()'):null ]);
+    canAdvise()?tile('🤖','var(--gold)','AI-CFO','спросить Claude','MORE.aicfo()'):null ]);
   h+=section('НАСТРОЙКИ',[
     isOwner?tile('🏗','var(--teal)','Объекты','настройки',"MORE.soon('Объекты')"):null,
     isOwner?tile('🗄','#b9c3d0','Архив','объектов','MORE.objArchive()'):null,
@@ -2678,7 +2679,7 @@ function askQuick(q){
   var prompt=aiPrompt(view,'all',null).replace(/Дай общий анализ[\s\S]*$/,'Вопрос: '+q+'\nОтветь кратко и по делу на русском, с конкретными цифрами.');
   fetch(api('/api/ai'),{method:'POST',headers:headers(),body:JSON.stringify({prompt:prompt})})
     .then(function(r){return r.json();})
-    .then(function(d){ var txt=(d&&d.text)||'Не удалось получить ответ.'; var html=esc(txt).replace(/\n/g,'<br>').replace(/\*\*(.+?)\*\*/g,'<b>$1</b>'); lgSheet('💬 '+esc(q),'<div style="font-size:14px;line-height:1.65">'+html+'</div>'); })
+    .then(function(d){ var txt=(d&&d.text)||'Не удалось получить ответ.'; lgSheet('💬 '+esc(q), aiBubble('',aiMd(txt))); })
     .catch(function(e){ lgSheet('💬 '+esc(q),'<div style="padding:20px;color:var(--red);text-align:center">Ошибка: '+esc(String(e))+'</div>'); });
 }
 
@@ -2958,7 +2959,9 @@ function objMgmtBlock(view,obj){
     h+='<div style="font-size:16px;font-weight:800">'+esc(w.name)+'</div><div style="font-size:12px;color:var(--mut);margin-top:3px">отстаёт на '+Math.round(w.behind)+'% от графика · сделано '+w.pct+'% · осталось <b style="color:var(--orange)">'+fmtD(w.remain)+' м³</b></div>';
     h+='<div style="height:6px;background:var(--sur2);border-radius:3px;overflow:hidden;margin-top:8px"><div style="height:100%;width:'+Math.min(100,w.pct)+'%;background:var(--red);border-radius:3px"></div></div>';
     if(w.sch.neededPace)h+='<div style="font-size:12px;color:var(--orange);margin-top:8px">⚠️ нужен темп '+fmtD(w.sch.neededPace)+' м³/нед (сейчас '+fmtD(w.sch.pacePerWeek)+'), прогноз готовности '+fc+'</div>';
-    h+='<div style="font-size:11px;color:var(--mut);margin-top:8px;line-height:1.5">💡 По Голдратту: скорость всей стройки = скорость этого участка.</div></div>'; }
+    h+='<div style="font-size:11px;color:var(--mut);margin-top:8px;line-height:1.5">💡 По Голдратту: скорость всей стройки = скорость этого участка.</div>'
+      +(canAdvise()?('<button onclick="askQuick('+JSON.stringify('Как ускорить узкое место — участок «'+w.name+'»? Дай конкретный план: нужный темп м³/нед, бригады, последовательность работ. Кратко, по делу.').replace(/"/g,'&quot;')+')" style="width:100%;margin-top:10px;background:var(--violet);border:none;color:#fff;border-radius:10px;padding:11px;font-size:13.5px;font-weight:700;cursor:pointer">🤖 Как ускорить «'+esc(w.name)+'»</button>'):'')
+      +'</div>'; }
   h+='<button data-objai="1" style="width:100%;background:var(--violet);border:none;color:#fff;border-radius:10px;padding:12px;font-size:14px;font-weight:700;cursor:pointer">🤖 Анализ объекта от ИИ</button>';
   h+='</div>';
   return h;
@@ -3129,6 +3132,8 @@ function kshort(n){ n=Math.round(Number(n)||0); var a=Math.abs(n);
 function renderMoney(view, app){
   var sub=LG.sub.money||'pl';
   var h=draftReviewCard(view)+subBar('money',[{id:'pl',label:'P&L'},{id:'flow',label:'Поток'},{id:'balance',label:'Баланс'}]);
+  if(canAdvise()){ var _mq='Проанализируй деньги компании: касса, кассовый разрыв, дебиторка (неоплаченные акты), на что хватает и что срочно сделать. Кратко, с цифрами.';
+    h+='<button onclick="askQuick('+JSON.stringify(_mq).replace(/"/g,'&quot;')+')" style="width:100%;margin:2px 0 14px;background:rgba(167,139,250,.12);border:1px solid var(--violet);color:var(--violet);border-radius:11px;padding:12px;font-size:14px;font-weight:700;cursor:pointer">🤖 Совет по деньгам от ИИ</button>'; }
   if(sub==='flow')        h += moneyFlow(view);
   else if(sub==='balance') h += moneyBalance(view);
   else                     h += moneyPL(view);
@@ -3365,6 +3370,8 @@ function moneyBalance(view){
 function renderPeople(view, app){
   var sub=LG.sub.people||'brigades';
   var h=subBar('people',[{id:'brigades',label:'Бригады'},{id:'staff',label:'Сотрудники'},{id:'consult',label:'Консультанты'}]);
+  if(canAdvise()){ var _pq='Проанализируй команду и зарплаты: перерасход на труд, авансы и долги сотрудников, эффективность бригад. Что оптимизировать? Кратко, с цифрами.';
+    h+='<button onclick="askQuick('+JSON.stringify(_pq).replace(/"/g,'&quot;')+')" style="width:100%;margin:2px 0 14px;background:rgba(167,139,250,.12);border:1px solid var(--violet);color:var(--violet);border-radius:11px;padding:12px;font-size:14px;font-weight:700;cursor:pointer">🤖 Совет по команде и зарплатам</button>'; }
   if(sub==='staff')        h += peopleStaff(view, false);
   else if(sub==='consult') h += peopleStaff(view, true);
   else                     h += peopleBrigades(view);
@@ -3656,6 +3663,7 @@ function renderCabinet(view, app, scope){
   h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">'
     +'<button onclick="openConcreteOrder()" style="border:1px solid var(--blue);background:rgba(88,166,255,.08);color:var(--blue);font-weight:700;font-size:14px;padding:12px;border-radius:12px;cursor:pointer">🚚 Заявка на бетон</button>'
     +'<button onclick="openDailyReport()" style="border:1px solid var(--teal);background:rgba(45,212,191,.07);color:var(--teal);font-weight:700;font-size:14px;padding:12px;border-radius:12px;cursor:pointer">📋 Отчёт за день</button></div>';
+  h+='<button onclick="askAccelerate()" style="width:100%;border:none;background:var(--teal);color:#04201c;font-weight:800;font-size:14px;padding:12px;border-radius:12px;cursor:pointer;margin-bottom:8px">🚀 Как ускорить участок</button>';
   h+='<button onclick="askCoach()" style="width:100%;border:1px solid var(--violet);background:rgba(167,139,250,.08);color:var(--violet);font-weight:700;font-size:14px;padding:12px;border-radius:12px;cursor:pointer;margin-bottom:8px">🧠 Совет наставника от ИИ</button>';
   h+='<button onclick="openPrePourChecklist()" style="width:100%;border:1px solid var(--gold);background:rgba(240,165,0,.07);color:var(--gold);font-weight:700;font-size:14px;padding:12px;border-radius:12px;cursor:pointer;margin-bottom:14px">✅ Чек-лист перед заливкой</button>';
   // явка сегодня
@@ -3760,8 +3768,43 @@ function askCoach(){
   lgSheet(title,'<div style="padding:30px;text-align:center"><div style="font-size:36px">🧠</div><div style="color:var(--mut);margin-top:10px">Наставник анализирует участок…</div></div>');
   fetch(api('/api/ai'),{method:'POST',headers:headers(),body:JSON.stringify({prompt:coachPrompt(view)})})
     .then(function(r){return r.json();})
-    .then(function(d){ var txt=(d&&d.text)||'Не удалось получить ответ.'; var html=esc(txt).replace(/\n/g,'<br>').replace(/\*\*(.+?)\*\*/g,'<b>$1</b>');
-      lgSheet(title,'<div style="font-size:14px;line-height:1.65">'+html+'</div>'); })
+    .then(function(d){ var txt=(d&&d.text)||'Не удалось получить ответ.'; lgSheet(title, aiBubble('',aiMd(txt))); })
+    .catch(function(e){ lgSheet(title,'<div style="padding:20px;color:var(--red);text-align:center">Ошибка: '+esc(String(e))+'</div>'); });
+}
+// План догона участка для прораба — операционно, по его пятнам, БЕЗ финансов компании
+function acceleratePrompt(view){
+  var brigId = LG.role.indexOf('brigadier_')===0 ? LG.role.slice('brigadier_'.length) : (LG._cabScope&&LG._cabScope.brigId)||null;
+  var cabSpots = (LG._cabScope && LG._cabScope.spots && LG._cabScope.spots.length) ? LG._cabScope.spots : null;
+  var obj=(view.objects||[])[0]||''; var meta=(view.objMeta&&view.objMeta[obj])||{};
+  var nameSet={}; if(cabSpots){ cabSpots.forEach(function(id){ var sp=(meta.spots||[]).find(function(s){return s.id===id;}); if(sp)nameSet[sp.name]=1; }); }
+  var td=new Date().toISOString().slice(0,10); var wa=new Date(Date.now()-6*86400000).toISOString().slice(0,10);
+  function sc(e){ if(brigId) return e.brigade===brigId; if(cabSpots){ return cabSpots.indexOf(e.spotId)>=0 || cabSpots.indexOf(e.spot)>=0 || !!nameSet[e.zone]; } return true; }
+  var weekV=0,todayV=0,pendV=0,lastDate='',daysActive={};
+  (view.entries||[]).forEach(function(e){ if(e.type!=='vol'||!isConcrete(view,e)||!sc(e))return; var v=Number(e.volume)||0;
+    if((e.date||'')===td)todayV+=v; if((e.date||'')>=wa){weekV+=v; daysActive[e.date]=1;} if(!e.accepted)pendV+=v; if((e.date||'')>lastDate)lastDate=e.date||''; });
+  weekV=Math.round(weekV*10)/10;
+  var nSpots=cabSpots?cabSpots.length:1; var target=150*nSpots; var behind=Math.max(0,target-weekV);
+  var att=((view.attendance||{})[td])||0; var openIss=(view.issues||[]).filter(function(z){return z&&!z.closed;}).length;
+  var L=[];
+  L.push('Ты — прораб-наставник на монолитной стройке (ЖК «Алгабас», Алматы). Помоги ПРОРАБУ ускорить его участок и догнать график. Кратко, по-русски, по пунктам. БЕЗ финансов компании — только стройка: темп, бригады, последовательность работ, простои, погода.');
+  L.push('Темп участка'+(brigId?' (по бригаде)':'')+':');
+  L.push('• За 7 дней залито: '+weekV+' м³, цель ~'+target+' м³/нед — '+(behind>0?('отставание '+Math.round(behind)+' м³'):'идём по плану или с опережением'));
+  L.push('• Залито сегодня: '+todayV+' м³; дней с заливкой за неделю: '+Object.keys(daysActive).length+' из 6');
+  L.push('• Последняя заливка: '+(lastDate||'нет'));
+  L.push('• Ждёт приёмки КС-2: '+pendV+' м³; явка сегодня: '+att+' чел; открытых замечаний: '+openIss);
+  L.push('Дай конкретный план ДОГОНА на ближайшую неделю: какой нужен темп м³/день, как расставить и усилить бригады, в какой последовательности гнать работы (армирование → опалубка → бетон), как убрать простои и зависимости. 4–6 шагов, по делу, без воды и без денег.');
+  return L.join('\n');
+}
+function askAccelerate(){
+  var view=projected(LG.base, LG.queue); var title='🚀 Как ускорить участок';
+  if(PREVIEW || !LG.url || !LG.token){
+    lgSheet(title,'<div style="padding:20px;text-align:center;color:var(--mut);line-height:1.6">🚀 План ускорения участка работает в боевом режиме (через <code>/api/ai</code>).<br><br>В превью сеть отключена.</div>');
+    return;
+  }
+  lgSheet(title,'<div style="padding:30px;text-align:center"><div style="font-size:36px">🚀</div><div style="color:var(--mut);margin-top:10px">ИИ строит план догона…</div></div>');
+  fetch(api('/api/ai'),{method:'POST',headers:headers(),body:JSON.stringify({prompt:acceleratePrompt(view)})})
+    .then(function(r){return r.json();})
+    .then(function(d){ var txt=(d&&d.text)||'Не удалось получить ответ.'; lgSheet(title, aiBubble('',aiMd(txt))); })
     .catch(function(e){ lgSheet(title,'<div style="padding:20px;color:var(--red);text-align:center">Ошибка: '+esc(String(e))+'</div>'); });
 }
 function setAttendance(){
@@ -4130,6 +4173,31 @@ function saveEntry(){
 }
 
 /* ── ФОРМА БРИГАДЫ ───────────────────────────────────────────────────────── */
+// Красивый рендер ответов ИИ (markdown → стилизованный HTML по токенам приложения)
+function aiMd(md){
+  md=String(md==null?'':md).replace(/\r/g,'');
+  function eh(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function inl(s){ s=eh(s);
+    s=s.replace(/\*\*(.+?)\*\*/g,'<b style="color:var(--fg);font-weight:800">$1</b>');
+    s=s.replace(/`([^`]+)`/g,'<code style="background:var(--sur2);border:1px solid var(--brd);border-radius:5px;padding:1px 5px;font-size:12.5px">$1</code>');
+    return s; }
+  var lines=md.split('\n'), out=[], inList=false, m;
+  function closeList(){ if(inList){ out.push('</div>'); inList=false; } }
+  function openList(){ if(!inList){ out.push('<div style="display:flex;flex-direction:column;gap:5px;margin:5px 0 9px">'); inList=true; } }
+  for(var i=0;i<lines.length;i++){
+    var ln=lines[i].replace(/\s+$/,'');
+    if(!ln.trim()){ closeList(); continue; }
+    if(m=ln.match(/^\s*###\s+(.+)/)){ closeList(); out.push('<div style="font-size:13px;font-weight:800;color:var(--teal);margin:12px 0 4px">'+inl(m[1])+'</div>'); }
+    else if(m=ln.match(/^\s*##\s+(.+)/)){ closeList(); out.push('<div style="font-size:15px;font-weight:800;color:var(--gold);margin:15px 0 6px;letter-spacing:.2px">'+inl(m[1])+'</div>'); }
+    else if(m=ln.match(/^\s*#\s+(.+)/)){ closeList(); out.push('<div style="font-size:16px;font-weight:900;color:var(--violet);margin:14px 0 8px">'+inl(m[1])+'</div>'); }
+    else if(m=ln.match(/^\s*[-*•]\s+(.+)/)){ openList(); out.push('<div style="display:flex;gap:8px;align-items:flex-start;font-size:13.5px;line-height:1.5"><span style="color:var(--teal);flex:none">•</span><span>'+inl(m[1])+'</span></div>'); }
+    else if(m=ln.match(/^\s*(\d+)[.)]\s+(.+)/)){ openList(); out.push('<div style="display:flex;gap:8px;align-items:flex-start;font-size:13.5px;line-height:1.5"><span style="color:var(--gold);font-weight:700;flex:none">'+m[1]+'.</span><span>'+inl(m[2])+'</span></div>'); }
+    else { closeList(); out.push('<div style="font-size:13.5px;line-height:1.6;margin:5px 0;color:var(--fg)">'+inl(ln)+'</div>'); }
+  }
+  closeList();
+  return '<div style="color:var(--fg)">'+out.join('')+'</div>';
+}
+function aiBubble(title, html){ return '<div style="font-size:14px;line-height:1.6">'+html+'</div>'; }
 function aiPrompt(view, kind, obj){
   var pe=profitEngine(view,kind==='obj'?obj:null);
   var burn=burnRate(view), run=runwayDays(view), cash=(calcCo(view).cash)||0;
@@ -4160,8 +4228,7 @@ function askAI(kind, obj){
     .then(function(r){return r.json();})
     .then(function(d){
       var txt=(d&&d.text)||'Не удалось получить ответ.';
-      var html=esc(txt).replace(/\n/g,'<br>').replace(/\*\*(.+?)\*\*/g,'<b>$1</b>');
-      lgSheet(title,'<div style="font-size:14px;line-height:1.65;color:var(--fg)">'+html+'</div>');
+      lgSheet(title, aiBubble(title, aiMd(txt)));
     })
     .catch(function(e){ lgSheet(title,'<div style="padding:20px;color:var(--red);text-align:center">Ошибка: '+esc(String(e))+'</div>'); });
 }
@@ -4768,6 +4835,8 @@ function openBrigadeDetail(b){
     });
     h+='</div>'; }
   // кабинет + изменить
+  if(canAdvise()){ var _bnm=(b.name||'').replace(/^Бригада\s*/,''); var _bq='Проанализируй бригаду «'+_bnm+'»: выработка, стоимость работ, переделки (брак), риски. Что конкретно улучшить? Кратко, с цифрами.';
+    h+='<button onclick="askQuick('+JSON.stringify(_bq).replace(/"/g,'&quot;')+')" style="width:100%;margin-bottom:8px;background:var(--violet);border:none;color:#fff;border-radius:10px;padding:11px;font-size:14px;font-weight:700;cursor:pointer">🤖 Совет по бригаде от ИИ</button>'; }
   h+='<button onclick="openBrigCabinet(\''+esc(b.id)+'\')" style="width:100%;margin-bottom:8px;background:rgba(167,139,250,.1);border:1px solid var(--violet);color:var(--violet);border-radius:10px;padding:11px;font-size:14px;font-weight:700;cursor:pointer">⛑ Открыть кабинет бригадира</button>';
   if(canWriteLedger()) h+='<button onclick="editBrigadeById(\''+esc(b.id)+'\')" style="width:100%;background:rgba(240,165,0,.12);border:1px solid var(--gold);color:var(--gold);border-radius:10px;padding:11px;font-size:14px;font-weight:700;cursor:pointer">✏️ Изменить бригаду</button>';
   lgSheet('👷 '+esc((b.name||'').replace(/^Бригада\s*/,'')), h);
