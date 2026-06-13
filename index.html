@@ -1073,7 +1073,7 @@ function entryTs(e){ if(!e) return 0; var t=Number(e.ts)||0; if(t) return t; if(
 function entryTime(e){ var t=entryTs(e); if(!t) return ''; var d=new Date(t); return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2); }
 /* Журнальная сортировка: по дате работы ↓, внутри дня — по времени создания ↓ */
 function entryCmp(a,b){ return String((b&&b.date)||'').localeCompare(String((a&&a.date)||'')) || (entryTs(b)-entryTs(a)) || String((b&&b.id)||'').localeCompare(String((a&&a.id)||'')); }
-var LG_LANG='ru';
+var LG_LANG=(function(){ try{ return store.get('lg2_lang')||'ru'; }catch(e){ return 'ru'; } })();
 function lgEnsureGT(cb){
   try{ if(window.google&&window.google.translate){ cb&&cb(); return; } }catch(e){}
   if(document.getElementById('gt-script')){ var t0=setInterval(function(){ try{ if(window.google&&window.google.translate){ clearInterval(t0); cb&&cb(); } }catch(e){} },200); setTimeout(function(){clearInterval(t0);},8000); return; }
@@ -1082,7 +1082,32 @@ function lgEnsureGT(cb){
   document.body.appendChild(s);
   var t=setInterval(function(){ try{ if(window.google&&window.google.translate){ clearInterval(t); cb&&cb(); } }catch(e){} },200); setTimeout(function(){clearInterval(t);},8000);
 }
-function lgApplyLang(lang){ lgEnsureGT(function(){ var tries=0; var iv=setInterval(function(){ var sel=document.querySelector('.goog-te-combo'); if(sel){ clearInterval(iv); sel.value=(lang==='kk'?'kk':''); sel.dispatchEvent(new Event('change')); } else if(++tries>40){ clearInterval(iv); } },150); }); }
+function lgClearGoogTrans(){
+  // Google хранит выбранный перевод в cookie googtrans на всех вариантах домена.
+  // Чистим его во всех формах, иначе страница остаётся переведённой.
+  try{
+    var host=location.hostname;
+    var names=['googtrans'];
+    var paths=['/',''];
+    var domains=['', host, '.'+host];
+    // отрезаем поддомен (t-pink.vercel.app → .vercel.app)
+    var parts=host.split('.'); if(parts.length>2) domains.push('.'+parts.slice(-2).join('.'));
+    names.forEach(function(n){ paths.forEach(function(p){ domains.forEach(function(d){
+      document.cookie=n+'=;expires=Thu, 01 Jan 1970 00:00:00 GMT'+(p?(';path='+p):'')+(d?(';domain='+d):'');
+    }); }); });
+  }catch(e){}
+}
+function lgApplyLang(lang){
+  if(lang!=='kk'){
+    // ВОЗВРАТ НА РУССКИЙ: снять перевод Google нельзя простым value='' — чистим cookie и перезагружаем.
+    lgClearGoogTrans();
+    store.set('lg2_lang','ru');
+    try{ location.reload(); }catch(e){}
+    return;
+  }
+  store.set('lg2_lang','kk');
+  lgEnsureGT(function(){ var tries=0; var iv=setInterval(function(){ var sel=document.querySelector('.goog-te-combo'); if(sel){ clearInterval(iv); sel.value='kk'; sel.dispatchEvent(new Event('change')); } else if(++tries>40){ clearInterval(iv); } },150); });
+}
 function lgToggleLang(){
   LG_LANG = (LG_LANG==='ru') ? 'kk' : 'ru';
   var btn=document.getElementById('langbtn'); if(btn) btn.textContent='🌐 '+(LG_LANG==='kk'?'KZ':'RU');
@@ -4207,6 +4232,11 @@ function confirmLogout(){
 
 /* ── ЗАПУСК ───────────────────────────────────────────────────────────────── */
 function boot(){
+  // восстановить язык: подпись кнопки + перевод (Google подтянет из cookie googtrans)
+  try{
+    var lb=document.getElementById('langbtn'); if(lb) lb.textContent='🌐 '+(LG_LANG==='kk'?'KZ':'RU');
+    if(LG_LANG==='kk') lgApplyLang('kk');
+  }catch(e){}
   if(PREVIEW){ LG.role='owner'; LG.base=PRELOAD; LG.version=1; setDot('ok'); render();
     var b=document.querySelector('header .chip'); if(b){ var p=document.createElement('span'); p.textContent='ПРЕВЬЮ'; p.style.cssText='font-size:9px;color:var(--gold);border:1px solid var(--gold);border-radius:5px;padding:1px 5px'; b.insertBefore(p,b.firstChild); }
     var sw=document.createElement('button'); sw.textContent='👁 роль: владелец';
