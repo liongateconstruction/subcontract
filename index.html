@@ -442,8 +442,17 @@ function rateForEntry(state,e){
 }
 function brigOf(state,id){ return (state.brigades||[]).find(function(b){return b&&b.id===id;}); }
 function isConcrete(state,e){
+  var wt=(e.wtype||'').toLowerCase(), st=(e.stage||'').toLowerCase();
+  // По самой записи: арматура / только опалубка / демонтаж — это НЗП, не бетон (даже под бетонной бригадой)
+  var rebarWt=(/армир|арматур/.test(wt) && !/без\s*арматур/.test(wt));
+  if(rebarWt || st==='армирование') return false;
+  if(st==='опалубка' || st==='демонтаж опалубки') return false;
+  if(/опалубк/.test(wt) && wt.indexOf('бетон')<0) return false;
+  // Явный бетон по виду записи
+  if(wt.indexOf('бетон')>=0) return true;
+  // Комплексная монолитная бригада: её выработка — залитый куб (НЗП-этапы уже отсечены выше)
   var b=brigOf(state,e.brigade); var work=(b&&b.work||'').toLowerCase();
-  return work.indexOf('опалубка+бетон')===0 || work==='комплекс монолит' || (e.wtype||'').toLowerCase().indexOf('бетон')>=0;
+  return work.indexOf('опалубка+бетон')===0 || work==='комплекс монолит';
 }
 // Маржа объекта (obj=null → вся компания): {revenue, cost, profit, pct, wip, forecastRev, forecastProfit}
 function profitEngine(state, obj){
@@ -3962,8 +3971,8 @@ function allWorkTypes(view){
   common.forEach(function(t){ if(!seen[t]){seen[t]=1; res.push({v:t, label:t});} });
   return res;
 }
-function entryWtypeChange(val){ LG.draft.wtype = (val==='__custom__') ? '' : val; LG.draft._wcustom=(val==='__custom__'); if(typeof renderEntryFields==='function') renderEntryFields(); }
-function entryUnitChange(val){ LG.draft.unit = (val==='__custom__') ? '' : val; LG.draft._ucustom=(val==='__custom__'); if(typeof renderEntryFields==='function') renderEntryFields(); }
+function entryWtypeChange(val){ LG.draft.wtype = (val==='__custom__') ? '' : val; LG.draft._wcustom=(val==='__custom__'); LG.draft._recalc=true; if(typeof renderEntryFields==='function') renderEntryFields(); }
+function entryUnitChange(val){ LG.draft.unit = (val==='__custom__') ? '' : val; LG.draft._ucustom=(val==='__custom__'); LG.draft._recalc=true; if(typeof renderEntryFields==='function') renderEntryFields(); }
 function renderEntryFields(){
   var view=projected(LG.base, LG.queue);
   var d=LG.draft, obj=(view.objects||[])[0]||'';
@@ -3975,20 +3984,21 @@ function renderEntryFields(){
   var h='';
   if(d.type==='vol'){
     h+=fld('Пятно','<select id="in-spot">'+selOpts(spots.map(function(s){return [s.id,s.name];}), d.spotId||(spots[0]&&spots[0].id))+'</select>');
-    h+=fld('Бригада','<select id="in-brig">'+selOpts(brigs.map(function(b){return [b.id,(b.name||'').replace(/^Бригада\s*/,'')];}), d.brigade||(brigs[0]&&brigs[0].id))+'</select>');
+    h+=fld('Бригада','<select id="in-brig" onchange="entryRecalcAmount(true)">'+selOpts(brigs.map(function(b){return [b.id,(b.name||'').replace(/^Бригада\s*/,'')];}), d.brigade||(brigs[0]&&brigs[0].id))+'</select>');
     // вид работ из единого справочника (виды заказчика ✓, этапы 🔧, общие) + возможность ввести своё
     var knownW=wt.some(function(t){return t.v===d.wtype;});
     var showCustom=d._wcustom||(d.wtype&&!knownW);
     h+=fld('Вид работ','<select id="in-wtype" onchange="entryWtypeChange(this.value)">'+wt.map(function(t){return '<option value="'+esc(t.v)+'"'+((d.wtype===t.v&&!d._wcustom)?' selected':'')+'>'+esc(t.label)+'</option>';}).join('')+'<option value="__custom__"'+(showCustom?' selected':'')+'>➕ свой вид…</option></select>');
     if(showCustom) h+=fld('Свой вид работ','<input id="in-wtype-custom" value="'+esc(d.wtype||'')+'" placeholder="Название вида работ"/>');
     // этап работ (как в расценках бригады)
-    h+=fld('Этап','<select id="in-stage">'+BRIG_STAGES.map(function(st){return '<option value="'+esc(st)+'"'+((d.stage||'Комплекс (всё)')===st?' selected':'')+'>'+esc(st)+'</option>';}).join('')+'</select>');
+    h+=fld('Этап','<select id="in-stage" onchange="entryRecalcAmount(true)">'+BRIG_STAGES.map(function(st){return '<option value="'+esc(st)+'"'+((d.stage||'Комплекс (всё)')===st?' selected':'')+'>'+esc(st)+'</option>';}).join('')+'</select>');
     // количество + единица измерения
     var du=d.unit||'м³'; var knownU=BRIG_UNITS.indexOf(du)>=0; var showU=d._ucustom||(du&&!knownU);
-    h+='<div class="f"><label>Количество</label><div style="display:flex;gap:8px"><input id="in-vol" type="number" inputmode="decimal" placeholder="0" value="'+(d.volume||'')+'" style="flex:1"/>'
+    h+='<div class="f"><label>Количество</label><div style="display:flex;gap:8px"><input id="in-vol" type="number" inputmode="decimal" placeholder="0" value="'+(d.volume||'')+'" oninput="entryRecalcAmount(true)" style="flex:1"/>'
       +'<select id="in-unit" onchange="entryUnitChange(this.value)" style="flex:none;width:96px">'+BRIG_UNITS.map(function(u){return '<option value="'+esc(u)+'"'+((du===u&&knownU&&!d._ucustom)?' selected':'')+'>'+esc(u)+'</option>';}).join('')+'<option value="__custom__"'+(showU?' selected':'')+'>➕…</option></select></div></div>';
     if(showU) h+=fld('Своя единица','<input id="in-unit-custom" value="'+esc(du||'')+'" placeholder="напр. шт, марш"/>');
     h+=fld('Этаж','<input id="in-floor" placeholder="напр. 3 этаж отметка 7550" value="'+esc(d.floor||'')+'"/>');
+    h+='<div class="f"><label>Сумма бригаде, ₸</label><input id="in-volamt" type="number" inputmode="numeric" placeholder="0" value="'+(d.amount||'')+'"/><div id="in-volamt-hint" style="font-size:11px;color:var(--mut);margin-top:4px;line-height:1.4"></div><button type="button" onclick="entryRecalcAmount(true)" style="margin-top:6px;background:rgba(45,212,191,.08);border:1px solid var(--teal);color:var(--teal);border-radius:9px;padding:7px 10px;font-size:12px;font-weight:700;cursor:pointer">↻ Пересчитать по расценке</button></div>';
     h+='<div class="f"><label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input id="in-redo" type="checkbox"'+(d.redo?' checked':'')+' style="width:auto"/> Переделка (брак)</label></div>';
   } else if(d.type==='expense'){
     h+=fld('Категория','<select id="in-cat">'+selOpts(EXP_CATS, d.cat||EXP_CATS[0])+'</select>');
@@ -4014,6 +4024,21 @@ function renderEntryFields(){
     h+=fld('Сумма, ₸',amtInput);
   }
   document.getElementById('entry-body').innerHTML=h+(LG.draft.editId?'<button type="button" onclick="deleteEntry(\''+esc(String(LG.draft.editId))+'\')" style="width:100%;margin-top:8px;background:transparent;border:1px solid var(--red);color:var(--red);border-radius:10px;padding:11px;font-size:14px;font-weight:700;cursor:pointer">🗑 Удалить запись</button>':'');
+  if(LG.draft.type==='vol'){ entryRecalcAmount(!!LG.draft._recalc); LG.draft._recalc=false; }
+}
+function entryRecalcAmount(fill){
+  var fld2=document.getElementById('in-volamt'); var hint=document.getElementById('in-volamt-hint'); if(!fld2&&!hint) return;
+  var view=projected(LG.base, LG.queue);
+  var bid=gv('in-brig'); var b=(view.brigades||[]).find(function(x){return x.id===bid;});
+  var wtype=gv('in-wtype'); if(wtype==='__custom__'){ var cw=document.getElementById('in-wtype-custom'); wtype=(cw&&cw.value.trim())||''; }
+  var stage=gv('in-stage')||'';
+  var unit=gv('in-unit'); if(unit==='__custom__'){ var cu=document.getElementById('in-unit-custom'); unit=(cu&&cu.value.trim())||'м³'; } unit=unit||'м³';
+  var vol=Number(gv('in-vol'))||0;
+  var rate=b?brigPriceFor(b,wtype,unit,stage):0; var auto=Math.round(vol*rate);
+  if(hint){ hint.innerHTML = rate>0
+      ? ('по расценке '+esc((b&&b.name||'').replace(/^Бригада\s*/,''))+': '+fmt0(rate)+' ₸/'+esc(unit)+' → <b style="color:var(--gold)">'+fmt0(auto)+' ₸</b>')
+      : '<span style="color:var(--gold)">нет расценки для этого вида+этапа у бригады — впишите сумму вручную или добавьте расценку бригаде</span>'; }
+  if(fld2 && fill && rate>0) fld2.value=auto;   // авто-заполняем при наличии расценки (при смене вида/этапа/бригады/объёма)
 }
 function deleteEntry(id){ emit({kind:'entry.delete', entryId:id}); document.getElementById('ov-entry').classList.remove('show'); render(); }
 
@@ -4085,7 +4110,8 @@ function saveEntry(){
     unit=unit||'м³';
     var rate=b?brigPriceFor(b,wtype,unit,stage):0;
     p.volume=vol; p.unit=unit; p.wtype=wtype; p.stage=stage; p.brigade=bid; p.spotId=spotId; p.spot=spotId; p.zone=sp?sp.name:''; p.floor=gv('in-floor'); p.struct=wtype; p.redo=!!(document.getElementById('in-redo')&&document.getElementById('in-redo').checked); p.rate=rate;
-    if(rate>0||!LG.draft.editId) p.amount=Math.round(vol*rate);   // при правке без ставки старую сумму не затираем нулём
+    var manualAmt=document.getElementById('in-volamt');
+    p.amount = manualAmt ? (Number(manualAmt.value)||0) : Math.round(vol*rate);
     p.amountPending=false;   // владелец/учётчица просмотрели запись — «ждёт сумму» снимается (кабинетам сервер вернёт флаг сам)
   } else {
     var amt=Number(gv('in-amt'))||0; if(amt<=0){ document.getElementById('entry-err').textContent='Введите сумму больше нуля.'; return; }
