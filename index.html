@@ -419,17 +419,21 @@ function applyPlanOp(lp, op){
 // Бригада активна, если не в архиве, либо восстановлена позже архивации.
 function isActiveBrig(b){ if(!b) return false; if(!b.archivedAt) return true; return !!(b.restoredAt && String(b.restoredAt) > String(b.archivedAt)); }
 // Агрегаты по бригаде: объём м³, заработано (объём×расценка), выплачено, долг бригаде.
-function brigPriceFor(b, wtype, unit, stage){
-  var list=(b&&b.prices)||[]; var u=unit||'м³';
-  // приоритет: вид+этап+единица → вид+этап → вид+единица → вид
+function priceLookup(list, wtype, unit, stage){
+  list=list||[]; var u=unit||'м³';
   if(stage){
     var es=list.find(function(p){return p&&p.wtype===wtype&&p.stage===stage&&p.unit===u;}); if(es) return es.rate||0;
     var s=list.find(function(p){return p&&p.wtype===wtype&&p.stage===stage;}); if(s) return s.rate||0;
   }
-  var exact=list.find(function(p){return p&&p.wtype===wtype && p.unit===u;});
-  if(exact) return exact.rate||0;
-  var byWt=list.find(function(p){return p&&p.wtype===wtype;});
-  return byWt?(byWt.rate||0):0;
+  var exact=list.find(function(p){return p&&p.wtype===wtype && p.unit===u;}); if(exact) return exact.rate||0;
+  var byWt=list.find(function(p){return p&&p.wtype===wtype;}); if(byWt) return byWt.rate||0;
+  return null;
+}
+// Расценка: сначала индивидуальная у бригады (переопределение), иначе — общий справочник объекта
+function brigPriceFor(b, wtype, unit, stage){
+  var r=priceLookup((b&&b.prices)||[], wtype, unit, stage); if(r!=null) return r;
+  var rc=priceLookup((typeof LG!=='undefined'&&LG._rateCard)||[], wtype, unit, stage); if(rc!=null) return rc;
+  return 0;
 }
 // Начислено бригаде по записи: если сумма зафиксирована (amount>0 и не pending) — берём её; иначе считаем по расценке × объём
 function entryAmount(b, e){
@@ -1330,6 +1334,7 @@ function render(){
   if(!LG.base){ app.innerHTML='<div class="empty">Нет данных. Нажмите ↻</div>'; nav.className=''; fab.style.display='none'; return; }
 
   var view = projected(LG.base, LG.queue);
+  LG._rateCard = view.rateCard || [];
   var seesMoney = (LG.role==='owner'||LG.role==='editor'||LG.role.indexOf('partner_')===0);
   if(!seesMoney){
     var cid = LG.role.indexOf('cabinet_')===0 ? LG.role.slice('cabinet_'.length) : null;
@@ -1871,6 +1876,7 @@ function renderMore(view, app){
     tile('✨','var(--violet)','Возможности','KPI · Прогноз','MORE.capabilities()'),
     canAdvise()?tile('🤖','var(--gold)','AI-CFO','спросить Claude','MORE.aicfo()'):null ]);
   h+=section('НАСТРОЙКИ',[
+    canWriteLedger()?tile('📋','var(--gold)','Справочник расценок','цены для рабочих · общие','openRateCard()'):null,
     isOwner?tile('🏗','var(--teal)','Объекты','настройки',"MORE.soon('Объекты')"):null,
     isOwner?tile('🗄','#b9c3d0','Архив','объектов','MORE.objArchive()'):null,
     isOwner?tile('💰','var(--gold)','Касса','стартовая сумма','MORE.cash()'):null,
@@ -2577,7 +2583,7 @@ function jrnRender(){
     var mt=TYPE_META[e.type]||{l:e.type||'?',c:'var(--mut)'};
     var amount=e.amountPending?'<span style="color:var(--gold)">ждёт</span>':fmt((e.type==='expense'||e.type==='payout'||e.type==='advance')?-(e.amount||0):(e.amount||0));
     var tm=entryTime(e);
-    var extra=[]; if(e.type==='vol'&&e.volume) extra.push(fmtD(e.volume)+' м³'); if(e.brigade) extra.push(esc(brigName(v,e.brigade)).replace(/^Бригада\s*/,'')); if(e.to) extra.push('→ '+esc(e.to)); if(e.from) extra.push('← '+esc(e.from)); if(e.floor) extra.push(esc(e.floor));
+    var extra=[]; if(e.type==='vol'&&e.volume) extra.push(fmtD(e.volume)+' м³'); if(e.type==='vol'&&e.wtype) extra.push(esc(e.wtype)); if(e.type==='vol'&&e.stage) extra.push('<span style="color:var(--teal)">'+esc(e.stage)+'</span>'); if(e.brigade) extra.push(esc(brigName(v,e.brigade)).replace(/^Бригада\s*/,'')); if(e.to) extra.push('→ '+esc(e.to)); if(e.from) extra.push('← '+esc(e.from)); if(e.floor) extra.push(esc(e.floor));
     var clk=canWriteLedger()?(' onclick="openEntryEditById(\''+esc(String(e.id))+'\')"'):'';
     h+='<div'+clk+' style="display:flex;align-items:center;gap:11px;padding:10px 2px;border-bottom:1px solid var(--brd)'+(canWriteLedger()?';cursor:pointer':'')+'">'
       +'<span style="width:9px;height:9px;border-radius:50%;background:'+mt.c+';flex:none"></span>'
@@ -3426,23 +3432,29 @@ function spotNameOf(view,id){ var m=(view.objMeta&&view.objMeta[(view.objects||[
 function brigRatingBlock(view){
   var from=new Date(Date.now()-30*86400000).toISOString().slice(0,10);
   var rows=(view.brigades||[]).filter(function(b){return b&&!b.archivedAt;}).map(function(b){
-    var vol=0,days={}; (view.entries||[]).forEach(function(e){ if(!e||e.type!=='vol'||e.brigade!==b.id||!e.date||e.date<from)return; vol+=Number(e.volume)||0; days[e.date]=true; });
+    var vol=0,earned=0,days={},stageVol={},wtypeVol={}; (view.entries||[]).forEach(function(e){ if(!e||e.type!=='vol'||e.brigade!==b.id||!e.date||e.date<from)return; var vv=Number(e.volume)||0; vol+=vv; earned+=entryAmount(b,e); days[e.date]=true; if(e.stage)stageVol[e.stage]=(stageVol[e.stage]||0)+vv; if(e.wtype)wtypeVol[e.wtype]=(wtypeVol[e.wtype]||0)+vv; });
     var workDays=Object.keys(days).length;
     // чел-дни: явка по бригаде если есть, иначе численность × рабочие дни
     var manDays=0, ab=view.attendanceB||{};
     Object.keys(ab).forEach(function(d){ if(d<from)return; if(ab[d]&&ab[d][b.id]!=null) manDays+=Number(ab[d][b.id])||0; });
     if(manDays<=0) manDays=(Number(b.workers)||0)*workDays;
     var perMD=manDays>0?vol/manDays:0;
-    return {name:(b.name||'?').replace(/^Бригада\s*/,''), vol:vol, workers:Number(b.workers)||0, workDays:workDays, perMD:perMD};
+    var stageK=Object.keys(stageVol).sort(function(a,c){return stageVol[c]-stageVol[a];});
+    var wtypeK=Object.keys(wtypeVol).sort(function(a,c){return wtypeVol[c]-wtypeVol[a];});
+    var work=(stageK.length?stageK.slice(0,2):wtypeK.slice(0,2)).join(' · ');
+    var perMoneyMD=manDays>0?earned/manDays:0;
+    return {name:(b.name||'?').replace(/^Бригада\s*/,''), vol:vol, workers:Number(b.workers)||0, workDays:workDays, perMD:perMD, perMoneyMD:perMoneyMD, work:work};
   }).filter(function(r){return r.vol>0;}).sort(function(a,b){return b.perMD-a.perMD;});
   if(!rows.length) return '';
   var max=rows[0].perMD||1;
   var h='<div class="ledger"><div style="font-size:13px;color:var(--mut);letter-spacing:2px;font-weight:800;margin-bottom:2px">🏆 РЕЙТИНГ БРИГАД · 30 ДН</div>';
-  h+='<div style="font-size:12px;color:var(--mut);margin-bottom:12px">производительность м³ на человека в день — кто эффективнее</div>';
+  h+='<div style="font-size:12px;color:var(--mut);margin-bottom:12px">производительность м³ на человека в день · зависит от вида работ</div>';
+  var seesM=(canWriteLedger()||(LG.role||'').indexOf('partner_')===0);
   rows.forEach(function(r,i){ var medal=i===0?'🥇':(i===1?'🥈':(i===2?'🥉':(i+1)+'.')); var col=i===0?'var(--green)':'var(--teal)';
     h+='<div style="margin-bottom:11px"><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px"><span style="font-size:14px;font-weight:700">'+medal+' '+esc(r.name)+'</span><span class="num" style="font-size:15px;font-weight:800;color:'+col+'">'+fmtD(Math.round(r.perMD*100)/100)+' <span style="font-size:11px;color:var(--mut);font-weight:400">м³/чел·день</span></span></div>';
+    if(r.work) h+='<div style="font-size:11px;color:var(--teal);margin-bottom:5px">🛠 '+esc(r.work)+'</div>';
     h+='<div style="height:8px;background:var(--sur2);border-radius:4px;overflow:hidden"><div style="height:100%;width:'+Math.max(5,Math.round(r.perMD/max*100))+'%;background:'+col+';border-radius:4px"></div></div>';
-    h+='<div style="font-size:11px;color:var(--mut);margin-top:3px">'+fmtD(r.vol)+' м³ · '+r.workers+' чел · заливок в '+r.workDays+' дн</div></div>'; });
+    h+='<div style="font-size:11px;color:var(--mut);margin-top:3px">'+fmtD(r.vol)+' м³ · '+r.workers+' чел · заливок в '+r.workDays+' дн</div>'+((seesM&&r.perMoneyMD>0)?('<div style="font-size:11px;color:var(--green);margin-top:2px">≈ '+fmt0(r.perMoneyMD)+' ₸/чел·день <span style="color:var(--mut)">— в деньгах, сравнимо между этапами</span></div>'):'')+'</div>'; });
   h+='</div>';
   return h;
 }
@@ -4066,7 +4078,10 @@ function allWorkTypes(view){
   var cust=((view&&view.objMeta&&view.objMeta[obj]&&view.objMeta[obj].custRates)||[]).map(function(r){return r&&r.wtype;}).filter(Boolean);
   var stages=['Армирование','Опалубка','Заливка бетона','Демонтаж опалубки'];
   var common=(view&&view.workTypes&&view.workTypes.length?view.workTypes:['Разнорабочие']);
+  var rc=((view&&view.rateCard)||[]).map(function(r){return r&&r.wtype;}).filter(Boolean);
   var seen={}, res=[];
+  rc.forEach(function(t){ if(!seen[t]){seen[t]=1; res.push({v:t, label:'💰 '+t});} });
+  if(res.length) return res;   // справочник настроен → только монолитные виды (короткий список); «свой вид…» добавляется в форме
   cust.forEach(function(t){ if(!seen[t]){seen[t]=1; res.push({v:t, label:'✓ '+t});} });
   stages.forEach(function(t){ if(!seen[t]){seen[t]=1; res.push({v:t, label:'🔧 '+t});} });
   common.forEach(function(t){ if(!seen[t]){seen[t]=1; res.push({v:t, label:t});} });
@@ -4076,6 +4091,7 @@ function entryWtypeChange(val){ LG.draft.wtype = (val==='__custom__') ? '' : val
 function entryUnitChange(val){ LG.draft.unit = (val==='__custom__') ? '' : val; LG.draft._ucustom=(val==='__custom__'); LG.draft._recalc=true; if(typeof renderEntryFields==='function') renderEntryFields(); }
 function renderEntryFields(){
   var view=projected(LG.base, LG.queue);
+  LG._rateCard = view.rateCard || [];
   var d=LG.draft, obj=(view.objects||[])[0]||'';
   var meta=(view.objMeta&&view.objMeta[obj])||{};
   var spots=(meta.spots||[]);
@@ -4599,6 +4615,88 @@ function brigWorkTypeList(){
 }
 var BRIG_UNITS=['м³','шт','м²','т','п.м','компл','м','кг','смена'];
 var BRIG_STAGES=['Армирование','Опалубка','Заливка бетона','Демонтаж опалубки','Комплекс (всё)','Комплекс без арматуры'];
+// ── СПРАВОЧНИК РАСЦЕНОК (общий на объект; бригады могут переопределять) ──
+var RATECARD_GROUPS=['Стены, перекрытия, ригель, парапет','Лестничный марш'];
+function rateCardList(){ return ((LG.base&&LG.base.rateCard)||[]).slice(); }
+function rateCardSeed(){
+  return [
+    {wtype:'Стены, перекрытия, ригель, парапет', stage:'Армирование',          unit:'м³', rate:14000},
+    {wtype:'Стены, перекрытия, ригель, парапет', stage:'Опалубка',              unit:'м³', rate:6000},
+    {wtype:'Стены, перекрытия, ригель, парапет', stage:'Заливка бетона',        unit:'м³', rate:2400},
+    {wtype:'Стены, перекрытия, ригель, парапет', stage:'Демонтаж опалубки',     unit:'м³', rate:3600},
+    {wtype:'Стены, перекрытия, ригель, парапет', stage:'Комплекс без арматуры', unit:'м³', rate:12000},
+    {wtype:'Стены, перекрытия, ригель, парапет', stage:'Комплекс (всё)',        unit:'м³', rate:26000},
+    {wtype:'Лестничный марш', stage:'Армирование',          unit:'м³', rate:20000},
+    {wtype:'Лестничный марш', stage:'Опалубка',              unit:'м³', rate:16667},
+    {wtype:'Лестничный марш', stage:'Заливка бетона',        unit:'м³', rate:6667},
+    {wtype:'Лестничный марш', stage:'Демонтаж опалубки',     unit:'м³', rate:10000},
+    {wtype:'Лестничный марш', stage:'Комплекс без арматуры', unit:'м³', rate:33333},
+    {wtype:'Лестничный марш', stage:'Комплекс (всё)',        unit:'м³', rate:53333}
+  ];
+}
+function rateCardSave(arr){ emit({kind:'meta.set', key:'rateCard', value:arr}); LG._rateCard=arr; }
+function rcSeedConfirm(){
+  var cur=rateCardList();
+  if(cur.length){ if(!confirm('Заменить текущий справочник стандартными расценками этого объекта?')) return; }
+  rateCardSave(rateCardSeed()); renderRateCard();
+}
+function openRateCard(){
+  if(!LG.rcDraft) LG.rcDraft={ wtype:RATECARD_GROUPS[0], stage:'Комплекс (всё)', unit:'м³', rate:'', _customW:false };
+  lgSheet('📋 Справочник расценок', '<div id="rc-box"></div>');
+  renderRateCard();
+}
+function rcDraftSet(k,v){ LG.rcDraft[k]=v; if(k==='wtype'){ if(v==='__custom__'){LG.rcDraft._customW=true; LG.rcDraft.wtype='';} else {LG.rcDraft._customW=false;} } renderRateCard(); }
+function rcAddFromDraft(){
+  var d=LG.rcDraft; var wt=(d._customW?((document.getElementById('rc-customw')||{}).value):d.wtype)||''; wt=String(wt).trim();
+  var rate=Math.round(Number((document.getElementById('rc-rate')||{}).value)||0);
+  if(!wt){ alert('Укажите вид работ'); return; }
+  if(rate<=0){ alert('Укажите ставку'); return; }
+  var arr=rateCardList();
+  var i=arr.findIndex(function(p){return p&&p.wtype===wt&&p.stage===d.stage&&p.unit===(d.unit||'м³');});
+  if(i>=0) arr[i].rate=rate; else arr.push({wtype:wt, stage:d.stage, unit:d.unit||'м³', rate:rate});
+  rateCardSave(arr);
+  LG.rcDraft.rate='';
+  renderRateCard();
+}
+function rcEdit(i){ var arr=rateCardList(); var p=arr[i]; if(!p)return; LG.rcDraft={wtype:p.wtype, stage:p.stage, unit:p.unit||'м³', rate:p.rate, _customW:RATECARD_GROUPS.indexOf(p.wtype)<0}; renderRateCard(); }
+function rcDel(i){ var arr=rateCardList(); if(i<0||i>=arr.length)return; if(!confirm('Удалить расценку «'+arr[i].wtype+' · '+arr[i].stage+'»?'))return; arr.splice(i,1); rateCardSave(arr); renderRateCard(); }
+function renderRateCard(){
+  var box=document.getElementById('rc-box'); if(!box) return;
+  var d=LG.rcDraft;
+  var sel='background:var(--sur2);border:1px solid var(--brd);color:var(--fg);border-radius:9px;padding:9px;font-size:13px;box-sizing:border-box;width:100%';
+  var inp='background:var(--sur2);border:1px solid var(--teal);color:var(--fg);border-radius:9px;padding:9px;font-size:13px;box-sizing:border-box;width:100%';
+  var knownW=RATECARD_GROUPS.indexOf(d.wtype)>=0 && !d._customW;
+  var h='<div style="font-size:12px;color:var(--mut);margin-bottom:10px">Цены для рабочих, общие для всех бригад. В каждой бригаде можно переопределить. ₸ за единицу (обычно м³).</div>';
+  h+='<div style="border:1px solid var(--teal);border-radius:12px;padding:10px;margin-bottom:12px;background:rgba(45,212,191,.05)">';
+  h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">';
+  h+='<div><label style="font-size:11px;color:var(--mut)">Вид</label><select style="'+sel+'" onchange="rcDraftSet(\'wtype\',this.value)">'+RATECARD_GROUPS.map(function(g){return '<option value="'+esc(g)+'"'+(knownW&&d.wtype===g?' selected':'')+'>'+esc(g)+'</option>';}).join('')+'<option value="__custom__"'+(!knownW?' selected':'')+'>➕ свой вид…</option></select></div>';
+  h+='<div><label style="font-size:11px;color:var(--mut)">Этап</label><select style="'+sel+'" onchange="rcDraftSet(\'stage\',this.value)">'+BRIG_STAGES.map(function(st){return '<option value="'+esc(st)+'"'+(d.stage===st?' selected':'')+'>'+esc(st)+'</option>';}).join('')+'</select></div>';
+  h+='</div>';
+  if(!knownW) h+='<input id="rc-customw" value="'+esc(d.wtype||'')+'" placeholder="Название вида работ" style="'+inp+';margin-bottom:8px"/>';
+  h+='<div style="display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:end">';
+  h+='<div><label style="font-size:11px;color:var(--mut)">Ставка, ₸ / '+esc(d.unit||'м³')+'</label><input id="rc-rate" type="number" inputmode="numeric" value="'+(d.rate||'')+'" placeholder="0" style="'+inp+'"/></div>';
+  h+='<select style="'+sel+';width:auto" onchange="rcDraftSet(\'unit\',this.value)">'+BRIG_UNITS.map(function(u){return '<option value="'+esc(u)+'"'+((d.unit||'м³')===u?' selected':'')+'>'+esc(u)+'</option>';}).join('')+'</select>';
+  h+='<button onclick="rcAddFromDraft()" style="background:var(--teal);border:none;color:#04201c;font-weight:800;border-radius:9px;padding:10px 16px;font-size:18px;cursor:pointer">＋</button>';
+  h+='</div></div>';
+  var arr=rateCardList();
+  if(!arr.length){
+    h+='<div class="empty">Справочник пуст.<br>Нажмите «Заполнить расценками этого объекта» ниже.</div>';
+  } else {
+    var byW={}; arr.forEach(function(p,idx){ (byW[p.wtype]=byW[p.wtype]||[]).push({p:p,idx:idx}); });
+    Object.keys(byW).forEach(function(w){
+      h+='<div style="font-size:12px;color:var(--gold);font-weight:700;letter-spacing:.5px;margin:12px 0 6px">'+esc(w)+'</div>';
+      byW[w].forEach(function(o){
+        h+='<div style="display:flex;align-items:center;gap:10px;padding:9px 2px;border-bottom:1px solid var(--brd)">';
+        h+='<div onclick="rcEdit('+o.idx+')" style="flex:1;min-width:0;cursor:pointer"><div style="font-size:13.5px">'+esc(o.p.stage)+'</div></div>';
+        h+='<div class="num" style="font-weight:700;color:var(--green);white-space:nowrap">'+fmt0(o.p.rate)+' ₸<span style="color:var(--mut);font-size:11px;font-weight:400"> / '+esc(o.p.unit||'м³')+'</span></div>';
+        h+='<button onclick="rcDel('+o.idx+')" style="background:none;border:none;color:var(--mut);font-size:16px;cursor:pointer;padding:4px 6px">✕</button>';
+        h+='</div>';
+      });
+    });
+  }
+  h+='<button onclick="rcSeedConfirm()" style="width:100%;margin-top:16px;background:rgba(240,165,0,.12);border:1px solid var(--gold);color:var(--gold);border-radius:11px;padding:13px;font-size:14px;font-weight:700;cursor:pointer">📥 Заполнить расценками этого объекта</button>';
+  box.innerHTML=h;
+}
 function renderBrigPrices(){
   var box=document.getElementById('b-prices'); if(!box) return;
   var types=brigWorkTypeList();
@@ -4606,7 +4704,7 @@ function renderBrigPrices(){
   var d=LG.brigDraft;
   var sel='background:var(--sur2);border:1px solid var(--brd);color:var(--fg);border-radius:9px;padding:9px;font-size:13px;box-sizing:border-box';
   var inp='background:var(--sur2);border:1px solid var(--teal);color:var(--fg);border-radius:9px;padding:9px;font-size:13px;box-sizing:border-box';
-  var h='';
+  var h='<div style="font-size:11.5px;color:var(--mut);margin-bottom:10px">Если ставки нет — берётся из <b style="color:var(--gold)">справочника объекта</b>. Здесь — <b>переопределения</b> для этой бригады.</div>';
   // ── строка-добавлялка ──
   var knownW=types.some(function(t){return t.name===d.wtype;}) && !d._customW;
   h+='<div style="border:1px solid var(--teal);border-radius:12px;padding:10px;margin-bottom:10px;background:rgba(45,212,191,.05)">';
