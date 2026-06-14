@@ -3784,10 +3784,11 @@ function renderCabinet(view, app, scope){
   var brigName2 = isBrig ? ((view.brigades||[]).find(function(x){return x.id===brigId;})||{}).name||'' : '';
   var subWho = who || brigName2;
 
-  var h=_T('top')+'<div class="shdr" style="margin:6px 0 2px"><h2 style="margin:0;font-size:26px;color:var(--gold)">'+(isBrig?'⛑ БРИГАДИР':'👷 ПРОРАБ')+(subWho?(' · '+esc(subWho.replace(/^Бригада\s*/,''))):'')+'</h2></div>';
+  var h=_T('head')+'<div class="shdr" style="margin:6px 0 2px"><h2 style="margin:0;font-size:26px;color:var(--gold)">'+(isBrig?'⛑ БРИГАДИР':'👷 ПРОРАБ')+(subWho?(' · '+esc(subWho.replace(/^Бригада\s*/,''))):'')+'</h2></div>';
   h+='<div style="font-size:13px;color:var(--mut);margin-bottom:14px">'+esc(obj)+'</div>';
   h+='<button onclick="openCabHelp()" style="width:100%;border:1px solid var(--brd);background:var(--sur2);color:var(--mut);border-radius:10px;padding:9px;font-size:12.5px;font-weight:700;cursor:pointer;margin-bottom:12px">❓ Как пользоваться этим экраном</button>';
   // онбординг: показываем один раз новому пользователю кабинета (флаг в localStorage)
+  h+=_T('top');
   if(!PREVIEW && !store.get('lg2_seen_cab')){
     h+='<div style="background:rgba(45,212,191,.08);border:1px solid var(--teal);border-radius:13px;padding:14px;margin-bottom:14px">'
       +'<div style="font-size:14px;font-weight:800;color:var(--teal);margin-bottom:8px">👋 Добро пожаловать!</div>'
@@ -3831,15 +3832,15 @@ function renderCabinet(view, app, scope){
   h+=_T('today');
   h+='<button onclick="openEntry({type:\'vol\''+(isBrig?(",brigade:'"+esc(brigId)+"'"):'')+'})" style="width:100%;border:none;background:var(--teal);color:#04201b;font-weight:800;font-size:15px;padding:14px;border-radius:12px;cursor:pointer;margin-bottom:8px">➕ Залили сегодня</button>';
   h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">'
-    +'<button onclick="openConcreteOrder()" style="border:1px solid var(--blue);background:rgba(88,166,255,.08);color:var(--blue);font-weight:700;font-size:14px;padding:12px;border-radius:12px;cursor:pointer">🚚 Заявка на бетон</button>'
-    +'<button onclick="openDailyReport()" style="border:1px solid var(--teal);background:rgba(45,212,191,.07);color:var(--teal);font-weight:700;font-size:14px;padding:12px;border-radius:12px;cursor:pointer">📋 Отчёт за день</button></div>';
+    +'<button onclick="openConcreteOrder()" style="border:2px solid var(--blue);background:rgba(88,166,255,.20);color:var(--blue);font-weight:700;font-size:14px;padding:12px;border-radius:12px;cursor:pointer">🚚 Заявка на бетон</button>'
+    +'<button onclick="openDailyReport()" style="border:2px solid var(--teal);background:rgba(45,212,191,.20);color:var(--teal);font-weight:700;font-size:14px;padding:12px;border-radius:12px;cursor:pointer">📋 Отчёт за день</button></div>';
   h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">'
-    +'<button onclick="openMaterialOrder()" style="border:1px solid var(--blue);background:rgba(88,166,255,.08);color:var(--blue);font-weight:700;font-size:14px;padding:12px;border-radius:12px;cursor:pointer">📦 Заявка снабженцу</button>'
-    +'<button onclick="openContacts()" style="border:1px solid var(--teal);background:rgba(45,212,191,.07);color:var(--teal);font-weight:700;font-size:14px;padding:12px;border-radius:12px;cursor:pointer">📞 Контакты</button></div>';
+    +'<button onclick="openMaterialOrder()" style="border:2px solid var(--blue);background:rgba(88,166,255,.20);color:var(--blue);font-weight:700;font-size:14px;padding:12px;border-radius:12px;cursor:pointer">📦 Заявка снабженцу</button>'
+    +'<button onclick="openContacts()" style="border:2px solid var(--teal);background:rgba(45,212,191,.20);color:var(--teal);font-weight:700;font-size:14px;padding:12px;border-radius:12px;cursor:pointer">📞 Контакты</button></div>';
   h+='<button onclick="askAccelerate()" style="width:100%;border:none;background:var(--teal);color:#04201c;font-weight:800;font-size:14px;padding:12px;border-radius:12px;cursor:pointer;margin-bottom:8px">🚀 Как ускорить участок</button>';
-  h+='<button onclick="openPipeline()" style="width:100%;border:1px solid var(--gold);background:rgba(240,165,0,.08);color:var(--gold);font-weight:700;font-size:14px;padding:12px;border-radius:12px;cursor:pointer;margin-bottom:8px">🚦 Приёмка объёмов</button>';
-  h+='<button onclick="askCoach()" style="width:100%;border:1px solid var(--violet);background:rgba(167,139,250,.08);color:var(--violet);font-weight:700;font-size:14px;padding:12px;border-radius:12px;cursor:pointer;margin-bottom:8px">🧠 Совет наставника от ИИ</button>';
-  h+='<button onclick="openPrePourChecklist()" style="width:100%;border:1px solid var(--gold);background:rgba(240,165,0,.07);color:var(--gold);font-weight:700;font-size:14px;padding:12px;border-radius:12px;cursor:pointer;margin-bottom:14px">✅ Чек-лист перед заливкой</button>';
+  h+='<button onclick="openPipeline()" style="width:100%;border:2px solid var(--gold);background:rgba(240,165,0,.20);color:var(--gold);font-weight:700;font-size:14px;padding:12px;border-radius:12px;cursor:pointer;margin-bottom:8px">🚦 Приёмка объёмов</button>';
+  h+='<button onclick="askCoach()" style="width:100%;border:2px solid var(--violet);background:rgba(167,139,250,.20);color:var(--violet);font-weight:700;font-size:14px;padding:12px;border-radius:12px;cursor:pointer;margin-bottom:8px">🧠 Совет наставника от ИИ</button>';
+  h+='<button onclick="openPrePourChecklist()" style="width:100%;border:2px solid var(--gold);background:rgba(240,165,0,.20);color:var(--gold);font-weight:700;font-size:14px;padding:12px;border-radius:12px;cursor:pointer;margin-bottom:14px">✅ Чек-лист перед заливкой</button>';
   // явка сегодня
   var attToday=((view.attendance||{})[td])||0;
   h+='<div class="ledger" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px"><div><div style="font-size:13px;color:var(--mut)">Явка сегодня</div><div class="num" style="font-size:22px;font-weight:800;color:'+(attToday>0?'var(--teal)':'var(--mut)')+'">'+attToday+' <span style="font-size:12px;color:var(--mut)">чел</span></div></div>'
@@ -3885,19 +3886,19 @@ function renderCabinet(view, app, scope){
   h+='<button onclick="addIssue()" style="width:100%;border:1px dashed var(--brd);background:transparent;color:var(--gold);font-weight:700;font-size:13px;padding:11px;border-radius:11px;cursor:pointer;margin-bottom:6px">+ Добавить замечание</button>';
   h+='<div id="cab-weather" style="margin-top:6px"></div>';
   // ── сборка во вкладки ──
-  var TABS={top:'',today:'',money:'',site:'',quality:''};
+  var TABS={head:'',top:'',today:'',money:'',site:'',quality:''};
   var _segs=h.split('\u0001');
   for(var _i=1;_i<_segs.length;_i+=2){ var _bk=_segs[_i]; if(TABS[_bk]!==undefined) TABS[_bk]+=(_segs[_i+1]||''); }
-  var _ct=LG.cabTab||'today'; if(TABS[_ct]===undefined) _ct='today';
+  var _ct=LG.cabTab||'today'; if(TABS[_ct]===undefined||_ct==='head'||_ct==='top') _ct='today';
   if(isBrig && _ct==='money'){ _ct='today'; }   // у бригадира нет вкладки денег
   var _tabs=[['today','⚡ Сегодня'],['money','💰 Деньги'],['site','🏗 Участок'],['quality','🧪 Качество']];
   if(isBrig) _tabs=[['today','⚡ Сегодня'],['site','🏗 Участок'],['quality','🧪 Качество']];
-  var _bar='<div style="display:flex;gap:6px;margin:2px 0 14px">';
-  _tabs.forEach(function(t){ var on=(t[0]===_ct); _bar+='<button onclick="setCabTab(\''+t[0]+'\')" style="flex:1;border:1px solid '+(on?'var(--gold)':'var(--brd)')+';background:'+(on?'rgba(240,165,0,.12)':'var(--sur2)')+';color:'+(on?'var(--gold)':'var(--mut)')+';border-radius:11px;padding:10px 3px;font-size:12.5px;font-weight:800;cursor:pointer;line-height:1.2">'+t[1]+'</button>'; });
+  var _bar='<div style="display:flex;gap:5px;background:var(--sur);border:1px solid var(--brd);border-radius:14px;padding:5px;margin:8px 0 16px">';
+  _tabs.forEach(function(t){ var on=(t[0]===_ct); _bar+='<button onclick="setCabTab(\''+t[0]+'\')" style="flex:1;border:none;background:'+(on?'var(--gold)':'transparent')+';color:'+(on?'#04201b':'var(--fg)')+';border-radius:10px;padding:11px 3px;font-size:12.5px;font-weight:800;cursor:pointer;line-height:1.2">'+t[1]+'</button>'; });
   _bar+='</div>';
   var _body=TABS[_ct]||'';
   if(!_body.trim()) _body='<div style="text-align:center;color:var(--mut);font-size:13px;padding:30px 16px">Здесь пока пусто.</div>';
-  app.innerHTML = TABS.top + _bar + _body + '<div style="height:90px"></div>';
+  app.innerHTML = TABS.head + _bar + TABS.top + _body + '<div style="height:90px"></div>';
   loadCabWeather(obj);
 }
 function loadCabWeather(obj){
