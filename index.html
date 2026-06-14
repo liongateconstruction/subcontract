@@ -3756,7 +3756,9 @@ function openConsultantCabinet(id){ var v=projected(LG.base,LG.queue); var p=(v.
   lgSheet('💼 Кабинет консультанта'+(p.name?(' · '+p.name):''), '<div style="font-size:12px;color:var(--mut);margin-bottom:10px">Личный кабинет консультанта: его доля фонда и драйверы.</div><div id="ccab"></div>');
   var el=document.getElementById('ccab'); if(el) renderConsultantCabinet(v, el, id);
 }
+function setCabTab(t){ LG.cabTab=t; render(); if(typeof lgRefreshCabSheet==='function') lgRefreshCabSheet(); try{ window.scrollTo(0,0); var _sh=document.querySelector('.sheet.show'); if(_sh){ var _b=_sh.querySelector('.sheet-body')||_sh; _b.scrollTop=0; } }catch(e){} }
 function renderCabinet(view, app, scope){
+  function _T(b){ return '\u0001'+b+'\u0001'; }
   var obj=(view.objects||[])[0]||'';
   var meta=(view.objMeta&&view.objMeta[obj])||{}; var allSpots=(meta.spots||[]);
   var brigId, spotFilter=null, who='';
@@ -3782,7 +3784,7 @@ function renderCabinet(view, app, scope){
   var brigName2 = isBrig ? ((view.brigades||[]).find(function(x){return x.id===brigId;})||{}).name||'' : '';
   var subWho = who || brigName2;
 
-  var h='<div class="shdr" style="margin:6px 0 2px"><h2 style="margin:0;font-size:26px;color:var(--gold)">'+(isBrig?'⛑ БРИГАДИР':'👷 ПРОРАБ')+(subWho?(' · '+esc(subWho.replace(/^Бригада\s*/,''))):'')+'</h2></div>';
+  var h=_T('top')+'<div class="shdr" style="margin:6px 0 2px"><h2 style="margin:0;font-size:26px;color:var(--gold)">'+(isBrig?'⛑ БРИГАДИР':'👷 ПРОРАБ')+(subWho?(' · '+esc(subWho.replace(/^Бригада\s*/,''))):'')+'</h2></div>';
   h+='<div style="font-size:13px;color:var(--mut);margin-bottom:14px">'+esc(obj)+'</div>';
   h+='<button onclick="openCabHelp()" style="width:100%;border:1px solid var(--brd);background:var(--sur2);color:var(--mut);border-radius:10px;padding:9px;font-size:12.5px;font-weight:700;cursor:pointer;margin-bottom:12px">❓ Как пользоваться этим экраном</button>';
   // онбординг: показываем один раз новому пользователю кабинета (флаг в localStorage)
@@ -3793,12 +3795,15 @@ function renderCabinet(view, app, scope){
       +'<button onclick="dismissCabHint(this)" style="width:100%;margin-top:11px;border:none;background:var(--teal);color:#04201b;font-weight:800;font-size:14px;padding:11px;border-radius:11px;cursor:pointer">Понятно, начать</button></div>';
   }
   // плитки сегодня/неделя
+  h+=_T('today');
   h+='<div style="display:flex;gap:10px;margin-bottom:14px">'
     +'<div style="flex:1;background:var(--sur);border:1px solid var(--brd);border-radius:13px;padding:13px"><div style="font-size:12px;color:var(--mut)">Сегодня залито</div><div class="num" style="font-size:24px;font-weight:900;color:'+(todayV>0?'var(--green)':'var(--mut)')+'">'+fmtD(todayV)+'<span style="font-size:12px;color:var(--mut)"> м³</span></div></div>'
     +'<div style="flex:1;background:var(--sur);border:1px solid var(--brd);border-radius:13px;padding:13px"><div style="font-size:12px;color:var(--mut)">За 7 дней</div><div class="num" style="font-size:24px;font-weight:900;color:var(--teal)">'+fmtD(weekV)+'<span style="font-size:12px;color:var(--mut)"> м³</span></div></div></div>';
   // 💰 зарплата прораба — оклад + премия по КС-2 с разбивкой блок → конструктив
+  h+=_T('money');
   if(!isBrig && payStaffId){ var _pp=(view.staff||[]).find(function(x){return x&&x.id===payStaffId;}); if(_pp) h+=foremanPayBlock(view,_pp); }
   // алерты (без денег — операционные)
+  h+=_T('top');
   var pendV=0; ent.forEach(function(e){ if(e.type==='vol'&&isConcrete(view,e)&&inScope(e)&&!e.accepted) pendV+=Number(e.volume)||0; });
   var lastDate=pours.length?pours[0].date:''; var lastDays=lastDate?Math.floor((Date.now()-new Date(lastDate))/86400000):999;
   var weekTarget=150; // цель темпа, м³/нед (КФУ «150 м³/нед»)
@@ -3810,6 +3815,7 @@ function renderCabinet(view, app, scope){
   if(alerts.length){ h+='<div style="margin-bottom:14px">'+alerts.map(function(a){ return '<div style="display:flex;gap:8px;align-items:flex-start;background:var(--sur);border:1px solid '+a[0]+';border-radius:11px;padding:10px 12px;margin-bottom:7px"><span style="color:'+a[0]+';font-weight:800">●</span><span style="font-size:12.5px">'+a[1]+'</span></div>'; }).join('')+'</div>'; }
   else h+='<div style="background:var(--sur);border:1px solid var(--green);border-radius:11px;padding:10px 12px;margin-bottom:14px;font-size:12.5px;color:var(--green);font-weight:700">✅ Всё по плану</div>';
   // темп недели + производительность (из имеющихся данных)
+  h+=_T('today');
   (function(){ var pacePct=Math.max(2,Math.min(100,Math.round(weekV/weekTarget*100)));
     var manDays=0, attMap=view.attendance||{}; Object.keys(attMap).forEach(function(dk){ if(dk>=wa) manDays+=Number(attMap[dk])||0; });
     var perMan = manDays>0 ? weekV/manDays : 0; var paceCol = weekV>=weekTarget?'var(--green)':(weekV>=weekTarget*0.7?'var(--gold)':'var(--red)');
@@ -3819,8 +3825,10 @@ function renderCabinet(view, app, scope){
       +'</div>';
   })();
   h+=cabReviewPending(view);
+  h+=_T('top');
   h+=concreteDueCard(view);
   // кнопки
+  h+=_T('today');
   h+='<button onclick="openEntry({type:\'vol\''+(isBrig?(",brigade:'"+esc(brigId)+"'"):'')+'})" style="width:100%;border:none;background:var(--teal);color:#04201b;font-weight:800;font-size:15px;padding:14px;border-radius:12px;cursor:pointer;margin-bottom:8px">➕ Залили сегодня</button>';
   h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">'
     +'<button onclick="openConcreteOrder()" style="border:1px solid var(--blue);background:rgba(88,166,255,.08);color:var(--blue);font-weight:700;font-size:14px;padding:12px;border-radius:12px;cursor:pointer">🚚 Заявка на бетон</button>'
@@ -3847,6 +3855,8 @@ function renderCabinet(view, app, scope){
     h+='</div>';
   }
   // мои пятна
+  // мои пятна
+  h+=_T('site');
   if(!isBrig && spots.length){ h+='<div style="font-size:12px;font-weight:800;letter-spacing:1px;color:var(--gold);margin:8px 2px 10px">МОИ ПЯТНА</div>';
     spots.forEach(function(sp){ var pc=spotProgressCash(view,obj,sp.id)||{progressPct:0,doneVol:0,planVol:0}; var hasPlan=pc.planVol>0;
       h+='<div class="bcard"><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px"><span style="font-size:16px;font-weight:800">'+esc(sp.name)+'</span><span style="font-size:13px;color:var(--teal);font-weight:700">'+(hasPlan?(fmtD(pc.doneVol)+' / '+fmtD(pc.planVol)+' м³ · '+pc.progressPct+'%'):(fmtD(pc.doneVol)+' м³ залито'))+'</span></div>'
@@ -3863,6 +3873,7 @@ function renderCabinet(view, app, scope){
       h+='<div'+(canEd?(' onclick="openEntryEditById(\''+esc(String(e.id))+'\')"'):'')+' style="display:flex;justify-content:space-between;align-items:baseline;font-size:13px;padding:8px 0;border-bottom:1px solid var(--brd)'+(canEd?';cursor:pointer':'')+'"><span style="color:var(--fg)">'+String(e.date||'').split('-').reverse().join('.')+(tm?(' <span style="color:var(--mut);font-size:11px">'+tm+'</span>'):'')+' · '+esc(e.zone||spotNameOf(view,e.spotId)||'')+(e.floor?(' · '+esc(e.floor)):'')+(e.redo?' <span style="color:var(--red)">⟲</span>':'')+(e.amountPending&&canEd?' <span style="color:var(--gold)" title="ждёт сумму">💰?</span>':'')+((e.wtype||e.stage)?('<br><span style="font-size:11px;color:var(--mut)">'+(e.wtype?esc(e.wtype):'')+((e.wtype&&e.stage)?' · ':'')+(e.stage?'<span style="color:var(--teal)">'+esc(e.stage)+'</span>':'')+'</span>'):'')+'</span><span style="color:var(--teal);font-weight:700;white-space:nowrap">'+fmtD(Number(e.volume)||0)+' м³'+(!isBrig&&bn?('<br><span style="font-size:10px;color:var(--mut)">⛑ '+esc(bn.replace(/^Бригада\s*/,''))+'</span>'):'')+(canEd?' <span style="color:var(--mut);font-size:12px">✏️</span>':'')+' <button onclick="event.stopPropagation();openConcreteQA(\''+esc(String(e.id))+'\')" style="border:1px solid var(--brd);background:var(--sur2);color:var(--teal);border-radius:7px;padding:3px 7px;font-size:12px;cursor:pointer;vertical-align:middle">🧪</button>'+entryQaBadge(e)+'</span></div>'; });
     h+='</div>'; }
   // качество
+  h+=_T('quality');
   h+='<div style="font-size:12px;font-weight:800;letter-spacing:1px;color:var(--gold);margin:14px 2px 8px">КАЧЕСТВО</div>';
   h+='<div class="ledger" style="border-color:'+(gateOk?'var(--brd)':'var(--red)')+'"><div style="font-size:14px">Переделки: <b style="color:'+(gateOk?'var(--green)':'var(--red)')+'">'+fmtD(redoPct)+'%</b> <span style="color:var(--mut);font-size:12px">('+fmtD(redoV)+' из '+fmtD(totV)+' м³)</span></div><div style="font-size:12px;color:var(--mut);margin-top:3px">гейт качества: &lt; 3% '+(gateOk?'<span style="color:var(--green)">✓</span>':'<span style="color:var(--red)">✗</span>')+'</div></div>';
   h+=concreteQACard(view);
@@ -3873,7 +3884,20 @@ function renderCabinet(view, app, scope){
   else h+='<div style="font-size:12px;color:var(--mut);padding:2px 2px 8px">открытых замечаний нет</div>';
   h+='<button onclick="addIssue()" style="width:100%;border:1px dashed var(--brd);background:transparent;color:var(--gold);font-weight:700;font-size:13px;padding:11px;border-radius:11px;cursor:pointer;margin-bottom:6px">+ Добавить замечание</button>';
   h+='<div id="cab-weather" style="margin-top:6px"></div>';
-  app.innerHTML=h;
+  // ── сборка во вкладки ──
+  var TABS={top:'',today:'',money:'',site:'',quality:''};
+  var _segs=h.split('\u0001');
+  for(var _i=1;_i<_segs.length;_i+=2){ var _bk=_segs[_i]; if(TABS[_bk]!==undefined) TABS[_bk]+=(_segs[_i+1]||''); }
+  var _ct=LG.cabTab||'today'; if(TABS[_ct]===undefined) _ct='today';
+  if(isBrig && _ct==='money'){ _ct='today'; }   // у бригадира нет вкладки денег
+  var _tabs=[['today','⚡ Сегодня'],['money','💰 Деньги'],['site','🏗 Участок'],['quality','🧪 Качество']];
+  if(isBrig) _tabs=[['today','⚡ Сегодня'],['site','🏗 Участок'],['quality','🧪 Качество']];
+  var _bar='<div style="display:flex;gap:6px;margin:2px 0 14px">';
+  _tabs.forEach(function(t){ var on=(t[0]===_ct); _bar+='<button onclick="setCabTab(\''+t[0]+'\')" style="flex:1;border:1px solid '+(on?'var(--gold)':'var(--brd)')+';background:'+(on?'rgba(240,165,0,.12)':'var(--sur2)')+';color:'+(on?'var(--gold)':'var(--mut)')+';border-radius:11px;padding:10px 3px;font-size:12.5px;font-weight:800;cursor:pointer;line-height:1.2">'+t[1]+'</button>'; });
+  _bar+='</div>';
+  var _body=TABS[_ct]||'';
+  if(!_body.trim()) _body='<div style="text-align:center;color:var(--mut);font-size:13px;padding:30px 16px">Здесь пока пусто.</div>';
+  app.innerHTML = TABS.top + _bar + _body + '<div style="height:90px"></div>';
   loadCabWeather(obj);
 }
 function loadCabWeather(obj){
