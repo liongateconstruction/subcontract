@@ -496,6 +496,7 @@ function objMetaOf(state,obj){ return (state.objMeta&&state.objMeta[obj])||{}; }
 function custRatesList(state,obj){ var m=objMetaOf(state,obj); return (m.custRates||[]).filter(function(r){return r&&r.rate>0;}); }
 function custRate(state,obj,constr){ var m=objMetaOf(state,obj); return (m.rates&&m.rates[constr])||0; }
 function rateForEntry(state,e){
+  if(e&&Number(e.custRate)>0) return Number(e.custRate);   // ручная расценка заказчика у заливки (override)
   var r=0; if(e.struct) r=custRate(state,e.obj,e.struct);
   if(!r){ var L=custRatesList(state,e.obj||''); if(L.length) r=L[0].rate; }
   return r;
@@ -1887,7 +1888,7 @@ function renderMore(view, app){
     canWriteLedger()?tile('🚚','var(--blue)','Заявка на бетон','заказ поставщику · номер','openConcreteOrder()'):null,
     tile('📥','var(--green)','Экспорт CSV','все операции','MORE.exportCSV()'),
     isEdit?tile('📄','var(--gold)','Документы','акт скрытых · КС-2','openDocsHub()'):null,
-    isEdit?tile('📑','var(--teal)','Реестр КС-2','подписано · ждёт · акты','MORE.ks2reg()'):null ]);
+    isEdit?tile('🧱','var(--gold)','Бетон и КС-2','объёмы · акты · оплата','MORE.ks2reg()'):null ]);
   h+=section('УМНЫЕ ВОЗМОЖНОСТИ',[
     tile('✨','var(--violet)','Возможности','KPI · Прогноз','MORE.capabilities()'),
     canAdvise()?tile('🤖','var(--gold)','AI-CFO','спросить Claude','MORE.aicfo()'):null ]);
@@ -2399,30 +2400,219 @@ function reportToTelegram(){
     .then(function(r){return r.json();}).then(function(){ if(typeof toast==='function') toast('Отправлено в Telegram'); })
     .catch(function(){ if(typeof toast==='function') toast('Не удалось отправить'); });
 }
+/* ── СТАТУС АКТА КС-2: подготовлен → подписан → оплачен ────────────────────── */
+function actStatus(a){ var s=(a&&a.status)||'prepared'; return (s==='prepared'||s==='signed'||s==='paid')?s:'prepared'; }
+var KS2_ST={ prepared:{l:'Подготовлен',c:'#f0a500',bg:'rgba(240,165,0,.12)',ic:'📝'},
+             signed:  {l:'Подписан',  c:'#58a6ff',bg:'rgba(88,166,255,.12)',ic:'✍️'},
+             paid:    {l:'Оплачен',   c:'#2ea043',bg:'rgba(46,160,67,.12)', ic:'💰'} };
+function lgSetActStatus(id, st){
+  if(!canWriteLedger()){ toast('Только владелец/учётчица'); return; }
+  var v=projected(LG.base,LG.queue); var a=(v.ks2acts||[]).find(function(x){return x&&x.id===id;}); if(!a) return;
+  var na=Object.assign({}, a, {status:st});
+  if(st==='signed'&&!na.signedAt) na.signedAt=new Date().toISOString().slice(0,10);
+  if(st==='paid'){ if(!na.paidAt) na.paidAt=new Date().toISOString().slice(0,10); if(!na.signedAt) na.signedAt=na.paidAt; }
+  emit({kind:'ks2.add', payload:na});
+  toast('Акт № '+(a.aktnum||'')+' → '+(KS2_ST[st]?KS2_ST[st].l:st));
+  openKS2Registry();   // обновить экран
+}
+function ks2SetFilter(f){ LG.ks2Filter=f; openKS2Registry(); }
+function ks2SetDocFilter(f){ LG.ks2DocFilter=(LG.ks2DocFilter===f?'':f); openKS2Registry(); }
+function ks2SetTab(t){ LG.ks2Tab=t; LG.ks2EditId=''; openKS2Registry(); }
+function ks2EditPour(id){ if(!canWriteLedger()) return; LG.ks2EditId=(LG.ks2EditId===id?'':id); openKS2Registry(); }
+function ks2SavePour(id){
+  if(!canWriteLedger()){ toast('Только владелец/учётчица'); return; }
+  function gv(x){ var el=document.getElementById(x); return el?el.value:''; }
+  var vol=parseFloat(gv('pv-'+id)), rate=parseFloat(gv('pr-'+id)); var patch={};
+  if(isFinite(vol)&&vol>=0) patch.volume=vol;
+  if(isFinite(rate)&&rate>=0) patch.custRate=rate;
+  emit({kind:'entry.edit', entryId:id, payload:patch});
+  LG.ks2EditId=''; toast('Заливка обновлена'); openKS2Registry();
+}
+function ks2TogglePourAccepted(id){
+  if(!canWriteLedger()){ toast('Только владелец/учётчица'); return; }
+  var v=projected(LG.base,LG.queue); var e=(v.entries||[]).find(function(x){return x&&x.id===id;}); if(!e) return;
+  var na=!e.accepted;
+  emit({kind:'entry.edit', entryId:id, payload:{accepted:na, acceptedAt:na?new Date().toISOString().slice(0,10):''}});
+  toast(na?'Принято заказчиком':'Отметка о приёмке снята'); openKS2Registry();
+}
+function ks2DelPour(id){
+  if((LG.role||'')!=='owner'){ toast('Удаляет только владелец'); return; }
+  emit({kind:'entry.delete', entryId:id}); LG.ks2EditId=''; toast('Заливка удалена'); openKS2Registry();
+}
+
+/* ── ЕДИНЫЙ КОМАНДНЫЙ ЦЕНТР: ОБЪЁМЫ + ДОКУМЕНТЫ + НАКОПЛЕНИЕ ───────────────── */
 function openKS2Registry(){
   var v=projected(LG.base,LG.queue); var obj=(v.objects||[])[0]||'';
-  var acts=(v.ks2acts||[]).filter(function(a){return a.obj===obj;}).sort(function(a,b){return (b.createdAt||0)-(a.createdAt||0);});
-  var signed=acts.reduce(function(s,a){return s+(Number(a.total)||0);},0);
-  var unsigned=ks2Unsigned(v,obj); var revenue=profitEngine(v,obj).revenue||0;
-  var h='<div style="display:flex;gap:10px;margin-bottom:14px">'
-    +'<div style="flex:1;background:rgba(46,160,67,.10);border:1px solid rgba(46,160,67,.3);border-radius:12px;padding:12px;text-align:center"><div style="font-size:10px;color:var(--mut);letter-spacing:1px">ПОДПИСАНО</div><div class="num" style="font-size:18px;font-weight:900;color:var(--green)">'+fmt0(Math.round(signed))+'</div><div style="font-size:10px;color:var(--mut)">'+acts.length+' акт(ов)</div></div>'
-    +'<div style="flex:1;background:rgba(240,165,0,.10);border:1px solid rgba(240,165,0,.3);border-radius:12px;padding:12px;text-align:center"><div style="font-size:10px;color:var(--mut);letter-spacing:1px">ЖДЁТ ПОДПИСИ</div><div class="num" style="font-size:18px;font-weight:900;color:var(--gold)">'+fmt0(Math.round(unsigned))+'</div><div style="font-size:10px;color:var(--mut)">не в актах</div></div></div>';
-  var pct=revenue>0?Math.round(signed/revenue*100):0;
-  h+='<div style="font-size:11px;color:var(--mut);margin-bottom:4px">Покрыто актами '+pct+'% от выполненного ('+fmt0(Math.round(revenue))+' ₸)</div>';
-  h+='<div style="height:8px;background:var(--sur2);border-radius:4px;overflow:hidden;margin-bottom:16px"><div style="height:100%;width:'+Math.max(2,Math.min(100,pct))+'%;background:var(--green)"></div></div>';
-  if(canWriteLedger()){
-    h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">'
-      +'<button onclick="lgCloseSheet();openKS2Builder(\''+esc(obj).replace(/'/g,"\\'")+'\')" style="background:var(--gold);color:#0d1117;border:none;border-radius:10px;padding:12px;font-weight:800;cursor:pointer">📄 Новый акт КС-2</button>'
-      +'<button onclick="lgCloseSheet();openKS3Builder(\''+esc(obj).replace(/'/g,"\\'")+'\')" style="background:rgba(45,212,191,.1);border:1px solid var(--teal);color:var(--teal);border-radius:10px;padding:12px;font-weight:700;cursor:pointer">🧾 Справка КС-3</button></div>';
+  var oe=esc(obj).replace(/'/g,"\\'");
+  var canW=canWriteLedger();
+  var tab=LG.ks2Tab||'vol';
+
+  // — общие данные по бетону —
+  var pours=(v.entries||[]).filter(function(e){ return e&&e.type==='vol'&&e.obj===obj&&isConcrete(v,e)&&(Number(e.volume)||0)>0; })
+                           .sort(function(a,b){ return String(b.date||'').localeCompare(String(a.date||'')); });
+  var totVol=0,totRev=0,accVol=0,accRev=0,waitVol=0,waitRev=0;
+  pours.forEach(function(e){ var vol=Number(e.volume)||0,rev=volRev(v,e); totVol+=vol; totRev+=rev; if(e.accepted){accVol+=vol;accRev+=rev;}else{waitVol+=vol;waitRev+=rev;} });
+  var acts=(v.ks2acts||[]).filter(function(a){return a&&a.obj===obj;}).sort(function(a,b){return (b.createdAt||0)-(a.createdAt||0);});
+  var st={prepared:{n:0,sum:0},signed:{n:0,sum:0},paid:{n:0,sum:0}};
+  acts.forEach(function(a){ var s=actStatus(a); st[s].n++; st[s].sum+=Number(a.total)||0; });
+  var signedPlus=st.signed.sum+st.paid.sum;
+  var custPaid=customerPaid(v);
+  var paid=Math.max(st.paid.sum, custPaid);
+  var done=totRev, leftToBill=Math.max(0,done-accRev), leftToGet=Math.max(0,done-paid);
+
+  var h='';
+  // === ШАПКА НАКОПЛЕНИЯ (всегда видна) ===
+  h+='<div style="position:sticky;top:0;z-index:5;background:var(--bg);padding:2px 0 8px;margin:-2px 0 8px;border-bottom:1px solid var(--brd)">';
+  function kpi(lbl,val,col){ return '<div style="flex:1;text-align:center;padding:7px 3px"><div style="font-size:9px;color:var(--mut);letter-spacing:.3px">'+lbl+'</div><div class="num" style="font-size:14px;font-weight:900;color:'+(col||'var(--fg)')+'">'+fmt0(val)+'</div></div>'; }
+  h+='<div style="display:flex;background:var(--sur);border:1px solid var(--brd);border-radius:12px;overflow:hidden">'
+    + kpi('СДЕЛАЛИ',done,'var(--gold)')+'<div style="width:1px;background:var(--brd)"></div>'
+    + kpi('ПОДПИСАЛИ',signedPlus,'var(--blue)')+'<div style="width:1px;background:var(--brd)"></div>'
+    + kpi('ОПЛАЧЕНО',paid,'var(--green)')+'<div style="width:1px;background:var(--brd)"></div>'
+    + kpi('ОСТАЛОСЬ',leftToGet,'var(--red)')+'</div>';
+  h+='<div style="font-size:10px;color:var(--mut);text-align:center;margin-top:5px">'+fmtD(totVol)+' м³ бетона · '+pours.length+' заливок · '+acts.length+' актов'+(leftToBill>0?(' · не в актах '+fmt0(leftToBill)+' ₸'):'')+'</div>';
+  // вкладки
+  h+='<div style="display:flex;gap:6px;margin-top:8px">';
+  [['vol','🧱 Объёмы'],['docs','📑 Документы'],['cum','📈 Накопительно']].forEach(function(t){ var on=(tab===t[0]);
+    h+='<button onclick="ks2SetTab(\''+t[0]+'\')" style="flex:1;background:'+(on?'var(--gold)':'var(--sur2)')+';color:'+(on?'#0d1117':'var(--fg)')+';border:1px solid '+(on?'var(--gold)':'var(--brd)')+';border-radius:9px;padding:9px 3px;font-size:12px;font-weight:700;cursor:pointer">'+t[1]+'</button>'; });
+  h+='</div></div>';
+
+  if(tab==='vol') h+=ks2TabVolumes(v,obj,oe,canW,pours,waitVol,waitRev);
+  else if(tab==='docs') h+=ks2TabDocs(v,obj,oe,canW,acts,st);
+  else h+=ks2TabCumulative(v,obj,pours,done,accRev,signedPlus,paid,leftToBill,leftToGet,custPaid,totVol,accVol);
+
+  lgSheet('🧱 Бетон и КС-2', h);
+}
+
+/* ── ВКЛАДКА «ОБЪЁМЫ»: список заливок + инлайн-редактирование ─────────────── */
+function ks2TabVolumes(v,obj,oe,canW,pours,waitVol,waitRev){
+  var flt=LG.ks2Filter||'';
+  var list=pours.filter(function(e){ return flt===''||(flt==='wait'&&!e.accepted)||(flt==='in'&&!!e.accepted); });
+  var fv=0,fr=0; list.forEach(function(e){ fv+=Number(e.volume)||0; fr+=volRev(v,e); });
+  var h='';
+  if(waitVol>0&&canW){
+    h+='<button onclick="lgCloseSheet();openKS2Builder(\''+oe+'\')" style="width:100%;background:var(--gold);color:#0d1117;border:none;border-radius:10px;padding:12px;font-weight:800;cursor:pointer;margin-bottom:10px">📄 Сформировать акт КС-2 ('+fmtD(waitVol)+' м³ · '+fmt0(waitRev)+' ₸ ждут)</button>';
   }
-  h+='<div style="font-size:12px;color:var(--mut);letter-spacing:1px;font-weight:700;margin-bottom:8px">АКТЫ КС-2 ('+acts.length+')</div>';
-  if(!acts.length) h+='<div class="empty">Актов пока нет.</div>';
-  acts.forEach(function(a){
-    h+='<div style="background:var(--sur2);border:1px solid var(--brd);border-radius:10px;padding:11px 13px;margin-bottom:8px"><div style="display:flex;justify-content:space-between;align-items:baseline"><div><div style="font-size:14px;font-weight:700">Акт № '+esc(a.aktnum||'1')+' · '+esc(a.period||'')+'</div><div style="font-size:11px;color:var(--mut)">'+esc(a.date||'')+'</div></div><div class="num" style="font-size:15px;color:var(--gold);font-weight:700">'+fmt0(Math.round(a.total||0))+' ₸</div></div>'
-      +'<div style="display:flex;gap:8px;margin-top:8px">'+(a.html?('<button onclick="openDocViewer(lgActHtml(\''+esc(a.id)+'\'),\'КС-2 № '+esc(a.aktnum||'1')+'\')" style="flex:1;background:rgba(88,166,255,.1);border:1px solid var(--blue);color:var(--blue);border-radius:8px;padding:8px;font-size:12px;font-weight:700;cursor:pointer">👁 Открыть / печать</button>'):('<div style="flex:1;color:var(--mut);font-size:11px;padding:8px;text-align:center">Бланк не сохранён — пересоздайте акт кнопкой «Новый акт»</div>'))
-      +(canWriteLedger()?('<button onclick="lgDelAct(\''+esc(a.id)+'\')" style="background:rgba(248,81,73,.08);border:1px solid var(--red);color:var(--red);border-radius:8px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer">🗑</button>'):'')+'</div></div>';
+  h+='<div style="display:flex;gap:6px;margin-bottom:10px">';
+  [['','Все'],['wait','⏳ Ждёт акта'],['in','✅ В актах']].forEach(function(f){ var on=(flt===f[0]);
+    h+='<button onclick="ks2SetFilter(\''+f[0]+'\')" style="flex:1;background:'+(on?'var(--blue)':'var(--sur2)')+';color:'+(on?'#0d1117':'var(--fg)')+';border:1px solid '+(on?'var(--blue)':'var(--brd)')+';border-radius:8px;padding:8px 3px;font-size:11.5px;font-weight:700;cursor:pointer">'+f[1]+'</button>'; });
+  h+='</div>';
+  h+='<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--mut);margin-bottom:8px"><span>Показано: '+list.length+'</span><span class="num">'+fmtD(fv)+' м³ · '+fmt0(fr)+' ₸</span></div>';
+  if(!list.length) h+='<div class="empty">Нет заливок в этом фильтре.</div>';
+  list.forEach(function(e){
+    var loc=(e.zone||spotNameOf(v,e.spotId||e.spot)||'')+(e.floor?(' · '+e.floor):'');
+    var bn=brigName(v,e.brigade); var rate=rateForEntry(v,e); var rev=volRev(v,e);
+    var open=(LG.ks2EditId===e.id);
+    var badge=e.accepted?'<span style="background:rgba(45,212,191,.12);border:1px solid var(--teal);color:var(--teal);border-radius:6px;padding:2px 7px;font-size:10px;font-weight:700">в акте</span>'
+                        :'<span style="background:rgba(240,165,0,.12);border:1px solid var(--gold);color:var(--gold);border-radius:6px;padding:2px 7px;font-size:10px;font-weight:700">ждёт</span>';
+    h+='<div style="background:var(--sur2);border:1px solid '+(open?'var(--gold)':'var(--brd)')+';border-radius:10px;padding:10px 12px;margin-bottom:7px">';
+    h+='<div '+(canW?'onclick="ks2EditPour(\''+esc(e.id)+'\')" style="cursor:pointer;':'style="')+'display:flex;justify-content:space-between;align-items:baseline">'
+      +'<div style="min-width:0"><div style="font-size:13.5px;font-weight:700">'+fmtD(e.volume)+' м³ · '+esc(loc||'—')+'</div><div style="font-size:11px;color:var(--mut)">'+esc(e.date||'')+(bn?(' · '+esc(String(bn).replace(/^Бригада\s*/,''))):'')+' · '+fmt0(rate)+' ₸/м³'+'</div></div>'
+      +'<div style="text-align:right;white-space:nowrap"><div class="num" style="font-size:13.5px;font-weight:700;color:var(--gold)">'+fmt0(rev)+' ₸</div><div style="margin-top:3px">'+badge+(canW?' <span style="color:var(--mut);font-size:11px">'+(open?'▴':'✎')+'</span>':'')+'</div></div></div>';
+    if(open&&canW){
+      h+='<div style="border-top:1px solid var(--brd);margin-top:9px;padding-top:9px">';
+      h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div><div style="font-size:11px;color:var(--mut);margin-bottom:3px">Объём, м³</div><input id="pv-'+esc(e.id)+'" type="number" step="any" value="'+(Number(e.volume)||0)+'" style="width:100%;background:var(--bg);border:1px solid var(--brd);color:var(--fg);border-radius:8px;padding:9px;font-size:14px;box-sizing:border-box"></div>'
+        +'<div><div style="font-size:11px;color:var(--mut);margin-bottom:3px">Расценка заказчика ₸/м³</div><input id="pr-'+esc(e.id)+'" type="number" step="any" value="'+rate+'" style="width:100%;background:var(--bg);border:1px solid var(--brd);color:var(--fg);border-radius:8px;padding:9px;font-size:14px;box-sizing:border-box"></div></div>';
+      h+='<button onclick="ks2TogglePourAccepted(\''+esc(e.id)+'\')" style="width:100%;margin-top:8px;background:'+(e.accepted?'rgba(45,212,191,.12)':'var(--bg)')+';border:1px solid '+(e.accepted?'var(--teal)':'var(--brd)')+';color:'+(e.accepted?'var(--teal)':'var(--fg)')+';border-radius:8px;padding:9px;font-size:12px;font-weight:700;cursor:pointer">'+(e.accepted?'✅ Принято заказчиком — снять отметку':'Отметить «принято заказчиком»')+'</button>';
+      h+='<div style="display:flex;gap:7px;margin-top:8px"><button onclick="ks2SavePour(\''+esc(e.id)+'\')" style="flex:1;background:var(--green);color:#04210d;border:none;border-radius:8px;padding:10px;font-weight:800;cursor:pointer">💾 Сохранить</button>';
+      if((LG.role||'')==='owner') h+='<button onclick="ks2DelPour(\''+esc(e.id)+'\')" style="background:rgba(248,81,73,.08);border:1px solid var(--red);color:var(--red);border-radius:8px;padding:10px 14px;font-weight:700;cursor:pointer">🗑</button>';
+      h+='</div>';
+      if(e.note) h+='<div style="font-size:11px;color:var(--mut);margin-top:8px">📝 '+esc(e.note)+'</div>';
+      h+='</div>';
+    }
+    h+='</div>';
   });
-  lgSheet('📑 Реестр КС-2', h);
+  return h;
+}
+
+/* ── ВКЛАДКА «ДОКУМЕНТЫ»: акты КС-2 со статусами + создание ───────────────── */
+function ks2TabDocs(v,obj,oe,canW,acts,st){
+  var flt=LG.ks2DocFilter||'';
+  var h='';
+  if(canW){
+    h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">'
+      +'<button onclick="lgCloseSheet();openKS2Builder(\''+oe+'\')" style="background:var(--gold);color:#0d1117;border:none;border-radius:10px;padding:11px;font-weight:800;cursor:pointer">📄 Новый акт КС-2</button>'
+      +'<button onclick="lgCloseSheet();openKS3Builder(\''+oe+'\')" style="background:rgba(45,212,191,.1);border:1px solid var(--teal);color:var(--teal);border-radius:10px;padding:11px;font-weight:700;cursor:pointer">🧾 Справка КС-3</button></div>';
+  }
+  h+='<div style="display:flex;gap:8px;margin-bottom:12px">';
+  ['prepared','signed','paid'].forEach(function(k){ var m=KS2_ST[k]; var on=(flt===k);
+    h+='<div onclick="ks2SetDocFilter(\''+k+'\')" style="flex:1;cursor:pointer;background:'+(on?m.c:m.bg)+';border:1px solid '+m.c+';border-radius:11px;padding:10px 5px;text-align:center">'
+      +'<div style="font-size:9.5px;letter-spacing:.3px;font-weight:700;color:'+(on?'#0d1117':m.c)+'">'+m.ic+' '+m.l.toUpperCase()+'</div>'
+      +'<div class="num" style="font-size:14px;font-weight:900;color:'+(on?'#0d1117':m.c)+'">'+fmt0(st[k].sum)+'</div>'
+      +'<div style="font-size:10px;color:'+(on?'rgba(13,17,23,.7)':'var(--mut)')+'">'+st[k].n+' акт.</div></div>';
+  });
+  h+='</div>';
+  if(flt) h+='<div style="font-size:11px;color:var(--mut);margin-bottom:8px">Фильтр: «'+KS2_ST[flt].l+'» · <span onclick="ks2SetDocFilter(\''+flt+'\')" style="color:var(--blue);cursor:pointer">сбросить</span></div>';
+  var shown=acts.filter(function(a){ return !flt||actStatus(a)===flt; });
+  if(!acts.length) h+='<div class="empty">Актов пока нет. Сформируйте первый по кнопке выше.</div>';
+  else if(!shown.length) h+='<div class="empty">Нет актов со статусом «'+KS2_ST[flt].l+'».</div>';
+  shown.forEach(function(a){
+    var s=actStatus(a), m=KS2_ST[s];
+    h+='<div style="background:var(--sur2);border:1px solid var(--brd);border-radius:10px;padding:11px 13px;margin-bottom:8px">'
+      +'<div style="display:flex;justify-content:space-between;align-items:baseline"><div><div style="font-size:14px;font-weight:700">Акт № '+esc(a.aktnum||'1')+' · '+esc(a.period||'')+'</div><div style="font-size:11px;color:var(--mut)">'+esc(a.date||'')+(a.paidAt?(' · оплачен '+esc(a.paidAt)):(a.signedAt?(' · подписан '+esc(a.signedAt)):''))+'</div></div><div class="num" style="font-size:15px;color:var(--gold);font-weight:700">'+fmt0(Math.round(a.total||0))+' ₸</div></div>';
+    if(canW){
+      h+='<div style="display:flex;gap:5px;margin-top:8px">';
+      ['prepared','signed','paid'].forEach(function(k){ var mm=KS2_ST[k]; var on=(s===k);
+        h+='<button onclick="lgSetActStatus(\''+esc(a.id)+'\',\''+k+'\')" style="flex:1;background:'+(on?mm.c:'transparent')+';border:1px solid '+mm.c+';color:'+(on?'#0d1117':mm.c)+';border-radius:8px;padding:7px 3px;font-size:11px;font-weight:700;cursor:pointer">'+mm.ic+' '+mm.l+'</button>'; });
+      h+='</div>';
+    } else {
+      h+='<div style="margin-top:7px"><span style="background:'+m.bg+';border:1px solid '+m.c+';color:'+m.c+';border-radius:7px;padding:3px 9px;font-size:11px;font-weight:700">'+m.ic+' '+m.l+'</span></div>';
+    }
+    h+='<div style="display:flex;gap:8px;margin-top:8px">'
+      +(a.html?('<button onclick="openDocViewer(lgActHtml(\''+esc(a.id)+'\'),\'КС-2 № '+esc(a.aktnum||'1')+'\')" style="flex:1;background:rgba(88,166,255,.1);border:1px solid var(--blue);color:var(--blue);border-radius:8px;padding:8px;font-size:12px;font-weight:700;cursor:pointer">👁 Открыть / печать</button>'):('<div style="flex:1;color:var(--mut);font-size:11px;padding:8px;text-align:center">Бланк не сохранён</div>'))
+      +(canW?('<button onclick="lgDelAct(\''+esc(a.id)+'\')" style="background:rgba(248,81,73,.08);border:1px solid var(--red);color:var(--red);border-radius:8px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer">🗑</button>'):'')
+      +'</div></div>';
+  });
+  return h;
+}
+
+/* ── ВКЛАДКА «НАКОПИТЕЛЬНО»: воронка + по месяцам + по пятнам (Schedule of Values) ── */
+function ks2TabCumulative(v,obj,pours,done,accRev,signedPlus,paid,leftToBill,leftToGet,custPaid,totVol,accVol){
+  var h='';
+  var contracted=0; try{ contracted=contractedVol(v); }catch(e){}
+  // воронка
+  function fline(lbl,val,col,base){ var p=base>0?Math.round(val/base*100):0;
+    return '<div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><span style="color:var(--mut)">'+lbl+'</span><span style="font-weight:700;color:'+col+'">'+fmt0(val)+' ₸ · '+p+'%</span></div><div style="height:8px;background:var(--sur2);border-radius:4px;overflow:hidden"><div style="height:100%;width:'+Math.max(2,Math.min(100,p))+'%;background:'+col+'"></div></div></div>'; }
+  h+='<div style="background:var(--sur);border:1px solid var(--brd);border-radius:12px;padding:13px;margin-bottom:12px">';
+  h+='<div style="font-size:11px;color:var(--mut);letter-spacing:1px;font-weight:700;margin-bottom:10px">ВОРОНКА: ЗАЛИЛИ → ВЫСТАВИЛИ → ПОДПИСАЛИ → ПОЛУЧИЛИ</div>';
+  h+=fline('Залито (выполнено)',done,'var(--gold)',done);
+  h+=fline('Выставлено в актах',accRev,'var(--teal)',done);
+  h+=fline('Подписано заказчиком',signedPlus,'var(--blue)',done);
+  h+=fline('Оплачено',paid,'var(--green)',done);
+  h+='<div style="display:flex;justify-content:space-between;border-top:1px solid var(--brd);margin-top:6px;padding-top:8px;font-size:13px"><span style="font-weight:700">Осталось получить</span><span class="num" style="font-weight:900;color:var(--red)">'+fmt0(leftToGet)+' ₸</span></div>';
+  if(leftToBill>0) h+='<div style="display:flex;justify-content:space-between;font-size:12px;margin-top:4px"><span style="color:var(--mut)">из них ещё не в актах</span><span class="num" style="font-weight:700;color:var(--gold)">'+fmt0(leftToBill)+' ₸</span></div>';
+  if(custPaid>0&&Math.abs(custPaid-paid)>1) h+='<div style="font-size:11px;color:var(--mut);margin-top:6px">Поступления от заказчика (приходы): '+fmt0(custPaid)+' ₸</div>';
+  h+='</div>';
+
+  // по месяцам (нарастающим)
+  var byMonth={}; pours.forEach(function(e){ var mk=String(e.date||'').slice(0,7); if(!mk)return; (byMonth[mk]=byMonth[mk]||{vol:0,rev:0}); byMonth[mk].vol+=Number(e.volume)||0; byMonth[mk].rev+=volRev(v,e); });
+  var mkeys=Object.keys(byMonth).sort();
+  if(mkeys.length){
+    var MN=['','Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек'];
+    h+='<div style="font-size:12px;color:var(--mut);letter-spacing:1px;font-weight:700;margin:4px 0 8px">НАКОПИТЕЛЬНО ПО МЕСЯЦАМ</div>';
+    h+='<div style="background:var(--sur2);border:1px solid var(--brd);border-radius:10px;overflow:hidden;margin-bottom:12px">';
+    h+='<div style="display:grid;grid-template-columns:1.1fr 1fr 1fr;font-size:10px;color:var(--mut);font-weight:700;padding:8px 10px;border-bottom:1px solid var(--brd)"><div>МЕСЯЦ</div><div style="text-align:right">ЗА МЕСЯЦ</div><div style="text-align:right">НАРАСТАЮЩИМ</div></div>';
+    var cumV=0,cumR=0;
+    mkeys.forEach(function(mk){ var d=byMonth[mk]; cumV+=d.vol; cumR+=d.rev; var p=mk.split('-'); var lbl=(MN[parseInt(p[1],10)]||p[1])+' '+p[0];
+      h+='<div style="display:grid;grid-template-columns:1.1fr 1fr 1fr;font-size:12px;padding:8px 10px;border-bottom:1px solid var(--brd)"><div style="font-weight:700">'+lbl+'</div>'
+        +'<div style="text-align:right"><div class="num" style="font-weight:700">'+fmtD(d.vol)+' м³</div><div style="font-size:10px;color:var(--mut)">'+fmt0(d.rev)+' ₸</div></div>'
+        +'<div style="text-align:right"><div class="num" style="font-weight:800;color:var(--gold)">'+fmtD(cumV)+' м³</div><div style="font-size:10px;color:var(--mut)">'+fmt0(cumR)+' ₸</div></div></div>';
+    });
+    h+='</div>';
+  }
+
+  // по пятнам / зонам (Schedule of Values)
+  var bySpot={}; pours.forEach(function(e){ var k=e.zone||spotNameOf(v,e.spotId||e.spot)||'—'; (bySpot[k]=bySpot[k]||{vol:0,rev:0,acc:0}); bySpot[k].vol+=Number(e.volume)||0; bySpot[k].rev+=volRev(v,e); if(e.accepted)bySpot[k].acc+=volRev(v,e); });
+  var skeys=Object.keys(bySpot).sort();
+  if(skeys.length){
+    h+='<div style="font-size:12px;color:var(--mut);letter-spacing:1px;font-weight:700;margin:4px 0 8px">ПО ПЯТНАМ / ЗОНАМ</div>';
+    skeys.forEach(function(k){ var d=bySpot[k]; var p=d.rev>0?Math.round(d.acc/d.rev*100):0;
+      h+='<div style="background:var(--sur2);border:1px solid var(--brd);border-radius:10px;padding:10px 12px;margin-bottom:7px"><div style="display:flex;justify-content:space-between;align-items:baseline"><div style="font-size:13px;font-weight:700">'+esc(k)+'</div><div class="num" style="font-size:13px;font-weight:700;color:var(--gold)">'+fmtD(d.vol)+' м³ · '+fmt0(d.rev)+' ₸</div></div>'
+        +'<div style="height:6px;background:var(--bg);border-radius:3px;overflow:hidden;margin-top:7px"><div style="height:100%;width:'+Math.max(2,Math.min(100,p))+'%;background:var(--teal)"></div></div>'
+        +'<div style="font-size:10px;color:var(--mut);margin-top:4px">в актах '+p+'% ('+fmt0(d.acc)+' ₸)</div></div>';
+    });
+  }
+  if(contracted>0) h+='<div style="font-size:11px;color:var(--mut);text-align:center;margin-top:10px">Законтрактовано по объекту: '+fmtD(contracted)+' м³ · залито '+fmtD(totVol)+' м³ ('+(contracted>0?Math.round(totVol/contracted*100):0)+'%)</div>';
+  return h;
 }
 function lgActHtml(id){ var v=projected(LG.base,LG.queue); var a=(v.ks2acts||[]).find(function(x){return x.id===id;}); return a?a.html:''; }
 function lgDelAct(id){ if(typeof confirm==='function' && !confirm('Удалить этот акт КС-2?')) return; emit({kind:'ks2.delete', entryId:id}); lgCloseSheet(); openKS2Registry(); }
@@ -4878,7 +5068,7 @@ function generateKS2(obj){
     +'<div class="signs"><div class="sign"><div style="font-weight:bold;margin-bottom:8px">Сдал (Подрядчик):</div><div class="sign-line"></div><div class="sign-label">подпись, М.П.</div><div style="margin-top:10px;font-weight:600">'+esc(km.podryad)+'</div>'+(km.podryadRuk?'<div style="margin-top:4px">Руководитель: '+esc(km.podryadRuk)+'</div>':'')+'</div><div class="sign"><div style="font-weight:bold;margin-bottom:8px">Принял (Заказчик):</div><div class="sign-line"></div><div class="sign-label">подпись, М.П.</div><div style="margin-top:10px;font-weight:600">'+esc(km.zakazchik)+'</div></div></div></body></html>';
   var actId='ks2_'+Date.now();
   emit({kind:'meta.set', key:'ks2meta', value:km});
-  emit({kind:'ks2.add', payload:{id:actId, obj:obj, aktnum:km.aktnum||'1', period:period, date:dateStr, total:total, html:doc, createdAt:Date.now()}});
+  emit({kind:'ks2.add', payload:{id:actId, obj:obj, aktnum:km.aktnum||'1', period:period, date:dateStr, total:total, html:doc, createdAt:Date.now(), status:'prepared'}});
   // помечаем включённые работы как принятые
   ks2Items(view,obj).forEach(function(e){ emit({kind:'entry.edit', entryId:e.id, payload:{accepted:true, acceptedAt:dateStr}}); });
   lgCloseSheet(); render();
@@ -4926,7 +5116,7 @@ function openDocsHub(){
   function row(ic,name,sub,onclick,ready){ return '<div '+(ready?('onclick="'+onclick+'"'):'')+' style="display:flex;align-items:center;gap:12px;background:var(--sur2);border:1px solid var(--brd);border-radius:12px;padding:14px;margin-bottom:9px'+(ready?';cursor:pointer':';opacity:.55')+'"><span style="font-size:22px">'+ic+'</span><div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:700">'+name+'</div><div style="font-size:11px;color:var(--mut)">'+sub+'</div></div>'+(ready?'<span style="color:var(--mut)">›</span>':'<span style="font-size:10px;color:var(--mut)">скоро</span>')+'</div>'; }
   h+=row('📎','Договор и файлы объекта','договор · ЭСФ от бухгалтера · акты','openObjFiles()',true);
   h+=row('📝','Акт скрытых работ','предъявление к освидетельствованию','openHiddenActBuilder()',true);
-  h+=row('📑','КС-2 · реестр','подписано · ждёт · акты','MORE.ks2reg()',true);
+  h+=row('🧱','Бетон и КС-2','объёмы · акты · оплата · накопительно','MORE.ks2reg()',true);
   h+=row('🧾','Форма Р-1','акт выполненных работ','openR1Builder()',true);
   h+=row('🧮','Счёт-фактура (PDF от бухгалтера)','загрузить присланный PDF в файлы объекта','openObjFiles(\'invoice\')',true);
   var view=projected(LG.base,LG.queue); var saved=(view.actsHidden||[]).slice().sort(function(a,b){return (b.at||0)-(a.at||0);});
