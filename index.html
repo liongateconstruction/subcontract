@@ -109,7 +109,7 @@
   .ov.show{display:flex}
   .sheet{width:100%; max-width:520px; background:var(--sur); border:1px solid var(--brd);
     border-radius:18px 18px 0 0; padding:20px 18px calc(20px + var(--safe-b)); animation:up .22s ease;
-    max-height:90vh; max-height:calc(100dvh - var(--safe-t) - 10px); overflow-y:auto; -webkit-overflow-scrolling:touch}
+    max-height:90vh; max-height:calc(100dvh - var(--safe-t) - 10px); overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain}
   @keyframes up{from{transform:translateY(40px); opacity:0} to{transform:translateY(0); opacity:1}}
   .sheet h3{margin:0 0 14px; font-size:17px}
   .f{margin-bottom:12px}
@@ -156,7 +156,7 @@
   input:focus,select:focus,textarea:focus{outline:none; border-color:var(--gold)!important; box-shadow:0 0 0 3px rgba(240,165,0,.13)}
   .subbar button{transition:all .16s ease}
   .subbar button.act{box-shadow:0 3px 12px rgba(240,165,0,.35)}
-  .ledger,.row,.bcard{box-shadow:0 1px 2px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.025)}
+  .ledger,.row,.bcard{box-shadow:none}
   .row[onclick],.bcard[onclick],[data-spot],[data-brigcard]{transition:transform .12s ease, border-color .15s ease}
   .row[onclick]:active,.bcard[onclick]:active,[data-spot]:active,[data-brigcard]:active{transform:scale(.992); border-color:var(--mut)}
   nav button{transition:color .15s ease, transform .12s ease}
@@ -235,7 +235,7 @@
 <div class="ov" id="ov-entry">
   <div class="sheet">
     <h3 id="entry-title">Новая запись</h3>
-    <div class="f">
+    <div class="f" id="type-field">
       <label>Тип</label>
       <div class="types" id="type-row"></div>
     </div>
@@ -3827,7 +3827,7 @@ function renderCabinet(view, app, scope){
   // замечания
   var issues=(view.issues||[]).filter(function(z){return z&&!z.closed;}).sort(function(a,b){return (b.ts||0)-(a.ts||0);});
   h+='<div style="font-size:12px;font-weight:800;letter-spacing:1px;color:var(--gold);margin:16px 2px 8px">ЗАМЕЧАНИЯ</div>';
-  if(issues.length){ issues.forEach(function(z){ h+='<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;background:var(--sur);border:1px solid var(--brd);border-radius:11px;padding:10px 12px;margin-bottom:7px"><div style="flex:1;min-width:0"><div style="font-size:13px">'+esc(z.text||'')+'</div><div style="font-size:10.5px;color:var(--mut);margin-top:2px">'+(z.floor?(esc(z.floor)+' · '):'')+String(z.date||'').split('-').reverse().join('.')+'</div></div>'+(z.photo?'<img src="'+photoUrl(z.photo)+'" onclick="openPhoto(\''+esc(z.photo)+'\')" style="width:46px;height:46px;object-fit:cover;border-radius:8px;border:1px solid var(--brd);cursor:pointer;flex:0 0 auto"/>':'')+'<button onclick="shareIssueWa(\''+esc(z.id)+'\')" style="flex:0 0 auto;border:1px solid var(--brd);background:var(--sur2);color:var(--fg);border-radius:9px;padding:7px 10px;font-size:13px;cursor:pointer">📲</button><button onclick="closeIssue(\''+esc(z.id)+'\')" style="flex:0 0 auto;border:1px solid var(--green);background:rgba(46,160,67,.08);color:var(--green);border-radius:9px;padding:7px 10px;font-size:12px;font-weight:700;cursor:pointer">✓</button></div>'; }); }
+  if(issues.length){ issues.forEach(function(z){ h+='<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;background:var(--sur);border:1px solid var(--brd);border-radius:11px;padding:10px 12px;margin-bottom:7px"><div style="flex:1;min-width:0"><div style="font-size:13px">'+(z.num?('<b style="color:var(--gold)">№'+z.num+'</b> '):'')+esc(z.text||'')+'</div><div style="font-size:10.5px;color:var(--mut);margin-top:2px">'+(z.floor?(esc(z.floor)+' · '):'')+String(z.date||'').split('-').reverse().join('.')+'</div></div>'+(z.photo?'<img src="'+photoUrl(z.photo)+'" onclick="openPhoto(\''+esc(z.photo)+'\')" style="width:46px;height:46px;object-fit:cover;border-radius:8px;border:1px solid var(--brd);cursor:pointer;flex:0 0 auto"/>':'')+'<button onclick="shareIssueWa(\''+esc(z.id)+'\')" style="flex:0 0 auto;border:1px solid var(--brd);background:var(--sur2);color:var(--fg);border-radius:9px;padding:7px 10px;font-size:13px;cursor:pointer">📲</button><button onclick="closeIssue(\''+esc(z.id)+'\')" style="flex:0 0 auto;border:1px solid var(--green);background:rgba(46,160,67,.08);color:var(--green);border-radius:9px;padding:7px 10px;font-size:12px;font-weight:700;cursor:pointer">✓</button></div>'; }); }
   else h+='<div style="font-size:12px;color:var(--mut);padding:2px 2px 8px">открытых замечаний нет</div>';
   h+='<button onclick="addIssue()" style="width:100%;border:1px dashed var(--brd);background:transparent;color:var(--gold);font-weight:700;font-size:13px;padding:11px;border-radius:11px;cursor:pointer;margin-bottom:6px">+ Добавить замечание</button>';
   h+='<div id="cab-weather" style="margin-top:6px"></div>';
@@ -3888,7 +3888,7 @@ function saveIssueForm(){ var d=issReadForm(); var t=(d.text||'').trim(); if(!t)
 }
 function closeIssue(id){ emit({kind:'issue.close', payload:{id:id}}); render(); lgRefreshCabSheet(); }
 function shareIssueWa(id){ var v=projected(LG.base,LG.queue); var z=(v.issues||[]).find(function(x){return x&&x.id===id;}); if(!z)return; var obj=(v.objects||[])[0]||'';
-  var txt='⚠️ Замечание\nОбъект: '+obj+'\n'+(z.text||'')+(z.floor?('\nМесто: '+z.floor):'')+'\nДата: '+String(z.date||'').split('-').reverse().join('.');
+  var txt='⚠️ Замечание'+(z.num?(' №'+z.num):'')+'\nОбъект: '+obj+'\n'+(z.text||'')+(z.floor?('\nМесто: '+z.floor):'')+'\nДата: '+String(z.date||'').split('-').reverse().join('.');
   window.open('https://wa.me/?text='+encodeURIComponent(txt),'_blank'); }
 function openIssuesCard(view){
   var issues=(view.issues||[]).filter(function(z){return z&&!z.closed;}).sort(function(a,b){return (b.ts||0)-(a.ts||0);});
@@ -3896,7 +3896,7 @@ function openIssuesCard(view){
   var h='<div style="border:1px solid var(--red);border-radius:14px;padding:13px;margin-bottom:14px;background:rgba(248,81,73,.06)">';
   h+='<div style="font-size:13px;font-weight:800;letter-spacing:.5px;color:var(--red);margin-bottom:6px">⚠️ ЗАМЕЧАНИЯ С ОБЪЕКТА · '+issues.length+'</div>';
   issues.slice(0,6).forEach(function(z){
-    h+='<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:9px;padding:8px 0;border-top:1px solid var(--brd)"><div style="flex:1;min-width:0"><div style="font-size:13px">'+esc(z.text||'')+'</div><div style="font-size:10.5px;color:var(--mut);margin-top:2px">'+(z.floor?(esc(z.floor)+' · '):'')+String(z.date||'').split('-').reverse().join('.')+(z.by?(' · '+esc(z.by)):'')+'</div></div>'
+    h+='<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:9px;padding:8px 0;border-top:1px solid var(--brd)"><div style="flex:1;min-width:0"><div style="font-size:13px">'+(z.num?('<b style="color:var(--red)">№'+z.num+'</b> '):'')+esc(z.text||'')+'</div><div style="font-size:10.5px;color:var(--mut);margin-top:2px">'+(z.floor?(esc(z.floor)+' · '):'')+String(z.date||'').split('-').reverse().join('.')+(z.by?(' · '+esc(z.by)):'')+'</div></div>'
       +(z.photo?'<img src="'+photoUrl(z.photo)+'" onclick="openPhoto(\''+esc(z.photo)+'\')" style="width:42px;height:42px;object-fit:cover;border-radius:7px;border:1px solid var(--brd);cursor:pointer;flex:0 0 auto"/>':'')
       +'<button onclick="shareIssueWa(\''+esc(z.id)+'\')" style="flex:0 0 auto;border:1px solid var(--brd);background:var(--sur2);color:var(--fg);border-radius:8px;padding:6px 9px;font-size:13px;cursor:pointer">📲</button>'
       +'<button onclick="closeIssue(\''+esc(z.id)+'\')" style="flex:0 0 auto;border:1px solid var(--green);background:rgba(46,160,67,.08);color:var(--green);border-radius:8px;padding:6px 9px;font-size:12px;font-weight:700;cursor:pointer">✓</button></div>';
@@ -3954,7 +3954,7 @@ function qaVerdict(r28, design){ if(!(r28>0)||!(design>0)) return null; var pct=
   if(pct>=100) return {pct:pct,txt:'норма',col:'var(--green)',ic:'✅'}; if(pct>=90) return {pct:pct,txt:'на контроле',col:'var(--gold)',ic:'⚠️'}; return {pct:pct,txt:'ниже класса',col:'var(--red)',ic:'❌'}; }
 function entryQaBadge(e){ var q=(e&&e.qa)||{}; if(q.r28>0){ var v=qaVerdict(q.r28, gradeMPa(q.grade||e.grade)); return v?(' <span style="color:'+v.col+';font-size:10px">'+v.ic+q.r28+'МПа·'+v.pct+'%</span>'):(' <span style="color:var(--mut);font-size:10px">'+q.r28+'МПа</span>'); } if(q.passportFile||q.labFile) return ' <span style="color:var(--mut);font-size:10px">📄</span>'; return ''; }
 function openConcreteQA(id){
-  var v=projected(LG.base,LG.queue); var e=(v.entries||[]).find(function(x){return x&&x.id===id;}); if(!e){ toast('Заливка не найдена'); return; }
+  var v=projected(LG.base,LG.queue); var e=(v.entries||[]).find(function(x){return x&&String(x.id)===String(id);}); if(!e){ toast('Заливка не найдена'); return; }
   var q=e.qa||{}; LG.qaDraft={ entryId:id, grade:(q.grade||e.grade||''), passportFile:(q.passportFile||''), labFile:(q.labFile||''), r7:(q.r7||''), r28:(q.r28||''), sampleDate:(q.sampleDate||e.date||''), note:(q.note||'') };
   renderQaForm(e);
 }
@@ -4330,7 +4330,12 @@ function openEntry(preset){
 }
 function renderTypes(){
   var row=document.getElementById('type-row'); row.innerHTML='';
-  ['vol','expense','advance','income','invest','payout'].forEach(function(t){
+  var field=document.getElementById('type-field');
+  var canL=(typeof canWriteLedger==='function')?canWriteLedger():true;
+  if(!canL){ LG.draft.type='vol'; if(field)field.style.display='none'; }   // прораб/бригадир — только объём
+  else if(field){ field.style.display=''; }
+  var types=canL?['vol','expense','advance','income','invest','payout']:['vol'];
+  types.forEach(function(t){
     var b=document.createElement('button'); b.textContent=TYPE_META[t].l;
     if(LG.draft.type===t) b.className='sel';
     b.onclick=function(){ LG.draft.type=t; renderTypes(); renderEntryFields(); };
@@ -4507,7 +4512,7 @@ function draftReviewCard(view){
 }
 function confirmDraft(id){
   var view=projected(LG.base, LG.queue);
-  var e=(view.draftEntries||[]).find(function(x){return x&&x.id===id;}) || (view.entries||[]).find(function(x){return x&&x.id===id;});
+  var e=(view.draftEntries||[]).find(function(x){return x&&String(x.id)===String(id);}) || (view.entries||[]).find(function(x){return x&&String(x.id)===String(id);});
   var payload={draft:false};
   if(e && e.type==='vol'){
     var b=(view.brigades||[]).find(function(x){return x&&x.id===e.brigade;});
@@ -5860,7 +5865,7 @@ function brigRate(b, wtype, unit){
   return Number(b.dailyRate)||0;
 }
 function volEarn(b,e){ if(e.amount&&Number(e.amount)>0) return Number(e.amount); return (Number(e.volume)||0)*brigRate(b,e.wtype,e.unit||'м³'); }
-function acceptVol(id){ var v=projected(LG.base,LG.queue); var e=(v.entries||[]).find(function(x){return x&&x.id===id;}); if(!e)return;
+function acceptVol(id){ var v=projected(LG.base,LG.queue); var e=(v.entries||[]).find(function(x){return x&&String(x.id)===String(id);}); if(!e)return;
   emit({kind:'entry.edit', entryId:id, payload:{accepted:!e.accepted, acceptedAt:!e.accepted?new Date().toISOString():null}});
   var bId=e.brigade; lgCloseSheet(); var b=(projected(LG.base,LG.queue).brigades||[]).find(function(x){return x.id===bId;}); if(b) openBrigadeDetail(b); }
 function acceptAllPendingFor(bId){ var v=projected(LG.base,LG.queue);
