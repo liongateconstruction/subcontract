@@ -26,8 +26,8 @@
   input,select{font-family:inherit; font-size:16px}
 
   /* ── Шапка: «кассовая книга» ── */
-  header{position:sticky; top:0; z-index:10; background:rgba(13,17,23,.92);
-    backdrop-filter:blur(8px); border-bottom:1px solid var(--brd);
+  header{position:sticky; top:0; z-index:10; background:rgba(13,17,23,.97);
+    border-bottom:1px solid var(--brd); transform:translateZ(0);
     padding:calc(var(--safe-t) + 10px) 16px 10px; display:flex; align-items:center; gap:10px}
   .brand{font-weight:800; letter-spacing:.14em; font-size:13px; color:var(--gold)}
   .brand small{display:block; letter-spacing:.04em; font-size:9px; color:var(--mut); font-weight:600}
@@ -75,7 +75,7 @@
 
   /* ── Нижняя навигация ── */
   nav{position:fixed; left:0; right:0; bottom:0; z-index:15; display:none;
-    background:rgba(13,17,23,.94); backdrop-filter:blur(8px); border-top:1px solid var(--brd);
+    background:rgba(13,17,23,.97); border-top:1px solid var(--brd); transform:translateZ(0);
     padding-bottom:var(--safe-b); overflow-x:auto; -webkit-overflow-scrolling:touch}
   nav.show{display:flex}
   nav button{flex:1 0 auto; min-width:50px; background:none; border:none; color:var(--mut); padding:9px 6px 7px;
@@ -100,7 +100,7 @@
   .empty{text-align:center; color:var(--mut); padding:44px 20px; border:1px dashed var(--brd); border-radius:14px; background:rgba(255,255,255,.015); font-size:14px; line-height:1.6}
 
   /* ── Оверлеи (вход / форма) ── */
-  .ov{position:fixed; inset:0; background:rgba(13,17,23,.75); backdrop-filter:blur(4px);
+  .ov{position:fixed; inset:0; background:rgba(13,17,23,.84);
     display:none; align-items:flex-end; justify-content:center; z-index:50}
   /* мгновенный отклик тапа на iOS: без 350мс ожидания двойного нажатия */
   button,[onclick],[data-sub],[data-pf],[data-floor]{touch-action:manipulation;-webkit-tap-highlight-color:rgba(255,255,255,.08)}
@@ -2986,7 +2986,7 @@ function spotFloorTower(view, spot){
     for(var i=floors;i>=1;i--){ var row=grid[i]||[{},{},{}];
       var segs=row.map(function(cell){ var bg='#2a3344',tc='var(--mut)',txt='',bd=''; if(cell.done){bg='var(--green)';tc='#06210d';txt='✓';} else if(cell.work){bg='var(--gold)';tc='#241a02';txt='…';} if(cell.redo){bg='transparent';bd='border:1.5px solid var(--red);';txt='↻';tc='var(--red)';} return '<div style="flex:1;height:22px;border-radius:5px;background:'+bg+';'+bd+'display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:'+tc+'">'+txt+'</div>'; }).join('');
       var inf=info[i]; var chip=(inf&&inf.brig)?'<br><span style="font-size:8.5px;color:var(--teal);font-weight:600">⛑ '+esc(inf.brig)+'</span>':''; var fid=sid+'_'+i;
-      h+='<div data-floor="'+fid+'" style="display:flex;align-items:center;gap:6px;margin-bottom:4px;cursor:pointer"><span style="width:58px;flex:0 0 58px;text-align:right;font-size:11px;font-weight:700;line-height:1.15">'+i+'эт'+chip+'</span><div style="flex:1;display:flex;gap:4px">'+segs+'</div></div>';
+      h+='<div data-floor="'+fid+'" onclick="spotFloorTap(\''+fid+'\')" style="display:flex;align-items:center;gap:6px;margin-bottom:4px;cursor:pointer"><span style="width:58px;flex:0 0 58px;text-align:right;font-size:11px;font-weight:700;line-height:1.15">'+i+'эт'+chip+'</span><div style="flex:1;display:flex;gap:4px">'+segs+'</div></div>';
       h+='<div id="'+fid+'" style="display:none;background:var(--sur);border:1px solid var(--brd);border-left:3px solid var(--gold);border-radius:9px;padding:9px 11px;margin:0 0 5px 64px">'+detail(i)+'</div>'; }
     if(unplaced>0)h+='<div style="margin-top:8px;font-size:11px;color:var(--mut);line-height:1.4">+ '+fmtD(unplaced)+' м³ залито, но <b style="color:var(--orange)">этаж не указан</b> в записи.</div>';
     h+='<div style="margin-top:8px;font-size:11px;color:var(--mut)">'+(parseInt(spot.floors,10)>0?('Этажей: '+floors+' (задано)'):('Этажность оценена по отметкам (≈'+floors+')'))+'</div></div>';
@@ -3302,23 +3302,32 @@ function dismissCabHint(btn){
   try{ var card=btn.parentElement; if(card) card.style.display='none'; }catch(e){}
 }
 function openCabHelp(){
-  function sec(ic,t,d){ return '<div style="display:flex;gap:10px;padding:9px 0;border-top:1px solid var(--brd)"><span style="font-size:17px;flex:0 0 auto;width:22px;text-align:center">'+ic+'</span><div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:700;color:var(--fg)">'+t+'</div><div style="font-size:12px;color:var(--mut);line-height:1.5;margin-top:1px">'+d+'</div></div></div>'; }
+  function sec(ic,t,d){ return '<div style="display:flex;gap:10px;padding:10px 0;border-top:1px solid var(--brd)"><span style="font-size:17px;flex:0 0 auto;width:22px;text-align:center">'+ic+'</span><div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:700;color:var(--fg)">'+t+'</div><div style="font-size:12px;color:var(--mut);line-height:1.55;margin-top:2px">'+d+'</div></div></div>'; }
   var h='<div style="padding:2px">';
-  h+='<div style="font-size:12.5px;color:var(--mut);line-height:1.6;margin-bottom:6px">Это ваш рабочий экран. Финансов компании здесь нет — только ваша работа, ваша зарплата и стройка. Коротко по каждому блоку:</div>';
-  h+=sec('📊','Плитки сверху и «Темп недели»','«Сегодня залито» и «За 7 дней» — ваши объёмы. Полоса темпа показывает, успеваете ли к цели 150 м³/нед: зелёная — да, жёлтая/красная — отстаёте.');
-  h+=sec('💰','Ваш заработок','Оклад/ставка плюс премия по принятым работам. Растёт от выполненного и подписанного.');
-  h+=sec('➕','Залили сегодня','Главная кнопка. Сразу после заливки запишите объём бетона — пятно, этаж, м³.');
-  h+=sec('🚚 📦','Заявки','«Заявка на бетон» и «Заявка снабженцу» (арматура, опалубка и пр.) — формируют готовое сообщение в WhatsApp поставщику. Номер вводится один раз.');
-  h+=sec('📞','Контакты','Бетонный узел, снабженец, руководство, лаборатория — звонок или WhatsApp в один тап. Номер сохраняется.');
-  h+=sec('📋','Отчёт за день','Собирает итог дня (что залито, явка) и отправляет в WhatsApp одной кнопкой.');
-  h+=sec('🚦','Приёмка объёмов','Двигайте работы по стадиям: залито → акт скрытых → КС-2 → подпись → Р-1 → оплата. Видно, где что застряло.');
-  h+=sec('✅','Чек-лист перед заливкой','Пройдите проверку до заливки — арматура, опалубка, бетон. Меньше брака и переделок.');
-  h+=sec('🗓','План заливок','Запланируйте заливки на 2 недели вперёд. Когда залили — нажмите «✓», запись уйдёт из плана.');
-  h+=sec('🧪','Бетон и прочность','У каждой заливки в списке — кнопка 🧪: приложите паспорт с завода и протокол лаборатории, впишите прочность R7/R28. Блок «⏰ Пора испытать бетон» сам напомнит про 28 суток.');
-  h+=sec('⚠️','Замечания','Запишите проблему с фото. Уходит в рабочую группу и видна руководству. Закрывайте «✓», когда устранили.');
-  h+=sec('👷','Отметить явку','Сколько человек вышло сегодня — из этого считается производительность (м³ на человека).');
-  h+=sec('🌤','Погода','Пригодность к заливке на 3 дня: дождь, жара, мороз — что учесть.');
-  h+='<div style="font-size:11.5px;color:var(--mut);margin-top:12px;text-align:center">Кнопка «❓ Как пользоваться» всегда наверху экрана — открывайте в любой момент.</div></div>';
+  h+='<div style="font-size:12.5px;color:var(--mut);line-height:1.6;margin-bottom:12px">Это ваш рабочий телефон‑помощник на стройке. Денег фирмы тут нет — только ваша работа, ваша зарплата и что происходит на объекте. Если первый раз — просто делайте по порядку дня ниже.</div>';
+  h+='<div style="border:1px solid var(--teal);border-radius:12px;padding:12px;margin-bottom:14px;background:rgba(45,212,191,.05)"><div style="font-size:13px;font-weight:800;color:var(--teal);margin-bottom:7px">📅 ПОРЯДОК ДНЯ — делайте по шагам</div><div style="font-size:12.5px;color:var(--fg);line-height:1.85">'
+    +'<b>1.</b> Утром нажмите <b>«Отметить»</b> явку — сколько человек вышло на работу.<br>'
+    +'<b>2.</b> Перед тем как заливать бетон — откройте <b>«✅ Чек‑лист перед заливкой»</b> и проверьте всё по списку (арматура связана, опалубка крепкая и т.д.). Это спасает от брака.<br>'
+    +'<b>3.</b> Залили бетон — сразу нажмите <b>«➕ Залили сегодня»</b>: выберите пятно (блок), этаж, и впишите сколько кубов залили.<br>'
+    +'<b>4.</b> Нужен бетон или материалы на завтра — нажмите <b>«🚚 Заявка на бетон»</b> или <b>«📦 Заявка снабженцу»</b>, и отправьте сообщение.<br>'
+    +'<b>5.</b> Заметили проблему (трещина, брак, чего‑то не хватает) — нажмите <b>«+ Добавить замечание»</b>, опишите и сфотографируйте.<br>'
+    +'<b>6.</b> Вечером нажмите <b>«📋 Отчёт за день»</b> — приложение само соберёт итог и отправит в WhatsApp.'
+    +'</div></div>';
+  h+='<div style="font-size:13px;font-weight:800;color:var(--gold);margin-bottom:2px">ЧТО ГДЕ НА ЭКРАНЕ</div>';
+  h+=sec('📊','Плитки сверху и «Темп недели»','«Сегодня залито» — сколько кубов бетона залили сегодня. «За 7 дней» — за неделю. <b>Кубометр (м³)</b> — это объём бетона; один миксер обычно везёт 7–10 м³. Полоска «Темп недели» показывает, успеваете ли к цели по плану: зелёная — идём хорошо, жёлтая или красная — отстаём, надо поднажать.');
+  h+=sec('💰','Ваш заработок','Здесь ваша зарплата: оклад или ставка плюс премия за работу. Чем больше залили и приняли по документам — тем больше премия. Чужих зарплат и денег фирмы вы не видите.');
+  h+=sec('➕','Залили сегодня — главная кнопка','Нажимайте каждый раз после заливки бетона. Укажите: на каком пятне (блоке), какой этаж, сколько кубов (м³), какая бригада. Сумму бригаде считать не нужно — приложение само посчитает по расценке. <b>Прикрепите фото заливки</b> — так руководству проще проверить. После записи заливка уходит <b>на проверку руководству</b> и встаёт в зачёт только после приёмки. Чем точнее этаж — тем правильнее «Башня прогресса» закрасит этаж зелёным.');
+  h+=sec('🚚 📦','Заявки на бетон и материалы','Готовят сообщение поставщику и открывают WhatsApp — вам остаётся нажать «Отправить». «Бетон» — заказать миксеры на дату. «Снабженцу» — арматура, опалубка, сетка, проволока и прочее (пишите списком, по строкам). Номер вводится один раз и запоминается.');
+  h+=sec('📞','Контакты','Бетонный узел, снабженец, руководство, лаборатория — позвонить или написать в WhatsApp в один тап. Запишите номер один раз — дальше просто нажимаете.');
+  h+=sec('📋','Отчёт за день','Соберёт что залито и сколько людей вышло, и отправит в рабочую группу WhatsApp одной кнопкой. Делайте в конце дня.');
+  h+=sec('🚦','Приёмка объёмов','Показывает путь работы к деньгам: залили → подписали акт скрытых → подписали КС‑2 → начальство подписало → Р‑1 → заказчик оплатил. Двигаете карточку по этим шагам, и сразу видно, где «застряло» и кого надо потолкать.');
+  h+=sec('✅','Чек‑лист перед заливкой','Список проверок ДО заливки: арматура, опалубка, чистота, бетон нужной марки. Пройдите по галочкам — это главная защита от брака и переделок (а переделки режут премию).');
+  h+=sec('🗓','План заливок','Запланируйте заливки на 2 недели вперёд (дата, пятно, этаж, объём). Все видят план. Когда залили — нажмите «✓», и заливка уйдёт из плана. Так бетон и людей заказывают вовремя.');
+  h+=sec('🧪','Бетон и его прочность','Рядом с каждой заливкой есть кнопка 🧪. Туда прикрепите фото <b>паспорта/накладной</b> с завода (что привезли) и <b>протокол лаборатории</b> (испытания). Бетон твердеет 28 дней; на 7‑й и 28‑й день из него ломают кубики и проверяют прочность (в МПа). Впишите эти числа — приложение скажет, выдержал бетон класс или нет. Блок «⏰ Пора испытать бетон» сам напомнит, когда подошёл срок.');
+  h+=sec('⚠️','Замечания','Любая проблема на объекте: опишите словами, добавьте фото, укажите этаж. Замечание сразу уходит в рабочую группу и видно руководству. Когда устранили — нажмите «✓», чтобы закрыть.');
+  h+=sec('👷','Отметить явку','Сколько человек вышло сегодня. Из этого считается производительность — сколько кубов на одного человека. Отмечайте каждое утро.');
+  h+=sec('🌤','Погода','Подсказывает, можно ли сегодня лить бетон: дождь — лучше отложить и укрыть свежий бетон; мороз — нужны добавки и подогрев; жара — лить рано утром/вечером и поливать водой 3–7 дней.');
+  h+='<div style="font-size:11.5px;color:var(--mut);margin-top:13px;text-align:center;line-height:1.5">Кнопка «❓ Как пользоваться» всегда наверху экрана — открывайте в любой момент, ничего не сломаете.</div></div>';
   lgSheet('❓ Как пользоваться', h);
 }
 // СТРУКТУРА РАСХОДОВ: переменные % / постоянные ₸ + точка безубыточности
@@ -3767,6 +3776,7 @@ function renderCabinet(view, app, scope){
       +(manDays>0?('<div style="font-size:11.5px;color:var(--mut);margin-top:7px">Производительность: <b style="color:var(--teal)">≈ '+fmtD(Math.round(perMan*10)/10)+' м³</b> на человеко-день (за 7 дней)</div>'):'')
       +'</div>';
   })();
+  h+=cabReviewPending(view);
   h+=concreteDueCard(view);
   // кнопки
   h+='<button onclick="openEntry({type:\'vol\''+(isBrig?(",brigade:'"+esc(brigId)+"'"):'')+'})" style="width:100%;border:none;background:var(--teal);color:#04201b;font-weight:800;font-size:15px;padding:14px;border-radius:12px;cursor:pointer;margin-bottom:8px">➕ Залили сегодня</button>';
@@ -3796,9 +3806,11 @@ function renderCabinet(view, app, scope){
   }
   // мои пятна
   if(!isBrig && spots.length){ h+='<div style="font-size:12px;font-weight:800;letter-spacing:1px;color:var(--gold);margin:8px 2px 10px">МОИ ПЯТНА</div>';
-    spots.forEach(function(sp){ var pc=spotProgressCash(view,obj,sp.id)||{progressPct:0,doneVol:0,planVol:0};
-      h+='<div class="bcard"><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px"><span style="font-size:16px;font-weight:800">'+esc(sp.name)+'</span><span style="font-size:13px;color:var(--teal);font-weight:700">'+fmtD(pc.doneVol)+' / '+fmtD(pc.planVol)+' м³</span></div>'
-        +'<div style="height:8px;background:var(--sur2);border-radius:4px;overflow:hidden"><div style="height:100%;width:'+Math.max(2,Math.min(100,pc.progressPct))+'%;background:var(--teal)"></div></div>'
+    spots.forEach(function(sp){ var pc=spotProgressCash(view,obj,sp.id)||{progressPct:0,doneVol:0,planVol:0}; var hasPlan=pc.planVol>0;
+      h+='<div class="bcard"><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px"><span style="font-size:16px;font-weight:800">'+esc(sp.name)+'</span><span style="font-size:13px;color:var(--teal);font-weight:700">'+(hasPlan?(fmtD(pc.doneVol)+' / '+fmtD(pc.planVol)+' м³ · '+pc.progressPct+'%'):(fmtD(pc.doneVol)+' м³ залито'))+'</span></div>'
+        +(hasPlan
+          ?('<div style="height:8px;background:var(--sur2);border-radius:4px;overflow:hidden"><div style="height:100%;width:'+Math.max(2,Math.min(100,pc.progressPct))+'%;background:var(--teal)"></div></div>')
+          :('<div style="font-size:11px;color:var(--mut)">план объёма не задан — % не считается. Задать: ⚙️ настройки пятна → объёмы конструктивов.</div>'))
         +spotFloorTower(view,sp)+'</div>'; });
   }
   h+=pourPlanSection(view);
@@ -4354,23 +4366,31 @@ function renderEntryFields(){
   var amtInput='<input id="in-amt" type="number" inputmode="numeric" placeholder="0" value="'+(d.amount||'')+'"/>';
   var h='';
   if(d.type==='vol'){
-    h+=fld('Пятно','<select id="in-spot">'+selOpts(spots.map(function(s){return [s.id,s.name];}), d.spotId||(spots[0]&&spots[0].id))+'</select>');
-    h+=fld('Бригада','<select id="in-brig" onchange="entryRecalcAmount(true)">'+selOpts(brigs.map(function(b){return [b.id,(b.name||'').replace(/^Бригада\s*/,'')];}), d.brigade||(brigs[0]&&brigs[0].id))+'</select>');
+    var isField=(typeof canWriteLedger==='function')?!canWriteLedger():false;
+    var fh=function(t){ return isField?('<div style="font-size:11px;color:var(--teal);margin:-7px 2px 13px;line-height:1.5">👉 '+t+'</div>'):''; };
+    if(isField) h+='<div style="background:rgba(45,212,191,.07);border:1px solid var(--teal);border-radius:11px;padding:11px 12px;margin-bottom:14px;font-size:12px;color:var(--fg);line-height:1.55">📝 <b>Заполняйте внимательно.</b> От блока, бригады, вида работ и объёма зависит, кому и сколько начислит приложение. Ошибка здесь = неверный расчёт зарплаты и прогресса. Если сомневаетесь — уточните у бригадира или руководства.</div>';
+    h+=fld('Пятно / блок','<select id="in-spot">'+selOpts(spots.map(function(s){return [s.id,s.name];}), d.spotId||(spots[0]&&spots[0].id))+'</select>')+fh('Где заливали — выберите нужный блок (например «Блок 48» или «Блок 49»). Объём и прогресс пойдут именно на этот блок. Перепутаете блок — цифры встанут не туда.');
+    h+=fld('Бригада','<select id="in-brig" onchange="entryRecalcAmount(true)">'+selOpts(brigs.map(function(b){return [b.id,(b.name||'').replace(/^Бригада\s*/,'')];}), d.brigade||(brigs[0]&&brigs[0].id))+'</select>')+fh('Кто фактически заливал. Деньги за работу начислятся ИМЕННО этой бригаде — не выбирайте чужую.');
     // вид работ из единого справочника (виды заказчика ✓, этапы 🔧, общие) + возможность ввести своё
     var knownW=wt.some(function(t){return t.v===d.wtype;});
     var showCustom=d._wcustom||(d.wtype&&!knownW);
-    h+=fld('Вид работ','<select id="in-wtype" onchange="entryWtypeChange(this.value)">'+wt.map(function(t){return '<option value="'+esc(t.v)+'"'+((d.wtype===t.v&&!d._wcustom)?' selected':'')+'>'+esc(t.label)+'</option>';}).join('')+'<option value="__custom__"'+(showCustom?' selected':'')+'>➕ свой вид…</option></select>');
+    h+=fld('Вид работ','<select id="in-wtype" onchange="entryWtypeChange(this.value)">'+wt.map(function(t){return '<option value="'+esc(t.v)+'"'+((d.wtype===t.v&&!d._wcustom)?' selected':'')+'>'+esc(t.label)+'</option>';}).join('')+'<option value="__custom__"'+(showCustom?' selected':'')+'>➕ свой вид…</option></select>')+fh('Что делали: «Заливка бетона», «Армирование» и т.п. По виду работ (вместе с этапом) приложение берёт расценку бригады. Ошибётесь в виде — сумма посчитается не та.');
     if(showCustom) h+=fld('Свой вид работ','<input id="in-wtype-custom" value="'+esc(d.wtype||'')+'" placeholder="Название вида работ"/>');
     // этап работ (как в расценках бригады)
-    h+=fld('Этап','<select id="in-stage" onchange="entryRecalcAmount(true)">'+BRIG_STAGES.map(function(st){return '<option value="'+esc(st)+'"'+((d.stage||'Комплекс (всё)')===st?' selected':'')+'>'+esc(st)+'</option>';}).join('')+'</select>');
+    h+=fld('Этап','<select id="in-stage" onchange="entryRecalcAmount(true)">'+BRIG_STAGES.map(function(st){return '<option value="'+esc(st)+'"'+((d.stage||'Комплекс (всё)')===st?' selected':'')+'>'+esc(st)+'</option>';}).join('')+'</select>')+fh('Этап работ из расценок бригады. Если бригада делает всё под ключ — оставьте «Комплекс (всё)». Этап тоже влияет на расценку.');
     // количество + единица измерения
     var du=d.unit||'м³'; var knownU=BRIG_UNITS.indexOf(du)>=0; var showU=d._ucustom||(du&&!knownU);
     h+='<div class="f"><label>Количество</label><div style="display:flex;gap:8px"><input id="in-vol" type="number" inputmode="decimal" placeholder="0" value="'+(d.volume||'')+'" oninput="entryRecalcAmount(true)" style="flex:1"/>'
-      +'<select id="in-unit" onchange="entryUnitChange(this.value)" style="flex:none;width:96px">'+BRIG_UNITS.map(function(u){return '<option value="'+esc(u)+'"'+((du===u&&knownU&&!d._ucustom)?' selected':'')+'>'+esc(u)+'</option>';}).join('')+'<option value="__custom__"'+(showU?' selected':'')+'>➕…</option></select></div></div>';
+      +'<select id="in-unit" onchange="entryUnitChange(this.value)" style="flex:none;width:96px">'+BRIG_UNITS.map(function(u){return '<option value="'+esc(u)+'"'+((du===u&&knownU&&!d._ucustom)?' selected':'')+'>'+esc(u)+'</option>';}).join('')+'<option value="__custom__"'+(showU?' selected':'')+'>➕…</option></select></div></div>'+fh('Сколько залили по факту, в кубометрах (м³). Считайте по миксерам: один миксер обычно 7–10 м³. Округлять не надо — пишите как в накладной.');
     if(showU) h+=fld('Своя единица','<input id="in-unit-custom" value="'+esc(du||'')+'" placeholder="напр. шт, марш"/>');
-    h+=fld('Этаж','<input id="in-floor" placeholder="напр. 3 этаж отметка 7550" value="'+esc(d.floor||'')+'"/>');
-    h+='<div class="f"><label>Сумма бригаде, ₸</label><input id="in-volamt" type="number" inputmode="numeric" placeholder="0" value="'+(d.amount||'')+'"/><div id="in-volamt-hint" style="font-size:11px;color:var(--mut);margin-top:4px;line-height:1.4"></div><button type="button" onclick="entryRecalcAmount(true)" style="margin-top:6px;background:rgba(45,212,191,.08);border:1px solid var(--teal);color:var(--teal);border-radius:9px;padding:7px 10px;font-size:12px;font-weight:700;cursor:pointer">↻ Пересчитать по расценке</button></div>';
-    h+='<div class="f"><label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input id="in-redo" type="checkbox"'+(d.redo?' checked':'')+' style="width:auto"/> Переделка (брак)</label></div>';
+    h+=fld('Этаж / отметка','<input id="in-floor" placeholder="напр. 3 этаж отметка 7.550" value="'+esc(d.floor||'')+'"/>')+fh('Обязательно укажите этаж и отметку (например «3 этаж, отметка 7.550»). По этому приложение красит «Башню прогресса» и понимает, где идёт стройка. Без этажа заливка зачтётся, но башня останется серой.');
+    h+='<div class="f"><label>Начисление бригаде (автоматически)</label><div id="in-volamt-hint" style="font-size:13.5px;color:var(--fg);margin-top:2px;line-height:1.5"></div><div style="font-size:11px;color:var(--mut);margin-top:5px;line-height:1.4">Считается по расценке бригады × объём. Сумма видна в карточке бригады. Чтобы изменить — поправьте расценку бригады.</div></div>';
+    h+='<div class="f"><label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input id="in-redo" type="checkbox"'+(d.redo?' checked':'')+' style="width:auto"/> Переделка (брак)</label></div>'+fh('Ставьте галочку, ТОЛЬКО если это переделка/перезаливка из-за брака. Это влияет на показатель качества — не отмечайте обычную работу.');
+    h+='<div class="f"><label>Фото заливки (для проверки)</label>'
+      +(d.photoId
+        ?('<div style="display:flex;gap:9px;align-items:center;margin-top:4px"><span style="color:var(--green);font-size:13px;font-weight:700">📷 фото прикреплено</span><button type="button" onclick="entryPhotoDel()" style="border:1px solid var(--red);background:transparent;color:var(--red);border-radius:9px;padding:7px 11px;font-size:12px;cursor:pointer">убрать</button></div>')
+        :('<label style="display:block;margin-top:4px;border:1px dashed var(--brd);border-radius:10px;padding:11px;text-align:center;color:var(--teal);font-weight:700;font-size:13px;cursor:pointer">📷 Сделать/прикрепить фото<input type="file" accept="image/*" capture="environment" onchange="entryPhotoUpload(this)" style="display:none"/></label>'))
+      +'<div id="in-photo-st" style="font-size:11px;color:var(--mut);margin-top:5px"></div></div>'+fh('Сфотографируйте залитый участок. По фото руководство быстрее проверит и примет заливку. Без фото приёмка затянется.');
   } else if(d.type==='expense'){
     h+=fld('Категория','<select id="in-cat">'+selOpts(EXP_CATS, d.cat||EXP_CATS[0])+'</select>');
     h+=fld('Сумма, ₸',amtInput);
@@ -4408,7 +4428,7 @@ function entryRecalcAmount(fill){
   var rate=b?brigPriceFor(b,wtype,unit,stage):0; var auto=Math.round(vol*rate);
   if(hint){ hint.innerHTML = rate>0
       ? ('по расценке '+esc((b&&b.name||'').replace(/^Бригада\s*/,''))+': '+fmt0(rate)+' ₸/'+esc(unit)+' → <b style="color:var(--gold)">'+fmt0(auto)+' ₸</b>')
-      : '<span style="color:var(--gold)">нет расценки для этого вида+этапа у бригады — впишите сумму вручную или добавьте расценку бригаде</span>'; }
+      : '<span style="color:var(--gold)">расценки для этого вида+этапа у бригады нет — начисление проставит владелец, либо добавьте расценку бригаде</span>'; }
   if(fld2 && fill && rate>0) fld2.value=auto;   // авто-заполняем при наличии расценки (при смене вида/этапа/бригады/объёма)
 }
 function deleteEntry(id){ emit({kind:'entry.delete', entryId:id}); document.getElementById('ov-entry').classList.remove('show'); render(); }
@@ -4441,7 +4461,32 @@ function draftReviewCard(view){
     if(pend.length>6) h+='<div style="font-size:12px;color:var(--mut);text-align:center">…и ещё '+(pend.length-6)+' в журнале</div>';
     h+='</div>';
   }
-  var drafts=(view.draftEntries||[]);
+  var allDrafts=(view.draftEntries||[]);
+  var siteDrafts=allDrafts.filter(function(e){return e&&e.type==='vol'&&(e.source==='foreman'||e.source==='brigadier');}).sort(entryCmp);
+  var tgDrafts=allDrafts.filter(function(e){return siteDrafts.indexOf(e)<0;});
+  // 🔍 ЗАЛИВКИ С ПЛОЩАДКИ — НА ПРОВЕРКУ ВЛАДЕЛЬЦУ (не учитываются, пока не приняты)
+  if(siteDrafts.length){
+    h+='<div class="ledger" style="border-color:var(--gold);background:rgba(240,165,0,.06)">';
+    h+='<div style="font-size:13px;color:var(--gold);letter-spacing:1.5px;font-weight:800;margin-bottom:3px">🔍 ЗАЛИВКИ НА ПРОВЕРКЕ ('+siteDrafts.length+')</div>';
+    h+='<div style="font-size:12px;color:var(--mut);margin-bottom:12px">Заявлены с площадки. Пока не приняты — в объёмах, выручке и зарплате <b>не учитываются</b>. Проверьте (по фото) и примите ✅ или верните ↩️.</div>';
+    siteDrafts.forEach(function(e){ var bn=brigName(view,e.brigade)||'?'; var tm=entryTime(e); var src=e.source==='brigadier'?'от бригадира':'от прораба';
+      h+='<div style="background:var(--bg);border:1px solid var(--brd);border-radius:12px;padding:12px;margin-bottom:10px">';
+      h+='<div style="font-size:16px;font-weight:800">'+fmtD(Number(e.volume)||0)+' м³'+(e.unit&&e.unit!=='м³'?(' '+esc(e.unit)):'')+'</div>';
+      h+='<div style="font-size:12px;color:var(--mut);margin-top:2px">'+String(e.date||'').split('-').reverse().join('.')+(tm?(' · '+tm):'')+' · ⛑ '+esc(bn.replace(/^Бригада\s*/,''))+(e.zone?(' · '+esc(e.zone)):'')+(e.floor?(' · '+esc(e.floor)):'')+' · '+src+'</div>';
+      if(e.wtype) h+='<div style="font-size:11px;color:var(--mut);margin-top:2px">'+esc(e.wtype)+(e.stage&&e.stage!=='Комплекс (всё)'?(' · '+esc(e.stage)):'')+'</div>';
+      if(e.note) h+='<div style="font-size:12px;color:var(--mut);margin-top:3px">'+esc(e.note)+'</div>';
+      if(e.photoId && LG.url && LG.token) h+='<div onclick="openPhoto(\''+esc(e.photoId)+'\')" style="margin-top:8px;cursor:pointer"><img src="'+photoUrl(e.photoId)+'" loading="lazy" style="width:100%;max-height:180px;object-fit:cover;border-radius:10px;background:var(--sur2)" onerror="this.style.opacity=.3"/></div>';
+      else h+='<div style="font-size:11px;color:var(--orange);margin-top:6px">📷 без фото — попросите прораба приложить фото заливки</div>';
+      h+='<div style="display:flex;gap:8px;margin-top:9px">'
+        +'<button onclick="confirmDraft(\''+esc(String(e.id))+'\')" style="flex:1;background:var(--green);color:#04201b;border:none;border-radius:10px;padding:11px;font-weight:800;font-size:14px;cursor:pointer">✅ Принять</button>'
+        +'<button onclick="openEntryEditById(\''+esc(String(e.id))+'\')" style="background:rgba(255,255,255,.06);color:var(--fg);border:1px solid var(--brd);border-radius:10px;padding:11px 13px;font-weight:700;cursor:pointer">✏️</button>'
+        +'<button onclick="returnDraft(\''+esc(String(e.id))+'\')" style="background:transparent;color:var(--red);border:1px solid var(--red);border-radius:10px;padding:11px 13px;font-weight:700;cursor:pointer">↩️ Вернуть</button>'
+        +'</div></div>';
+    });
+    h+='<div style="font-size:11px;color:var(--mut);margin-top:2px">После «Принять» сумма бригаде считается автоматически по расценке. Если расценки на этот вид нет — заливка попадёт в «Ждут сумму».</div>';
+    h+='</div>';
+  }
+  var drafts=tgDrafts;
   if(!drafts.length) return h;
   h+='<div class="ledger" style="border-color:var(--gold);background:rgba(240,165,0,.06)">';
   h+='<div style="font-size:13px;color:var(--gold);letter-spacing:1.5px;font-weight:800;margin-bottom:3px">📥 ИЗ TELEGRAM · ЧЕРНОВИКИ ('+drafts.length+')</div>';
@@ -4460,8 +4505,48 @@ function draftReviewCard(view){
   h+='</div>';
   return h;
 }
-function confirmDraft(id){ emit({kind:'entry.edit', entryId:id, payload:{draft:false}}); render(); }
+function confirmDraft(id){
+  var view=projected(LG.base, LG.queue);
+  var e=(view.draftEntries||[]).find(function(x){return x&&x.id===id;}) || (view.entries||[]).find(function(x){return x&&x.id===id;});
+  var payload={draft:false};
+  if(e && e.type==='vol'){
+    var b=(view.brigades||[]).find(function(x){return x&&x.id===e.brigade;});
+    var rate=b?brigPriceFor(b, e.wtype, e.unit||'м³', e.stage):0;
+    if(rate>0){ payload.rate=rate; payload.amount=Math.round((Number(e.volume)||0)*rate); payload.amountPending=false; }
+    // расценки нет — оставляем amountPending (запись попадёт в «Ждут сумму»)
+  }
+  emit({kind:'entry.edit', entryId:id, payload:payload});
+  render();
+}
+function returnDraft(id){ if(typeof confirm==='function'&&!confirm('Вернуть заливку? Запись удалится, объём не будет учтён. Прораб сможет записать заново.'))return; emit({kind:'entry.delete', entryId:id}); render(); }
 function deleteDraft(id){ emit({kind:'entry.delete', entryId:id}); render(); }
+function entrySyncVol(){ var d=LG.draft; if(!d||d.type!=='vol')return;
+  var v=Number(gv('in-vol')); if(!isNaN(v)&&gv('in-vol')!=='')d.volume=v;
+  var sp=gv('in-spot'); if(sp)d.spotId=sp; var br=gv('in-brig'); if(br)d.brigade=br;
+  var st=gv('in-stage'); if(st)d.stage=st;
+  var wt=gv('in-wtype'); if(wt==='__custom__'){ var cw=document.getElementById('in-wtype-custom'); if(cw){d.wtype=cw.value.trim();d._wcustom=true;} } else if(wt){ d.wtype=wt; d._wcustom=false; }
+  var un=gv('in-unit'); if(un==='__custom__'){ var cu=document.getElementById('in-unit-custom'); if(cu){d.unit=cu.value.trim();d._ucustom=true;} } else if(un){ d.unit=un; d._ucustom=false; }
+  var fl=document.getElementById('in-floor'); if(fl)d.floor=fl.value;
+  d.redo=!!(document.getElementById('in-redo')&&document.getElementById('in-redo').checked);
+}
+function entryPhotoUpload(input){ var f=input.files&&input.files[0]; if(!f)return; entrySyncVol(); var st=document.getElementById('in-photo-st');
+  if(PREVIEW||!LG.url||!LG.token){ if(st)st.textContent='Фото — только в боевом режиме.'; return; }
+  if(st)st.textContent='⏳ Загружаю фото…';
+  var rd=new FileReader(); rd.onload=function(){ var s=String(rd.result||''); var b64=s.split(',')[1]||''; var mime=(s.match(/^data:([^;]+);/)||[])[1]||f.type||'image/jpeg';
+    fetch(api('/api/upload-file'),{method:'POST',headers:headers(),body:JSON.stringify({data:b64,filename:f.name||'pour.jpg',mime:mime})})
+      .then(function(r){return r.json();}).then(function(res){ if(res&&res.ok&&res.fileId){ LG.draft.photoId=res.fileId; renderEntryFields(); } else { var s2=document.getElementById('in-photo-st'); if(s2)s2.textContent=(res&&res.text)||'Не загрузилось'; } })
+      .catch(function(){ var s3=document.getElementById('in-photo-st'); if(s3)s3.textContent='Ошибка сети'; });
+  }; rd.readAsDataURL(f);
+}
+function entryPhotoDel(){ entrySyncVol(); LG.draft.photoId=''; renderEntryFields(); }
+function cabReviewPending(view){
+  var d=(view.draftEntries||[]).filter(function(e){return e&&e.type==='vol';}).sort(entryCmp);
+  if(!d.length) return '';
+  var h='<div style="border:1px solid var(--gold);border-radius:13px;padding:12px;margin-bottom:14px;background:rgba(240,165,0,.06)"><div style="font-size:12.5px;font-weight:800;color:var(--gold);margin-bottom:5px">🔍 ОТПРАВЛЕНО НА ПРОВЕРКУ · '+d.length+'</div><div style="font-size:11.5px;color:var(--mut);margin-bottom:7px;line-height:1.45">Руководство проверит и примет. До приёмки эти заливки в зачёт не идут.</div>';
+  d.slice(0,6).forEach(function(e){ h+='<div style="display:flex;justify-content:space-between;gap:9px;padding:7px 0;border-top:1px solid var(--brd)"><div style="font-size:12.5px">'+fmtD(Number(e.volume)||0)+' м³'+(e.floor?(' · '+esc(e.floor)):'')+'</div><div style="font-size:11px;color:var(--mut)">'+String(e.date||'').split('-').reverse().join('.')+(e.photoId?' · 📷':' · <span style="color:var(--orange)">без фото</span>')+'</div></div>'; });
+  if(d.length>6) h+='<div style="font-size:11px;color:var(--mut);margin-top:6px">…и ещё '+(d.length-6)+'</div>';
+  h+='</div>'; return h;
+}
 function gv(id){ var el=document.getElementById(id); return el?el.value:''; }
 function saveEntry(){
   var view=projected(LG.base, LG.queue);
@@ -4483,7 +4568,9 @@ function saveEntry(){
     p.volume=vol; p.unit=unit; p.wtype=wtype; p.stage=stage; p.brigade=bid; p.spotId=spotId; p.spot=spotId; p.zone=sp?sp.name:''; p.floor=gv('in-floor'); p.struct=wtype; p.redo=!!(document.getElementById('in-redo')&&document.getElementById('in-redo').checked); p.rate=rate;
     var manualAmt=document.getElementById('in-volamt');
     p.amount = manualAmt ? (Number(manualAmt.value)||0) : Math.round(vol*rate);
-    p.amountPending=false;   // владелец/учётчица просмотрели запись — «ждёт сумму» снимается (кабинетам сервер вернёт флаг сам)
+    p.amountPending = manualAmt ? false : !(rate>0);   // нет расценки бригады → запись «ждёт сумму» (проставит владелец)
+    if(LG.draft.photoId) p.photoId=LG.draft.photoId;
+    if(!canWriteLedger()){ p.draft=true; p.source=(LG.role&&LG.role.indexOf('brigadier_')===0)?'brigadier':'foreman'; }   // прораб/бригадир: на проверку владельцу (сервер тоже это форсит)
   } else {
     var amt=Number(gv('in-amt'))||0; if(amt<=0){ document.getElementById('entry-err').textContent='Введите сумму больше нуля.'; return; }
     p.amount=amt;
@@ -4495,9 +4582,11 @@ function saveEntry(){
   }
   if(LG.draft.editId){ emit({ kind:'entry.edit', entryId:LG.draft.editId, payload:p }); }
   else { p.ts=Date.now(); emit({ kind:'entry.add', payload:p }); }
+  var _sentToReview=(p.type==='vol' && !LG.draft.editId && !canWriteLedger());
   document.getElementById('ov-entry').classList.remove('show');
   render();
   lgRefreshCabSheet();   // если запись внесена из кабинета в шторке — кабинет сразу покажет её
+  if(_sentToReview && typeof toast==='function') toast('Заливка отправлена на проверку руководству ✅');
 }
 
 /* ── ФОРМА БРИГАДЫ ───────────────────────────────────────────────────────── */
