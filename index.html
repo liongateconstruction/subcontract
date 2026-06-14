@@ -453,7 +453,20 @@ function brigStats(view){
     return { id:b.id, name:b.name||'?', work:b.work||'', workers:Number(b.workers)||0, m3:m3, earned:earned, paid:paid, debt:earned-paid };
   });
 }
-// ── ТЕМП ЗАЛИВКИ (КФУ №1) — порт из старого приложения ──
+// Архивные бригады + их сальдо (объём дописывать можно даже из архива)
+function isArchivedBrig(b){ return !!(b && b.archivedAt && !(b.restoredAt && String(b.restoredAt) > String(b.archivedAt))); }
+function brigStatsArchived(view){
+  var ent=view.entries||[];
+  return (view.brigades||[]).filter(isArchivedBrig).map(function(b){
+    var m3=0, earned=0, paid=0;
+    ent.forEach(function(e){
+      if(!e || e.brigade!==b.id) return;
+      if(e.type==='vol'){ m3+=Number(e.volume)||0; earned+=entryAmount(b, e); }
+      else if(e.type==='expense'){ paid+=Number(e.amount)||0; }
+    });
+    return { id:b.id, name:b.name||'?', work:b.work||'', workers:Number(b.workers)||0, m3:m3, earned:earned, paid:paid, debt:earned-paid };
+  });
+}
 function isPourWork(w){ w=(w||'').toLowerCase(); return w.indexOf('опалубка+бетон')===0 || w==='комплекс монолит'; }
 function brigWeekTarget(b){ return (Number(b&&b.workers)||0)*(Number(b&&b.norm)||0)*7; }
 function tempoCapacity(state){ var s=0; (state.brigades||[]).filter(isActiveBrig).forEach(function(b){ if(b.kfu_temp===false)return; if(isPourWork(b.work)) s+=brigWeekTarget(b); }); return s; }
@@ -3596,6 +3609,35 @@ function peopleBrigades(view){
     if(canWrite){ h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px"><button data-noopen="1" data-vol="'+esc(s.id)+'" style="background:rgba(45,212,191,.08);border:1px solid var(--teal);color:var(--teal);border-radius:8px;padding:9px;font-weight:600">+ Объём</button><button data-noopen="1" data-pay="'+esc(s.id)+'" style="background:rgba(46,160,67,.10);border:1px solid var(--green);color:var(--green);border-radius:8px;padding:9px;font-weight:600">Выплатить</button></div>'; }
     h+='</div>';
   });
+  // ── АРХИВ БРИГАД (сальдо + дозапись объёма задним числом) ──
+  var arch=brigStatsArchived(view);
+  if(arch.length){
+    h+='<div style="font-size:13px;color:var(--mut);letter-spacing:2px;font-weight:800;margin:26px 4px 10px">📦 АРХИВ БРИГАД</div>';
+    h+='<div style="font-size:12px;color:var(--mut);margin:-4px 4px 12px;line-height:1.5">Закрытые бригады. Видно сальдо. Можно дописать забытый объём или закрыть расчёт прямо отсюда.</div>';
+    arch.forEach(function(s){
+      var b=brigOfV(view,s.id)||{};
+      var bal=(s.earned||0)-(s.paid||0);
+      var balCol=bal>0?'var(--red)':(bal<0?'var(--gold)':'var(--green)');
+      var remLbl,remIcon,remVal;
+      if(bal>0){ remLbl='МЫ ДОЛЖНЫ БРИГАДЕ'; remIcon='⬆️'; remVal='+'+fmt0(bal)+' ₸'; }
+      else if(bal<0){ remLbl='ПЕРЕПЛАТА (БРИГАДА ДОЛЖНА НАМ)'; remIcon='⬇️'; remVal=fmt0(bal)+' ₸'; }
+      else { remLbl='РАСЧЁТ ЗАКРЫТ'; remIcon='✓'; remVal='0 ₸'; }
+      h+='<div class="bcard" style="border-style:dashed;opacity:.95">';
+      h+='<div style="margin-bottom:10px"><span style="font-size:18px;font-weight:700">'+esc(s.name)+'</span> <span style="font-size:12px;color:var(--mut);font-weight:600">· в архиве</span><div style="font-size:12px;color:var(--mut);margin-top:3px">'+(b.workers||0)+' чел · '+esc(b.work||'—')+'</div></div>';
+      h+='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px">'
+        +'<div style="border:1px solid var(--teal);border-radius:10px;padding:8px"><div style="font-size:10px;color:var(--mut);font-weight:700">ВСЕГО М³</div><div class="num" style="font-size:17px;color:var(--teal);font-weight:800;margin-top:3px">'+fmtD(s.m3)+'</div></div>'
+        +'<div style="border:1px solid var(--gold);border-radius:10px;padding:8px"><div style="font-size:10px;color:var(--mut);font-weight:700">НАЧИСЛЕНО</div><div class="num" style="font-size:17px;color:var(--gold);font-weight:800;margin-top:3px">'+fmt0(s.earned)+'</div></div>'
+        +'<div style="border:1px solid var(--green);border-radius:10px;padding:8px"><div style="font-size:10px;color:var(--mut);font-weight:700">ВЫПЛАЧЕНО</div><div class="num" style="font-size:17px;color:var(--green);font-weight:800;margin-top:3px">'+fmt0(s.paid)+'</div></div></div>';
+      h+='<div style="display:flex;justify-content:space-between;align-items:center;background:'+(bal<0?'rgba(240,165,0,.10)':(bal>0?'rgba(248,81,73,.10)':'rgba(46,160,67,.08)'))+';border:1px solid '+balCol+';border-radius:8px;padding:10px 12px;margin-bottom:'+(canWrite?'10px':'2px')+'"><span style="font-size:12px;color:var(--mut);font-weight:600;letter-spacing:.5px">'+remIcon+' '+remLbl+'</span><span class="num" style="font-size:19px;color:'+balCol+';font-weight:800">'+remVal+'</span></div>';
+      if(canWrite){
+        h+='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">'
+          +'<button data-noopen="1" data-vol="'+esc(s.id)+'" style="background:rgba(45,212,191,.08);border:1px solid var(--teal);color:var(--teal);border-radius:8px;padding:9px;font-weight:600">+ Объём</button>'
+          +'<button data-noopen="1" data-pay="'+esc(s.id)+'" style="background:rgba(46,160,67,.10);border:1px solid var(--green);color:var(--green);border-radius:8px;padding:9px;font-weight:600">Выплатить</button>'
+          +'<button data-noopen="1" data-restore="'+esc(s.id)+'" style="background:rgba(240,165,0,.08);border:1px solid var(--gold);color:var(--gold);border-radius:8px;padding:9px;font-weight:600">↩️ Вернуть</button></div>';
+      }
+      h+='</div>';
+    });
+  }
   return h;
 }
 function peopleStaff(view, consultOnly){
@@ -4367,6 +4409,11 @@ function renderEntryFields(){
   var meta=(view.objMeta&&view.objMeta[obj])||{};
   var spots=(meta.spots||[]);
   var brigs=(view.brigades||[]).filter(isActiveBrig);
+  // если дописываем объём архивной бригаде — добавим её в список с пометкой, чтобы можно было выбрать
+  if(d.brigade && !brigs.some(function(b){return b.id===d.brigade;})){
+    var _ab=(view.brigades||[]).find(function(b){return b&&b.id===d.brigade;});
+    if(_ab) brigs=brigs.concat([{id:_ab.id, name:(_ab.name||'')+' (архив)'}]);
+  }
   var wt=allWorkTypes(view);
   var amtInput='<input id="in-amt" type="number" inputmode="numeric" placeholder="0" value="'+(d.amount||'')+'"/>';
   var h='';
@@ -5863,10 +5910,12 @@ document.getElementById('app').addEventListener('click', function(e){
   var noopen=e.target.closest && e.target.closest('[data-noopen]');
   var volB=e.target.closest && e.target.closest('[data-vol]');
   var payB=e.target.closest && e.target.closest('[data-pay]');
+  var resB=e.target.closest && e.target.closest('[data-restore]');
   var addS=e.target.closest && e.target.closest('[data-addstaff]');
   var staffC=e.target.closest && e.target.closest('[data-staff]');
   if(volB){ var sid=volB.getAttribute('data-vol'); var bb=(view.brigades||[]).find(function(x){return x.id===sid;}); openEntry({type:'vol', brigade:sid, wtype:bb&&bb.work}); return; }
   if(payB){ openEntry({type:'expense', cat:'Аванс / зарплата рабочим', paySource:'advance', brigade:payB.getAttribute('data-pay')}); return; }
+  if(resB){ var rrid=resB.getAttribute('data-restore'); var rrb=(view.brigades||[]).find(function(x){return x.id===rrid;}); if(confirm('Вернуть бригаду «'+((rrb&&rrb.name)||'')+'» из архива в активные?')){ emit({kind:'brigade.restore', entryId:rrid}); render(); } return; }
   if(addS){ openStaffForm(addS.getAttribute('data-addstaff')==='consult'); return; }
   var edB=e.target.closest && e.target.closest('[data-edit]');
   if(edB){ editBrigadeById(edB.getAttribute('data-edit')); return; }
