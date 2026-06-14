@@ -3640,7 +3640,12 @@ function renderConsultantCabinet(view, app, consultantId){
     +bar('💰','Оплачено · доступно',paidShare,'var(--green)');
   if(blocks.length){ h+='<div style="border-top:1px solid var(--brd);margin:10px 0 6px"></div><div style="font-size:11px;font-weight:800;letter-spacing:.5px;color:var(--mut);margin-bottom:6px">ПО ВАШИМ БЛОКАМ</div>';
     blocks.forEach(function(s){ h+='<div style="display:flex;justify-content:space-between;align-items:center;font-size:12.5px;margin:5px 0"><span style="color:var(--fg);font-weight:700">🏗 '+esc(s.name)+'</span><span><b style="color:var(--teal)">'+fmtm(s.total)+'</b> <span style="color:var(--mut);font-size:10px">вып</span> · <b style="color:var(--green)">'+fmtm(s.paid)+'</b> <span style="color:var(--mut);font-size:10px">опл</span></span></div>'; }); }
-  h+='<div style="font-size:11px;color:var(--mut);margin-top:10px;line-height:1.5">Чем больше построим → подпишем КС-2 → получим оплату, тем больше ваш бонус.</div></div>';
+  var _notPaid=Math.max(0, signed-paidShare), _notSigned=Math.max(0, work-signed); var _step;
+  if(_notPaid>0) _step='<div style="margin-top:10px;padding:11px 12px;border-radius:11px;background:rgba(240,165,0,.12);border:1px solid var(--gold)"><div style="font-size:12.5px;color:var(--gold);font-weight:800">💸 Подписано, но ещё не оплачено: '+fmtm(_notPaid)+' ₸</div><div style="font-size:11.5px;color:var(--fg);margin-top:3px;line-height:1.45">Как только заказчик оплатит — это станет вашим доступным бонусом. <b>Ваш следующий шаг — добиться оплаты.</b></div></div>';
+  else if(_notSigned>0) _step='<div style="margin-top:10px;padding:11px 12px;border-radius:11px;background:rgba(46,160,67,.10);border:1px solid var(--teal)"><div style="font-size:12.5px;color:var(--teal);font-weight:800">📑 Выполнено, но не подписано: '+fmtm(_notSigned)+' ₸</div><div style="font-size:11.5px;color:var(--fg);margin-top:3px;line-height:1.45">Подпишите КС-2 — и бонус двинется к выплате. <b>Ваш следующий шаг — подписание.</b></div></div>';
+  else if(paidShare>0) _step='<div style="margin-top:10px;padding:11px 12px;border-radius:11px;background:rgba(46,160,67,.12);border:1px solid var(--green)"><div style="font-size:12.5px;color:var(--green);font-weight:800">✅ Всё подписанное оплачено</div><div style="font-size:11.5px;color:var(--fg);margin-top:3px;line-height:1.45">Доступно к выплате: '+fmtm(paidShare)+' ₸. Чем больше построим дальше — тем больше ваш бонус.</div></div>';
+  else _step='<div style="font-size:11px;color:var(--mut);margin-top:10px;line-height:1.5">Чем больше построим → подпишем КС-2 → получим оплату, тем больше ваш бонус.</div>';
+  h+=_step+'</div>';
 
   if(viewerIsOwner){
     // ВЛАДЕЛЬЦУ — полная кухня расчёта (формула фонда, процент, вес, доли)
@@ -5465,6 +5470,15 @@ function boot(){
     return; }
   if(!LG.url||!LG.token){ showLogin(); return; }
   setDot('');
+  // При входе/перезаходе сразу перерисовать под текущую роль. Иначе на экране
+  // остаётся кабинет предыдущего пользователя до первого фонового pull, а тот
+  // перерисовывает только при смене версии данных (у того же проекта она не меняется).
+  if(LG.base){ try{
+    LG.sheetStack=[];
+    ['ov-sheet','ov-entry'].forEach(function(id){ var el=document.getElementById(id); if(el) el.classList.remove('show'); });
+    var _dv=document.getElementById('doc-ov'); if(_dv&&_dv.parentNode) _dv.parentNode.removeChild(_dv);
+    render();
+  }catch(e){} }
   pull().then(function(){ return flush(); }).catch(function(e){ if(e!=='unauthorized'){ setDot('err'); render(); } });
 }
 // автоподтягивание чужих изменений и дослыка очереди
