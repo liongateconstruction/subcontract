@@ -1305,6 +1305,12 @@ function emit(ev){
   LG.queue.push(ev); saveQueue(); render();   // оптимистично показываем сразу
   flush();
 }
+/* Пакетная отправка: все события разом, один рендер и один flush (для миграций — напр. переименование объекта) */
+function emitMany(list){
+  if(!list||!list.length) return;
+  list.forEach(function(ev,k){ ev.id='c'+Date.now()+'_'+k+'_'+Math.floor(Math.random()*1e4); LG.queue.push(ev); });
+  saveQueue(); render(); flush();
+}
 
 /* ── РЕНДЕР ───────────────────────────────────────────────────────────────── */
 var fmt = function(n){ n=Math.round(Number(n)||0); var s=Math.abs(n).toLocaleString('ru-RU'); return (n<0?'−':'')+s+' ₸'; };
@@ -1897,7 +1903,7 @@ function renderMore(view, app){
     canWriteLedger()?tile('🆕','var(--teal)','Объект из КП','распознать фото · ставки','openImportKP()'):null,
     canWriteLedger()?tile('🏢','var(--gold)','Реквизиты компании','для всех документов','openCompany()'):null,
     canWriteLedger()?tile('🗂','var(--teal)','Документы компании','устав · лицензия · НДС','openCompanyDocs()'):null,
-    isOwner?tile('🏗','var(--teal)','Объекты','настройки',"MORE.soon('Объекты')"):null,
+    isOwner?tile('🏷️','var(--teal)','Название объекта','переименовать','openRenameObject()'):null,
     isOwner?tile('🗄','#b9c3d0','Архив','объектов','MORE.objArchive()'):null,
     isOwner?tile('💰','var(--gold)','Касса','стартовая сумма','MORE.cash()'):null,
     isOwner?tile('📐','var(--blue)','Нормы','выработки бригад','MORE.norms()'):null,
@@ -2459,6 +2465,7 @@ function openKS2Registry(){
   var custPaid=customerPaid(v);
   var paid=Math.max(st.paid.sum, custPaid);
   var done=totRev, leftToBill=Math.max(0,done-accRev), leftToGet=Math.max(0,done-paid);
+  var retPct=Number(v.retPct)||3; var retention=Math.round(st.paid.sum*retPct/100);   // гарантийное удержание (3%) с ОПЛАЧЕННЫХ актов КС-2
 
   var h='';
   // === ШАПКА НАКОПЛЕНИЯ (всегда видна) ===
@@ -2470,6 +2477,7 @@ function openKS2Registry(){
     + kpi('ОПЛАЧЕНО',paid,'var(--green)')+'<div style="width:1px;background:var(--brd)"></div>'
     + kpi('ОСТАЛОСЬ',leftToGet,'var(--red)')+'</div>';
   h+='<div style="font-size:10px;color:var(--mut);text-align:center;margin-top:5px">'+fmtD(totVol)+' м³ бетона · '+pours.length+' заливок · '+acts.length+' актов'+(leftToBill>0?(' · не в актах '+fmt0(leftToBill)+' ₸'):'')+'</div>';
+  h+='<div style="display:flex;justify-content:center;margin-top:6px"><span style="background:rgba(45,212,191,.1);border:1px solid var(--teal);color:var(--teal);border-radius:8px;padding:4px 11px;font-size:11px;font-weight:700">🔒 Гарантийные '+retPct+'% (с оплаченных): '+fmt0(retention)+' ₸</span></div>';
   // вкладки
   h+='<div style="display:flex;gap:6px;margin-top:8px">';
   [['vol','🧱 Объёмы'],['docs','📑 Документы'],['cum','📈 Накопительно']].forEach(function(t){ var on=(tab===t[0]);
@@ -2581,6 +2589,12 @@ function ks2TabCumulative(v,obj,pours,done,accRev,signedPlus,paid,leftToBill,lef
   h+=fline('Оплачено',paid,'var(--green)',done);
   h+='<div style="display:flex;justify-content:space-between;border-top:1px solid var(--brd);margin-top:6px;padding-top:8px;font-size:13px"><span style="font-weight:700">Осталось получить</span><span class="num" style="font-weight:900;color:var(--red)">'+fmt0(leftToGet)+' ₸</span></div>';
   if(leftToBill>0) h+='<div style="display:flex;justify-content:space-between;font-size:12px;margin-top:4px"><span style="color:var(--mut)">из них ещё не в актах</span><span class="num" style="font-weight:700;color:var(--gold)">'+fmt0(leftToBill)+' ₸</span></div>';
+  var _retPct=Number(v.retPct)||3;
+  var _paidActs=(v.ks2acts||[]).filter(function(a){return a&&a.obj===obj&&actStatus(a)==='paid';}).reduce(function(s,a){return s+(Number(a.total)||0);},0);
+  var _retention=Math.round(_paidActs*_retPct/100);
+  h+='<div style="display:flex;justify-content:space-between;border-top:1px dashed var(--brd);margin-top:8px;padding-top:8px;font-size:12.5px"><span style="color:var(--teal);font-weight:700">🔒 Гарантийное удержание '+_retPct+'% (с оплаченных)</span><span class="num" style="font-weight:800;color:var(--teal)">'+fmt0(_retention)+' ₸</span></div>';
+  if(_paidActs>0) h+='<div style="display:flex;justify-content:space-between;font-size:12px;margin-top:4px"><span style="color:var(--mut)">получено на счёт ('+(100-_retPct)+'% от оплаченных)</span><span class="num" style="font-weight:700;color:var(--green)">'+fmt0(_paidActs-_retention)+' ₸</span></div>';
+  h+='<div style="font-size:10.5px;color:var(--mut);margin-top:3px">'+_retPct+'% удерживается с каждого оплаченного акта КС-2 — заказчик вернёт после гарантийного срока</div>';
   if(custPaid>0&&Math.abs(custPaid-paid)>1) h+='<div style="font-size:11px;color:var(--mut);margin-top:6px">Поступления от заказчика (приходы): '+fmt0(custPaid)+' ₸</div>';
   h+='</div>';
 
@@ -5180,6 +5194,46 @@ function saveKS2Edit(){
   toast('Акт № '+(m.aktnum||'')+' пересохранён');
   LG.ks2EditAct=null; LG.ks2Tab='docs';
   openKS2Registry();
+}
+/* ── ПЕРЕИМЕНОВАНИЕ ОБЪЕКТА (безопасная миграция: имя — это ключ связи данных) ── */
+function openRenameObject(){
+  if((LG.role||'')!=='owner'){ toast('Переименовать может только владелец'); return; }
+  var v=projected(LG.base,LG.queue); var old=(v.objects||[])[0]||'';
+  var nEnt=(v.entries||[]).filter(function(e){return e&&e.obj===old;}).length;
+  var nAct=(v.ks2acts||[]).filter(function(a){return a&&a.obj===old;}).length+(v.ks3acts||[]).filter(function(a){return a&&a.obj===old;}).length;
+  var h='<div style="font-size:12px;color:var(--mut);margin-bottom:6px">Текущее название</div>';
+  h+='<div style="background:var(--sur2);border:1px solid var(--brd);border-radius:9px;padding:11px;font-weight:700;margin-bottom:14px;word-break:break-word">'+esc(old||'—')+'</div>';
+  h+='<div style="font-size:12px;color:var(--mut);margin-bottom:5px">Новое название (как в договоре)</div>';
+  h+='<input id="rn-newname" value="'+esc(old)+'" style="width:100%;background:var(--bg);border:1px solid var(--gold);color:var(--fg);border-radius:9px;padding:11px;font-size:14px;box-sizing:border-box;margin-bottom:8px">';
+  h+='<div style="margin-bottom:12px"><span style="font-size:11px;color:var(--mut)">По договору/застройщику: </span><button onclick="var i=document.getElementById(\'rn-newname\'); if(i){ i.value=\'ЖК Qaharman, 1 очередь\'; }" style="background:rgba(240,165,0,.1);border:1px solid var(--gold);color:var(--gold);border-radius:8px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer">ЖК Qaharman, 1 очередь</button></div>';
+  h+='<div style="background:rgba(240,165,0,.08);border:1px solid rgba(240,165,0,.3);border-radius:10px;padding:11px;font-size:12px;color:var(--mut);line-height:1.55;margin-bottom:14px">Будет обновлено разом: <b>'+nEnt+'</b> операций, <b>'+nAct+'</b> актов, настройки объекта (пятна, расценки, файлы) и название в новых бланках КС-2.<br>Уже распечатанные акты сохранят прежний текст — при необходимости открой и пересохрани их в «Документах».</div>';
+  h+='<button onclick="doRenameObject()" style="width:100%;background:var(--gold);color:#0d1117;border:none;border-radius:10px;padding:14px;font-size:14px;font-weight:800;cursor:pointer">🏷️ Переименовать объект</button>';
+  lgSheet('🏷️ Название объекта', h);
+}
+function doRenameObject(){
+  if((LG.role||'')!=='owner'){ toast('Только владелец'); return; }
+  var el=document.getElementById('rn-newname'); var nn=el?el.value.trim():'';
+  var v=projected(LG.base,LG.queue); var old=(v.objects||[])[0]||'';
+  if(!nn){ toast('Введите новое название'); return; }
+  if(nn===old){ toast('Название не изменилось'); return; }
+  if(typeof confirm==='function' && !confirm('Переименовать объект:\n\n«'+old+'»\n→\n«'+nn+'»\n\nОбновятся все операции, акты и настройки. Продолжить?')) return;
+  var events=[];
+  var objects=(Array.isArray(v.objects)?v.objects.slice():[]).map(function(o){ return o===old?nn:o; });
+  if(objects.indexOf(nn)<0) objects=[nn];
+  events.push({kind:'meta.set', key:'objects', value:objects});
+  var meta=JSON.parse(JSON.stringify(v.objMeta||{}));
+  if(meta[old]!=null){ meta[nn]=meta[old]; if(nn!==old) delete meta[old]; }
+  events.push({kind:'meta.set', key:'objMeta', value:meta});
+  var km=Object.assign({}, v.ks2meta||{});
+  if(!km.stroyka||km.stroyka===old) km.stroyka=nn;
+  if(!km.object||km.object===old)  km.object=nn;
+  events.push({kind:'meta.set', key:'ks2meta', value:km});
+  (v.entries||[]).forEach(function(e){ if(e&&e.obj===old) events.push({kind:'entry.edit', entryId:e.id, payload:{obj:nn}}); });
+  (v.ks2acts||[]).forEach(function(a){ if(a&&a.obj===old) events.push({kind:'ks2.add', payload:Object.assign({}, a, {obj:nn})}); });
+  (v.ks3acts||[]).forEach(function(a){ if(a&&a.obj===old) events.push({kind:'ks3.add', payload:Object.assign({}, a, {obj:nn})}); });
+  emitMany(events);
+  lgCloseSheet();
+  toast('Объект переименован: '+nn);
 }
 function openSavedKS2(id){ var view=projected(LG.base,LG.queue); var a=(view.ks2acts||[]).find(function(x){return x.id===id;}); if(a&&a.html) openDocViewer(a.html,'КС-2 № '+(a.aktnum||'')); }
 function openSavedKS3(id){ var view=projected(LG.base,LG.queue); var a=(view.ks3acts||[]).find(function(x){return x.id===id;}); if(a&&a.html) openDocViewer(a.html,'КС-3 № '+(a.num||'')); }
