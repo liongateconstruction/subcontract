@@ -493,6 +493,29 @@ function projected(baseState, queue){
 // ── ДВИЖОК ПРИБЫЛИ (порт из старого приложения: marginObject/dueFromCustomer) ──
 // Выручка = только БЕТОННЫЕ объёмы × расценка заказчика. Армирование = НЗП (будущая выручка).
 function objMetaOf(state,obj){ return (state.objMeta&&state.objMeta[obj])||{}; }
+/* Реквизиты для документов — из карточки объекта (objMeta[obj].reqs); если пусто — общий ks2meta; иначе умолчания. Подрядчик общий по умолчанию, заказчик/объект/договор/удержание — у каждого объекта свои. */
+function objReqs(view, obj){
+  obj = obj || ((view&&view.objects)||[])[0] || '';
+  var m = (view && view.objMeta && view.objMeta[obj]) || {};
+  var r = m.reqs || {};
+  var km = (view && view.ks2meta) || {};
+  function pk(a,b,c){ return (a!=null&&a!=='')?a:((b!=null&&b!=='')?b:c); }
+  return {
+    podryad:    pk(r.podryad,    km.podryad,    'ТОО «LionGate Construction»'),
+    podryadBin: pk(r.podryadBin, km.podryadBin, '250940032289'),
+    podryadRuk: pk(r.podryadRuk, km.podryadRuk, 'Ерсін Нұрсұлтан Ерланұлы'),
+    zakazchik:  pk(r.zakazchik,  km.zakazchik,  'ТОО «Arena Estate»'),
+    zakBin:     pk(r.zakBin,     km.zakBin,     '220940009615'),
+    zakAddr:    pk(r.zakAddr,    km.zakAddr,    '050012, г. Алматы, БЦ «TURAR», пр. Сейфуллина 502, 8 этаж'),
+    zakRuk:     pk(r.zakRuk,     km.zakRuk,     'Бекбанов А.С.'),
+    stroyka:    pk(r.stroyka,    km.stroyka,    obj),
+    object:     pk(r.object,     km.object,     obj),
+    contractNo:   pk(r.contractNo,   km.contractNo,   ''),
+    contractDate: pk(r.contractDate, km.contractDate, ''),
+    aktnum:     pk(r.aktnum,     km.aktnum,     '1'),
+    retPct:     Number(r.retPct!=null?r.retPct:(view&&view.retPct))||3
+  };
+}
 function custRatesList(state,obj){ var m=objMetaOf(state,obj); return (m.custRates||[]).filter(function(r){return r&&r.rate>0;}); }
 function custRate(state,obj,constr){ var m=objMetaOf(state,obj); return (m.rates&&m.rates[constr])||0; }
 function rateForEntry(state,e){
@@ -1901,6 +1924,7 @@ function renderMore(view, app){
   h+=section('НАСТРОЙКИ',[
     canWriteLedger()?tile('📋','var(--gold)','Справочник расценок','цены для рабочих · общие','openRateCard()'):null,
     canWriteLedger()?tile('🆕','var(--teal)','Объект из КП','распознать фото · ставки','openImportKP()'):null,
+    canWriteLedger()?tile('📄','var(--blue)','Договор → объект','реквизиты · удержание · ставки','openImportContract()'):null,
     canWriteLedger()?tile('🏢','var(--gold)','Реквизиты компании','для всех документов','openCompany()'):null,
     canWriteLedger()?tile('🗂','var(--teal)','Документы компании','устав · лицензия · НДС','openCompanyDocs()'):null,
     isOwner?tile('🏷️','var(--teal)','Название объекта','переименовать','openRenameObject()'):null,
@@ -2465,7 +2489,7 @@ function openKS2Registry(){
   var custPaid=customerPaid(v);
   var paid=Math.max(st.paid.sum, custPaid);
   var done=totRev, leftToBill=Math.max(0,done-accRev), leftToGet=Math.max(0,done-paid);
-  var retPct=Number(v.retPct)||3; var retention=Math.round(st.paid.sum*retPct/100);   // гарантийное удержание (3%) с ОПЛАЧЕННЫХ актов КС-2
+  var retPct=objReqs(v,obj).retPct; var retention=Math.round(st.paid.sum*retPct/100);   // гарантийное удержание (3%) с ОПЛАЧЕННЫХ актов КС-2
 
   var h='';
   // === ШАПКА НАКОПЛЕНИЯ (всегда видна) ===
@@ -2589,7 +2613,7 @@ function ks2TabCumulative(v,obj,pours,done,accRev,signedPlus,paid,leftToBill,lef
   h+=fline('Оплачено',paid,'var(--green)',done);
   h+='<div style="display:flex;justify-content:space-between;border-top:1px solid var(--brd);margin-top:6px;padding-top:8px;font-size:13px"><span style="font-weight:700">Осталось получить</span><span class="num" style="font-weight:900;color:var(--red)">'+fmt0(leftToGet)+' ₸</span></div>';
   if(leftToBill>0) h+='<div style="display:flex;justify-content:space-between;font-size:12px;margin-top:4px"><span style="color:var(--mut)">из них ещё не в актах</span><span class="num" style="font-weight:700;color:var(--gold)">'+fmt0(leftToBill)+' ₸</span></div>';
-  var _retPct=Number(v.retPct)||3;
+  var _retPct=objReqs(v,obj).retPct;
   var _paidActs=(v.ks2acts||[]).filter(function(a){return a&&a.obj===obj&&actStatus(a)==='paid';}).reduce(function(s,a){return s+(Number(a.total)||0);},0);
   var _retention=Math.round(_paidActs*_retPct/100);
   h+='<div style="display:flex;justify-content:space-between;border-top:1px dashed var(--brd);margin-top:8px;padding-top:8px;font-size:12.5px"><span style="color:var(--teal);font-weight:700">🔒 Гарантийное удержание '+_retPct+'% (с оплаченных)</span><span class="num" style="font-weight:800;color:var(--teal)">'+fmt0(_retention)+' ₸</span></div>';
@@ -5032,7 +5056,7 @@ function openKS2Builder(obj){
   var view=projected(LG.base, LG.queue);
   var items=ks2Items(view,obj);
   if(!items.length){ lgSheet('КС-2','<div class="empty" style="padding:30px 10px">Нет неподписанных работ для акта — весь объём уже включён в акты.</div>'); return; }
-  var km=(view.ks2meta)||{}; var meta=(view.objMeta&&view.objMeta[obj])||{}; var customer=meta.customer||'Sensata Group';
+  var km=objReqs(view,obj); var meta=(view.objMeta&&view.objMeta[obj])||{}; var customer=meta.customer||'Sensata Group';
   var defPeriod=new Date().toLocaleDateString('ru-RU',{month:'long',year:'numeric'});
   var crList=(meta.custRates||[]).filter(function(r){return r&&r.rate>0;});
   function dn(e){ if(e.struct){ var ex=crList.find(function(r){return r.wtype===e.struct;}); if(ex)return ex.wtype; return e.struct; } if(crList.length===1)return crList[0].wtype; return e.wtype||'Работы'; }
@@ -5045,7 +5069,10 @@ function openKS2Builder(obj){
   h+=fld('ks2-podryadRuk','Руководитель',km.podryadRuk||'Ерсін Нұрсұлтан Ерланұлы');
   h+='</div>';
   h+='<div style="background:var(--sur2);border:1px solid var(--brd);border-radius:10px;padding:12px;margin-bottom:10px"><div style="font-size:11px;color:var(--teal);letter-spacing:1px;font-weight:700;margin-bottom:8px">ЗАКАЗЧИК · ОБЪЕКТ</div>';
-  h+=fld('ks2-zak','Заказчик',km.zakazchik||customer);
+  h+=fld('ks2-zak','Заказчик (юр. лицо для документов)',km.zakazchik||'ТОО «Arena Estate»');
+  h+=fld('ks2-zakbin','БИН заказчика',km.zakBin||'220940009615');
+  h+=fld('ks2-zakaddr','Адрес заказчика',km.zakAddr||'050012, г. Алматы, БЦ «TURAR», пр. Сейфуллина 502, 8 этаж');
+  h+=fld('ks2-zakruk','Директор заказчика',km.zakRuk||'Бекбанов А.С.');
   h+=fld('ks2-stroyka','Стройка',km.stroyka||obj);
   h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div>'+fld('ks2-aktnum','Акт №',km.aktnum||'1')+'</div><div>'+fld('ks2-period','Период',defPeriod)+'</div></div>';
   h+='</div>';
@@ -5065,17 +5092,17 @@ function openKS2Builder(obj){
 }
 function generateKS2(obj){
   var view=projected(LG.base, LG.queue);
-  var km=Object.assign({}, view.ks2meta||{});
+  var km=Object.assign({}, objReqs(view,obj));
   function gx(id){ var el=document.getElementById(id); return el?el.value.trim():''; }
   km.podryad=gx('ks2-podryad'); km.podryadBin=gx('ks2-podryadBin'); km.podryadRuk=gx('ks2-podryadRuk');
-  km.zakazchik=gx('ks2-zak'); km.stroyka=gx('ks2-stroyka'); km.object=km.stroyka; km.aktnum=gx('ks2-aktnum');
+  km.zakazchik=gx('ks2-zak'); km.zakBin=gx('ks2-zakbin'); km.zakAddr=gx('ks2-zakaddr'); km.zakRuk=gx('ks2-zakruk'); km.stroyka=gx('ks2-stroyka'); km.object=km.stroyka; km.aktnum=gx('ks2-aktnum');
   var period=gx('ks2-period');
   var byName={}; for(var i=0;i<(LG.ks2groups||0);i++){ var nEl=document.getElementById('ks2-name-'+i); if(!nEl)continue; var nm=(nEl.value||'Работы').trim(); var unit=nEl.getAttribute('data-unit')||'м³'; var vol=parseFloat((document.getElementById('ks2-vol-'+i)||{}).value)||0; var rate=parseFloat((document.getElementById('ks2-rate-'+i)||{}).value)||0; if(vol<=0&&rate<=0)continue; if(!byName[nm])byName[nm]={vol:0,rev:0,unit:unit}; byName[nm].vol+=vol; byName[nm].rev+=vol*rate; }
   var lines=Object.keys(byName).map(function(k){ var g=byName[k]; return {name:k, unit:g.unit, vol:g.vol, rate:g.vol>0?Math.round(g.rev/g.vol):0}; });
   var dateStr=new Date().toLocaleDateString('ru-RU');
   var built=ks2BuildDoc(km, lines, period, dateStr); var doc=built.html, total=built.total;
   var actId='ks2_'+Date.now();
-  emit({kind:'meta.set', key:'ks2meta', value:km});
+  var _om=JSON.parse(JSON.stringify(view.objMeta||{})); _om[obj]=_om[obj]||{}; _om[obj].reqs=Object.assign({}, _om[obj].reqs||{}, {podryad:km.podryad,podryadBin:km.podryadBin,podryadRuk:km.podryadRuk,zakazchik:km.zakazchik,zakBin:km.zakBin,zakAddr:km.zakAddr,zakRuk:km.zakRuk,stroyka:km.stroyka,object:km.object,aktnum:km.aktnum}); emit({kind:'meta.set', key:'objMeta', value:_om});
   emit({kind:'ks2.add', payload:{id:actId, obj:obj, aktnum:km.aktnum||'1', period:period, date:dateStr, total:total, html:doc, createdAt:Date.now(), status:'prepared', lines:lines}});
   // помечаем включённые работы как принятые
   ks2Items(view,obj).forEach(function(e){ emit({kind:'entry.edit', entryId:e.id, payload:{accepted:true, acceptedAt:dateStr}}); });
@@ -5086,19 +5113,19 @@ function openKS3Builder(obj){
   var view=projected(LG.base, LG.queue);
   var acts=(view.ks2acts||[]).filter(function(a){return a.obj===obj;});
   if(!acts.length){ lgSheet('КС-3','<div class="empty" style="padding:30px 10px">Сначала сформируйте хотя бы один акт КС-2.</div>'); return; }
-  var km=(view.ks2meta)||{}; var sum=acts.reduce(function(s,a){return s+(a.total||0);},0); var vat=Math.round(sum*0.16); var withVat=sum+vat;
+  var km=objReqs(view,obj); var sum=acts.reduce(function(s,a){return s+(a.total||0);},0); var vat=Math.round(sum*0.16); var withVat=sum+vat;
   var dateStr=new Date().toLocaleDateString('ru-RU'); var period=new Date().toLocaleDateString('ru-RU',{month:'long',year:'numeric'});
   var num=String((view.ks3acts||[]).length+1);
   var rows=acts.map(function(a,i){ return '<tr><td style="text-align:center">'+(i+1)+'</td><td>Акт КС-2 № '+esc(a.aktnum||'')+' за '+esc(a.period||'')+'</td><td style="text-align:right">'+fmt0(a.total)+'</td></tr>'; }).join('');
   var doc='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>КС-3 '+esc(obj)+'</title><style>@page{size:A4;margin:14mm}body{font-family:Arial,sans-serif;font-size:13px;color:#000;padding:10px}.title{text-align:center;font-size:16px;font-weight:bold;margin:14px 0 4px}.subtitle{text-align:center;font-size:13px;margin-bottom:14px}.meta td{padding:2px 6px}.meta .lbl{color:#555}table.work{width:100%;border-collapse:collapse;margin:14px 0}table.work th,table.work td{border:1px solid #000;padding:6px 8px}table.work th{background:#f0f0f0}.r{text-align:right}.tr td{font-weight:bold;background:#fafafa}.signs{display:flex;justify-content:space-between;margin-top:40px}.sign{width:45%}.sign-line{border-bottom:1px solid #000;height:30px;margin-bottom:4px}</style></head><body>'
     +'<div style="text-align:right;font-size:12px">Типовая форма № КС-3</div><div class="title">СПРАВКА № '+esc(num)+'</div><div class="subtitle">о стоимости выполненных работ и затрат за '+esc(period)+'</div>'
-    +'<table class="meta"><tr><td class="lbl">Подрядчик:</td><td><b>'+esc(km.podryad||'ТОО «LionGate Construction»')+'</b></td></tr><tr><td class="lbl">Заказчик:</td><td><b>'+esc(km.zakazchik||'Sensata Group')+'</b></td></tr><tr><td class="lbl">Стройка:</td><td><b>'+esc(km.stroyka||obj)+'</b></td></tr><tr><td class="lbl">Дата:</td><td><b>'+dateStr+'</b></td></tr></table>'
+    +'<table class="meta"><tr><td class="lbl">Подрядчик:</td><td><b>'+esc(km.podryad||'ТОО «LionGate Construction»')+'</b></td></tr><tr><td class="lbl">Заказчик:</td><td><b>'+esc(km.zakazchik||'ТОО «Arena Estate»')+(km.zakBin?', БИН '+esc(km.zakBin):'')+'</b></td></tr><tr><td class="lbl">Стройка:</td><td><b>'+esc(km.stroyka||obj)+'</b></td></tr><tr><td class="lbl">Дата:</td><td><b>'+dateStr+'</b></td></tr></table>'
     +'<table class="work"><thead><tr><th style="width:40px">№</th><th>Наименование</th><th style="width:140px">Стоимость, ₸</th></tr></thead><tbody>'+rows
     +'<tr class="tr"><td colspan="2" class="r">Итого без НДС:</td><td class="r">'+fmt0(sum)+'</td></tr>'
     +'<tr><td colspan="2" class="r">НДС 16%:</td><td class="r">'+fmt0(vat)+'</td></tr>'
     +'<tr class="tr"><td colspan="2" class="r">Всего с НДС:</td><td class="r">'+fmt0(withVat)+'</td></tr></tbody></table>'
     +'<div style="font-style:italic;margin:10px 0">Всего выполнено работ с НДС на сумму: <b>'+fmt0(withVat)+' ₸</b> ('+numToWordsRu(withVat)+')</div>'
-    +'<div class="signs"><div class="sign"><div style="font-weight:bold;margin-bottom:8px">Подрядчик:</div><div class="sign-line"></div><div style="margin-top:8px;font-weight:600">'+esc(km.podryad||'ТОО «LionGate Construction»')+'</div></div><div class="sign"><div style="font-weight:bold;margin-bottom:8px">Заказчик:</div><div class="sign-line"></div><div style="margin-top:8px;font-weight:600">'+esc(km.zakazchik||'Sensata Group')+'</div></div></div></body></html>';
+    +'<div class="signs"><div class="sign"><div style="font-weight:bold;margin-bottom:8px">Подрядчик:</div><div class="sign-line"></div><div style="margin-top:8px;font-weight:600">'+esc(km.podryad||'ТОО «LionGate Construction»')+'</div></div><div class="sign"><div style="font-weight:bold;margin-bottom:8px">Заказчик:</div><div class="sign-line"></div><div style="margin-top:8px;font-weight:600">'+esc(km.zakazchik||'ТОО «Arena Estate»')+'</div></div></div></body></html>';
   var id='ks3_'+Date.now();
   emit({kind:'ks3.add', payload:{id:id, obj:obj, num:num, period:period, date:dateStr, total:sum, withVat:withVat, html:doc, createdAt:Date.now()}});
   lgCloseSheet(); render();
@@ -5113,10 +5140,10 @@ function ks2BuildDoc(km, lines, period, dateStr){
   var doc='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>КС-2 '+esc(obj)+'</title><style>@page{size:A4 landscape;margin:12mm}body{font-family:Arial,sans-serif;font-size:13px;color:#000;padding:10px}.head-form{text-align:right;font-size:12px;margin-bottom:8px}.title{text-align:center;font-size:16px;font-weight:bold;margin:14px 0 4px}.subtitle{text-align:center;font-size:13px;margin-bottom:14px}.meta{width:100%;font-size:13px;margin-bottom:6px}.meta td{padding:2px 6px;vertical-align:top}.meta .lbl{color:#555;width:170px}.meta .val{border-bottom:1px solid #000;font-weight:600}table.work{width:100%;border-collapse:collapse;margin:14px 0;font-size:12px}table.work th,table.work td{border:1px solid #000;padding:5px 6px}table.work th{background:#f0f0f0;text-align:center;font-weight:bold}.total-row td{font-weight:bold;background:#fafafa}.r{text-align:right}.words{font-size:13px;margin:10px 0;font-style:italic}.signs{display:flex;justify-content:space-between;margin-top:40px;font-size:13px}.sign{width:45%}.sign-line{border-bottom:1px solid #000;height:30px;margin-bottom:4px}.sign-label{color:#555;font-size:12px}</style></head><body>'
     +'<div class="head-form">Типовая форма № КС-2<br>Утверждена приказом № 170 от 02.05.2012</div>'
     +'<div class="title">АКТ № '+esc(km.aktnum||'1')+'</div><div class="subtitle">приёмки выполненных работ за '+esc(period)+'</div>'
-    +'<table class="meta"><tbody><tr><td class="lbl">Подрядчик:</td><td class="val">'+esc(km.podryad)+(km.podryadBin?', БИН '+esc(km.podryadBin):'')+'</td></tr><tr><td class="lbl">Заказчик (Генподрядчик):</td><td class="val">'+esc(km.zakazchik)+'</td></tr><tr><td class="lbl">Стройка:</td><td class="val">'+esc(km.stroyka)+'</td></tr><tr><td class="lbl">Объект:</td><td class="val">'+esc(km.object)+'</td></tr><tr><td class="lbl">Дата составления:</td><td class="val">'+esc(dateStr)+'</td></tr></tbody></table>'
+    +'<table class="meta"><tbody><tr><td class="lbl">Подрядчик:</td><td class="val">'+esc(km.podryad)+(km.podryadBin?', БИН '+esc(km.podryadBin):'')+'</td></tr><tr><td class="lbl">Заказчик (Генподрядчик):</td><td class="val">'+esc(km.zakazchik)+(km.zakBin?', БИН '+esc(km.zakBin):'')+(km.zakAddr?'<br>'+esc(km.zakAddr):'')+'</td></tr><tr><td class="lbl">Стройка:</td><td class="val">'+esc(km.stroyka)+'</td></tr><tr><td class="lbl">Объект:</td><td class="val">'+esc(km.object)+'</td></tr><tr><td class="lbl">Дата составления:</td><td class="val">'+esc(dateStr)+'</td></tr></tbody></table>'
     +'<table class="work"><thead><tr><th style="width:35px">№</th><th>Наименование работ</th><th style="width:75px">Расценка</th><th style="width:60px">Ед.</th><th style="width:75px">Кол-во</th><th style="width:90px">Цена, ₸</th><th style="width:110px">Стоимость, ₸</th></tr></thead><tbody>'+rows+'<tr class="total-row"><td colspan="6" class="r">ИТОГО:</td><td class="r">'+fmt0(total)+'</td></tr></tbody></table>'
     +'<div class="words">Всего выполнено работ на сумму: <b>'+fmt0(total)+' ₸</b> ('+numToWordsRu(total)+')</div>'
-    +'<div class="signs"><div class="sign"><div style="font-weight:bold;margin-bottom:8px">Сдал (Подрядчик):</div><div class="sign-line"></div><div class="sign-label">подпись, М.П.</div><div style="margin-top:10px;font-weight:600">'+esc(km.podryad)+'</div>'+(km.podryadRuk?'<div style="margin-top:4px">Руководитель: '+esc(km.podryadRuk)+'</div>':'')+'</div><div class="sign"><div style="font-weight:bold;margin-bottom:8px">Принял (Заказчик):</div><div class="sign-line"></div><div class="sign-label">подпись, М.П.</div><div style="margin-top:10px;font-weight:600">'+esc(km.zakazchik)+'</div></div></div></body></html>';
+    +'<div class="signs"><div class="sign"><div style="font-weight:bold;margin-bottom:8px">Сдал (Подрядчик):</div><div class="sign-line"></div><div class="sign-label">подпись, М.П.</div><div style="margin-top:10px;font-weight:600">'+esc(km.podryad)+'</div>'+(km.podryadRuk?'<div style="margin-top:4px">Руководитель: '+esc(km.podryadRuk)+'</div>':'')+'</div><div class="sign"><div style="font-weight:bold;margin-bottom:8px">Принял (Заказчик):</div><div class="sign-line"></div><div class="sign-label">подпись, М.П.</div><div style="margin-top:10px;font-weight:600">'+esc(km.zakazchik)+'</div>'+(km.zakRuk?'<div style="margin-top:4px">Руководитель: '+esc(km.zakRuk)+'</div>':'')+'</div></div></body></html>';
   return {html:doc, total:total};
 }
 /* Восстановить строки из сохранённого бланка (для старых актов без поля lines) */
@@ -5134,13 +5161,13 @@ function ks2LinesFromHtml(html){
 function openKS2Edit(id){
   if(!canWriteLedger()){ toast('Только владелец/учётчица'); return; }
   var v=projected(LG.base,LG.queue); var a=(v.ks2acts||[]).find(function(x){return x&&x.id===id;}); if(!a){ toast('Акт не найден'); return; }
-  var km=Object.assign({}, v.ks2meta||{});
+  var km=objReqs(v,a.obj);
   LG.ks2EditAct=id;
   LG.ks2EditLines=(Array.isArray(a.lines)&&a.lines.length)
     ? a.lines.map(function(l){ return {name:l.name||'', unit:l.unit||'м³', vol:Number(l.vol)||0, rate:Number(l.rate)||0}; })
     : ks2LinesFromHtml(a.html);
   if(!LG.ks2EditLines.length) LG.ks2EditLines=[{name:'Работы',unit:'м³',vol:0,rate:0}];
-  LG.ks2EditMeta={ aktnum:a.aktnum||'1', period:a.period||'', podryad:km.podryad||'ТОО «LionGate Construction»', podryadBin:km.podryadBin||'', podryadRuk:km.podryadRuk||'', zakazchik:km.zakazchik||((v.objMeta&&v.objMeta[a.obj]&&v.objMeta[a.obj].customer)||''), stroyka:km.stroyka||a.obj };
+  LG.ks2EditMeta={ aktnum:a.aktnum||'1', period:a.period||'', podryad:km.podryad||'ТОО «LionGate Construction»', podryadBin:km.podryadBin||'', podryadRuk:km.podryadRuk||'', zakazchik:km.zakazchik||'ТОО «Arena Estate»', zakBin:km.zakBin||'220940009615', zakAddr:km.zakAddr||'050012, г. Алматы, БЦ «TURAR», пр. Сейфуллина 502, 8 этаж', zakRuk:km.zakRuk||'Бекбанов А.С.', stroyka:km.stroyka||a.obj };
   ks2EditRender();
 }
 function ks2EditRender(){
@@ -5149,7 +5176,7 @@ function ks2EditRender(){
   var h='<div style="font-size:12px;color:var(--gold);letter-spacing:.5px;font-weight:700;margin-bottom:10px">РЕДАКТИРОВАНИЕ АКТА КС-2 № '+esc(m.aktnum||'')+'</div>';
   h+='<div style="background:var(--sur2);border:1px solid var(--brd);border-radius:10px;padding:12px;margin-bottom:10px">';
   h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div>'+fld('ke-aktnum','Акт №',m.aktnum)+'</div><div>'+fld('ke-period','Период',m.period)+'</div></div>';
-  h+=fld('ke-podryad','Подрядчик',m.podryad)+fld('ke-podryadBin','БИН',m.podryadBin)+fld('ke-podryadRuk','Руководитель',m.podryadRuk)+fld('ke-zak','Заказчик',m.zakazchik)+fld('ke-stroyka','Стройка / объект',m.stroyka);
+  h+=fld('ke-podryad','Подрядчик',m.podryad)+fld('ke-podryadBin','БИН',m.podryadBin)+fld('ke-podryadRuk','Руководитель',m.podryadRuk)+fld('ke-zak','Заказчик (юр. лицо)',m.zakazchik)+fld('ke-zakbin','БИН заказчика',m.zakBin)+fld('ke-zakaddr','Адрес заказчика',m.zakAddr)+fld('ke-zakruk','Директор заказчика',m.zakRuk)+fld('ke-stroyka','Стройка / объект',m.stroyka);
   h+='</div>';
   h+='<div style="font-size:12px;color:var(--mut);letter-spacing:1px;font-weight:700;margin:8px 0">СОСТАВ РАБОТ</div>';
   var total=0;
@@ -5171,7 +5198,7 @@ function ks2EditRender(){
 function ks2EditSnapshot(){
   function gv(id){ var el=document.getElementById(id); return el?el.value:''; }
   var m=LG.ks2EditMeta||{};
-  if(document.getElementById('ke-aktnum')){ m.aktnum=gv('ke-aktnum')||m.aktnum; m.period=gv('ke-period'); m.podryad=gv('ke-podryad'); m.podryadBin=gv('ke-podryadBin'); m.podryadRuk=gv('ke-podryadRuk'); m.zakazchik=gv('ke-zak'); m.stroyka=gv('ke-stroyka'); }
+  if(document.getElementById('ke-aktnum')){ m.aktnum=gv('ke-aktnum')||m.aktnum; m.period=gv('ke-period'); m.podryad=gv('ke-podryad'); m.podryadBin=gv('ke-podryadBin'); m.podryadRuk=gv('ke-podryadRuk'); m.zakazchik=gv('ke-zak'); m.zakBin=gv('ke-zakbin'); m.zakAddr=gv('ke-zakaddr'); m.zakRuk=gv('ke-zakruk'); m.stroyka=gv('ke-stroyka'); }
   LG.ks2EditMeta=m;
   var lines=LG.ks2EditLines||[];
   lines.forEach(function(g,i){ if(document.getElementById('ke-name-'+i)){ g.name=gv('ke-name-'+i); g.unit=gv('ke-unit-'+i)||'м³'; g.vol=parseFloat(gv('ke-vol-'+i))||0; g.rate=parseFloat(gv('ke-rate-'+i))||0; } });
@@ -5186,10 +5213,10 @@ function saveKS2Edit(){
   var m=LG.ks2EditMeta||{};
   var lines=(LG.ks2EditLines||[]).filter(function(g){ return (Number(g.vol)||0)>0 || (Number(g.rate)||0)>0 || (g.name||'').trim(); });
   if(!lines.length){ toast('Добавьте хотя бы одну строку'); return; }
-  var km=Object.assign({}, v.ks2meta||{}, {podryad:m.podryad, podryadBin:m.podryadBin, podryadRuk:m.podryadRuk, zakazchik:m.zakazchik, stroyka:m.stroyka, object:m.stroyka, aktnum:m.aktnum});
+  var km=Object.assign({}, objReqs(v,a.obj), {podryad:m.podryad, podryadBin:m.podryadBin, podryadRuk:m.podryadRuk, zakazchik:m.zakazchik, zakBin:m.zakBin, zakAddr:m.zakAddr, zakRuk:m.zakRuk, stroyka:m.stroyka, object:m.stroyka, aktnum:m.aktnum});
   var dateStr=a.date||new Date().toLocaleDateString('ru-RU');
   var built=ks2BuildDoc(km, lines, m.period, dateStr);
-  emit({kind:'meta.set', key:'ks2meta', value:km});
+  var _om=JSON.parse(JSON.stringify(v.objMeta||{})); _om[a.obj]=_om[a.obj]||{}; _om[a.obj].reqs=Object.assign({}, _om[a.obj].reqs||{}, {podryad:km.podryad,podryadBin:km.podryadBin,podryadRuk:km.podryadRuk,zakazchik:km.zakazchik,zakBin:km.zakBin,zakAddr:km.zakAddr,zakRuk:km.zakRuk,stroyka:km.stroyka,object:km.object,aktnum:km.aktnum}); emit({kind:'meta.set', key:'objMeta', value:_om});
   emit({kind:'ks2.add', payload:Object.assign({}, a, {aktnum:m.aktnum||'1', period:m.period, total:built.total, html:built.html, lines:lines})});
   toast('Акт № '+(m.aktnum||'')+' пересохранён');
   LG.ks2EditAct=null; LG.ks2Tab='docs';
@@ -5223,6 +5250,7 @@ function doRenameObject(){
   events.push({kind:'meta.set', key:'objects', value:objects});
   var meta=JSON.parse(JSON.stringify(v.objMeta||{}));
   if(meta[old]!=null){ meta[nn]=meta[old]; if(nn!==old) delete meta[old]; }
+  if(meta[nn]&&meta[nn].reqs){ if(!meta[nn].reqs.stroyka||meta[nn].reqs.stroyka===old) meta[nn].reqs.stroyka=nn; if(!meta[nn].reqs.object||meta[nn].reqs.object===old) meta[nn].reqs.object=nn; }
   events.push({kind:'meta.set', key:'objMeta', value:meta});
   var km=Object.assign({}, v.ks2meta||{});
   if(!km.stroyka||km.stroyka===old) km.stroyka=nn;
@@ -5271,13 +5299,13 @@ function openDocsHub(){
   lgSheet('📄 Документы', h);
 }
 function hactPrefill(){
-  var view=projected(LG.base,LG.queue); var obj=(view.objects||[])[0]||''; var meta=(view.objMeta&&view.objMeta[obj])||{}; var km=view.ks2meta||{};
+  var view=projected(LG.base,LG.queue); var obj=(view.objects||[])[0]||''; var meta=(view.objMeta&&view.objMeta[obj])||{}; var km=objReqs(view,obj);
   var seen={}, works=[];
   (view.entries||[]).filter(function(e){return e&&e.type==='vol'&&isConcrete(view,e);}).slice().sort(entryCmp).slice(0,40).forEach(function(e){
     var w=(e.wtype||'Бетонные работы'), u=(e.unit||'м³'), k=w+'|'+u;
     if(!seen[k]){ seen[k]={wtype:w,vol:0,unit:u}; works.push(seen[k]); } seen[k].vol+=Number(e.volume)||0;
   });
-  return { num:String(((view.actsHidden||[]).length)+1), date:new Date().toLocaleDateString('ru-RU'), podryad:km.podryad||'ТОО «LionGate Construction»', zakazchik:km.zakazchik||meta.customer||'', object:km.stroyka||obj||'', allow:'разрешается производство последующих работ', works:works.length?works:[{wtype:'',vol:'',unit:'м³'}] };
+  return { num:String(((view.actsHidden||[]).length)+1), date:new Date().toLocaleDateString('ru-RU'), podryad:km.podryad||'ТОО «LionGate Construction»', zakazchik:km.zakazchik||'ТОО «Arena Estate»', object:km.stroyka||obj||'', allow:'разрешается производство последующих работ', works:works.length?works:[{wtype:'',vol:'',unit:'м³'}] };
 }
 function openHiddenActBuilder(){ LG.docFromAct=null; LG.hactDraft=hactPrefill(); renderHActForm(); }
 function hactSet(i,k,v){ if(!LG.hactDraft)return; if(i<0)LG.hactDraft[k]=v; else if(LG.hactDraft.works[i])LG.hactDraft.works[i][k]=v; }
@@ -5358,7 +5386,7 @@ function generateHiddenAct(){
 function openSavedHAct(id){ var view=projected(LG.base,LG.queue); var a=(view.actsHidden||[]).find(function(x){return x&&x.id===id;}); if(a) openDocViewer(hactHTML(a),'Акт скрытых № '+(a.num||'')); }
 // ── СЧЁТ-ФАКТУРА (с НДС 16%) ──
 function invPrefill(){
-  var view=projected(LG.base,LG.queue); var obj=(view.objects||[])[0]||''; var meta=(view.objMeta&&view.objMeta[obj])||{}; var km=view.ks2meta||{};
+  var view=projected(LG.base,LG.queue); var obj=(view.objects||[])[0]||''; var meta=(view.objMeta&&view.objMeta[obj])||{}; var km=objReqs(view,obj);
   var seen={},lines=[];
   (view.entries||[]).filter(function(e){return e&&e.type==='vol'&&isConcrete(view,e)&&e.accepted;}).forEach(function(e){
     var w=e.wtype||'Строительно-монтажные работы',u=e.unit||'м³',k=w+'|'+u,rate=Math.round(rateForEntry(view,e));
@@ -5366,7 +5394,7 @@ function invPrefill(){
   });
   if(!lines.length) lines=[{name:'Строительно-монтажные работы',qty:'',unit:'компл',price:''}];
   var co=companyGet();
-  return {num:String(((view.invoices||[]).length)+1), date:new Date().toLocaleDateString('ru-RU'), seller:km.podryad||co.name||'ТОО «LionGate Construction»', sellerBin:km.podryadBin||co.bin||'', buyer:km.zakazchik||meta.customer||'', buyerBin:'', contract:'', lines:lines};
+  return {num:String(((view.invoices||[]).length)+1), date:new Date().toLocaleDateString('ru-RU'), seller:km.podryad||co.name||'ТОО «LionGate Construction»', sellerBin:km.podryadBin||co.bin||'', buyer:km.zakazchik||'ТОО «Arena Estate»', buyerBin:km.zakBin||'220940009615', contract:'', lines:lines};
 }
 function openInvoiceBuilder(){ LG.docFromAct=null; LG.invDraft=invPrefill(); renderInvForm(); }
 function invSet(i,k,v){ if(!LG.invDraft)return; if(i<0)LG.invDraft[k]=v; else if(LG.invDraft.lines[i])LG.invDraft.lines[i][k]=v; }
@@ -5416,7 +5444,7 @@ function openSavedInvoice(id){ var view=projected(LG.base,LG.queue); var a=(view
 
 // ── ФОРМА Р-1 (акт выполненных работ) ──
 function r1Prefill(){
-  var view=projected(LG.base,LG.queue); var obj=(view.objects||[])[0]||''; var meta=(view.objMeta&&view.objMeta[obj])||{}; var km=view.ks2meta||{};
+  var view=projected(LG.base,LG.queue); var obj=(view.objects||[])[0]||''; var meta=(view.objMeta&&view.objMeta[obj])||{}; var km=objReqs(view,obj);
   var seen={},lines=[];
   (view.entries||[]).filter(function(e){return e&&e.type==='vol'&&isConcrete(view,e);}).slice().sort(entryCmp).slice(0,60).forEach(function(e){
     var w=e.wtype||'Работы',u=e.unit||'м³',k=w+'|'+u,rate=Math.round(rateForEntry(view,e));
@@ -5424,7 +5452,7 @@ function r1Prefill(){
   });
   if(!lines.length) lines=[{name:'',qty:'',unit:'м³',price:''}];
   var co=companyGet();
-  return {num:String(((view.docsR1||[]).length)+1), date:new Date().toLocaleDateString('ru-RU'), period:new Date().toLocaleDateString('ru-RU',{month:'long',year:'numeric'}), podryad:km.podryad||co.name||'ТОО «LionGate Construction»', zakazchik:km.zakazchik||meta.customer||'', object:km.stroyka||obj||'', lines:lines};
+  return {num:String(((view.docsR1||[]).length)+1), date:new Date().toLocaleDateString('ru-RU'), period:new Date().toLocaleDateString('ru-RU',{month:'long',year:'numeric'}), podryad:km.podryad||co.name||'ТОО «LionGate Construction»', zakazchik:km.zakazchik||'ТОО «Arena Estate»', object:km.stroyka||obj||'', lines:lines};
 }
 function openR1Builder(){ LG.docFromAct=null; LG.r1Draft=r1Prefill(); renderR1Form(); }
 function r1Set(i,k,v){ if(!LG.r1Draft)return; if(i<0)LG.r1Draft[k]=v; else if(LG.r1Draft.lines[i])LG.r1Draft.lines[i][k]=v; }
@@ -5771,6 +5799,92 @@ function openImportKP(){
   h+='<div id="kp-box" style="margin-top:14px"></div>';
   h+='</div>';
   lgSheet('🆕 Объект из КП', h);
+}
+// ── ИМПОРТ ДОГОВОРА → КАРТОЧКА ОБЪЕКТА (распознавание ИИ) ──
+function openImportContract(){
+  LG.contractDraft=null;
+  var h='<div style="padding:2px">';
+  h+='<div style="font-size:13px;color:var(--mut);margin-bottom:12px">Сфотографируйте или загрузите договор подряда — ИИ распознает реквизиты заказчика (название, БИН, адрес, директор), объект, № и дату договора, % гарантийного удержания и расценки. Перед сохранением всё можно поправить.</div>';
+  h+='<label style="display:block;width:100%;background:var(--gold);color:#1a1205;font-weight:800;text-align:center;border-radius:12px;padding:14px;font-size:15px;cursor:pointer">📎 Фото или PDF (договор)<input type="file" accept="image/*,application/pdf" onchange="contractFile(this)" style="display:none"/></label>';
+  h+='<div id="ct-box" style="margin-top:14px"></div>';
+  h+='</div>';
+  lgSheet('📄 Договор → карточка объекта', h);
+}
+function contractManualBtn(){ return '<button onclick="LG.contractDraft=normContract({});renderContractForm()" style="width:100%;margin-top:10px;background:var(--sur2);border:1px solid var(--brd);color:var(--fg);border-radius:11px;padding:12px;font-size:14px;cursor:pointer">Ввести вручную</button>'; }
+function normContract(d){ d=d||{}; var c=d.customer||{}, k=d.contractor||{};
+  return { object:String(d.object||''), custName:String(c.name||''), custBin:String(c.bin||''), custAddr:String(c.addr||''), custDir:String(c.director||''),
+    conName:String(k.name||''), conBin:String(k.bin||''), contractNo:String(d.contractNo||''), contractDate:String(d.contractDate||''),
+    retentionPct:Number(d.retentionPct||0)||'', lines:(Array.isArray(d.lines)?d.lines:[]).map(function(l){return {wtype:String((l&&l.wtype)||''), qty:Number((l&&l.qty)||0)||'', unit:String((l&&l.unit)||'м³'), price:Number((l&&l.price)||0)||''};}) };
+}
+function contractFile(input){
+  var f=input.files&&input.files[0]; if(!f) return;
+  var box=document.getElementById('ct-box');
+  if(PREVIEW||!LG.url||!LG.token){ if(box) box.innerHTML='<div class="empty">Распознавание работает в боевом режиме (через сервер). В превью недоступно.</div>'; return; }
+  if(box) box.innerHTML='<div style="text-align:center;padding:24px"><div style="font-size:32px">🔍</div><div style="color:var(--mut);margin-top:8px">Распознаю договор…</div></div>';
+  var rd=new FileReader();
+  rd.onload=function(){ var s=String(rd.result||''); var b64=s.split(',')[1]||''; var mime=(s.match(/^data:([^;]+);/)||[])[1]||'image/jpeg';
+    fetch(api('/api/parse-doc'),{method:'POST',headers:headers(),body:JSON.stringify({image:b64,mime:mime,mode:'contract'})})
+      .then(function(r){return r.json();})
+      .then(function(d){ if(d&&d.ok&&d.data){ LG.contractDraft=normContract(d.data); renderContractForm(); } else { if(box) box.innerHTML='<div class="empty">'+esc((d&&d.text)||'Не удалось распознать.')+'</div>'+contractManualBtn(); } })
+      .catch(function(e){ if(box) box.innerHTML='<div class="empty">Ошибка сети при распознавании.</div>'+contractManualBtn(); });
+  };
+  rd.readAsDataURL(f);
+}
+function contractSet(k,val){ if(LG.contractDraft) LG.contractDraft[k]=val; }
+function contractSetLine(i,k,val){ if(LG.contractDraft&&LG.contractDraft.lines[i]) LG.contractDraft.lines[i][k]=val; }
+function contractDelLine(i){ if(LG.contractDraft){ LG.contractDraft.lines.splice(i,1); renderContractForm(); } }
+function renderContractForm(){
+  var box=document.getElementById('ct-box'); if(!box||!LG.contractDraft) return;
+  var d=LG.contractDraft;
+  var inp='width:100%;background:var(--sur2);border:1px solid var(--brd);color:var(--fg);border-radius:8px;padding:8px;font-size:13px;box-sizing:border-box';
+  function row(label,key,val,ph){ return '<label style="font-size:11px;color:var(--mut)">'+label+'</label><input value="'+esc(val||'')+'" oninput="contractSet(&quot;'+key+'&quot;,this.value)" placeholder="'+(ph||'')+'" style="'+inp+';margin-bottom:9px"/>'; }
+  var h='<div style="border:1px solid var(--teal);border-radius:12px;padding:12px;background:rgba(45,212,191,.04)">';
+  h+='<div style="font-size:12px;color:var(--teal);font-weight:700;margin-bottom:8px">Проверьте реквизиты из договора</div>';
+  h+=row('Объект (для документов)','object',d.object,'наименование объекта');
+  h+='<div style="font-size:11px;color:var(--blue);font-weight:700;margin:10px 0 6px">ЗАКАЗЧИК (юр. лицо для документов)</div>';
+  h+=row('Наименование','custName',d.custName,'ТОО «…»');
+  h+=row('БИН','custBin',d.custBin,'12 цифр');
+  h+=row('Адрес','custAddr',d.custAddr,'юр. адрес');
+  h+=row('Директор','custDir',d.custDir,'Фамилия И.О.');
+  h+='<div style="font-size:11px;color:var(--blue);font-weight:700;margin:10px 0 6px">ДОГОВОР</div>';
+  h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div>'+row('Номер','contractNo',d.contractNo,'№')+'</div><div>'+row('Дата','contractDate',d.contractDate,'дата')+'</div></div>';
+  h+=row('Гарантийное удержание, %','retentionPct',d.retentionPct,'3');
+  if((d.lines||[]).length){
+    h+='<div style="font-size:11px;color:var(--blue);font-weight:700;margin:10px 0 6px">РАСЦЕНКИ ИЗ ДОГОВОРА (необязательно)</div>';
+    d.lines.forEach(function(l,i){
+      h+='<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px"><input value="'+esc(l.wtype)+'" oninput="contractSetLine('+i+',&quot;wtype&quot;,this.value)" placeholder="Вид работ" style="'+inp+'"/><input value="'+(l.price||'')+'" oninput="contractSetLine('+i+',&quot;price&quot;,this.value)" type="number" inputmode="numeric" placeholder="₸/ед" style="'+inp+';max-width:92px"/><button onclick="contractDelLine('+i+')" style="flex:none;background:none;border:none;color:var(--mut);font-size:15px;cursor:pointer;padding:4px 6px">✕</button></div>';
+    });
+  }
+  h+='</div>';
+  h+='<button onclick="contractApply()" style="width:100%;margin-top:12px;background:var(--gold);border:none;color:#1a1205;font-weight:800;border-radius:12px;padding:14px;font-size:15px;cursor:pointer">💾 Сохранить в карточку объекта</button>';
+  h+='<div style="font-size:11px;color:var(--mut);margin-top:8px;text-align:center;line-height:1.5">Заказчик в документах = это юр. лицо. Основной заказчик в приложении (Sensata) останется. Название объекта в приложении меняется отдельно — кнопкой «🏷️ Название объекта».</div>';
+  box.innerHTML=h;
+}
+function contractApply(){
+  var d=LG.contractDraft; if(!d) return;
+  if(!canWriteLedger()){ toast('Недостаточно прав'); return; }
+  var view=projected(LG.base,LG.queue); var obj=(view.objects||[])[0]||'';
+  var meta=JSON.parse(JSON.stringify(view.objMeta||{})); meta[obj]=meta[obj]||{};
+  var r=Object.assign({}, meta[obj].reqs||{});
+  if(d.custName) r.zakazchik=d.custName;
+  if(d.custBin)  r.zakBin=d.custBin;
+  if(d.custAddr) r.zakAddr=d.custAddr;
+  if(d.custDir)  r.zakRuk=d.custDir;
+  if(d.conName)  r.podryad=d.conName;
+  if(d.conBin)   r.podryadBin=d.conBin;
+  if(d.object){  r.stroyka=d.object; r.object=d.object; }
+  if(d.contractNo)   r.contractNo=d.contractNo;
+  if(d.contractDate) r.contractDate=d.contractDate;
+  var rp=Number(d.retentionPct)||0; if(rp>0) r.retPct=rp;
+  meta[obj].reqs=r;
+  var rates=(d.lines||[]).filter(function(l){return l.wtype&&Number(l.price)>0;}).map(function(l){return {wtype:String(l.wtype), rate:Number(l.price)||0};});
+  var applyRates=false;
+  if(rates.length){ applyRates = !((meta[obj].custRates||[]).length) || confirm('Заменить ставки заказчика ('+(meta[obj].custRates||[]).length+') расценками из договора ('+rates.length+')?'); }
+  if(applyRates) meta[obj].custRates=rates;
+  meta[obj].contractImport={object:d.object, customer:{name:d.custName,bin:d.custBin,addr:d.custAddr,director:d.custDir}, contractNo:d.contractNo, contractDate:d.contractDate, retentionPct:rp, at:Date.now()};
+  emit({kind:'meta.set', key:'objMeta', value:meta});
+  lgCloseSheet();
+  toast('Реквизиты договора сохранены'+(d.object?' · объект: '+d.object:'')+(rp>0?' · удержание '+rp+'%':''));
 }
 function kpManualBtn(){ return '<button onclick="LG.kpDraft={object:&quot;&quot;,vat:&quot;unknown&quot;,lines:[]};renderKPForm()" style="width:100%;margin-top:10px;background:var(--sur2);border:1px solid var(--brd);color:var(--fg);border-radius:11px;padding:12px;font-size:14px;cursor:pointer">Ввести вручную</button>'; }
 function normKP(d){ d=d||{}; return { object:String(d.object||''), vat:(d.vat==='with'||d.vat==='without')?d.vat:'unknown', lines:(Array.isArray(d.lines)?d.lines:[]).map(function(l){return {wtype:String((l&&l.wtype)||''), qty:Number((l&&l.qty)||0)||'', unit:String((l&&l.unit)||'м³'), price:Number((l&&l.price)||0)||'', deadline:String((l&&l.deadline)||'')};}) }; }
