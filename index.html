@@ -3330,18 +3330,9 @@ function renderObjects(view, app){
     +'<div style="background:rgba(248,81,73,.10);border:1px solid var(--red);border-radius:10px;padding:11px"><div style="font-size:12px;color:var(--mut);letter-spacing:1px;font-weight:700">ДОЛЖЕН ЗАКАЗЧИК</div><div class="num" style="font-size:18px;color:var(--red);font-weight:800;margin-top:4px">'+fmt0(debt)+' ₸</div></div>'
     +'<div style="background:rgba(46,160,67,.10);border:1px solid var(--green);border-radius:10px;padding:11px"><div style="font-size:12px;color:var(--mut);letter-spacing:1px;font-weight:700">ОПЛАЧЕНО</div><div class="num" style="font-size:18px;color:var(--green);font-weight:800;margin-top:4px">'+fmt0(paidRev)+' ₸</div></div></div>';
 
-  // КС-2 / КС-3
-  var unsigned=ks2Unsigned(view,obj);
-  h+='<button data-ks2="1" style="width:100%;background:var(--gold);color:#0d1117;border:none;border-radius:10px;padding:13px;font-size:14px;font-weight:800;cursor:pointer;margin-bottom:6px">📋 Сформировать КС-2'+(unsigned>0?' ('+fmt0(unsigned)+' ₸ не подписано)':'')+'</button>';
-  var acts=(view.ks2acts||[]).filter(function(a){return a.obj===obj;});
-  var ks3=(view.ks3acts||[]).filter(function(a){return a.obj===obj;});
-  if(acts.length) h+='<button data-ks3="1" style="width:100%;background:var(--teal);color:#0d1117;border:none;border-radius:10px;padding:13px;font-size:14px;font-weight:800;cursor:pointer;margin-bottom:6px">📄 Сформировать КС-3 (справка о стоимости)</button>';
-  if(acts.length){ h+='<details style="margin-top:6px"><summary style="font-size:13px;color:var(--mut);font-weight:700;padding:9px 4px;cursor:pointer;list-style:none">🗂 Акты КС-2 ('+acts.length+') ▾</summary><div style="margin-top:6px">';
-    acts.forEach(function(a){ h+='<div data-savedks2="'+esc(a.id)+'" style="background:var(--sur);border:1px solid var(--brd);border-radius:8px;padding:10px;margin-bottom:6px;cursor:pointer"><div style="font-size:13px;font-weight:700">Акт № '+esc(a.aktnum||'')+' · '+esc(a.period||'')+' <span style="float:right;color:var(--mut)">открыть ›</span></div><div style="font-size:13px;color:var(--mut);margin-top:2px">'+esc(a.date||'')+' · <span style="color:var(--gold);font-weight:700">'+fmt0(a.total)+' ₸</span></div></div>'; });
-    h+='</div></details>'; }
-  if(ks3.length){ h+='<details style="margin-top:6px"><summary style="font-size:13px;color:var(--mut);font-weight:700;padding:9px 4px;cursor:pointer;list-style:none">📄 Справки КС-3 ('+ks3.length+') ▾</summary><div style="margin-top:6px">';
-    ks3.forEach(function(a){ h+='<div data-savedks3="'+esc(a.id)+'" style="background:var(--sur);border:1px solid var(--brd);border-radius:8px;padding:10px;margin-bottom:6px;cursor:pointer"><div style="font-size:13px;font-weight:700">Справка № '+esc(a.num||'')+' · '+esc(a.period||'')+' <span style="float:right;color:var(--mut)">открыть ›</span></div><div style="font-size:13px;color:var(--mut);margin-top:2px">'+esc(a.date||'')+'</div></div>'; });
-    h+='</div></details>'; }
+  // ── Всё по КС-2/КС-3 — в одном месте (командный центр) + договор в карточку
+  h+='<button onclick="openKS2Registry()" style="width:100%;background:var(--gold);color:#0d1117;border:none;border-radius:10px;padding:13px;font-size:14px;font-weight:800;cursor:pointer;margin-bottom:6px">🧱 Бетон и КС-2 · объёмы · акты · оплата</button>';
+  if(canWriteLedger()) h+='<button onclick="openImportContract()" style="width:100%;background:var(--sur);color:var(--fg);border:1px solid var(--blue);border-radius:10px;padding:13px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:6px">📄 Загрузить договор → заполнить карточку</button>';
 
   // Прогресс-футер
   h+='<div style="background:var(--bg);border-radius:12px;padding:12px;margin-top:8px">';
@@ -5814,7 +5805,7 @@ function contractManualBtn(){ return '<button onclick="LG.contractDraft=normCont
 function normContract(d){ d=d||{}; var c=d.customer||{}, k=d.contractor||{};
   return { object:String(d.object||''), custName:String(c.name||''), custBin:String(c.bin||''), custAddr:String(c.addr||''), custDir:String(c.director||''),
     conName:String(k.name||''), conBin:String(k.bin||''), contractNo:String(d.contractNo||''), contractDate:String(d.contractDate||''),
-    retentionPct:Number(d.retentionPct||0)||'', lines:(Array.isArray(d.lines)?d.lines:[]).map(function(l){return {wtype:String((l&&l.wtype)||''), qty:Number((l&&l.qty)||0)||'', unit:String((l&&l.unit)||'м³'), price:Number((l&&l.price)||0)||''};}) };
+    retentionPct:Number(d.retentionPct||0)||'', vat:(d.vat==='with'||d.vat==='without')?d.vat:'without', vatPct:16, lines:(Array.isArray(d.lines)?d.lines:[]).map(function(l){return {wtype:String((l&&l.wtype)||''), qty:Number((l&&l.qty)||0)||'', unit:String((l&&l.unit)||'м³'), price:Number((l&&l.price)||0)||''};}) };
 }
 function contractFile(input){
   var f=input.files&&input.files[0]; if(!f) return;
@@ -5849,10 +5840,17 @@ function renderContractForm(){
   h+='<div style="font-size:11px;color:var(--blue);font-weight:700;margin:10px 0 6px">ДОГОВОР</div>';
   h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div>'+row('Номер','contractNo',d.contractNo,'№')+'</div><div>'+row('Дата','contractDate',d.contractDate,'дата')+'</div></div>';
   h+=row('Гарантийное удержание, %','retentionPct',d.retentionPct,'3');
+  h+='<div style="font-size:11px;color:var(--blue);font-weight:700;margin:10px 0 6px">ЦЕНЫ В ДОГОВОРЕ</div>';
+  h+='<div style="display:flex;gap:7px;margin-bottom:8px">';
+  [['without','без НДС'],['with','с НДС']].forEach(function(o){ h+='<button onclick="contractSet(&quot;vat&quot;,&quot;'+o[0]+'&quot;);renderContractForm()" style="flex:1;border:1px solid '+(d.vat===o[0]?'var(--gold)':'var(--brd)')+';background:'+(d.vat===o[0]?'rgba(240,165,0,.12)':'var(--sur2)')+';color:'+(d.vat===o[0]?'var(--gold)':'var(--mut)')+';border-radius:9px;padding:8px;font-size:12px;font-weight:700;cursor:pointer">'+o[1]+'</button>'; });
+  h+='</div>';
+  if(d.vat==='without'){ h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span style="font-size:12px;color:var(--mut)">Ставка НДС, %</span><input value="'+(d.vatPct||16)+'" oninput="contractSet(&quot;vatPct&quot;,this.value);renderContractForm()" type="number" inputmode="numeric" style="'+inp+';max-width:80px"/></div><div style="font-size:11px;color:var(--mut);margin-bottom:6px;line-height:1.45">В приложении ставки хранятся <b>с НДС</b>. Цены из договора пересчитаются: цена × (1 + НДС%).</div>'; }
   if((d.lines||[]).length){
+    var _vp=Number(d.vatPct)||16;
     h+='<div style="font-size:11px;color:var(--blue);font-weight:700;margin:10px 0 6px">РАСЦЕНКИ ИЗ ДОГОВОРА (необязательно)</div>';
     d.lines.forEach(function(l,i){
-      h+='<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px"><input value="'+esc(l.wtype)+'" oninput="contractSetLine('+i+',&quot;wtype&quot;,this.value)" placeholder="Вид работ" style="'+inp+'"/><input value="'+(l.price||'')+'" oninput="contractSetLine('+i+',&quot;price&quot;,this.value)" type="number" inputmode="numeric" placeholder="₸/ед" style="'+inp+';max-width:92px"/><button onclick="contractDelLine('+i+')" style="flex:none;background:none;border:none;color:var(--mut);font-size:15px;cursor:pointer;padding:4px 6px">✕</button></div>';
+      var _net=Number(l.price)||0; var _gross=d.vat==='without'?Math.round(_net*(1+_vp/100)):_net;
+      h+='<div style="margin-bottom:6px"><div style="display:flex;gap:6px;align-items:center"><input value="'+esc(l.wtype)+'" oninput="contractSetLine('+i+',&quot;wtype&quot;,this.value)" placeholder="Вид работ" style="'+inp+'"/><input value="'+(l.price||'')+'" oninput="contractSetLine('+i+',&quot;price&quot;,this.value)" type="number" inputmode="numeric" placeholder="₸/ед" style="'+inp+';max-width:92px"/><button onclick="contractDelLine('+i+')" style="flex:none;background:none;border:none;color:var(--mut);font-size:15px;cursor:pointer;padding:4px 6px">✕</button></div>'+(d.vat==='without'&&_net>0?'<div style="font-size:10.5px;color:var(--teal);margin-top:2px">→ с НДС '+fmt0(_gross)+' ₸/ед (сохранится в приложение)</div>':'')+'</div>';
     });
   }
   h+='</div>';
@@ -5877,10 +5875,11 @@ function contractApply(){
   if(d.contractDate) r.contractDate=d.contractDate;
   var rp=Number(d.retentionPct)||0; if(rp>0) r.retPct=rp;
   meta[obj].reqs=r;
-  var rates=(d.lines||[]).filter(function(l){return l.wtype&&Number(l.price)>0;}).map(function(l){return {wtype:String(l.wtype), rate:Number(l.price)||0};});
+  var _vp=Number(d.vatPct)||16;
+  var rates=(d.lines||[]).filter(function(l){return l.wtype&&Number(l.price)>0;}).map(function(l){ var pr=Number(l.price)||0; if(d.vat==='without') pr=Math.round(pr*(1+_vp/100)); return {wtype:String(l.wtype), rate:pr}; });
   var applyRates=false;
   if(rates.length){ applyRates = !((meta[obj].custRates||[]).length) || confirm('Заменить ставки заказчика ('+(meta[obj].custRates||[]).length+') расценками из договора ('+rates.length+')?'); }
-  if(applyRates) meta[obj].custRates=rates;
+  if(applyRates){ meta[obj].custRates=rates; meta[obj].custVat='with'; }
   meta[obj].contractImport={object:d.object, customer:{name:d.custName,bin:d.custBin,addr:d.custAddr,director:d.custDir}, contractNo:d.contractNo, contractDate:d.contractDate, retentionPct:rp, at:Date.now()};
   emit({kind:'meta.set', key:'objMeta', value:meta});
   lgCloseSheet();
