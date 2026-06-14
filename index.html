@@ -1368,8 +1368,9 @@ function renderPulse(view, app){
   var items=[{id:'tasks',label:'Мои задачи'},{id:'svodka',label:'Сводка'},{id:'months',label:'Месяцы'},{id:'spots',label:'Пятна'},{id:'flow',label:'Поток'},{id:'kfu',label:'КФУ'},{id:'constr',label:'Ограничения'},{id:'ppc',label:'PPC'},{id:'cfg',label:'⚙️'}];
   var h='<div style="display:flex;align-items:baseline;gap:8px;margin:2px 0 12px"><span style="font-size:26px">🔥</span><span style="font-size:24px;font-weight:800;color:var(--gold);letter-spacing:2px">ПУЛЬС</span></div>';
   h+=draftReviewCard(view);
+  h+=openIssuesCard(view);
   h+=subBar('pulse',items);
-  if(sub==='svodka')      h+=pulseSvodka(view);
+  if(sub==='svodka'){     h+=pulseSvodka(view); h+=concreteDueCard(view); h+=pourPlanSection(view); h+=concreteQACard(view); }
   else if(sub==='months') h+=pulseMonths(view);
   else if(sub==='spots')  h+=pulseSpots(view);
   else if(sub==='flow')   h+=pulseFlow(view);
@@ -3300,6 +3301,26 @@ function dismissCabHint(btn){
   store.set('lg2_seen_cab','1');
   try{ var card=btn.parentElement; if(card) card.style.display='none'; }catch(e){}
 }
+function openCabHelp(){
+  function sec(ic,t,d){ return '<div style="display:flex;gap:10px;padding:9px 0;border-top:1px solid var(--brd)"><span style="font-size:17px;flex:0 0 auto;width:22px;text-align:center">'+ic+'</span><div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:700;color:var(--fg)">'+t+'</div><div style="font-size:12px;color:var(--mut);line-height:1.5;margin-top:1px">'+d+'</div></div></div>'; }
+  var h='<div style="padding:2px">';
+  h+='<div style="font-size:12.5px;color:var(--mut);line-height:1.6;margin-bottom:6px">Это ваш рабочий экран. Финансов компании здесь нет — только ваша работа, ваша зарплата и стройка. Коротко по каждому блоку:</div>';
+  h+=sec('📊','Плитки сверху и «Темп недели»','«Сегодня залито» и «За 7 дней» — ваши объёмы. Полоса темпа показывает, успеваете ли к цели 150 м³/нед: зелёная — да, жёлтая/красная — отстаёте.');
+  h+=sec('💰','Ваш заработок','Оклад/ставка плюс премия по принятым работам. Растёт от выполненного и подписанного.');
+  h+=sec('➕','Залили сегодня','Главная кнопка. Сразу после заливки запишите объём бетона — пятно, этаж, м³.');
+  h+=sec('🚚 📦','Заявки','«Заявка на бетон» и «Заявка снабженцу» (арматура, опалубка и пр.) — формируют готовое сообщение в WhatsApp поставщику. Номер вводится один раз.');
+  h+=sec('📞','Контакты','Бетонный узел, снабженец, руководство, лаборатория — звонок или WhatsApp в один тап. Номер сохраняется.');
+  h+=sec('📋','Отчёт за день','Собирает итог дня (что залито, явка) и отправляет в WhatsApp одной кнопкой.');
+  h+=sec('🚦','Приёмка объёмов','Двигайте работы по стадиям: залито → акт скрытых → КС-2 → подпись → Р-1 → оплата. Видно, где что застряло.');
+  h+=sec('✅','Чек-лист перед заливкой','Пройдите проверку до заливки — арматура, опалубка, бетон. Меньше брака и переделок.');
+  h+=sec('🗓','План заливок','Запланируйте заливки на 2 недели вперёд. Когда залили — нажмите «✓», запись уйдёт из плана.');
+  h+=sec('🧪','Бетон и прочность','У каждой заливки в списке — кнопка 🧪: приложите паспорт с завода и протокол лаборатории, впишите прочность R7/R28. Блок «⏰ Пора испытать бетон» сам напомнит про 28 суток.');
+  h+=sec('⚠️','Замечания','Запишите проблему с фото. Уходит в рабочую группу и видна руководству. Закрывайте «✓», когда устранили.');
+  h+=sec('👷','Отметить явку','Сколько человек вышло сегодня — из этого считается производительность (м³ на человека).');
+  h+=sec('🌤','Погода','Пригодность к заливке на 3 дня: дождь, жара, мороз — что учесть.');
+  h+='<div style="font-size:11.5px;color:var(--mut);margin-top:12px;text-align:center">Кнопка «❓ Как пользоваться» всегда наверху экрана — открывайте в любой момент.</div></div>';
+  lgSheet('❓ Как пользоваться', h);
+}
 // СТРУКТУРА РАСХОДОВ: переменные % / постоянные ₸ + точка безубыточности
 function moneyExpenseStruct(view){
   var s=expenseStructure(view);
@@ -3712,11 +3733,12 @@ function renderCabinet(view, app, scope){
 
   var h='<div class="shdr" style="margin:6px 0 2px"><h2 style="margin:0;font-size:26px;color:var(--gold)">'+(isBrig?'⛑ БРИГАДИР':'👷 ПРОРАБ')+(subWho?(' · '+esc(subWho.replace(/^Бригада\s*/,''))):'')+'</h2></div>';
   h+='<div style="font-size:13px;color:var(--mut);margin-bottom:14px">'+esc(obj)+'</div>';
+  h+='<button onclick="openCabHelp()" style="width:100%;border:1px solid var(--brd);background:var(--sur2);color:var(--mut);border-radius:10px;padding:9px;font-size:12.5px;font-weight:700;cursor:pointer;margin-bottom:12px">❓ Как пользоваться этим экраном</button>';
   // онбординг: показываем один раз новому пользователю кабинета (флаг в localStorage)
   if(!PREVIEW && !store.get('lg2_seen_cab')){
     h+='<div style="background:rgba(45,212,191,.08);border:1px solid var(--teal);border-radius:13px;padding:14px;margin-bottom:14px">'
       +'<div style="font-size:14px;font-weight:800;color:var(--teal);margin-bottom:8px">👋 Добро пожаловать!</div>'
-      +'<div style="font-size:12.5px;line-height:1.7;color:var(--text)">Это ваш рабочий экран. Главное:<br>• <b>➕ Залили сегодня</b> — записать объём бетона после заливки<br>• <b>🚚 Заявка на бетон</b> — заказать бетон сообщением<br>• <b>📋 Отчёт за день</b> — отправить итог в WhatsApp<br>• <b>Отметить</b> явку — сколько человек вышло<br>• <b>✅ Чек-лист</b> — проверка перед заливкой<br><br>Финансов компании здесь нет — только ваша работа и ваша зарплата.</div>'
+      +'<div style="font-size:12.5px;line-height:1.7;color:var(--text)">Это ваш рабочий экран. Главное:<br>• <b>➕ Залили сегодня</b> — записать объём бетона после заливки<br>• <b>🚚 Заявка на бетон</b> — заказать бетон сообщением<br>• <b>📋 Отчёт за день</b> — отправить итог в WhatsApp<br>• <b>Отметить</b> явку — сколько человек вышло<br>• <b>✅ Чек-лист</b> — проверка перед заливкой<br>• <b>❓ Как пользоваться</b> — полная памятка вверху экрана<br><br>Финансов компании здесь нет — только ваша работа и ваша зарплата.</div>'
       +'<button onclick="dismissCabHint(this)" style="width:100%;margin-top:11px;border:none;background:var(--teal);color:#04201b;font-weight:800;font-size:14px;padding:11px;border-radius:11px;cursor:pointer">Понятно, начать</button></div>';
   }
   // плитки сегодня/неделя
@@ -3736,11 +3758,24 @@ function renderCabinet(view, app, scope){
   if(pendV>50) alerts.push(['var(--blue)','Ждёт КС-2: '+fmtD(pendV)+' м³ — подпишите акт у владельца']);
   if(alerts.length){ h+='<div style="margin-bottom:14px">'+alerts.map(function(a){ return '<div style="display:flex;gap:8px;align-items:flex-start;background:var(--sur);border:1px solid '+a[0]+';border-radius:11px;padding:10px 12px;margin-bottom:7px"><span style="color:'+a[0]+';font-weight:800">●</span><span style="font-size:12.5px">'+a[1]+'</span></div>'; }).join('')+'</div>'; }
   else h+='<div style="background:var(--sur);border:1px solid var(--green);border-radius:11px;padding:10px 12px;margin-bottom:14px;font-size:12.5px;color:var(--green);font-weight:700">✅ Всё по плану</div>';
+  // темп недели + производительность (из имеющихся данных)
+  (function(){ var pacePct=Math.max(2,Math.min(100,Math.round(weekV/weekTarget*100)));
+    var manDays=0, attMap=view.attendance||{}; Object.keys(attMap).forEach(function(dk){ if(dk>=wa) manDays+=Number(attMap[dk])||0; });
+    var perMan = manDays>0 ? weekV/manDays : 0; var paceCol = weekV>=weekTarget?'var(--green)':(weekV>=weekTarget*0.7?'var(--gold)':'var(--red)');
+    h+='<div class="ledger" style="margin-bottom:14px"><div style="display:flex;justify-content:space-between;align-items:baseline;font-size:13px"><span style="color:var(--mut)">Темп недели</span><b style="color:'+paceCol+'">'+fmtD(weekV)+' / '+weekTarget+' м³</b></div>'
+      +'<div style="height:8px;background:var(--sur2);border-radius:4px;overflow:hidden;margin-top:6px"><div style="height:100%;width:'+pacePct+'%;background:'+paceCol+'"></div></div>'
+      +(manDays>0?('<div style="font-size:11.5px;color:var(--mut);margin-top:7px">Производительность: <b style="color:var(--teal)">≈ '+fmtD(Math.round(perMan*10)/10)+' м³</b> на человеко-день (за 7 дней)</div>'):'')
+      +'</div>';
+  })();
+  h+=concreteDueCard(view);
   // кнопки
   h+='<button onclick="openEntry({type:\'vol\''+(isBrig?(",brigade:'"+esc(brigId)+"'"):'')+'})" style="width:100%;border:none;background:var(--teal);color:#04201b;font-weight:800;font-size:15px;padding:14px;border-radius:12px;cursor:pointer;margin-bottom:8px">➕ Залили сегодня</button>';
-  h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">'
+  h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">'
     +'<button onclick="openConcreteOrder()" style="border:1px solid var(--blue);background:rgba(88,166,255,.08);color:var(--blue);font-weight:700;font-size:14px;padding:12px;border-radius:12px;cursor:pointer">🚚 Заявка на бетон</button>'
     +'<button onclick="openDailyReport()" style="border:1px solid var(--teal);background:rgba(45,212,191,.07);color:var(--teal);font-weight:700;font-size:14px;padding:12px;border-radius:12px;cursor:pointer">📋 Отчёт за день</button></div>';
+  h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">'
+    +'<button onclick="openMaterialOrder()" style="border:1px solid var(--blue);background:rgba(88,166,255,.08);color:var(--blue);font-weight:700;font-size:14px;padding:12px;border-radius:12px;cursor:pointer">📦 Заявка снабженцу</button>'
+    +'<button onclick="openContacts()" style="border:1px solid var(--teal);background:rgba(45,212,191,.07);color:var(--teal);font-weight:700;font-size:14px;padding:12px;border-radius:12px;cursor:pointer">📞 Контакты</button></div>';
   h+='<button onclick="askAccelerate()" style="width:100%;border:none;background:var(--teal);color:#04201c;font-weight:800;font-size:14px;padding:12px;border-radius:12px;cursor:pointer;margin-bottom:8px">🚀 Как ускорить участок</button>';
   h+='<button onclick="openPipeline()" style="width:100%;border:1px solid var(--gold);background:rgba(240,165,0,.08);color:var(--gold);font-weight:700;font-size:14px;padding:12px;border-radius:12px;cursor:pointer;margin-bottom:8px">🚦 Приёмка объёмов</button>';
   h+='<button onclick="askCoach()" style="width:100%;border:1px solid var(--violet);background:rgba(167,139,250,.08);color:var(--violet);font-weight:700;font-size:14px;padding:12px;border-radius:12px;cursor:pointer;margin-bottom:8px">🧠 Совет наставника от ИИ</button>';
@@ -3766,19 +3801,21 @@ function renderCabinet(view, app, scope){
         +'<div style="height:8px;background:var(--sur2);border-radius:4px;overflow:hidden"><div style="height:100%;width:'+Math.max(2,Math.min(100,pc.progressPct))+'%;background:var(--teal)"></div></div>'
         +spotFloorTower(view,sp)+'</div>'; });
   }
+  h+=pourPlanSection(view);
   // последние заливки (владелец/учётчица: тап по строке — правка записи)
   if(pours.length){ var canEd=canWriteLedger();
     h+='<div style="font-size:12px;font-weight:800;letter-spacing:1px;color:var(--gold);margin:14px 2px 8px">ПОСЛЕДНИЕ ЗАЛИВКИ'+(canEd?' <span style="color:var(--mut);font-weight:400;letter-spacing:0">· тап — изменить</span>':'')+'</div><div class="ledger" style="padding:4px 14px;margin-bottom:6px">';
     pours.slice().sort(entryCmp).slice(0,8).forEach(function(e){ var bn=((view.brigades||[]).find(function(x){return x.id===e.brigade;})||{}).name||''; var tm=entryTime(e);
-      h+='<div'+(canEd?(' onclick="openEntryEditById(\''+esc(String(e.id))+'\')"'):'')+' style="display:flex;justify-content:space-between;align-items:baseline;font-size:13px;padding:8px 0;border-bottom:1px solid var(--brd)'+(canEd?';cursor:pointer':'')+'"><span style="color:var(--fg)">'+String(e.date||'').split('-').reverse().join('.')+(tm?(' <span style="color:var(--mut);font-size:11px">'+tm+'</span>'):'')+' · '+esc(e.zone||spotNameOf(view,e.spotId)||'')+(e.floor?(' · '+esc(e.floor)):'')+(e.redo?' <span style="color:var(--red)">⟲</span>':'')+(e.amountPending&&canEd?' <span style="color:var(--gold)" title="ждёт сумму">💰?</span>':'')+((e.wtype||e.stage)?('<br><span style="font-size:11px;color:var(--mut)">'+(e.wtype?esc(e.wtype):'')+((e.wtype&&e.stage)?' · ':'')+(e.stage?'<span style="color:var(--teal)">'+esc(e.stage)+'</span>':'')+'</span>'):'')+'</span><span style="color:var(--teal);font-weight:700;white-space:nowrap">'+fmtD(Number(e.volume)||0)+' м³'+(!isBrig&&bn?('<br><span style="font-size:10px;color:var(--mut)">⛑ '+esc(bn.replace(/^Бригада\s*/,''))+'</span>'):'')+(canEd?' <span style="color:var(--mut);font-size:12px">✏️</span>':'')+'</span></div>'; });
+      h+='<div'+(canEd?(' onclick="openEntryEditById(\''+esc(String(e.id))+'\')"'):'')+' style="display:flex;justify-content:space-between;align-items:baseline;font-size:13px;padding:8px 0;border-bottom:1px solid var(--brd)'+(canEd?';cursor:pointer':'')+'"><span style="color:var(--fg)">'+String(e.date||'').split('-').reverse().join('.')+(tm?(' <span style="color:var(--mut);font-size:11px">'+tm+'</span>'):'')+' · '+esc(e.zone||spotNameOf(view,e.spotId)||'')+(e.floor?(' · '+esc(e.floor)):'')+(e.redo?' <span style="color:var(--red)">⟲</span>':'')+(e.amountPending&&canEd?' <span style="color:var(--gold)" title="ждёт сумму">💰?</span>':'')+((e.wtype||e.stage)?('<br><span style="font-size:11px;color:var(--mut)">'+(e.wtype?esc(e.wtype):'')+((e.wtype&&e.stage)?' · ':'')+(e.stage?'<span style="color:var(--teal)">'+esc(e.stage)+'</span>':'')+'</span>'):'')+'</span><span style="color:var(--teal);font-weight:700;white-space:nowrap">'+fmtD(Number(e.volume)||0)+' м³'+(!isBrig&&bn?('<br><span style="font-size:10px;color:var(--mut)">⛑ '+esc(bn.replace(/^Бригада\s*/,''))+'</span>'):'')+(canEd?' <span style="color:var(--mut);font-size:12px">✏️</span>':'')+' <button onclick="event.stopPropagation();openConcreteQA(\''+esc(String(e.id))+'\')" style="border:1px solid var(--brd);background:var(--sur2);color:var(--teal);border-radius:7px;padding:3px 7px;font-size:12px;cursor:pointer;vertical-align:middle">🧪</button>'+entryQaBadge(e)+'</span></div>'; });
     h+='</div>'; }
   // качество
   h+='<div style="font-size:12px;font-weight:800;letter-spacing:1px;color:var(--gold);margin:14px 2px 8px">КАЧЕСТВО</div>';
   h+='<div class="ledger" style="border-color:'+(gateOk?'var(--brd)':'var(--red)')+'"><div style="font-size:14px">Переделки: <b style="color:'+(gateOk?'var(--green)':'var(--red)')+'">'+fmtD(redoPct)+'%</b> <span style="color:var(--mut);font-size:12px">('+fmtD(redoV)+' из '+fmtD(totV)+' м³)</span></div><div style="font-size:12px;color:var(--mut);margin-top:3px">гейт качества: &lt; 3% '+(gateOk?'<span style="color:var(--green)">✓</span>':'<span style="color:var(--red)">✗</span>')+'</div></div>';
+  h+=concreteQACard(view);
   // замечания
   var issues=(view.issues||[]).filter(function(z){return z&&!z.closed;}).sort(function(a,b){return (b.ts||0)-(a.ts||0);});
   h+='<div style="font-size:12px;font-weight:800;letter-spacing:1px;color:var(--gold);margin:16px 2px 8px">ЗАМЕЧАНИЯ</div>';
-  if(issues.length){ issues.forEach(function(z){ h+='<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;background:var(--sur);border:1px solid var(--brd);border-radius:11px;padding:10px 12px;margin-bottom:7px"><div style="flex:1;min-width:0"><div style="font-size:13px">'+esc(z.text||'')+'</div><div style="font-size:10.5px;color:var(--mut);margin-top:2px">'+(z.floor?(esc(z.floor)+' · '):'')+String(z.date||'').split('-').reverse().join('.')+'</div></div><button onclick="closeIssue(\''+esc(z.id)+'\')" style="flex:0 0 auto;border:1px solid var(--green);background:rgba(46,160,67,.08);color:var(--green);border-radius:9px;padding:7px 10px;font-size:12px;font-weight:700;cursor:pointer">✓</button></div>'; }); }
+  if(issues.length){ issues.forEach(function(z){ h+='<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;background:var(--sur);border:1px solid var(--brd);border-radius:11px;padding:10px 12px;margin-bottom:7px"><div style="flex:1;min-width:0"><div style="font-size:13px">'+esc(z.text||'')+'</div><div style="font-size:10.5px;color:var(--mut);margin-top:2px">'+(z.floor?(esc(z.floor)+' · '):'')+String(z.date||'').split('-').reverse().join('.')+'</div></div>'+(z.photo?'<img src="'+photoUrl(z.photo)+'" onclick="openPhoto(\''+esc(z.photo)+'\')" style="width:46px;height:46px;object-fit:cover;border-radius:8px;border:1px solid var(--brd);cursor:pointer;flex:0 0 auto"/>':'')+'<button onclick="shareIssueWa(\''+esc(z.id)+'\')" style="flex:0 0 auto;border:1px solid var(--brd);background:var(--sur2);color:var(--fg);border-radius:9px;padding:7px 10px;font-size:13px;cursor:pointer">📲</button><button onclick="closeIssue(\''+esc(z.id)+'\')" style="flex:0 0 auto;border:1px solid var(--green);background:rgba(46,160,67,.08);color:var(--green);border-radius:9px;padding:7px 10px;font-size:12px;font-weight:700;cursor:pointer">✓</button></div>'; }); }
   else h+='<div style="font-size:12px;color:var(--mut);padding:2px 2px 8px">открытых замечаний нет</div>';
   h+='<button onclick="addIssue()" style="width:100%;border:1px dashed var(--brd);background:transparent;color:var(--gold);font-weight:700;font-size:13px;padding:11px;border-radius:11px;cursor:pointer;margin-bottom:6px">+ Добавить замечание</button>';
   h+='<div id="cab-weather" style="margin-top:6px"></div>';
@@ -3808,13 +3845,173 @@ function loadCabWeather(obj){
       +(dh?('<div style="display:flex;gap:6px;margin-top:10px;border-top:1px solid var(--brd);padding-top:8px">'+dh+'</div>'):'')+'</div>';
   }).catch(function(){ box.innerHTML='<div style="font-size:12px;color:var(--mut);text-align:center;padding:6px">🌤 Погода временно недоступна.</div>'; });
 }
-function addIssue(){
-  var t=(typeof prompt==='function')?prompt('Текст замечания:'):''; if(!t) return;
-  var fl=(typeof prompt==='function')?prompt('Этаж / место (необязательно):'):'';
-  emit({kind:'issue.add', payload:{id:'iss'+Date.now()+Math.floor(Math.random()*1000), text:t, floor:fl||''}});
-  render(); lgRefreshCabSheet();
+function addIssue(){ LG.issDraft={text:'',floor:'',photo:''}; renderIssueForm(); }
+function renderIssueForm(){
+  var d=LG.issDraft||(LG.issDraft={text:'',floor:'',photo:''});
+  var fi='width:100%;background:var(--sur2);border:1px solid var(--brd);color:var(--fg);border-radius:10px;padding:11px;font-size:15px;box-sizing:border-box';
+  var h='<div style="padding:2px">';
+  h+='<div style="margin-bottom:10px"><label style="font-size:12px;color:var(--mut)">Что не так</label><textarea id="iss-text" rows="3" placeholder="напр. трещина в плите на 4 этаже" style="'+fi+';margin-top:4px;resize:vertical">'+esc(d.text||'')+'</textarea></div>';
+  h+='<div style="margin-bottom:10px"><label style="font-size:12px;color:var(--mut)">Этаж / место (необязательно)</label><input id="iss-floor" value="'+esc(d.floor||'')+'" placeholder="напр. 4 этаж, ось 3" style="'+fi+';margin-top:4px"/></div>';
+  h+='<div style="margin-bottom:12px"><label style="font-size:12px;color:var(--mut)">Фото (необязательно)</label>';
+  if(d.photo){ h+='<div style="display:flex;align-items:center;gap:10px;margin-top:6px"><img src="'+photoUrl(d.photo)+'" style="width:70px;height:70px;object-fit:cover;border-radius:10px;border:1px solid var(--brd)"/><button onclick="issPhotoDel()" style="border:1px solid var(--red);background:rgba(248,81,73,.08);color:var(--red);border-radius:9px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer">Убрать фото</button></div>'; }
+  else { h+='<label style="display:block;margin-top:6px;border:1px dashed var(--brd);border-radius:10px;padding:12px;text-align:center;color:var(--teal);font-weight:700;font-size:13px;cursor:pointer">📷 Снять или выбрать фото<input type="file" accept="image/*,application/pdf" onchange="issPhoto(this)" style="display:none"/></label>'; }
+  h+='<div id="iss-up-st" style="font-size:11px;color:var(--mut);margin-top:5px"></div></div>';
+  h+='<button onclick="saveIssueForm()" style="width:100%;border:none;background:var(--gold);color:#1a1205;font-weight:800;font-size:15px;padding:13px;border-radius:12px;cursor:pointer">Добавить замечание</button></div>';
+  lgSheet('📝 Замечание', h);
+}
+function issReadForm(){ var d=LG.issDraft||{}; var t=document.getElementById('iss-text'); var f=document.getElementById('iss-floor'); if(t)d.text=t.value; if(f)d.floor=f.value; LG.issDraft=d; return d; }
+function issPhoto(input){ var f=input.files&&input.files[0]; if(!f)return; issReadForm(); var st=document.getElementById('iss-up-st');
+  if(PREVIEW||!LG.url||!LG.token){ if(st)st.textContent='Фото — только в боевом режиме.'; return; }
+  if(st)st.textContent='⏳ Загружаю фото…';
+  var rd=new FileReader(); rd.onload=function(){ var s=String(rd.result||''); var b64=s.split(',')[1]||''; var mime=(s.match(/^data:([^;]+);/)||[])[1]||f.type||'image/jpeg';
+    fetch(api('/api/upload-file'),{method:'POST',headers:headers(),body:JSON.stringify({data:b64,filename:f.name||'photo.jpg',mime:mime})})
+      .then(function(r){return r.json();}).then(function(res){ if(res&&res.ok&&res.fileId){ LG.issDraft.photo=res.fileId; renderIssueForm(); } else { var s2=document.getElementById('iss-up-st'); if(s2)s2.textContent=(res&&res.text)||'Не загрузилось'; } })
+      .catch(function(){ var s3=document.getElementById('iss-up-st'); if(s3)s3.textContent='Ошибка сети'; });
+  }; rd.readAsDataURL(f);
+}
+function issPhotoDel(){ issReadForm(); LG.issDraft.photo=''; renderIssueForm(); }
+function saveIssueForm(){ var d=issReadForm(); var t=(d.text||'').trim(); if(!t){ alert('Опишите замечание.'); return; }
+  emit({kind:'issue.add', payload:{id:'iss'+Date.now()+Math.floor(Math.random()*1000), text:t, floor:(d.floor||'').trim(), photo:d.photo||''}});
+  LG.issDraft=null; lgCloseSheet(); render(); lgRefreshCabSheet();
 }
 function closeIssue(id){ emit({kind:'issue.close', payload:{id:id}}); render(); lgRefreshCabSheet(); }
+function shareIssueWa(id){ var v=projected(LG.base,LG.queue); var z=(v.issues||[]).find(function(x){return x&&x.id===id;}); if(!z)return; var obj=(v.objects||[])[0]||'';
+  var txt='⚠️ Замечание\nОбъект: '+obj+'\n'+(z.text||'')+(z.floor?('\nМесто: '+z.floor):'')+'\nДата: '+String(z.date||'').split('-').reverse().join('.');
+  window.open('https://wa.me/?text='+encodeURIComponent(txt),'_blank'); }
+function openIssuesCard(view){
+  var issues=(view.issues||[]).filter(function(z){return z&&!z.closed;}).sort(function(a,b){return (b.ts||0)-(a.ts||0);});
+  if(!issues.length) return '';
+  var h='<div style="border:1px solid var(--red);border-radius:14px;padding:13px;margin-bottom:14px;background:rgba(248,81,73,.06)">';
+  h+='<div style="font-size:13px;font-weight:800;letter-spacing:.5px;color:var(--red);margin-bottom:6px">⚠️ ЗАМЕЧАНИЯ С ОБЪЕКТА · '+issues.length+'</div>';
+  issues.slice(0,6).forEach(function(z){
+    h+='<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:9px;padding:8px 0;border-top:1px solid var(--brd)"><div style="flex:1;min-width:0"><div style="font-size:13px">'+esc(z.text||'')+'</div><div style="font-size:10.5px;color:var(--mut);margin-top:2px">'+(z.floor?(esc(z.floor)+' · '):'')+String(z.date||'').split('-').reverse().join('.')+(z.by?(' · '+esc(z.by)):'')+'</div></div>'
+      +(z.photo?'<img src="'+photoUrl(z.photo)+'" onclick="openPhoto(\''+esc(z.photo)+'\')" style="width:42px;height:42px;object-fit:cover;border-radius:7px;border:1px solid var(--brd);cursor:pointer;flex:0 0 auto"/>':'')
+      +'<button onclick="shareIssueWa(\''+esc(z.id)+'\')" style="flex:0 0 auto;border:1px solid var(--brd);background:var(--sur2);color:var(--fg);border-radius:8px;padding:6px 9px;font-size:13px;cursor:pointer">📲</button>'
+      +'<button onclick="closeIssue(\''+esc(z.id)+'\')" style="flex:0 0 auto;border:1px solid var(--green);background:rgba(46,160,67,.08);color:var(--green);border-radius:8px;padding:6px 9px;font-size:12px;font-weight:700;cursor:pointer">✓</button></div>';
+  });
+  if(issues.length>6) h+='<div style="font-size:11px;color:var(--mut);margin-top:6px">…и ещё '+(issues.length-6)+'</div>';
+  h+='</div>';
+  return h;
+}
+function ppUpcoming(view){ var td=new Date().toISOString().slice(0,10); var lim=new Date(Date.now()+14*86400000).toISOString().slice(0,10);
+  return ((view.pourPlan)||[]).filter(function(p){return p&&!p.done&&(p.date||'')>=td&&(p.date||'')<=lim;}).sort(function(a,b){return String(a.date).localeCompare(String(b.date));}); }
+function ppDateLabel(d){ var td=new Date().toISOString().slice(0,10); var tm=new Date(Date.now()+86400000).toISOString().slice(0,10);
+  if(d===td)return 'Сегодня'; if(d===tm)return 'Завтра'; var dt=new Date(d+'T00:00:00'); var wd=['Вс','Пн','Вт','Ср','Чт','Пт','Сб'][dt.getDay()]; return wd+' '+(d.split('-').reverse().slice(0,2).join('.')); }
+function pourPlanSection(view){
+  var up=ppUpcoming(view);
+  var h='<div style="font-size:12px;font-weight:800;letter-spacing:1px;color:var(--gold);margin:16px 2px 8px">🗓 ПЛАН ЗАЛИВОК · 2 НЕДЕЛИ</div>';
+  if(up.length){ up.forEach(function(p){
+    h+='<div class="ledger" style="display:flex;justify-content:space-between;align-items:flex-start;gap:9px;margin-bottom:7px;padding:11px 13px"><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:700"><span style="color:var(--teal)">'+ppDateLabel(p.date||'')+'</span> · '+esc(p.spot||'')+(p.floor?(' · '+esc(p.floor)):'')+'</div><div style="font-size:12px;color:var(--mut);margin-top:2px">'+(p.volume?(fmtD(p.volume)+' м³'):'')+(p.grade?((p.volume?' · ':'')+esc(p.grade)):'')+(p.note?('<br>'+esc(p.note)):'')+'</div></div>'
+      +'<div style="display:flex;gap:6px;flex:0 0 auto"><button onclick="ppDone(\''+esc(p.id)+'\')" title="залито" style="border:1px solid var(--green);background:rgba(46,160,67,.08);color:var(--green);border-radius:8px;padding:6px 9px;font-size:12px;font-weight:700;cursor:pointer">✓</button>'
+      +'<button onclick="ppForm(\''+esc(p.id)+'\')" style="border:1px solid var(--brd);background:var(--sur2);color:var(--mut);border-radius:8px;padding:6px 9px;font-size:12px;cursor:pointer">✏️</button></div></div>';
+  }); }
+  else h+='<div style="font-size:12px;color:var(--mut);padding:2px 2px 8px">на ближайшие 2 недели заливок не запланировано</div>';
+  h+='<button onclick="ppForm()" style="width:100%;border:1px dashed var(--teal);background:rgba(45,212,191,.05);color:var(--teal);font-weight:700;font-size:13px;padding:11px;border-radius:11px;cursor:pointer;margin-bottom:6px">+ Запланировать заливку</button>';
+  return h;
+}
+function ppForm(id){
+  var v=projected(LG.base,LG.queue); var obj=(v.objects||[])[0]||''; var spots=((v.objMeta&&v.objMeta[obj])||{}).spots||[];
+  var p=id?(((v.pourPlan)||[]).find(function(x){return x&&x.id===id;})||{}):{};
+  var fi='width:100%;background:var(--sur2);border:1px solid var(--brd);color:var(--fg);border-radius:10px;padding:11px;font-size:15px;box-sizing:border-box';
+  var tm=new Date(Date.now()+86400000).toISOString().slice(0,10);
+  var h='<div style="padding:2px"><input type="hidden" id="pp-id" value="'+esc(id||'')+'"/>';
+  h+='<div style="margin-bottom:10px"><label style="font-size:12px;color:var(--mut)">Дата заливки</label><input id="pp-date" type="date" value="'+esc(p.date||tm)+'" style="'+fi+';margin-top:4px"/></div>';
+  if(spots.length) h+='<div style="margin-bottom:10px"><label style="font-size:12px;color:var(--mut)">Пятно / блок</label><select id="pp-spot" style="'+fi+';margin-top:4px">'+selOpts(spots.map(function(s){return [s.name,s.name];}), p.spot||(spots[0]&&spots[0].name))+'</select></div>';
+  else h+='<div style="margin-bottom:10px"><label style="font-size:12px;color:var(--mut)">Пятно / блок</label><input id="pp-spot" value="'+esc(p.spot||'')+'" style="'+fi+';margin-top:4px"/></div>';
+  h+='<div style="margin-bottom:10px"><label style="font-size:12px;color:var(--mut)">Этаж / конструктив (необязательно)</label><input id="pp-floor" value="'+esc(p.floor||'')+'" placeholder="напр. 5 этаж, перекрытие" style="'+fi+';margin-top:4px"/></div>';
+  h+='<div style="display:flex;gap:8px;margin-bottom:10px"><div style="flex:1"><label style="font-size:12px;color:var(--mut)">Объём, м³</label><input id="pp-vol" type="number" step="any" value="'+(p.volume||'')+'" placeholder="0" style="'+fi+';margin-top:4px"/></div><div style="flex:1"><label style="font-size:12px;color:var(--mut)">Марка</label><input id="pp-grade" value="'+esc(p.grade||'M300 (B22.5)')+'" style="'+fi+';margin-top:4px"/></div></div>';
+  h+='<div style="margin-bottom:12px"><label style="font-size:12px;color:var(--mut)">Заметка (необязательно)</label><input id="pp-note" value="'+esc(p.note||'')+'" placeholder="напр. нужен бетононасос" style="'+fi+';margin-top:4px"/></div>';
+  h+='<button onclick="ppSave()" style="width:100%;border:none;background:var(--teal);color:#04201b;font-weight:800;font-size:15px;padding:13px;border-radius:12px;cursor:pointer">'+(id?'Сохранить':'Запланировать')+'</button>';
+  if(id) h+='<button onclick="ppDel(\''+esc(id)+'\')" style="width:100%;border:1px solid var(--red);background:transparent;color:var(--red);font-weight:700;font-size:13px;padding:11px;border-radius:11px;cursor:pointer;margin-top:8px">Удалить из плана</button>';
+  h+='</div>';
+  lgSheet(id?'✏️ Заливка в плане':'🗓 Запланировать заливку', h);
+}
+function ppSave(){ function gv(id){var el=document.getElementById(id);return el?el.value:'';}
+  var id=gv('pp-id'); var date=gv('pp-date'); if(!date){ alert('Укажите дату заливки.'); return; }
+  var payload={ date:date, spot:gv('pp-spot'), floor:gv('pp-floor'), volume:Number(gv('pp-vol'))||0, grade:gv('pp-grade'), note:gv('pp-note') };
+  if(id){ payload.id=id; emit({kind:'pourplan.update', payload:payload}); }
+  else { payload.id='pp'+Date.now()+Math.floor(Math.random()*1000); emit({kind:'pourplan.add', payload:payload}); }
+  lgCloseSheet(); render(); lgRefreshCabSheet();
+}
+function ppDone(id){ emit({kind:'pourplan.done', payload:{id:id, done:true}}); render(); lgRefreshCabSheet(); }
+function ppDel(id){ if(typeof confirm==='function'&&!confirm('Удалить заливку из плана?'))return; emit({kind:'pourplan.del', payload:{id:id}}); lgCloseSheet(); render(); lgRefreshCabSheet(); }
+// ── ПАСПОРТ БЕТОНА + ПРОЧНОСТЬ ПО ЗАЛИВКЕ ──
+function gradeMPa(g){ g=String(g||''); var mb=g.match(/[BВ]\s*([0-9]+(?:[.,][0-9]+)?)/i); if(mb) return parseFloat(mb[1].replace(',','.'))||0;
+  var mm=g.match(/[MМ]\s*([0-9]+)/i); if(mm){ var M=parseInt(mm[1],10); var map={100:7.5,150:12.5,200:15,250:20,300:22.5,350:25,400:30,450:35,500:40,600:45}; return map[M]||Math.round(M*0.078*10)/10; } return 0; }
+function qaVerdict(r28, design){ if(!(r28>0)||!(design>0)) return null; var pct=Math.round(r28/design*100);
+  if(pct>=100) return {pct:pct,txt:'норма',col:'var(--green)',ic:'✅'}; if(pct>=90) return {pct:pct,txt:'на контроле',col:'var(--gold)',ic:'⚠️'}; return {pct:pct,txt:'ниже класса',col:'var(--red)',ic:'❌'}; }
+function entryQaBadge(e){ var q=(e&&e.qa)||{}; if(q.r28>0){ var v=qaVerdict(q.r28, gradeMPa(q.grade||e.grade)); return v?(' <span style="color:'+v.col+';font-size:10px">'+v.ic+q.r28+'МПа·'+v.pct+'%</span>'):(' <span style="color:var(--mut);font-size:10px">'+q.r28+'МПа</span>'); } if(q.passportFile||q.labFile) return ' <span style="color:var(--mut);font-size:10px">📄</span>'; return ''; }
+function openConcreteQA(id){
+  var v=projected(LG.base,LG.queue); var e=(v.entries||[]).find(function(x){return x&&x.id===id;}); if(!e){ toast('Заливка не найдена'); return; }
+  var q=e.qa||{}; LG.qaDraft={ entryId:id, grade:(q.grade||e.grade||''), passportFile:(q.passportFile||''), labFile:(q.labFile||''), r7:(q.r7||''), r28:(q.r28||''), sampleDate:(q.sampleDate||e.date||''), note:(q.note||'') };
+  renderQaForm(e);
+}
+function renderQaForm(e){
+  var d=LG.qaDraft||{}; var fi='width:100%;background:var(--sur2);border:1px solid var(--brd);color:var(--fg);border-radius:10px;padding:11px;font-size:15px;box-sizing:border-box';
+  var design=gradeMPa(d.grade); var v=qaVerdict(Number(d.r28)||0, design);
+  var loc=(e.zone||spotNameOf(projected(LG.base,LG.queue),e.spotId)||'')+(e.floor?(' · '+e.floor):'');
+  function fileRow(which,label){ var h='<div style="margin-bottom:10px"><label style="font-size:12px;color:var(--mut)">'+label+'</label>';
+    if(d[which]) h+='<div style="display:flex;gap:9px;align-items:center;margin-top:6px"><button onclick="openPhoto(\''+esc(d[which])+'\')" style="flex:1;border:1px solid var(--teal);background:rgba(45,212,191,.08);color:var(--teal);border-radius:9px;padding:10px;font-size:13px;font-weight:700;cursor:pointer">📄 открыть</button><button onclick="qaFileDel(\''+which+'\')" style="border:1px solid var(--red);background:rgba(248,81,73,.08);color:var(--red);border-radius:9px;padding:10px 12px;font-size:12px;cursor:pointer">убрать</button></div>';
+    else h+='<label style="display:block;margin-top:6px;border:1px dashed var(--brd);border-radius:10px;padding:11px;text-align:center;color:var(--teal);font-weight:700;font-size:13px;cursor:pointer">📷 Прикрепить фото/PDF<input type="file" accept="image/*,application/pdf" onchange="qaFile(this,\''+which+'\')" style="display:none"/></label>';
+    return h+'</div>'; }
+  var h='<div style="padding:2px"><div style="font-size:12.5px;color:var(--mut);margin-bottom:10px">Заливка '+String(e.date||'').split('-').reverse().join('.')+(loc?(' · '+esc(loc)):'')+' · '+fmtD(Number(e.volume)||0)+' м³</div>';
+  h+='<div style="margin-bottom:10px"><label style="font-size:12px;color:var(--mut)">Класс / марка бетона</label><input id="qa-grade" value="'+esc(d.grade||'')+'" placeholder="напр. B22.5 (M300)" style="'+fi+';margin-top:4px"/>'+(design>0?'<div style="font-size:11px;color:var(--mut);margin-top:4px">Проектная прочность ≈ '+design+' МПа</div>':'')+'</div>';
+  h+=fileRow('passportFile','Паспорт / накладная с завода');
+  h+=fileRow('labFile','Протокол лаборатории (испытания)');
+  h+='<div id="qa-up-st" style="font-size:11px;color:var(--mut);margin-bottom:10px"></div>';
+  h+='<div style="display:flex;gap:8px;margin-bottom:10px"><div style="flex:1"><label style="font-size:12px;color:var(--mut)">R7, МПа (7 сут)</label><input id="qa-r7" type="number" step="any" value="'+(d.r7||'')+'" style="'+fi+';margin-top:4px"/></div><div style="flex:1"><label style="font-size:12px;color:var(--mut)">R28, МПа (28 сут)</label><input id="qa-r28" type="number" step="any" value="'+(d.r28||'')+'" style="'+fi+';margin-top:4px"/></div></div>';
+  if(v) h+='<div class="ledger" style="border-color:'+v.col+';margin-bottom:10px"><div style="font-size:14px">Прочность 28 сут: <b style="color:'+v.col+'">'+v.pct+'% от класса</b> '+v.ic+' '+v.txt+'</div><div style="font-size:11px;color:var(--mut);margin-top:3px">'+d.r28+' МПа при проектных '+design+' МПа · ориентир, не заменяет протокол лаборатории</div></div>';
+  h+='<div style="margin-bottom:10px"><label style="font-size:12px;color:var(--mut)">Дата отбора проб</label><input id="qa-sample" type="date" value="'+esc(d.sampleDate||'')+'" style="'+fi+';margin-top:4px"/></div>';
+  h+='<div style="margin-bottom:12px"><label style="font-size:12px;color:var(--mut)">Заметка</label><input id="qa-note" value="'+esc(d.note||'')+'" placeholder="напр. № партии, осадка конуса" style="'+fi+';margin-top:4px"/></div>';
+  h+='<button onclick="qaSave()" style="width:100%;border:none;background:var(--teal);color:#04201b;font-weight:800;font-size:15px;padding:13px;border-radius:12px;cursor:pointer">Сохранить</button></div>';
+  lgSheet('🧪 Бетон · прочность', h);
+}
+function qaReadForm(){ var d=LG.qaDraft||{}; function gv(id){var el=document.getElementById(id);return el?el.value:undefined;}
+  var g=gv('qa-grade'); if(g!==undefined)d.grade=g; var r7=gv('qa-r7'); if(r7!==undefined)d.r7=r7; var r28=gv('qa-r28'); if(r28!==undefined)d.r28=r28; var sd=gv('qa-sample'); if(sd!==undefined)d.sampleDate=sd; var n=gv('qa-note'); if(n!==undefined)d.note=n; LG.qaDraft=d; return d; }
+function qaFile(input, which){ var f=input.files&&input.files[0]; if(!f)return; qaReadForm(); var st=document.getElementById('qa-up-st');
+  if(PREVIEW||!LG.url||!LG.token){ if(st)st.textContent='Файлы — только в боевом режиме.'; return; }
+  if(st)st.textContent='⏳ Загружаю…';
+  var rd=new FileReader(); rd.onload=function(){ var s=String(rd.result||''); var b64=s.split(',')[1]||''; var mime=(s.match(/^data:([^;]+);/)||[])[1]||f.type||'image/jpeg';
+    fetch(api('/api/upload-file'),{method:'POST',headers:headers(),body:JSON.stringify({data:b64,filename:f.name||'file',mime:mime})})
+      .then(function(r){return r.json();}).then(function(res){ if(res&&res.ok&&res.fileId){ LG.qaDraft[which]=res.fileId; var e=(projected(LG.base,LG.queue).entries||[]).find(function(x){return x&&x.id===LG.qaDraft.entryId;})||{}; renderQaForm(e); } else { var s2=document.getElementById('qa-up-st'); if(s2)s2.textContent=(res&&res.text)||'Не загрузилось'; } })
+      .catch(function(){ var s3=document.getElementById('qa-up-st'); if(s3)s3.textContent='Ошибка сети'; });
+  }; rd.readAsDataURL(f);
+}
+function qaFileDel(which){ qaReadForm(); LG.qaDraft[which]=''; var e=(projected(LG.base,LG.queue).entries||[]).find(function(x){return x&&x.id===LG.qaDraft.entryId;})||{}; renderQaForm(e); }
+function qaSave(){ var d=qaReadForm(); emit({kind:'entry.qa', entryId:d.entryId, payload:{ grade:(d.grade||''), passportFile:(d.passportFile||''), labFile:(d.labFile||''), r7:Number(d.r7)||0, r28:Number(d.r28)||0, sampleDate:(d.sampleDate||''), note:(d.note||'') }}); LG.qaDraft=null; lgCloseSheet(); render(); lgRefreshCabSheet(); }
+function concreteQA(view){
+  var ent=(view.entries||[]).filter(function(e){return e&&e.type==='vol'&&isConcrete(view,e);});
+  var now=Date.now(); var r={total:ent.length,totalV:0,passport:0,lab:0,ok:0,control:0,below:0,due:[]};
+  ent.forEach(function(e){ var q=e.qa||{}; r.totalV+=Number(e.volume)||0;
+    if(q.passportFile) r.passport++;
+    if(q.r28>0){ r.lab++; var v=qaVerdict(q.r28, gradeMPa(q.grade||e.grade)); if(v){ if(v.pct>=100)r.ok++; else if(v.pct>=90)r.control++; else r.below++; } }
+    var age=e.date?Math.floor((now-new Date(e.date+'T00:00:00').getTime())/86400000):0;
+    if(!(q.r28>0) && age>=26) r.due.push({e:e,kind:'r28',age:age});
+    else if(!(q.r7>0) && age>=6 && age<=13) r.due.push({e:e,kind:'r7',age:age});
+  });
+  r.due.sort(function(a,b){return b.age-a.age;});
+  return r;
+}
+function concreteQACard(view){
+  var q=concreteQA(view); if(!q.total) return '';
+  var h='<div style="font-size:12px;font-weight:800;letter-spacing:1px;color:var(--gold);margin:16px 2px 8px">🧪 КАЧЕСТВО БЕТОНА</div>';
+  h+='<div class="ledger" style="margin-bottom:14px"><div style="font-size:13px;line-height:1.7">'
+    +'Заливок: <b>'+q.total+'</b> · '+fmtD(q.totalV)+' м³<br>'
+    +'С паспортом: <b style="color:'+(q.passport>=q.total?'var(--green)':'var(--gold)')+'">'+q.passport+'/'+q.total+'</b> · с протоколом R28: <b style="color:'+(q.lab>0?'var(--teal)':'var(--mut)')+'">'+q.lab+'</b>';
+  if(q.lab>0) h+='<br>По прочности: <b style="color:var(--green)">'+q.ok+' норма</b>'+(q.control?(' · <b style="color:var(--gold)">'+q.control+' контроль</b>'):'')+(q.below?(' · <b style="color:var(--red)">'+q.below+' ниже класса</b>'):'');
+  h+='</div></div>';
+  return h;
+}
+function concreteDueCard(view){
+  var q=concreteQA(view); if(!q.due.length) return '';
+  var h='<div style="border:1px solid var(--gold);border-radius:13px;padding:12px;margin-bottom:14px;background:rgba(240,165,0,.06)"><div style="font-size:12.5px;font-weight:800;color:var(--gold);margin-bottom:7px">⏰ ПОРА ИСПЫТАТЬ БЕТОН · '+q.due.length+'</div>';
+  q.due.slice(0,8).forEach(function(d){ var e=d.e; var loc=(e.zone||spotNameOf(view,e.spotId)||'')+(e.floor?(' · '+e.floor):'');
+    h+='<div onclick="openConcreteQA(\''+esc(String(e.id))+'\')" style="display:flex;justify-content:space-between;align-items:center;gap:9px;padding:8px 0;border-top:1px solid var(--brd);cursor:pointer"><div style="flex:1;min-width:0"><div style="font-size:13px">'+esc(loc||'заливка')+' · '+fmtD(Number(e.volume)||0)+' м³</div><div style="font-size:10.5px;color:var(--mut);margin-top:2px">залито '+String(e.date||'').split('-').reverse().join('.')+' · '+d.age+' сут назад</div></div><span style="flex:0 0 auto;font-size:12px;font-weight:800;color:'+(d.kind==='r28'?'var(--gold)':'var(--teal)')+'">'+(d.kind==='r28'?'R28':'R7')+' →</span></div>';
+  });
+  if(q.due.length>8) h+='<div style="font-size:11px;color:var(--mut);margin-top:6px">…и ещё '+(q.due.length-8)+'</div>';
+  h+='</div>';
+  return h;
+}
 function coachPrompt(view){
   var brigId = LG.role.indexOf('brigadier_')===0 ? LG.role.slice('brigadier_'.length) : null;
   var obj=(view.objects||[])[0]||''; var td=new Date().toISOString().slice(0,10);
@@ -4036,6 +4233,40 @@ function openDailyReport(){
   h+='<a href="https://wa.me/?text='+enc+'" target="_blank" style="display:block;text-align:center;background:#25D366;color:#04210d;border-radius:10px;padding:13px;font-weight:800;text-decoration:none">Отправить в WhatsApp</a>';
   lgSheet('📋 Отчёт за день', h);
 }
+function openMaterialOrder(){
+  var view=projected(LG.base,LG.queue); var obj=(view.objects||[])[0]||'';
+  var spots=((view.objMeta&&view.objMeta[obj])||{}).spots||[];
+  var fi='width:100%;background:var(--sur2);border:1px solid var(--brd);color:var(--fg);border-radius:10px;padding:11px;font-size:15px;box-sizing:border-box';
+  var h='<div style="font-size:13px;color:var(--mut);margin-bottom:12px">Что привезти на объект. Сформирует текст для WhatsApp/SMS снабженцу.</div>';
+  h+='<div style="margin-bottom:12px;padding:10px;border:1px solid var(--brd);border-radius:10px;background:var(--sur2)"><label style="font-size:12px;color:var(--mut)">Номер снабженца (WhatsApp)</label><div style="display:flex;gap:8px;margin-top:4px"><input id="mo-phone" type="tel" inputmode="numeric" value="'+esc(view.snabPhone||'')+'" placeholder="напр. 77011234567" style="flex:1;min-width:0;'+fi+'"/><button onclick="saveSnabPhone()" style="flex:none;background:rgba(46,160,67,.12);border:1px solid var(--green);color:var(--green);border-radius:10px;padding:0 16px;font-size:18px;cursor:pointer">💾</button></div><div id="mo-phone-st" style="font-size:11px;color:var(--mut);margin-top:5px">'+(view.snabPhone?('Заявка уйдёт прямо на +'+esc(view.snabPhone)):'Без номера откроется выбор контакта')+'</div></div>';
+  if(spots.length) h+='<div style="margin-bottom:12px"><label style="font-size:12px;color:var(--mut)">Пятно / блок</label><select id="mo-spot" style="'+fi+';margin-top:4px">'+selOpts(spots.map(function(s){return [s.name,s.name];}), spots[0]&&spots[0].name)+'</select></div>';
+  h+='<div style="margin-bottom:12px"><label style="font-size:12px;color:var(--mut)">Что нужно (по строкам)</label><textarea id="mo-items" rows="5" placeholder="напр.&#10;Арматура d12 — 2 т&#10;Опалубка — 30 щитов&#10;Сетка 100×100 — 50 м²&#10;Проволока вязальная — 20 кг" style="'+fi+';margin-top:4px;resize:vertical"></textarea></div>';
+  h+='<div style="margin-bottom:12px"><label style="font-size:12px;color:var(--mut)">Когда нужно</label><input id="mo-when" value="завтра к 08:00" style="'+fi+';margin-top:4px"/></div>';
+  h+='<button onclick="genMaterialOrder()" style="width:100%;background:var(--blue);color:#04162e;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:800;cursor:pointer">Сформировать заявку</button><div id="mo-out" style="margin-top:12px"></div>';
+  lgSheet('📦 Заявка снабженцу', h);
+}
+function saveSnabPhone(){ var el=document.getElementById('mo-phone'); if(!el)return; var p=String(el.value||'').replace(/[^\d]/g,'').slice(0,20); el.value=p; emit({kind:'meta.set',key:'snabPhone',value:p}); var s=document.getElementById('mo-phone-st'); if(s){ s.textContent=p?('✓ Сохранён · заявка уйдёт на +'+p):'Номер очищен'; s.style.color='var(--green)'; } }
+function genMaterialOrder(){ function gv(id){var el=document.getElementById(id);return el?el.value:'';}
+  var view=projected(LG.base,LG.queue); var obj=(view.objects||[])[0]||'';
+  var items=(gv('mo-items')||'').trim(); if(!items){ alert('Впишите, что нужно привезти.'); return; }
+  var spot=gv('mo-spot'); var when=gv('mo-when');
+  var txt='Заявка на материалы\nОбъект: '+obj+(spot?('\nБлок: '+spot):'')+'\n\n'+items+'\n\nКогда: '+when+'\nКонтакт прораба: ___';
+  var enc=encodeURIComponent(txt); var phEl=document.getElementById('mo-phone'); var ph=phEl?String(phEl.value||'').replace(/[^\d]/g,''):'';
+  var waUrl=ph?('https://wa.me/'+ph+'?text='+enc):('https://wa.me/?text='+enc);
+  var out=document.getElementById('mo-out'); if(out) out.innerHTML='<div style="background:var(--sur2);border:1px solid var(--brd);border-radius:10px;padding:12px;font-size:13px;white-space:pre-wrap;color:var(--fg);margin-bottom:10px">'+esc(txt)+'</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><a href="'+waUrl+'" target="_blank" style="text-align:center;background:#25D366;color:#04210d;border-radius:10px;padding:12px;font-weight:800;text-decoration:none">WhatsApp</a><a href="sms:?&body='+enc+'" style="text-align:center;background:var(--sur2);border:1px solid var(--brd);color:var(--fg);border-radius:10px;padding:12px;font-weight:700;text-decoration:none">SMS</a></div>';
+}
+var CONTACTS=[['betonPhone','🧱 Бетонный узел'],['snabPhone','📦 Снабженец'],['ownerPhone','👔 Руководство'],['labPhone','🧪 Лаборатория']];
+function openContacts(){
+  var v=projected(LG.base,LG.queue);
+  var fi='background:var(--sur2);border:1px solid var(--brd);color:var(--fg);border-radius:10px;padding:10px;font-size:15px;box-sizing:border-box';
+  var h='<div style="font-size:12px;color:var(--mut);margin-bottom:12px">Быстрая связь. Номер сохраняется один раз — дальше звонок или WhatsApp в один тап.</div>';
+  CONTACTS.forEach(function(c){ var num=String(v[c[0]]||'').replace(/[^\d]/g,'');
+    h+='<div style="border:1px solid var(--brd);border-radius:11px;padding:11px;margin-bottom:9px;background:var(--sur2)"><div style="font-size:13px;font-weight:700;margin-bottom:6px">'+c[1]+'</div><div style="display:flex;gap:7px"><input id="ct-'+c[0]+'" type="tel" inputmode="numeric" value="'+esc(num)+'" placeholder="77011234567" style="flex:1;min-width:0;'+fi+'"/><button onclick="saveContactPhone(\''+c[0]+'\')" style="flex:none;background:rgba(46,160,67,.12);border:1px solid var(--green);color:var(--green);border-radius:10px;padding:0 14px;font-size:16px;cursor:pointer">💾</button></div>'
+      +(num?('<div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:8px"><a href="tel:+'+num+'" style="text-align:center;background:var(--sur);border:1px solid var(--brd);color:var(--fg);border-radius:9px;padding:10px;font-weight:700;text-decoration:none;font-size:13px">📞 Позвонить</a><a href="https://wa.me/'+num+'" target="_blank" style="text-align:center;background:#25D366;color:#04210d;border-radius:9px;padding:10px;font-weight:800;text-decoration:none;font-size:13px">WhatsApp</a></div>'):'<div style="font-size:11px;color:var(--mut);margin-top:6px">Добавьте номер, чтобы звонить в один тап.</div>')+'</div>';
+  });
+  lgSheet('📞 Контакты', h);
+}
+function saveContactPhone(key){ var el=document.getElementById('ct-'+key); if(!el)return; var p=String(el.value||'').replace(/[^\d]/g,'').slice(0,20); emit({kind:'meta.set',key:key,value:p}); openContacts(); }
 function roleLabel(r){
   if(!r) return '—';
   if(r==='owner') return 'Владелец';
