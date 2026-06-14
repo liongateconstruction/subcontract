@@ -4352,7 +4352,7 @@ function allWorkTypes(view){
   var rc=((view&&view.rateCard)||[]).map(function(r){return r&&r.wtype;}).filter(Boolean);
   var seen={}, res=[];
   rc.forEach(function(t){ if(!seen[t]){seen[t]=1; res.push({v:t, label:'💰 '+t});} });
-  if(res.length) return res;   // справочник настроен → только монолитные виды (короткий список); «свой вид…» добавляется в форме
+  if(res.length) return res;   // справочник настроен → виды берутся из него (заведи 4 вида с этапами)
   cust.forEach(function(t){ if(!seen[t]){seen[t]=1; res.push({v:t, label:'✓ '+t});} });
   stages.forEach(function(t){ if(!seen[t]){seen[t]=1; res.push({v:t, label:'🔧 '+t});} });
   common.forEach(function(t){ if(!seen[t]){seen[t]=1; res.push({v:t, label:t});} });
@@ -4379,7 +4379,7 @@ function renderEntryFields(){
     // вид работ из единого справочника (виды заказчика ✓, этапы 🔧, общие) + возможность ввести своё
     var knownW=wt.some(function(t){return t.v===d.wtype;});
     var showCustom=d._wcustom||(d.wtype&&!knownW);
-    h+=fld('Вид работ','<select id="in-wtype" onchange="entryWtypeChange(this.value)">'+wt.map(function(t){return '<option value="'+esc(t.v)+'"'+((d.wtype===t.v&&!d._wcustom)?' selected':'')+'>'+esc(t.label)+'</option>';}).join('')+'<option value="__custom__"'+(showCustom?' selected':'')+'>➕ свой вид…</option></select>')+fh('Что делали: «Заливка бетона», «Армирование» и т.п. По виду работ (вместе с этапом) приложение берёт расценку бригады. Ошибётесь в виде — сумма посчитается не та.');
+    h+=fld('Вид работ','<select id="in-wtype" onchange="entryWtypeChange(this.value)">'+wt.map(function(t){return '<option value="'+esc(t.v)+'"'+((d.wtype===t.v&&!d._wcustom)?' selected':'')+'>'+esc(t.label)+'</option>';}).join('')+'<option value="__custom__"'+(showCustom?' selected':'')+'>➕ свой вид…</option></select>')+fh('Выберите вид из справочника (стены, перекрытие/ригель, лестница, парапет — каждый со своим этапом). По виду и этапу берётся расценка бригады, и объём идёт в нужную статью КС. Выбирайте точно.');
     if(showCustom) h+=fld('Свой вид работ','<input id="in-wtype-custom" value="'+esc(d.wtype||'')+'" placeholder="Название вида работ"/>');
     // этап работ (как в расценках бригады)
     h+=fld('Этап','<select id="in-stage" onchange="entryRecalcAmount(true)">'+BRIG_STAGES.map(function(st){return '<option value="'+esc(st)+'"'+((d.stage||'Комплекс (всё)')===st?' selected':'')+'>'+esc(st)+'</option>';}).join('')+'</select>')+fh('Этап работ из расценок бригады. Если бригада делает всё под ключ — оставьте «Комплекс (всё)». Этап тоже влияет на расценку.');
@@ -4521,9 +4521,9 @@ function confirmDraft(id){
     // расценки нет — оставляем amountPending (запись попадёт в «Ждут сумму»)
   }
   emit({kind:'entry.edit', entryId:id, payload:payload});
-  render();
+  render(); if(typeof lgRefreshCabSheet==='function') lgRefreshCabSheet();
 }
-function returnDraft(id){ if(typeof confirm==='function'&&!confirm('Вернуть заливку? Запись удалится, объём не будет учтён. Прораб сможет записать заново.'))return; emit({kind:'entry.delete', entryId:id}); render(); }
+function returnDraft(id){ if(typeof confirm==='function'&&!confirm('Вернуть заливку? Запись удалится, объём не будет учтён. Прораб сможет записать заново.'))return; emit({kind:'entry.delete', entryId:id}); render(); if(typeof lgRefreshCabSheet==='function') lgRefreshCabSheet(); }
 function deleteDraft(id){ emit({kind:'entry.delete', entryId:id}); render(); }
 function entrySyncVol(){ var d=LG.draft; if(!d||d.type!=='vol')return;
   var v=Number(gv('in-vol')); if(!isNaN(v)&&gv('in-vol')!=='')d.volume=v;
@@ -4547,9 +4547,24 @@ function entryPhotoDel(){ entrySyncVol(); LG.draft.photoId=''; renderEntryFields
 function cabReviewPending(view){
   var d=(view.draftEntries||[]).filter(function(e){return e&&e.type==='vol';}).sort(entryCmp);
   if(!d.length) return '';
-  var h='<div style="border:1px solid var(--gold);border-radius:13px;padding:12px;margin-bottom:14px;background:rgba(240,165,0,.06)"><div style="font-size:12.5px;font-weight:800;color:var(--gold);margin-bottom:5px">🔍 ОТПРАВЛЕНО НА ПРОВЕРКУ · '+d.length+'</div><div style="font-size:11.5px;color:var(--mut);margin-bottom:7px;line-height:1.45">Руководство проверит и примет. До приёмки эти заливки в зачёт не идут.</div>';
-  d.slice(0,6).forEach(function(e){ h+='<div style="display:flex;justify-content:space-between;gap:9px;padding:7px 0;border-top:1px solid var(--brd)"><div style="font-size:12.5px">'+fmtD(Number(e.volume)||0)+' м³'+(e.floor?(' · '+esc(e.floor)):'')+'</div><div style="font-size:11px;color:var(--mut)">'+String(e.date||'').split('-').reverse().join('.')+(e.photoId?' · 📷':' · <span style="color:var(--orange)">без фото</span>')+'</div></div>'; });
-  if(d.length>6) h+='<div style="font-size:11px;color:var(--mut);margin-top:6px">…и ещё '+(d.length-6)+'</div>';
+  var canRev=(typeof canWriteLedger==='function')?canWriteLedger():false;
+  var h='<div style="border:1px solid var(--gold);border-radius:13px;padding:12px;margin-bottom:14px;background:rgba(240,165,0,.06)">';
+  h+='<div style="font-size:12.5px;font-weight:800;color:var(--gold);margin-bottom:5px">🔍 '+(canRev?'ЗАЛИВКИ НА ПРОВЕРКЕ':'ОТПРАВЛЕНО НА ПРОВЕРКУ')+' · '+d.length+'</div>';
+  h+='<div style="font-size:11.5px;color:var(--mut);margin-bottom:9px;line-height:1.45">'+(canRev?'Проверьте (по фото) и примите ✅ или верните ↩️. Сумма посчитается по расценке бригады. До приёмки в зачёт не идут.':'Руководство проверит и примет. До приёмки эти заливки в зачёт не идут.')+'</div>';
+  d.slice(0,8).forEach(function(e){ var bn=brigName(view,e.brigade)||''; var tm=entryTime(e);
+    h+='<div style="background:var(--bg);border:1px solid var(--brd);border-radius:11px;padding:10px 12px;margin-bottom:8px">';
+    h+='<div style="display:flex;justify-content:space-between;gap:9px"><div style="font-size:14px;font-weight:800">'+fmtD(Number(e.volume)||0)+' м³'+(e.unit&&e.unit!=='м³'?(' '+esc(e.unit)):'')+'</div><div style="font-size:11px;color:var(--mut);text-align:right">'+String(e.date||'').split('-').reverse().join('.')+(tm?(' · '+tm):'')+'</div></div>';
+    h+='<div style="font-size:11px;color:var(--mut);margin-top:2px">'+(bn?('⛑ '+esc(bn.replace(/^Бригада\s*/,''))+' · '):'')+(e.floor?esc(e.floor):'')+(e.wtype?(' · '+esc(e.wtype)):'')+'</div>';
+    if(canRev){
+      if(e.photoId && LG.url && LG.token) h+='<div onclick="openPhoto(\''+esc(String(e.photoId))+'\')" style="margin-top:8px;cursor:pointer"><img src="'+photoUrl(e.photoId)+'" loading="lazy" style="width:100%;max-height:170px;object-fit:cover;border-radius:9px;background:var(--sur2)" onerror="this.style.opacity=.3"/></div>';
+      else h+='<div style="font-size:11px;color:var(--orange);margin-top:6px">📷 без фото</div>';
+      h+='<div style="display:flex;gap:8px;margin-top:9px"><button onclick="confirmDraft(\''+esc(String(e.id))+'\')" style="flex:1;background:var(--green);color:#04201b;border:none;border-radius:10px;padding:11px;font-weight:800;font-size:14px;cursor:pointer">✅ Принять</button><button onclick="openEntryEditById(\''+esc(String(e.id))+'\')" style="background:rgba(255,255,255,.06);color:var(--fg);border:1px solid var(--brd);border-radius:10px;padding:11px 13px;font-weight:700;cursor:pointer">✏️</button><button onclick="returnDraft(\''+esc(String(e.id))+'\')" style="background:transparent;color:var(--red);border:1px solid var(--red);border-radius:10px;padding:11px 13px;font-weight:700;cursor:pointer">↩️</button></div>';
+    } else {
+      h+='<div style="font-size:11px;color:var(--mut);margin-top:4px">'+(e.photoId?'📷 фото приложено':'<span style="color:var(--orange)">без фото</span>')+'</div>';
+    }
+    h+='</div>';
+  });
+  if(d.length>8) h+='<div style="font-size:11px;color:var(--mut);margin-top:2px">…и ещё '+(d.length-8)+'</div>';
   h+='</div>'; return h;
 }
 function gv(id){ var el=document.getElementById(id); return el?el.value:''; }
