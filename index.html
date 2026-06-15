@@ -5195,18 +5195,37 @@ function ks3BuildDoc(km, rowsData, num, period, dateStr){
 }
 function openKS3Builder(obj){
   var view=projected(LG.base, LG.queue);
-  var acts=(view.ks2acts||[]).filter(function(a){return a.obj===obj;});
+  var acts=(view.ks2acts||[]).filter(function(a){return a&&a.obj===obj;});
   if(!acts.length){ lgSheet('КС-3','<div class="empty" style="padding:30px 10px">Сначала сформируйте хотя бы один акт КС-2.</div>'); return; }
-  var km=objReqs(view,obj);
-  var dateStr=new Date().toLocaleDateString('ru-RU'); var period=new Date().toLocaleDateString('ru-RU',{month:'long',year:'numeric'});
   var num=String((view.ks3acts||[]).length+1);
+  var period=new Date().toLocaleDateString('ru-RU',{month:'long',year:'numeric'});
+  var inp='background:var(--bg);border:1px solid var(--brd);color:var(--fg);border-radius:8px;padding:9px;font-size:13px;box-sizing:border-box;width:100%';
+  var h='<div style="font-size:12.5px;color:var(--mut);line-height:1.5;margin-bottom:12px">Отметьте акты КС-2, которые войдут в эту справку. Чтобы сделать <b>отдельную справку на каждый акт</b> — оставьте отмеченным один акт и сформируйте, потом повторите для второго.</div>';
+  h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px"><div><div style="font-size:11px;color:var(--mut);margin-bottom:3px">Справка №</div><input id="ks3-num" value="'+esc(num)+'" style="'+inp+'"></div><div><div style="font-size:11px;color:var(--mut);margin-bottom:3px">Период</div><input id="ks3-period" value="'+esc(period)+'" style="'+inp+'"></div></div>';
+  h+='<div style="font-size:12px;color:var(--mut);letter-spacing:1px;font-weight:700;margin:4px 2px 8px">АКТЫ КС-2 ('+acts.length+')</div>';
+  acts.forEach(function(a){
+    h+='<label style="display:flex;gap:10px;align-items:center;background:var(--sur2);border:1px solid var(--brd);border-radius:10px;padding:11px;margin-bottom:8px;cursor:pointer"><input type="checkbox" class="ks3-pick" data-act="'+esc(a.id)+'" checked style="width:auto;flex:none"><div style="flex:1;min-width:0"><div style="font-weight:700;font-size:13px">Акт № '+esc(a.aktnum||'')+' · '+esc(a.period||'')+'</div><div style="font-size:11px;color:var(--mut)">'+esc(a.date||'')+'</div></div><div class="num" style="color:var(--gold);font-weight:700;white-space:nowrap">'+fmt0(a.total||0)+' ₸</div></label>';
+  });
+  h+='<button onclick="generateKS3(\''+esc(obj).replace(/'/g,"\\'")+'\')" style="width:100%;background:var(--teal);color:#04201b;border:none;border-radius:10px;padding:14px;font-size:14px;font-weight:800;cursor:pointer;margin-top:6px">🧾 Сформировать справку КС-3</button>';
+  lgSheet('КС-3', h);
+}
+function generateKS3(obj){
+  var view=projected(LG.base, LG.queue);
+  var km=objReqs(view,obj);
+  function gx(id){ var el=document.getElementById(id); return el?el.value.trim():''; }
+  var num=gx('ks3-num')||String((view.ks3acts||[]).length+1);
+  var period=gx('ks3-period');
+  var picked=[]; (document.querySelectorAll('.ks3-pick')||[]).forEach(function(c){ if(c.checked) picked.push(c.getAttribute('data-act')); });
+  var acts=(view.ks2acts||[]).filter(function(a){return a&&a.obj===obj&&picked.indexOf(a.id)>=0;});
+  if(!acts.length){ toast('Отметьте хотя бы один акт КС-2'); return; }
   var agg={}, order=[];
   acts.forEach(function(a){ ((a.lines)||[]).forEach(function(l){ var nm=l.name||'Работы'; if(!(nm in agg)){agg[nm]=0;order.push(nm);} agg[nm]+=(Number(l.vol)||0)*(Number(l.rate)||0); }); });
   var rowsData=order.map(function(nm){ return {label:nm, total:Math.round(agg[nm])}; });
   if(!rowsData.length) rowsData=acts.map(function(a){ return {label:'Акт КС-2 № '+(a.aktnum||'')+' за '+(a.period||''), total:a.total||0}; });
+  var dateStr=new Date().toLocaleDateString('ru-RU');
   var built=ks3BuildDoc(km, rowsData, num, period, dateStr);
   var id='ks3_'+Date.now();
-  emit({kind:'ks3.add', payload:{id:id, obj:obj, num:num, period:period, date:dateStr, total:built.sum, withVat:built.withVat, rows:rowsData, reqs:{podryad:km.podryad,podryadBin:km.podryadBin,podryadRuk:km.podryadRuk,zakazchik:km.zakazchik,zakBin:km.zakBin,zakAddr:km.zakAddr,zakRuk:km.zakRuk,stroyka:km.stroyka,object:km.object}, createdAt:Date.now()}});
+  emit({kind:'ks3.add', payload:{id:id, obj:obj, num:num, period:period, date:dateStr, total:built.sum, withVat:built.withVat, rows:rowsData, actIds:picked, reqs:{podryad:km.podryad,podryadBin:km.podryadBin,podryadRuk:km.podryadRuk,zakazchik:km.zakazchik,zakBin:km.zakBin,zakAddr:km.zakAddr,zakRuk:km.zakRuk,stroyka:km.stroyka,object:km.object}, createdAt:Date.now()}});
   lgCloseSheet(); render();
   openDocViewer(built.html,'КС-3 № '+num);
 }
@@ -5214,7 +5233,7 @@ function ks3RenderAct(view, a){
   if(!a) return '';
   var km=a.reqs?Object.assign({}, objReqs(view,a.obj), a.reqs):objReqs(view,a.obj);
   km.zakazchik = docZak(view, a.obj, km.zakazchik);
-  var rows=a.rows&&a.rows.length?a.rows:[]; if(!rows.length){ var agg={},order=[]; (view.ks2acts||[]).filter(function(x){return x&&x.obj===a.obj;}).forEach(function(x){((x.lines)||[]).forEach(function(l){var nm=l.name||'Работы'; if(!(nm in agg)){agg[nm]=0;order.push(nm);} agg[nm]+=(Number(l.vol)||0)*(Number(l.rate)||0);});}); rows=order.map(function(nm){return {label:nm,total:Math.round(agg[nm])};}); }
+  var rows=a.rows&&a.rows.length?a.rows:[]; if(!rows.length){ var agg={},order=[]; (view.ks2acts||[]).filter(function(x){return x&&x.obj===a.obj&&(!a.actIds||!a.actIds.length||a.actIds.indexOf(x.id)>=0);}).forEach(function(x){((x.lines)||[]).forEach(function(l){var nm=l.name||'Работы'; if(!(nm in agg)){agg[nm]=0;order.push(nm);} agg[nm]+=(Number(l.vol)||0)*(Number(l.rate)||0);});}); rows=order.map(function(nm){return {label:nm,total:Math.round(agg[nm])};}); }
   if(!rows.length) return a.html||'';
   try { return ks3BuildDoc(km, rows, a.num||'', a.period||'', a.date||'').html; } catch(e){ return a.html||''; }
 }
