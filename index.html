@@ -504,7 +504,7 @@ function objReqs(view, obj){
     podryad:    pk(r.podryad,    km.podryad,    'ТОО «LionGate Construction»'),
     podryadBin: pk(r.podryadBin, km.podryadBin, '250940032289'),
     podryadRuk: pk(r.podryadRuk, km.podryadRuk, 'Ерсін Нұрсұлтан Ерланұлы'),
-    zakazchik:  pk(r.zakazchik,  km.zakazchik,  'ТОО «Arena Estate»'),
+    zakazchik:  docZak(view, obj, pk(r.zakazchik, km.zakazchik, '')),
     zakBin:     pk(r.zakBin,     km.zakBin,     '220940009615'),
     zakAddr:    pk(r.zakAddr,    km.zakAddr,    '050012, г. Алматы, БЦ «TURAR», пр. Сейфуллина 502, 8 этаж'),
     zakRuk:     pk(r.zakRuk,     km.zakRuk,     'Бекбанов А.С.'),
@@ -515,6 +515,13 @@ function objReqs(view, obj){
     aktnum:     pk(r.aktnum,     km.aktnum,     '1'),
     retPct:     Number(r.retPct!=null?r.retPct:(view&&view.retPct))||3
   };
+}
+/* Заказчик для ДОКУМЕНТОВ: витринное имя приложения (Sensata Group) в бланках не печатается — подставляется юрлицо по договору. */
+function docZak(view, obj, candidate){
+  var m=(view&&view.objMeta&&view.objMeta[obj])||{};
+  var app=m.customer||'Sensata Group';
+  if(!candidate || candidate===app || candidate==='Sensata Group') return 'ТОО «Arena Estate»';
+  return candidate;
 }
 function custRatesList(state,obj){ var m=objMetaOf(state,obj); return (m.custRates||[]).filter(function(r){return r&&r.rate>0;}); }
 function custRate(state,obj,constr){ var m=objMetaOf(state,obj); return (m.rates&&m.rates[constr])||0; }
@@ -1229,7 +1236,7 @@ function openPhoto(fileId){
   var u=photoUrl(fileId); if(!u){ toast('Фото недоступно'); return; }
   lgSheet('📷 Фото', '<img src="'+u+'" style="width:100%;border-radius:12px;display:block" onerror="this.replaceWith(Object.assign(document.createElement(\'div\'),{textContent:\'Не удалось загрузить фото\',style:\'color:var(--mut);padding:30px;text-align:center\'}))"/>');
 }
-function headers(){ return {'Content-Type':'application/json','X-LG-Token':LG.token,'X-Author':LG.role||'?'}; }
+function headers(){ return {'Content-Type':'application/json','X-LG-Token':LG.token,'X-Author':encodeURIComponent(LG.role||'?')}; }
 
 /* ── СЕТЬ ─────────────────────────────────────────────────────────────────── */
 function pull(){
@@ -2664,9 +2671,11 @@ function lgActHtml(id){ var v=projected(LG.base,LG.queue); var a=(v.ks2acts||[])
 /* Бланк акта КС-2: старые акты — отдаём сохранённый HTML как есть; новые — собираем на лету из строк (HTML в состоянии не хранится). */
 function ks2RenderAct(view, a){
   if(!a) return '';
-  if(a.html) return a.html;
   var km = a.reqs ? Object.assign({}, objReqs(view, a.obj), a.reqs) : objReqs(view, a.obj);
+  km.zakazchik = docZak(view, a.obj, km.zakazchik);
+  km.aktnum = a.aktnum || a.num || km.aktnum;
   var lines = (a.lines && a.lines.length) ? a.lines : ks2LinesFromHtml(a.html||'');
+  if(!lines.length) return a.html||'';
   var _prior=(view.ks2acts||[]).filter(function(x){return x&&x.obj===a.obj&&(Number(x.createdAt)||0)<=(Number(a.createdAt)||0);}); if(_prior.indexOf(a)<0) _prior=_prior.concat([a]);
   var _cum=ks2CumMap(_prior);
   try { return ks2BuildDoc(km, lines, a.period||'', a.date||'', _cum).html; } catch(e){ return a.html||''; }
@@ -5081,6 +5090,8 @@ function openKS2Builder(obj){
   h+=fld('ks2-zakbin','БИН заказчика',km.zakBin||'220940009615');
   h+=fld('ks2-zakaddr','Адрес заказчика',km.zakAddr||'050012, г. Алматы, БЦ «TURAR», пр. Сейфуллина 502, 8 этаж');
   h+=fld('ks2-zakruk','Директор заказчика',km.zakRuk||'Бекбанов А.С.');
+  h+=fld('ks2-contractno','Номер договора',km.contractNo||'');
+  h+=fld('ks2-contractdate','Дата договора',km.contractDate||'');
   h+=fld('ks2-stroyka','Стройка',km.stroyka||obj);
   h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div>'+fld('ks2-aktnum','Акт №',km.aktnum||'1')+'</div><div>'+fld('ks2-period','Период',defPeriod)+'</div></div>';
   h+='</div>';
@@ -5103,14 +5114,14 @@ function generateKS2(obj){
   var km=Object.assign({}, objReqs(view,obj));
   function gx(id){ var el=document.getElementById(id); return el?el.value.trim():''; }
   km.podryad=gx('ks2-podryad'); km.podryadBin=gx('ks2-podryadBin'); km.podryadRuk=gx('ks2-podryadRuk');
-  km.zakazchik=gx('ks2-zak'); km.zakBin=gx('ks2-zakbin'); km.zakAddr=gx('ks2-zakaddr'); km.zakRuk=gx('ks2-zakruk'); km.stroyka=gx('ks2-stroyka'); km.object=km.stroyka; km.aktnum=gx('ks2-aktnum');
+  km.zakazchik=gx('ks2-zak'); km.zakBin=gx('ks2-zakbin'); km.zakAddr=gx('ks2-zakaddr'); km.zakRuk=gx('ks2-zakruk'); km.contractNo=gx('ks2-contractno'); km.contractDate=gx('ks2-contractdate'); km.stroyka=gx('ks2-stroyka'); km.object=km.stroyka; km.aktnum=gx('ks2-aktnum');
   var period=gx('ks2-period');
   var byName={}; for(var i=0;i<(LG.ks2groups||0);i++){ var nEl=document.getElementById('ks2-name-'+i); if(!nEl)continue; var nm=(nEl.value||'Работы').trim(); var unit=nEl.getAttribute('data-unit')||'м³'; var vol=parseFloat((document.getElementById('ks2-vol-'+i)||{}).value)||0; var rate=parseFloat((document.getElementById('ks2-rate-'+i)||{}).value)||0; if(vol<=0&&rate<=0)continue; if(!byName[nm])byName[nm]={vol:0,rev:0,unit:unit}; byName[nm].vol+=vol; byName[nm].rev+=vol*rate; }
   var lines=Object.keys(byName).map(function(k){ var g=byName[k]; return {name:k, unit:g.unit, vol:g.vol, rate:g.vol>0?Math.round(g.rev/g.vol):0}; });
   var dateStr=new Date().toLocaleDateString('ru-RU');
   var _prior=(view.ks2acts||[]).filter(function(x){return x&&x.obj===obj;}); var _cum=ks2CumMap(_prior.concat([{lines:lines}])); var built=ks2BuildDoc(km, lines, period, dateStr, _cum); var doc=built.html, total=built.total;
   var actId='ks2_'+Date.now();
-  var _om=JSON.parse(JSON.stringify(view.objMeta||{})); _om[obj]=_om[obj]||{}; _om[obj].reqs=Object.assign({}, _om[obj].reqs||{}, {podryad:km.podryad,podryadBin:km.podryadBin,podryadRuk:km.podryadRuk,zakazchik:km.zakazchik,zakBin:km.zakBin,zakAddr:km.zakAddr,zakRuk:km.zakRuk,stroyka:km.stroyka,object:km.object,aktnum:km.aktnum}); emit({kind:'meta.set', key:'objMeta', value:_om});
+  var _om=JSON.parse(JSON.stringify(view.objMeta||{})); _om[obj]=_om[obj]||{}; _om[obj].reqs=Object.assign({}, _om[obj].reqs||{}, {podryad:km.podryad,podryadBin:km.podryadBin,podryadRuk:km.podryadRuk,zakazchik:km.zakazchik,zakBin:km.zakBin,zakAddr:km.zakAddr,zakRuk:km.zakRuk,contractNo:km.contractNo,contractDate:km.contractDate,stroyka:km.stroyka,object:km.object,aktnum:km.aktnum}); emit({kind:'meta.set', key:'objMeta', value:_om});
   emit({kind:'ks2.add', payload:{id:actId, obj:obj, aktnum:km.aktnum||'1', period:period, date:dateStr, total:total, createdAt:Date.now(), status:'prepared', lines:lines, reqs:{podryad:km.podryad,podryadBin:km.podryadBin,podryadRuk:km.podryadRuk,zakazchik:km.zakazchik,zakBin:km.zakBin,zakAddr:km.zakAddr,zakRuk:km.zakRuk,stroyka:km.stroyka,object:km.object}}});
   // помечаем включённые работы как принятые
   ks2Items(view,obj).forEach(function(e){ emit({kind:'entry.edit', entryId:e.id, payload:{accepted:true, acceptedAt:dateStr}}); });
@@ -5176,9 +5187,10 @@ function openKS3Builder(obj){
 }
 function ks3RenderAct(view, a){
   if(!a) return '';
-  if(a.html) return a.html;
   var km=a.reqs?Object.assign({}, objReqs(view,a.obj), a.reqs):objReqs(view,a.obj);
-  var rows=(a.rows&&a.rows.length)?a.rows:((view.ks2acts||[]).filter(function(x){return x.obj===a.obj;}).map(function(x){return {label:'Акт КС-2 № '+(x.aktnum||'')+' за '+(x.period||''), total:x.total||0};}));
+  km.zakazchik = docZak(view, a.obj, km.zakazchik);
+  var rows=a.rows&&a.rows.length?a.rows:[]; if(!rows.length){ var agg={},order=[]; (view.ks2acts||[]).filter(function(x){return x&&x.obj===a.obj;}).forEach(function(x){((x.lines)||[]).forEach(function(l){var nm=l.name||'Работы'; if(!(nm in agg)){agg[nm]=0;order.push(nm);} agg[nm]+=(Number(l.vol)||0)*(Number(l.rate)||0);});}); rows=order.map(function(nm){return {label:nm,total:Math.round(agg[nm])};}); }
+  if(!rows.length) return a.html||'';
   try { return ks3BuildDoc(km, rows, a.num||'', a.period||'', a.date||'').html; } catch(e){ return a.html||''; }
 }
 /* ── ЕДИНЫЙ ГЕНЕРАТОР БЛАНКА КС-2 (создание И правка дают идентичный бланк) ── */
@@ -5191,13 +5203,13 @@ function ks2BuildDoc(km, lines, period, dateStr, cumMap){
   var obj=km.object||km.stroyka||'';
   var contractLine=(km.contractNo||km.contractDate)?('Договор подряда: <b>'+esc(km.contractNo||'')+(km.contractDate?(' от '+esc(km.contractDate)):'')+'</b>'):'';
   var doc='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Акт КС-2 '+esc(obj)+'</title><style>'
-    +'@page{size:A4;margin:14mm}body{font-family:Arial,sans-serif;font-size:13px;color:#000;padding:8px}'
-    +'.req{font-size:13px;line-height:1.55}.req b{font-weight:700}'
-    +'.title{text-align:center;font-size:15px;font-weight:bold;margin:18px 0 2px}.subtitle{text-align:center;font-size:14px;font-weight:bold;margin-bottom:14px}'
-    +'table.work{width:100%;border-collapse:collapse;margin:6px 0;font-size:12.5px}table.work th,table.work td{border:1px solid #000;padding:6px 8px}'
+    +'@page{size:A4 landscape;margin:10mm}body{font-family:Arial,sans-serif;font-size:12px;color:#000;padding:6px}'
+    +'.req{font-size:11.5px;line-height:1.35}.req b{font-weight:700}'
+    +'.title{text-align:center;font-size:14px;font-weight:bold;margin:10px 0 2px}.subtitle{text-align:center;font-size:12.5px;font-weight:bold;margin-bottom:10px}'
+    +'table.work{width:100%;border-collapse:collapse;margin:6px 0;font-size:12px}table.work th,table.work td{border:1px solid #000;padding:5px 7px}'
     +'table.work th{background:#fff;text-align:center;font-weight:bold;font-size:12px}.c{text-align:center}.r{text-align:right}'
     +'.total-row td{font-weight:bold;background:#fff}'
-    +'.signs{width:100%;margin-top:34px;font-size:13px;border-collapse:collapse}.signs td{vertical-align:top;width:50%;padding-right:20px;border:none}'
+    +'.signs{width:100%;margin-top:24px;font-size:12.5px;border-collapse:collapse}.signs td{vertical-align:top;width:50%;padding-right:20px;border:none}'
     +'</style></head><body>'
     +'<div class="req">Заказчик: <b>'+esc(km.zakazchik||'')+'</b></div>'
     +'<div class="req">Подрядчик: <b>'+esc(km.podryad||'')+'</b></div>'
@@ -5241,7 +5253,7 @@ function openKS2Edit(id){
     ? a.lines.map(function(l){ return {name:l.name||'', unit:l.unit||'м³', vol:Number(l.vol)||0, rate:Number(l.rate)||0}; })
     : ks2LinesFromHtml(a.html);
   if(!LG.ks2EditLines.length) LG.ks2EditLines=[{name:'Работы',unit:'м³',vol:0,rate:0}];
-  LG.ks2EditMeta={ aktnum:a.aktnum||'1', period:a.period||'', podryad:km.podryad||'ТОО «LionGate Construction»', podryadBin:km.podryadBin||'', podryadRuk:km.podryadRuk||'', zakazchik:km.zakazchik||'ТОО «Arena Estate»', zakBin:km.zakBin||'220940009615', zakAddr:km.zakAddr||'050012, г. Алматы, БЦ «TURAR», пр. Сейфуллина 502, 8 этаж', zakRuk:km.zakRuk||'Бекбанов А.С.', stroyka:km.stroyka||a.obj };
+  LG.ks2EditMeta={ aktnum:a.aktnum||'1', period:a.period||'', podryad:km.podryad||'ТОО «LionGate Construction»', podryadBin:km.podryadBin||'', podryadRuk:km.podryadRuk||'', zakazchik:km.zakazchik||'ТОО «Arena Estate»', zakBin:km.zakBin||'220940009615', zakAddr:km.zakAddr||'050012, г. Алматы, БЦ «TURAR», пр. Сейфуллина 502, 8 этаж', zakRuk:km.zakRuk||'Бекбанов А.С.', contractNo:km.contractNo||'', contractDate:km.contractDate||'', stroyka:km.stroyka||a.obj };
   ks2EditRender();
 }
 function ks2EditRender(){
@@ -5250,7 +5262,7 @@ function ks2EditRender(){
   var h='<div style="font-size:12px;color:var(--gold);letter-spacing:.5px;font-weight:700;margin-bottom:10px">РЕДАКТИРОВАНИЕ АКТА КС-2 № '+esc(m.aktnum||'')+'</div>';
   h+='<div style="background:var(--sur2);border:1px solid var(--brd);border-radius:10px;padding:12px;margin-bottom:10px">';
   h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div>'+fld('ke-aktnum','Акт №',m.aktnum)+'</div><div>'+fld('ke-period','Период',m.period)+'</div></div>';
-  h+=fld('ke-podryad','Подрядчик',m.podryad)+fld('ke-podryadBin','БИН',m.podryadBin)+fld('ke-podryadRuk','Руководитель',m.podryadRuk)+fld('ke-zak','Заказчик (юр. лицо)',m.zakazchik)+fld('ke-zakbin','БИН заказчика',m.zakBin)+fld('ke-zakaddr','Адрес заказчика',m.zakAddr)+fld('ke-zakruk','Директор заказчика',m.zakRuk)+fld('ke-stroyka','Стройка / объект',m.stroyka);
+  h+=fld('ke-podryad','Подрядчик',m.podryad)+fld('ke-podryadBin','БИН',m.podryadBin)+fld('ke-podryadRuk','Руководитель',m.podryadRuk)+fld('ke-zak','Заказчик (юр. лицо)',m.zakazchik)+fld('ke-zakbin','БИН заказчика',m.zakBin)+fld('ke-zakaddr','Адрес заказчика',m.zakAddr)+fld('ke-zakruk','Директор заказчика',m.zakRuk)+fld('ke-contractno','Номер договора',m.contractNo)+fld('ke-contractdate','Дата договора',m.contractDate)+fld('ke-stroyka','Стройка / объект',m.stroyka);
   h+='</div>';
   h+='<div style="font-size:12px;color:var(--mut);letter-spacing:1px;font-weight:700;margin:8px 0">СОСТАВ РАБОТ</div>';
   var total=0;
@@ -5272,7 +5284,7 @@ function ks2EditRender(){
 function ks2EditSnapshot(){
   function gv(id){ var el=document.getElementById(id); return el?el.value:''; }
   var m=LG.ks2EditMeta||{};
-  if(document.getElementById('ke-aktnum')){ m.aktnum=gv('ke-aktnum')||m.aktnum; m.period=gv('ke-period'); m.podryad=gv('ke-podryad'); m.podryadBin=gv('ke-podryadBin'); m.podryadRuk=gv('ke-podryadRuk'); m.zakazchik=gv('ke-zak'); m.zakBin=gv('ke-zakbin'); m.zakAddr=gv('ke-zakaddr'); m.zakRuk=gv('ke-zakruk'); m.stroyka=gv('ke-stroyka'); }
+  if(document.getElementById('ke-aktnum')){ m.aktnum=gv('ke-aktnum')||m.aktnum; m.period=gv('ke-period'); m.podryad=gv('ke-podryad'); m.podryadBin=gv('ke-podryadBin'); m.podryadRuk=gv('ke-podryadRuk'); m.zakazchik=gv('ke-zak'); m.zakBin=gv('ke-zakbin'); m.zakAddr=gv('ke-zakaddr'); m.zakRuk=gv('ke-zakruk'); m.contractNo=gv('ke-contractno'); m.contractDate=gv('ke-contractdate'); m.stroyka=gv('ke-stroyka'); }
   LG.ks2EditMeta=m;
   var lines=LG.ks2EditLines||[];
   lines.forEach(function(g,i){ if(document.getElementById('ke-name-'+i)){ g.name=gv('ke-name-'+i); g.unit=gv('ke-unit-'+i)||'м³'; g.vol=parseFloat(gv('ke-vol-'+i))||0; g.rate=parseFloat(gv('ke-rate-'+i))||0; } });
@@ -5287,10 +5299,10 @@ function saveKS2Edit(){
   var m=LG.ks2EditMeta||{};
   var lines=(LG.ks2EditLines||[]).filter(function(g){ return (Number(g.vol)||0)>0 || (Number(g.rate)||0)>0 || (g.name||'').trim(); });
   if(!lines.length){ toast('Добавьте хотя бы одну строку'); return; }
-  var km=Object.assign({}, objReqs(v,a.obj), {podryad:m.podryad, podryadBin:m.podryadBin, podryadRuk:m.podryadRuk, zakazchik:m.zakazchik, zakBin:m.zakBin, zakAddr:m.zakAddr, zakRuk:m.zakRuk, stroyka:m.stroyka, object:m.stroyka, aktnum:m.aktnum});
+  var km=Object.assign({}, objReqs(v,a.obj), {podryad:m.podryad, podryadBin:m.podryadBin, podryadRuk:m.podryadRuk, zakazchik:m.zakazchik, zakBin:m.zakBin, zakAddr:m.zakAddr, zakRuk:m.zakRuk, contractNo:m.contractNo, contractDate:m.contractDate, stroyka:m.stroyka, object:m.stroyka, aktnum:m.aktnum});
   var dateStr=a.date||new Date().toLocaleDateString('ru-RU');
   var built=ks2BuildDoc(km, lines, m.period, dateStr);
-  var _om=JSON.parse(JSON.stringify(v.objMeta||{})); _om[a.obj]=_om[a.obj]||{}; _om[a.obj].reqs=Object.assign({}, _om[a.obj].reqs||{}, {podryad:km.podryad,podryadBin:km.podryadBin,podryadRuk:km.podryadRuk,zakazchik:km.zakazchik,zakBin:km.zakBin,zakAddr:km.zakAddr,zakRuk:km.zakRuk,stroyka:km.stroyka,object:km.object,aktnum:km.aktnum}); emit({kind:'meta.set', key:'objMeta', value:_om});
+  var _om=JSON.parse(JSON.stringify(v.objMeta||{})); _om[a.obj]=_om[a.obj]||{}; _om[a.obj].reqs=Object.assign({}, _om[a.obj].reqs||{}, {podryad:km.podryad,podryadBin:km.podryadBin,podryadRuk:km.podryadRuk,zakazchik:km.zakazchik,zakBin:km.zakBin,zakAddr:km.zakAddr,zakRuk:km.zakRuk,contractNo:km.contractNo,contractDate:km.contractDate,stroyka:km.stroyka,object:km.object,aktnum:km.aktnum}); emit({kind:'meta.set', key:'objMeta', value:_om});
   emit({kind:'ks2.add', payload:Object.assign({}, a, {aktnum:m.aktnum||'1', period:m.period, total:built.total, html:'', lines:lines, reqs:{podryad:km.podryad,podryadBin:km.podryadBin,podryadRuk:km.podryadRuk,zakazchik:km.zakazchik,zakBin:km.zakBin,zakAddr:km.zakAddr,zakRuk:km.zakRuk,stroyka:km.stroyka,object:km.object}})});
   toast('Акт № '+(m.aktnum||'')+' пересохранён');
   LG.ks2EditAct=null; LG.ks2Tab='docs';
