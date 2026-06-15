@@ -273,7 +273,7 @@
 
 <!-- Универсальный лист (Ещё: стратегия, отчёт, инфо). Экраны складываются в стек: «‹» — назад, «✕» — закрыть всё. -->
 <div class="ov" id="ov-sheet" style="align-items:flex-end">
-  <div class="sheet" style="max-height:90vh;overflow:auto;padding-top:0">
+  <div class="sheet" style="max-height:calc(100dvh - var(--safe-t) - 10px);overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:auto;overscroll-behavior:contain;padding-top:0">
     <div style="position:sticky;top:0;z-index:6;background:var(--sur);display:flex;align-items:center;gap:10px;padding:16px 0 12px;border-bottom:1px solid var(--brd);margin-bottom:12px">
       <button id="sheet-back" onclick="lgSheetBack()" style="display:none;flex:none;background:var(--sur2);border:none;color:var(--fg);font-size:14px;font-weight:700;height:40px;padding:0 15px;border-radius:20px;cursor:pointer">‹ Назад</button>
       <h3 id="sheet-title" style="margin:0;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">—</h3>
@@ -5199,9 +5199,11 @@ function openKS3Builder(obj){
   if(!acts.length){ lgSheet('КС-3','<div class="empty" style="padding:30px 10px">Сначала сформируйте хотя бы один акт КС-2.</div>'); return; }
   var num=String((view.ks3acts||[]).length+1);
   var period=new Date().toLocaleDateString('ru-RU',{month:'long',year:'numeric'});
+  var km=objReqs(view,obj);
   var inp='background:var(--bg);border:1px solid var(--brd);color:var(--fg);border-radius:8px;padding:9px;font-size:13px;box-sizing:border-box;width:100%';
   var h='<div style="font-size:12.5px;color:var(--mut);line-height:1.5;margin-bottom:12px">Отметьте акты КС-2, которые войдут в эту справку. Чтобы сделать <b>отдельную справку на каждый акт</b> — оставьте отмеченным один акт и сформируйте, потом повторите для второго.</div>';
   h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px"><div><div style="font-size:11px;color:var(--mut);margin-bottom:3px">Справка №</div><input id="ks3-num" value="'+esc(num)+'" style="'+inp+'"></div><div><div style="font-size:11px;color:var(--mut);margin-bottom:3px">Период</div><input id="ks3-period" value="'+esc(period)+'" style="'+inp+'"></div></div>';
+  h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px"><div><div style="font-size:11px;color:var(--mut);margin-bottom:3px">Номер договора</div><input id="ks3-contractno" value="'+esc(km.contractNo||'')+'" placeholder="напр. АЕ-КН-26-30дп(1)" style="'+inp+'"></div><div><div style="font-size:11px;color:var(--mut);margin-bottom:3px">Дата договора</div><input id="ks3-contractdate" value="'+esc(km.contractDate||'')+'" placeholder="напр. 23.05.2026" style="'+inp+'"></div></div>';
   h+='<div style="font-size:12px;color:var(--mut);letter-spacing:1px;font-weight:700;margin:4px 2px 8px">АКТЫ КС-2 ('+acts.length+')</div>';
   acts.forEach(function(a){
     h+='<label style="display:flex;gap:10px;align-items:center;background:var(--sur2);border:1px solid var(--brd);border-radius:10px;padding:11px;margin-bottom:8px;cursor:pointer"><input type="checkbox" class="ks3-pick" data-act="'+esc(a.id)+'" checked style="width:auto;flex:none"><div style="flex:1;min-width:0"><div style="font-weight:700;font-size:13px">Акт № '+esc(a.aktnum||'')+' · '+esc(a.period||'')+'</div><div style="font-size:11px;color:var(--mut)">'+esc(a.date||'')+'</div></div><div class="num" style="color:var(--gold);font-weight:700;white-space:nowrap">'+fmt0(a.total||0)+' ₸</div></label>';
@@ -5215,6 +5217,7 @@ function generateKS3(obj){
   function gx(id){ var el=document.getElementById(id); return el?el.value.trim():''; }
   var num=gx('ks3-num')||String((view.ks3acts||[]).length+1);
   var period=gx('ks3-period');
+  km.contractNo=gx('ks3-contractno'); km.contractDate=gx('ks3-contractdate');
   var picked=[]; (document.querySelectorAll('.ks3-pick')||[]).forEach(function(c){ if(c.checked) picked.push(c.getAttribute('data-act')); });
   var acts=(view.ks2acts||[]).filter(function(a){return a&&a.obj===obj&&picked.indexOf(a.id)>=0;});
   if(!acts.length){ toast('Отметьте хотя бы один акт КС-2'); return; }
@@ -5225,7 +5228,9 @@ function generateKS3(obj){
   var dateStr=new Date().toLocaleDateString('ru-RU');
   var built=ks3BuildDoc(km, rowsData, num, period, dateStr);
   var id='ks3_'+Date.now();
-  emit({kind:'ks3.add', payload:{id:id, obj:obj, num:num, period:period, date:dateStr, total:built.sum, withVat:built.withVat, rows:rowsData, actIds:picked, reqs:{podryad:km.podryad,podryadBin:km.podryadBin,podryadRuk:km.podryadRuk,zakazchik:km.zakazchik,zakBin:km.zakBin,zakAddr:km.zakAddr,zakRuk:km.zakRuk,stroyka:km.stroyka,object:km.object}, createdAt:Date.now()}});
+  // сохраним договор в реквизиты объекта — чтобы попал и в КС-2, и в следующие справки
+  var _om=JSON.parse(JSON.stringify(view.objMeta||{})); _om[obj]=_om[obj]||{}; _om[obj].reqs=Object.assign({}, _om[obj].reqs||{}, {contractNo:km.contractNo, contractDate:km.contractDate}); emit({kind:'meta.set', key:'objMeta', value:_om});
+  emit({kind:'ks3.add', payload:{id:id, obj:obj, num:num, period:period, date:dateStr, total:built.sum, withVat:built.withVat, rows:rowsData, actIds:picked, reqs:{podryad:km.podryad,podryadBin:km.podryadBin,podryadRuk:km.podryadRuk,zakazchik:km.zakazchik,zakBin:km.zakBin,zakAddr:km.zakAddr,zakRuk:km.zakRuk,contractNo:km.contractNo,contractDate:km.contractDate,stroyka:km.stroyka,object:km.object}, createdAt:Date.now()}});
   lgCloseSheet(); render();
   openDocViewer(built.html,'КС-3 № '+num);
 }
@@ -5451,7 +5456,7 @@ function saveKS3Edit(){
   var km=Object.assign({}, objReqs(v,a.obj), {podryad:m.podryad, podryadBin:m.podryadBin, podryadRuk:m.podryadRuk, zakazchik:m.zakazchik, zakBin:m.zakBin, zakAddr:m.zakAddr, zakRuk:m.zakRuk, contractNo:m.contractNo, contractDate:m.contractDate, stroyka:m.stroyka, object:m.stroyka});
   var built=ks3BuildDoc(km, rows, m.num||'1', m.period||'', m.date||a.date||'');
   var _om=JSON.parse(JSON.stringify(v.objMeta||{})); _om[a.obj]=_om[a.obj]||{}; _om[a.obj].reqs=Object.assign({}, _om[a.obj].reqs||{}, {podryad:km.podryad,podryadBin:km.podryadBin,podryadRuk:km.podryadRuk,zakazchik:km.zakazchik,zakBin:km.zakBin,zakAddr:km.zakAddr,zakRuk:km.zakRuk,contractNo:km.contractNo,contractDate:km.contractDate,stroyka:km.stroyka,object:km.object}); emit({kind:'meta.set', key:'objMeta', value:_om});
-  emit({kind:'ks3.add', payload:Object.assign({}, a, {num:m.num||'1', period:m.period, date:m.date||a.date, total:built.sum, withVat:built.withVat, rows:rows, html:'', reqs:{podryad:km.podryad,podryadBin:km.podryadBin,podryadRuk:km.podryadRuk,zakazchik:km.zakazchik,zakBin:km.zakBin,zakAddr:km.zakAddr,zakRuk:km.zakRuk,stroyka:km.stroyka,object:km.object}})});
+  emit({kind:'ks3.add', payload:Object.assign({}, a, {num:m.num||'1', period:m.period, date:m.date||a.date, total:built.sum, withVat:built.withVat, rows:rows, html:'', reqs:{podryad:km.podryad,podryadBin:km.podryadBin,podryadRuk:km.podryadRuk,zakazchik:km.zakazchik,zakBin:km.zakBin,zakAddr:km.zakAddr,zakRuk:km.zakRuk,contractNo:km.contractNo,contractDate:km.contractDate,stroyka:km.stroyka,object:km.object}})});
   toast('Справка КС-3 № '+(m.num||'')+' пересохранена');
   LG.ks3EditAct=null; LG.ks2Tab='docs';
   openKS2Registry();
