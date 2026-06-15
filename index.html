@@ -2611,7 +2611,7 @@ function ks2TabDocs(v,obj,oe,canW,acts,st){
   if(_k3.length){
     h+='<div style="font-size:12px;color:var(--mut);letter-spacing:.5px;font-weight:700;margin:16px 2px 8px">🧾 СПРАВКИ КС-3 ('+_k3.length+')</div>';
     _k3.forEach(function(a){
-      h+='<div style="background:var(--sur);border:1px solid var(--brd);border-radius:10px;padding:11px;margin-bottom:8px"><div style="display:flex;justify-content:space-between;align-items:baseline"><div style="font-weight:700">Справка № '+esc(a.num||'')+' · '+esc(a.period||'')+'</div><div class="num" style="color:var(--teal);font-weight:700">'+fmt0(a.withVat||a.total||0)+' ₸</div></div><div style="font-size:12px;color:var(--mut);margin-top:2px">'+esc(a.date||'')+' · с НДС</div><div style="margin-top:8px"><button onclick="openSavedKS3(\''+esc(a.id)+'\')" style="width:100%;background:rgba(88,166,255,.1);border:1px solid var(--blue);color:var(--blue);border-radius:8px;padding:8px;font-size:12px;font-weight:700;cursor:pointer">👁 Открыть / печать</button></div></div>';
+      h+='<div style="background:var(--sur);border:1px solid var(--brd);border-radius:10px;padding:11px;margin-bottom:8px"><div style="display:flex;justify-content:space-between;align-items:baseline"><div style="font-weight:700">Справка № '+esc(a.num||'')+' · '+esc(a.period||'')+'</div><div class="num" style="color:var(--teal);font-weight:700">'+fmt0(a.withVat||a.total||0)+' ₸</div></div><div style="font-size:12px;color:var(--mut);margin-top:2px">'+esc(a.date||'')+' · с НДС</div><div style="display:flex;gap:6px;margin-top:8px"><button onclick="openSavedKS3(\''+esc(a.id)+'\')" style="flex:1;background:rgba(88,166,255,.1);border:1px solid var(--blue);color:var(--blue);border-radius:8px;padding:8px;font-size:12px;font-weight:700;cursor:pointer">👁 Открыть / печать</button>'+(canW?('<button onclick="openKS3Edit(\''+esc(a.id)+'\')" style="background:rgba(240,165,0,.1);border:1px solid var(--gold);color:var(--gold);border-radius:8px;padding:8px 11px;font-size:12px;font-weight:700;cursor:pointer">✎</button><button onclick="lgDelKs3(\''+esc(a.id)+'\')" style="background:rgba(248,81,73,.08);border:1px solid var(--red);color:var(--red);border-radius:8px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer">🗑</button>'):'')+'</div></div>';
     });
   }
   return h;
@@ -5376,6 +5376,67 @@ function doRenameObject(){
 }
 function openSavedKS2(id){ var view=projected(LG.base,LG.queue); var a=(view.ks2acts||[]).find(function(x){return x.id===id;}); if(a){ var doc=ks2RenderAct(view,a); if(doc) openDocViewer(doc,'КС-2 № '+(a.aktnum||'')); } }
 function openSavedKS3(id){ var view=projected(LG.base,LG.queue); var a=(view.ks3acts||[]).find(function(x){return x.id===id;}); if(a){ var doc=ks3RenderAct(view,a); if(doc) openDocViewer(doc,'КС-3 № '+(a.num||'')); } }
+function lgDelKs3(id){ if(!canWriteLedger()){ toast('Только владелец/учётчица'); return; } if(typeof confirm==='function' && !confirm('Удалить эту справку КС-3?')) return; emit({kind:'ks3.delete', entryId:id}); toast('Справка КС-3 удалена'); LG.ks2Tab='docs'; openKS2Registry(); }
+function openKS3Edit(id){
+  if(!canWriteLedger()){ toast('Только владелец/учётчица'); return; }
+  var v=projected(LG.base,LG.queue); var a=(v.ks3acts||[]).find(function(x){return x&&x.id===id;}); if(!a){ toast('Справка не найдена'); return; }
+  var km=objReqs(v,a.obj);
+  LG.ks3EditAct=id;
+  LG.ks3EditRows=(Array.isArray(a.rows)&&a.rows.length)
+    ? a.rows.map(function(r){ return {label:r.label||'', total:Number(r.total)||0}; })
+    : [{label:'Работы', total:Number(a.withVat||a.total||0)}];
+  LG.ks3EditMeta={ num:a.num||'1', period:a.period||'', date:a.date||new Date().toLocaleDateString('ru-RU'), podryad:km.podryad||'ТОО «LionGate Construction»', podryadBin:km.podryadBin||'', podryadRuk:km.podryadRuk||'', zakazchik:km.zakazchik||'ТОО «Arena Estate»', zakBin:km.zakBin||'220940009615', zakAddr:km.zakAddr||'', zakRuk:km.zakRuk||'Бекбанов А.С.', contractNo:km.contractNo||'', contractDate:km.contractDate||'', stroyka:km.stroyka||a.obj };
+  ks3EditRender();
+}
+function ks3EditRender(){
+  var m=LG.ks3EditMeta||{}; var rows=LG.ks3EditRows||[];
+  function fld(id,label,val){ return '<div style="margin-bottom:9px"><div style="font-size:12px;color:var(--mut);margin-bottom:4px">'+label+'</div><input id="'+id+'" value="'+esc(val||'')+'" style="width:100%;background:var(--sur2);border:1px solid var(--brd);color:var(--fg);border-radius:8px;padding:9px;font-size:13px;box-sizing:border-box"></div>'; }
+  var h='<div style="font-size:12px;color:var(--gold);letter-spacing:.5px;font-weight:700;margin-bottom:10px">РЕДАКТИРОВАНИЕ СПРАВКИ КС-3 № '+esc(m.num||'')+'</div>';
+  h+='<div style="background:var(--sur2);border:1px solid var(--brd);border-radius:10px;padding:12px;margin-bottom:10px">';
+  h+='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px"><div>'+fld('k3e-num','Справка №',m.num)+'</div><div>'+fld('k3e-period','Период',m.period)+'</div><div>'+fld('k3e-date','Дата',m.date)+'</div></div>';
+  h+=fld('k3e-podryad','Подрядчик',m.podryad)+fld('k3e-podryadBin','БИН',m.podryadBin)+fld('k3e-podryadRuk','Руководитель',m.podryadRuk)+fld('k3e-zak','Заказчик (юр. лицо)',m.zakazchik)+fld('k3e-zakbin','БИН заказчика',m.zakBin)+fld('k3e-zakaddr','Адрес заказчика',m.zakAddr)+fld('k3e-zakruk','Директор заказчика',m.zakRuk)+fld('k3e-contractno','Номер договора',m.contractNo)+fld('k3e-contractdate','Дата договора',m.contractDate)+fld('k3e-stroyka','Стройка / объект',m.stroyka);
+  h+='</div>';
+  h+='<div style="font-size:12px;color:var(--mut);letter-spacing:1px;font-weight:700;margin:8px 0">СТРОКИ СПРАВКИ (суммы с НДС)</div>';
+  var total=0;
+  rows.forEach(function(r,i){ total+=(Number(r.total)||0);
+    h+='<div style="background:var(--sur2);border:1px solid var(--brd);border-radius:8px;padding:10px;margin-bottom:8px">';
+    h+='<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px"><input id="k3e-label-'+i+'" value="'+esc(r.label||'')+'" placeholder="Наименование работ" style="flex:1;min-width:0;background:var(--bg);border:1px solid var(--brd);color:var(--fg);border-radius:8px;padding:8px;font-size:13px;box-sizing:border-box"><button onclick="ks3EditDelLine('+i+')" style="background:rgba(248,81,73,.08);border:1px solid var(--red);color:var(--red);border-radius:8px;padding:8px 11px;font-weight:700;cursor:pointer">🗑</button></div>';
+    h+='<div><div style="font-size:10px;color:var(--mut);margin-bottom:3px">Сумма с НДС, ₸</div><input id="k3e-total-'+i+'" type="number" step="any" value="'+(Number(r.total)||0)+'" style="width:100%;background:var(--bg);border:1px solid var(--brd);color:var(--fg);border-radius:8px;padding:7px;font-size:13px;box-sizing:border-box"></div>';
+    h+='</div>';
+  });
+  h+='<button onclick="ks3EditAddLine()" style="width:100%;background:var(--bg);border:1px dashed var(--brd);color:var(--mut);border-radius:8px;padding:10px;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:8px">+ Добавить строку</button>';
+  var noVat=Math.round(total/1.16), vat=total-noVat;
+  h+='<div style="background:var(--bg);border:2px solid var(--teal);border-radius:8px;padding:12px"><div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-weight:700">ИТОГО с НДС</span><span class="num" style="font-size:20px;color:var(--teal);font-weight:800">'+fmt0(total)+' ₸</span></div><div style="display:flex;justify-content:space-between;font-size:12px;color:var(--mut);margin-top:4px"><span>в т.ч. НДС 16%</span><span class="num">'+fmt0(vat)+' ₸</span></div></div>';
+  h+='<div style="font-size:10.5px;color:var(--mut);margin-top:6px">Итог пересчитается при сохранении. НДС 16%.</div>';
+  h+='<div style="display:flex;gap:8px;margin-top:12px"><button onclick="saveKS3Edit()" style="flex:1;background:var(--teal);color:#04201b;border:none;border-radius:10px;padding:14px;font-size:14px;font-weight:800;cursor:pointer">💾 Пересохранить справку</button><button onclick="LG.ks2Tab=\'docs\';openKS2Registry()" style="background:var(--sur2);border:1px solid var(--brd);color:var(--fg);border-radius:10px;padding:14px;font-weight:700;cursor:pointer">Отмена</button></div>';
+  lgSheet('✎ Правка КС-3', h);
+}
+function ks3EditSnapshot(){
+  function gv(id){ var el=document.getElementById(id); return el?el.value:''; }
+  var m=LG.ks3EditMeta||{};
+  if(document.getElementById('k3e-num')){ m.num=gv('k3e-num')||m.num; m.period=gv('k3e-period'); m.date=gv('k3e-date')||m.date; m.podryad=gv('k3e-podryad'); m.podryadBin=gv('k3e-podryadBin'); m.podryadRuk=gv('k3e-podryadRuk'); m.zakazchik=gv('k3e-zak'); m.zakBin=gv('k3e-zakbin'); m.zakAddr=gv('k3e-zakaddr'); m.zakRuk=gv('k3e-zakruk'); m.contractNo=gv('k3e-contractno'); m.contractDate=gv('k3e-contractdate'); m.stroyka=gv('k3e-stroyka'); }
+  LG.ks3EditMeta=m;
+  var rows=LG.ks3EditRows||[];
+  rows.forEach(function(r,i){ if(document.getElementById('k3e-label-'+i)){ r.label=gv('k3e-label-'+i); r.total=parseFloat(gv('k3e-total-'+i))||0; } });
+  LG.ks3EditRows=rows;
+}
+function ks3EditAddLine(){ ks3EditSnapshot(); LG.ks3EditRows.push({label:'',total:0}); ks3EditRender(); }
+function ks3EditDelLine(i){ ks3EditSnapshot(); LG.ks3EditRows.splice(i,1); if(!LG.ks3EditRows.length) LG.ks3EditRows=[{label:'Работы',total:0}]; ks3EditRender(); }
+function saveKS3Edit(){
+  if(!canWriteLedger()){ toast('Только владелец/учётчица'); return; }
+  ks3EditSnapshot();
+  var id=LG.ks3EditAct; var v=projected(LG.base,LG.queue); var a=(v.ks3acts||[]).find(function(x){return x&&x.id===id;}); if(!a){ toast('Справка не найдена'); return; }
+  var m=LG.ks3EditMeta||{};
+  var rows=(LG.ks3EditRows||[]).filter(function(r){ return (Number(r.total)||0)>0 || (r.label||'').trim(); }).map(function(r){ return {label:(r.label||'Работы').trim(), total:Math.round(Number(r.total)||0)}; });
+  if(!rows.length){ toast('Добавьте хотя бы одну строку'); return; }
+  var km=Object.assign({}, objReqs(v,a.obj), {podryad:m.podryad, podryadBin:m.podryadBin, podryadRuk:m.podryadRuk, zakazchik:m.zakazchik, zakBin:m.zakBin, zakAddr:m.zakAddr, zakRuk:m.zakRuk, contractNo:m.contractNo, contractDate:m.contractDate, stroyka:m.stroyka, object:m.stroyka});
+  var built=ks3BuildDoc(km, rows, m.num||'1', m.period||'', m.date||a.date||'');
+  var _om=JSON.parse(JSON.stringify(v.objMeta||{})); _om[a.obj]=_om[a.obj]||{}; _om[a.obj].reqs=Object.assign({}, _om[a.obj].reqs||{}, {podryad:km.podryad,podryadBin:km.podryadBin,podryadRuk:km.podryadRuk,zakazchik:km.zakazchik,zakBin:km.zakBin,zakAddr:km.zakAddr,zakRuk:km.zakRuk,contractNo:km.contractNo,contractDate:km.contractDate,stroyka:km.stroyka,object:km.object}); emit({kind:'meta.set', key:'objMeta', value:_om});
+  emit({kind:'ks3.add', payload:Object.assign({}, a, {num:m.num||'1', period:m.period, date:m.date||a.date, total:built.sum, withVat:built.withVat, rows:rows, html:'', reqs:{podryad:km.podryad,podryadBin:km.podryadBin,podryadRuk:km.podryadRuk,zakazchik:km.zakazchik,zakBin:km.zakBin,zakAddr:km.zakAddr,zakRuk:km.zakRuk,stroyka:km.stroyka,object:km.object}})});
+  toast('Справка КС-3 № '+(m.num||'')+' пересохранена');
+  LG.ks3EditAct=null; LG.ks2Tab='docs';
+  openKS2Registry();
+}
 function openDocViewer(doc,title){
   var old=document.getElementById('doc-ov'); if(old)old.remove();
   var ov=document.createElement('div'); ov.id='doc-ov'; ov.style.cssText='position:fixed;inset:0;z-index:99999;background:#525659;display:flex;flex-direction:column';
