@@ -4719,7 +4719,7 @@ function renderEntryFields(){
   } else if(d.type==='expense'){
     h+=fld('Категория','<select id="in-cat">'+selOpts(EXP_CATS, d.cat||EXP_CATS[0])+'</select>');
     h+=fld('Сумма, ₸',amtInput);
-    h+=fld('Кто платит','<select id="in-who">'+selOpts(payers, d.who||'Дмитрий')+'</select>')+fh('Можно выбрать партнёра или сотрудника. С источником «Свои деньги» компания будет должна выбранному — долг появится в его карточке, вернёшь выплатой.');
+    h+=fld('Кто платит','<select id="in-who">'+selOpts(payers, d.who||'Дмитрий')+'</select>')+'<div style="font-size:11px;color:var(--mut);margin:-7px 2px 13px;line-height:1.5">Партнёр или сотрудник. С источником «Свои деньги» компания будет должна выбранному — долг появится в его карточке, вернёшь выплатой.</div>';
     h+=fld('Источник','<select id="in-src">'+selOpts(PAYSRC, d.paySource||'advance')+'</select>');
     if(spots.length) h+=fld('Пятно (куда идёт расход)','<select id="in-spot"><option value="">— не привязано —</option>'+selOpts(spots.map(function(s){return [s.id,s.name];}), d.spotId)+'</select>');
     h+=fld('Бригада (если зарплата)','<select id="in-brig"><option value="">— нет —</option>'+selOpts(brigs.map(function(b){return [b.id,(b.name||'').replace(/^Бригада\s*/,'')];}), d.brigade)+'</select>');
