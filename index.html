@@ -3945,6 +3945,9 @@ function renderConsultantCabinet(view, app, consultantId){
 
   var h='<div class="shdr" style="margin:6px 0 2px"><h2 style="margin:0;font-size:26px;color:var(--gold)">💼 КОНСУЛЬТАНТ'+(p.name?(' · '+esc(p.name)):'')+'</h2></div>';
   h+='<div style="font-size:13px;color:var(--mut);margin-bottom:14px">'+esc(obj)+(p.role?(' · '+esc(p.role)):'')+'</div>';
+  var _rb=(typeof view._reimburse==='number')?view._reimburse:0;
+  if(!_rb){ var _s=0,_nm=p.name||''; (view.entries||[]).forEach(function(e){ if(!e)return; if(e.type==='expense'&&e.who===_nm&&(e.paySource||'')==='own')_s+=Number(e.amount)||0; else if((e.type==='payout'||e.type==='return')&&e.who===_nm)_s-=Number(e.amount)||0; }); _rb=Math.max(0,Math.round(_s)); }
+  if(_rb>0){ h+='<div style="background:rgba(255,157,61,.1);border:1px solid var(--orange);border-radius:12px;padding:13px 14px;margin-bottom:12px"><div style="font-size:12px;color:var(--orange);font-weight:700;letter-spacing:.05em">КОМПАНИЯ ВЕРНЁТ ВАМ</div><div class="num" style="font-size:26px;font-weight:800;color:var(--orange);margin-top:3px">'+fmt0(_rb)+' ₸</div><div style="font-size:12px;color:var(--mut);margin-top:2px">за покупки на свои деньги</div></div>'; }
 
   // ВАШ БОНУС · ОНЛАЙН + стадии
   function bar(icon,label,val,col){ var pc=Math.round(val/mx*100); return '<div style="margin:7px 0">'
@@ -4034,6 +4037,9 @@ function renderCabinet(view, app, scope){
   var h=_T('head')+'<div class="shdr" style="margin:6px 0 2px"><h2 style="margin:0;font-size:26px;color:var(--gold)">'+(isBrig?'⛑ БРИГАДИР':'👷 ПРОРАБ')+(subWho?(' · '+esc(subWho.replace(/^Бригада\s*/,''))):'')+'</h2></div>';
   h+='<div style="font-size:13px;color:var(--mut);margin-bottom:14px">'+esc(obj)+'</div>';
   h+='<button onclick="openCabHelp()" style="width:100%;border:1px solid var(--brd);background:var(--sur2);color:var(--mut);border-radius:10px;padding:9px;font-size:12.5px;font-weight:700;cursor:pointer;margin-bottom:12px">❓ Как пользоваться этим экраном</button>';
+  var _rb=(typeof view._reimburse==='number')?view._reimburse:0;
+  if(!_rb){ var _s=0; (view.entries||[]).forEach(function(e){ if(!e)return; if(e.type==='expense'&&e.who===who&&(e.paySource||'')==='own')_s+=Number(e.amount)||0; else if((e.type==='payout'||e.type==='return')&&e.who===who)_s-=Number(e.amount)||0; }); _rb=Math.max(0,Math.round(_s)); }
+  if(_rb>0){ h+='<div style="background:rgba(255,157,61,.1);border:1px solid var(--orange);border-radius:12px;padding:13px 14px;margin-bottom:12px"><div style="font-size:12px;color:var(--orange);font-weight:700;letter-spacing:.05em">КОМПАНИЯ ВЕРНЁТ ВАМ</div><div class="num" style="font-size:26px;font-weight:800;color:var(--orange);margin-top:3px">'+fmt0(_rb)+' ₸</div><div style="font-size:12px;color:var(--mut);margin-top:2px">за покупки на свои деньги</div></div>'; }
   // онбординг: показываем один раз новому пользователю кабинета (флаг в localStorage)
   h+=_T('top');
   if(!PREVIEW && !store.get('lg2_seen_cab')){
