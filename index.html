@@ -1352,6 +1352,7 @@ var TYPE_META = {
 function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
 
 function canWriteLedger(){ return LG.role==='owner' || LG.role==='editor'; }
+function canView(){ return LG.role==='owner' || LG.role==='editor' || (LG.role||'').indexOf('partner_')===0; }
 function canAdvise(){ return LG.role==='owner' || LG.role==='editor' || (LG.role||'').indexOf('partner_')===0; }
 
 var TABS=[
@@ -3824,7 +3825,7 @@ function peopleBrigades(view){
     var bal=(s.earned||0)-(s.paid||0);
     var balCol=bal>0?'var(--red)':(bal<0?'var(--gold)':'var(--mut)');
     var start=brigStartDate(view,b); var startTxt=start?start.split('-').reverse().join('.'):'—';
-    h+='<div class="bcard" '+(canWrite?'data-brig="'+esc(s.id)+'" style="cursor:pointer"':'')+'>';
+    h+='<div class="bcard" '+(canView()?'data-brig="'+esc(s.id)+'" style="cursor:pointer"':'')+'>';
     // header tile
     h+='<div style="background:rgba(45,212,191,.06);border-radius:12px;padding:14px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:flex-start"><div><div style="font-size:20px;font-weight:700;color:'+col+'">'+esc(s.name)+'</div><div style="font-size:13px;color:var(--mut);margin-top:4px">'+(b.workers||0)+' чел · '+esc(b.work||'—')+'</div><div style="font-size:13px;color:var(--mut);margin-top:2px">старт '+startTxt+'</div></div>'+(canWrite?'<button class="fedit" data-noopen="1" data-edit="'+esc(s.id)+'" style="background:rgba(240,165,0,.10);border:1px solid var(--gold);color:var(--gold);border-radius:8px;padding:7px 12px;font-weight:700">ред</button>':'')+'</div>';
     // НЕДЕЛЯ цель/факт
@@ -3909,10 +3910,10 @@ function peopleStaff(view, consultOnly){
     if(rest<0){ rv=fmt0(Math.abs(rest)); rl='выдано вперёд'; rc='var(--teal)'; }
     else if(p.salaried||rest>0){ rv=fmt0(rest); rl='к выдаче'; rc='var(--gold)'; }
     else { rv='0'; rl='рассчитано'; rc='var(--mut)'; }
-    h+='<div class="bcard" '+(canWrite?'data-staff="'+esc(p.id)+'" style="cursor:pointer"':'')+'><div style="display:flex;align-items:center;gap:14px">'
+    h+='<div class="bcard" '+(canView()?'data-staff="'+esc(p.id)+'" style="cursor:pointer"':'')+'><div style="display:flex;align-items:center;gap:14px">'
       +'<div style="width:52px;height:52px;border-radius:50%;background:rgba(240,165,0,.12);border:1px solid rgba(240,165,0,.4);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:22px;font-weight:800;color:'+col+'">'+esc((p.name||'?').charAt(0))+'</div>'
       +'<div style="flex:1;min-width:0"><div style="font-size:18px;font-weight:700">'+esc(p.name)+'</div><div style="font-size:13px;color:var(--mut);margin-top:2px">'+esc(p.role||'')+' · '+payTxt+'</div>'+(spotsTxt?'<div style="font-size:13px;color:var(--teal);margin-top:2px">'+esc(spotsTxt)+'</div>':'')+'</div>'
-      +'<div style="text-align:right"><div class="num" style="font-size:22px;font-weight:800;color:'+rc+'">'+(rest<0?'−':'')+rv+'</div><div style="font-size:12px;color:var(--mut)">'+rl+'</div></div>'+(canWrite?'<div style="flex:none;color:var(--mut);font-size:24px;font-weight:300;margin-left:2px;line-height:1">›</div>':'')+'</div></div>';
+      +'<div style="text-align:right"><div class="num" style="font-size:22px;font-weight:800;color:'+rc+'">'+(rest<0?'−':'')+rv+'</div><div style="font-size:12px;color:var(--mut)">'+rl+'</div></div>'+(canView()?'<div style="flex:none;color:var(--mut);font-size:24px;font-weight:300;margin-left:2px;line-height:1">›</div>':'')+'</div></div>';
   });
   if(canWrite){ h+='<button data-addstaff="'+(consultOnly?'consult':'staff')+'" style="width:100%;background:transparent;border:1.5px dashed var(--green);color:var(--green);border-radius:14px;padding:16px;font-size:16px;font-weight:700;margin-top:6px;cursor:pointer">+ Добавить '+(consultOnly?'консультанта':'сотрудника')+'</button>'; }
   return h;
@@ -4680,6 +4681,7 @@ function renderEntryFields(){
   var meta=(view.objMeta&&view.objMeta[obj])||{};
   var spots=(meta.spots||[]);
   var brigs=(view.brigades||[]).filter(isActiveBrig);
+  var payers=PARTNERS.concat((staffList(view)||[]).map(function(s){return s.name;}).filter(function(n){return n && PARTNERS.indexOf(n)<0;}));
   // если дописываем объём архивной бригаде — добавим её в список с пометкой, чтобы можно было выбрать
   if(d.brigade && !brigs.some(function(b){return b.id===d.brigade;})){
     var _ab=(view.brigades||[]).find(function(b){return b&&b.id===d.brigade;});
@@ -4717,7 +4719,7 @@ function renderEntryFields(){
   } else if(d.type==='expense'){
     h+=fld('Категория','<select id="in-cat">'+selOpts(EXP_CATS, d.cat||EXP_CATS[0])+'</select>');
     h+=fld('Сумма, ₸',amtInput);
-    h+=fld('Кто платит','<select id="in-who">'+selOpts(PARTNERS, d.who||'Дмитрий')+'</select>');
+    h+=fld('Кто платит','<select id="in-who">'+selOpts(payers, d.who||'Дмитрий')+'</select>')+fh('Можно выбрать партнёра или сотрудника. С источником «Свои деньги» компания будет должна выбранному — долг появится в его карточке, вернёшь выплатой.');
     h+=fld('Источник','<select id="in-src">'+selOpts(PAYSRC, d.paySource||'advance')+'</select>');
     if(spots.length) h+=fld('Пятно (куда идёт расход)','<select id="in-spot"><option value="">— не привязано —</option>'+selOpts(spots.map(function(s){return [s.id,s.name];}), d.spotId)+'</select>');
     h+=fld('Бригада (если зарплата)','<select id="in-brig"><option value="">— нет —</option>'+selOpts(brigs.map(function(b){return [b.id,(b.name||'').replace(/^Бригада\s*/,'')];}), d.brigade)+'</select>');
@@ -4734,7 +4736,7 @@ function renderEntryFields(){
     h+=fld('Кто вложил','<select id="in-who">'+selOpts(PARTNERS, d.who||'Дмитрий')+'</select>');
     h+=fld('Сумма, ₸',amtInput);
   } else if(d.type==='payout'){
-    h+=fld('Кому выплата','<select id="in-who">'+selOpts(PARTNERS, d.who||'Дмитрий')+'</select>');
+    h+=fld('Кому выплата','<select id="in-who">'+selOpts(payers, d.who||'Дмитрий')+'</select>');
     h+=fld('Сумма, ₸',amtInput);
   }
   document.getElementById('entry-body').innerHTML=h+(LG.draft.editId?'<button type="button" onclick="deleteEntry(\''+esc(String(LG.draft.editId))+'\')" style="width:100%;margin-top:8px;background:transparent;border:1px solid var(--red);color:var(--red);border-radius:10px;padding:11px;font-size:14px;font-weight:700;cursor:pointer">🗑 Удалить запись</button>':'');
@@ -5763,6 +5765,8 @@ function openStaffCard(p){
   var spotsTxt=(p.spots&&p.spots.length)?p.spots.map(function(id){return spotNameOf(projected(LG.base,LG.queue),id);}).join(', '):'—';
   var h='<div style="font-size:13px;color:var(--mut);margin-bottom:10px">'+esc(p.role||'')+' · '+(consult?'консультант':'штат')+'</div>';
   h+='<div class="ledger" style="margin-bottom:12px"><div style="font-size:13px;color:var(--mut)">Объект: <b style="color:var(--fg)">ЖК «Алгабас», Мкр. Нуркент</b></div><div style="font-size:13px;color:var(--mut);margin-top:4px">Заказчик: <b style="color:var(--fg)">Sensata Group</b></div><div style="font-size:13px;color:var(--mut);margin-top:4px">Пятна: <b style="color:var(--teal)">'+esc(spotsTxt)+'</b></div>'+(p.hireDate?'<div style="font-size:13px;color:var(--mut);margin-top:4px">Дата приёма: <b style="color:var(--fg)">'+p.hireDate.split('-').reverse().join('.')+'</b></div>':'<div style="font-size:13px;color:var(--mut);margin-top:4px">Дата приёма: <b style="color:var(--mut)">не указана</b></div>')+(p.fireDate?'<div style="font-size:13px;color:var(--mut);margin-top:4px">Дата увольнения: <b style="color:var(--red)">'+p.fireDate.split('-').reverse().join('.')+'</b></div>':'')+(!consult?'<div style="font-size:13px;color:var(--mut);margin-top:4px">Оплата: <b style="color:var(--fg)">'+payTxt+'</b></div>':'')+'</div>';
+  var _co=(typeof calcCo==='function')?calcCo(projected(LG.base,LG.queue)):{}; var _owe=(_co.debtToPartner&&_co.debtToPartner[p.name])||0; var _nm=String(p.name||'').replace(/['"\\]/g,'');
+  if(_owe>0.5){ h+='<div class="ledger" style="margin-bottom:12px;border-color:var(--orange)"><div style="font-size:13px;color:var(--orange);font-weight:700;letter-spacing:.05em">КОМПАНИЯ ДОЛЖНА ВЕРНУТЬ</div><div class="num" style="font-size:26px;font-weight:800;color:var(--orange);margin:4px 0 2px">'+fmt0(_owe)+' ₸</div><div style="font-size:12px;color:var(--mut)">за покупки на свои деньги</div>'+(canWriteLedger()?('<button onclick="lgCloseSheet();openEntry({type:\'payout\',who:\''+_nm+'\',amount:'+Math.round(_owe)+'})" style="width:100%;margin-top:10px;background:rgba(255,157,61,.12);border:1px solid var(--orange);color:var(--orange);border-radius:11px;padding:11px;font-weight:700;font-size:14px;cursor:pointer">💸 Вернуть деньги</button>'):'')+'</div>'; }
   h+='<div class="ledger"><div style="font-size:12px;color:var(--mut);text-transform:uppercase;letter-spacing:.05em">'+(consult?'Всё рассчитано':'Остаток к выдаче')+'</div><div class="num" style="font-size:32px;font-weight:800;color:'+restCol+';margin:4px 0 12px">'+(rest<0?'−':'')+fmt0(Math.abs(rest))+' ₸</div>';
   h+='<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;text-align:center">'
     +'<div style="background:var(--sur2);border-radius:8px;padding:8px"><div style="font-size:11px;color:var(--mut)">Начислено</div><div class="num" style="color:var(--green);font-weight:700">'+fmt0(p.accrued)+'</div></div>'
