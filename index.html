@@ -356,6 +356,10 @@ function applyEventLocal(state, ev){
     var ka=Object.assign({}, ev.payload); var kai=state.ks2acts.findIndex(function(x){return x&&x.id===ka.id;});
     if(kai>=0) state.ks2acts[kai]=ka; else state.ks2acts.unshift(ka);
   } else if(ev.kind==='ks2.delete'){
+    var _da=(state.ks2acts||[]).find(function(x){return x&&x.id===ev.entryId;});
+    if(_da){ var _av=(_da.lines||[]).reduce(function(s,l){return s+(Number(l.vol)||0);},0);
+      var _acc=(state.entries||[]).filter(function(e){return e&&e.type==='vol'&&e.obj===_da.obj&&e.accepted;}).sort(function(a,b){return String(b.acceptedAt||'').localeCompare(String(a.acceptedAt||''));});
+      var _rem=_av; _acc.forEach(function(e){ if(_rem<=0.01)return; e.accepted=false; e.acceptedAt=''; _rem-=(Number(e.volume)||0); }); }
     state.ks2acts=(state.ks2acts||[]).filter(function(x){return !(x&&x.id===ev.entryId);});
   } else if(ev.kind==='ks3.add'){
     if(!Array.isArray(state.ks3acts)) state.ks3acts=[];
@@ -5075,7 +5079,20 @@ function numToWordsRu(n){ n=Math.round(n||0); if(n<=0) return 'ноль тенг
   if(r){ parts.push(triad(r,'','','').s); }
   var txt=parts.join(' ').replace(/\s+/g,' ').trim(); return txt.charAt(0).toUpperCase()+txt.slice(1)+' тенге';
 }
-function ks2Items(view,obj){ return (view.entries||[]).filter(function(e){ return e.type==='vol'&&e.obj===obj&&!e.accepted&&isConcrete(view,e)&&(e.volume||0)>0; }); }
+function ks2Items(view,obj){
+  var pours=(view.entries||[]).filter(function(e){ return e.type==='vol'&&e.obj===obj&&isConcrete(view,e)&&(e.volume||0)>0; });
+  // сколько объёма реально покрыто существующими актами этого объекта
+  var coveredVol=0; (view.ks2acts||[]).forEach(function(a){ if(a&&a.obj===obj)(a.lines||[]).forEach(function(l){ coveredVol+=Number(l.vol)||0; }); });
+  var accepted=pours.filter(function(e){return e.accepted;});
+  var acceptedVol=accepted.reduce(function(s,e){return s+(Number(e.volume)||0);},0);
+  var freed=[]; var excess=acceptedVol-coveredVol; // объём, принятый, но уже не входящий ни в один акт (напр. акт удалили)
+  if(excess>0.01){
+    accepted.slice().sort(function(a,b){return String(b.acceptedAt||'').localeCompare(String(a.acceptedAt||''));}).forEach(function(e){
+      if(excess<=0.01)return; freed.push(e); excess-=(Number(e.volume)||0);
+    });
+  }
+  return pours.filter(function(e){return !e.accepted;}).concat(freed);
+}
 function volRev(view,e){ return (e.volume||0)*rateForEntry(view,e); }
 function openKS2Builder(obj){
   var view=projected(LG.base, LG.queue);
