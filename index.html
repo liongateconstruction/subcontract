@@ -725,7 +725,7 @@ function calcCo(state){
         var s2=amt-pay2; if(s2>0) debtToPartner[e.who]=(debtToPartner[e.who]||0)+s2;
       }
     } else if(e.type==='return' || e.type==='payout'){
-      cash-=amt; returnedRaw+=amt; debtToPartner[e.who]=(debtToPartner[e.who]||0)-amt;
+      cash-=amt; returnedRaw+=amt; if(!e.consultPay) debtToPartner[e.who]=(debtToPartner[e.who]||0)-amt;
     }
   });
   var totalOwedToPartners=0; Object.keys(debtToPartner).forEach(function(p){ if(debtToPartner[p]>0) totalOwedToPartners+=debtToPartner[p]; });
@@ -776,7 +776,7 @@ function staffList(view){
     var b=staffBal(p); var isConsult=(p.type==='консультант');
     var o={ id:p.id, name:p.name||'?', role:p.role||'', type:p.type||'штат', payMethod:p.payMethod||'', rate:Number(p.rate)||0,
              salaried:isSalaried(p), accrued:b.auto, rest:b.rest, paid:b.pay, held:b.pen, bonusKS2:0, bonusAll:0,
-             isConsult:isConsult, spots:p.spots||[], premRate:p.premRate, premCel:p.premCel, hireDate:p.hireDate||'', fireDate:p.fireDate||'' };
+             isConsult:isConsult, spots:p.spots||[], premRate:p.premRate, premCel:p.premCel, hireDate:p.hireDate||'', fireDate:p.fireDate||'', phone:p.phone||'' };
     if(!isConsult && /прораб/i.test(p.role||'')){
       try{ var e=foremanEarnings(view,p);
         var lAcc=0,lBon=0; (p.ledger||[]).forEach(function(m){ var v=+m.amount||0; if(m.kind==='acc')lAcc+=v; else if(m.kind==='bon'||m.kind==='bonus')lBon+=v; });
@@ -1048,7 +1048,12 @@ function budgetVsActual(state){ var cats={}; (state.entries||[]).forEach(functio
   var rows=[]; Object.keys(cats).sort(function(a,b){return cats[b]-cats[a];}).forEach(function(c){ var actual=cats[c]; var np=norms[c]!=null?norms[c]:null; var budget=(np!=null&&rev>0)?Math.round(rev*np):null; var status='ok'; if(budget!=null){ if(actual>budget*1.15)status='over'; else if(actual>budget)status='warn'; } rows.push({cat:c,actual:actual,budget:budget,normPct:np!=null?Math.round(np*100):null,status:status}); });
   return {rows:rows, revenue:rev};
 }
-function debtorAging(state,obj){ var rev=profitEngine(state,obj).revenue; var acc=customerAccepted(state,obj); var paid=customerPaid(state); return {total:rev-paid, accepted:acc, unsigned:Math.max(0,rev-acc), paid:paid}; }
+function _ks2ms(a){ if(a&&a.createdAt){ var c=Number(a.createdAt)||0; if(c) return c; } var s=(a&&a.date)||''; var m=/(\d{2})\.(\d{2})\.(\d{4})/.exec(s); if(m) return new Date(+m[3],+m[2]-1,+m[1]).getTime(); return 0; }
+function debtorAging(state,obj){ var rev=profitEngine(state,obj).revenue; var acc=customerAccepted(state,obj); var paid=customerPaid(state); var total=rev-paid;
+  var acts=(state.ks2acts||[]).filter(function(a){return a&&a.obj===obj;}).slice().sort(function(x,y){return _ks2ms(x)-_ks2ms(y);});
+  var rem=paid, oldest=null; for(var i=0;i<acts.length;i++){ var amt=Number(acts[i].total)||0; if(rem>=amt-0.5){ rem-=amt; } else { oldest=acts[i]; break; } }
+  var days=0; if(total>0.5 && oldest){ var ms=_ks2ms(oldest); if(ms) days=Math.max(0,Math.floor((Date.now()-ms)/86400000)); }
+  return {total:total, accepted:acc, unsigned:Math.max(0,rev-acc), paid:paid, days:days}; }
 // ── ПРЕМИЯ ПРОРАБА (тиры 0.5%/1%/1.5% от V×расценку) ──
 function foremanPremium(fact, rab, cel, rate){
   var v=Math.max(0,Number(fact)||0); rate=Number(rate)||0;
@@ -1536,7 +1541,7 @@ function svodkaGoals(view){
     h+='<div style="font-size:12px;font-weight:800;letter-spacing:1px;color:var(--gold);margin:18px 2px 10px">👥 КОМАНДА · ЗОНЫ ОТВЕТСТВЕННОСТИ</div>';
     roles.forEach(function(r){
       var zones=(r.kfu||[]).map(function(id){ var k=kfu.find(function(x){return String(x.id)===String(id);}); return k?k.name:''; }).filter(Boolean);
-      h+='<div class="bcard" style="padding:11px 14px"><div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:15px;font-weight:800">'+esc(r.name)+'</span><span style="font-size:12px;color:var(--teal)">'+esc(r.role||'')+'</span></div>'
+      h+='<div class="bcard" style="padding:11px 14px"><div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:15px;font-weight:800">'+esc(r.name)+'</span><span style="font-size:12px;color:var(--teal)">'+esc(partnerRole(r.name).short||r.role||'')+'</span></div>'
         +(zones.length?('<div style="font-size:11.5px;color:var(--mut);margin-top:3px">КФУ: '+zones.map(esc).join(' · ')+'</div>'):'')+'</div>';
     });
   }
@@ -1603,7 +1608,7 @@ function pulseKFU(view){
   var LC={1:'var(--green)',2:'var(--gold)',3:'var(--red)'};
   var h='<div style="font-size:11px;color:var(--mut);margin:2px 2px 10px">КФУ по партнёрам — цель из плана, факт из данных:</div>';
   kl.forEach(function(k){var s=kfuStatus(view,k);var col=LC[s.light||1];
-    h+='<div class="bcard" style="border-color:'+col+'"><div style="display:flex;justify-content:space-between;align-items:flex-start"><div><div style="font-size:11px;color:'+col+';font-weight:800;letter-spacing:.5px">'+esc((k.owner||'—').toUpperCase())+'</div><div style="font-weight:700;font-size:14px;margin-top:2px">'+esc(k.name)+'</div></div><div style="color:'+col+';font-weight:800;font-size:15px;text-align:right">'+esc(s.value)+'</div></div>'
+    h+='<div class="bcard" style="border-color:'+col+'"><div style="display:flex;justify-content:space-between;align-items:flex-start"><div><div style="font-size:11px;color:'+col+';font-weight:800;letter-spacing:.5px">'+esc((kfuOwner(k)||'—').toUpperCase())+'</div><div style="font-weight:700;font-size:14px;margin-top:2px">'+esc(k.name)+'</div></div><div style="color:'+col+';font-weight:800;font-size:15px;text-align:right">'+esc(s.value)+'</div></div>'
       +(s.detail?'<div style="font-size:11px;color:var(--mut);margin-top:4px">'+esc(s.detail)+'</div>':'')+'</div>';});
   return h;
 }
@@ -1636,7 +1641,7 @@ function pulseTasks(view){
   function mine(o){return !!o&&(o.indexOf(SELP)>=0||o==='Все');}
   function days(d){return d?Math.ceil((new Date(d)-now)/864e5):999;}
   var nowB=[],soonB=[],laterB=[];
-  (view.kfu||[]).forEach(function(k){if(k&&mine(k.owner)){var s=kfuStatus(view,k);if(s.light>=3)nowB.push({warn:true,name:'КФУ «'+k.name+'» в красной зоне ('+s.value+')',how:s.detail||''});else if(s.light===2)soonB.push({warn:true,name:'КФУ «'+k.name+'» требует внимания ('+s.value+')',how:s.detail||''});}});
+  (view.kfu||[]).forEach(function(k){if(k&&mine(kfuOwner(k))){var s=kfuStatus(view,k);if(s.light>=3)nowB.push({warn:true,name:'КФУ «'+k.name+'» в красной зоне ('+s.value+')',how:s.detail||''});else if(s.light===2)soonB.push({warn:true,name:'КФУ «'+k.name+'» требует внимания ('+s.value+')',how:s.detail||''});}});
   (c.constraints||[]).forEach(function(x){if(x.status!=='cleared'&&mine(x.owner))nowB.push({warn:true,name:'Снять ограничение: '+x.title,how:(x.due?'Срок: '+x.due:'')});});
   (c.roadmap||[]).forEach(function(t){if(t.done||!mine(t.owner))return;var dl=days(t.due);var row={task:t,due:t.due};if(dl<14)nowB.push(row);else if(dl<75)soonB.push(row);else laterB.push(row);});
   function sd(a,b){return (a.due||'9999').localeCompare(b.due||'9999');}
@@ -2070,7 +2075,7 @@ window.MORE={
         html+='<div style="display:flex;align-items:center;gap:10px;padding:8px 2px;border-bottom:1px solid var(--brd)"><div style="color:'+c+';font-weight:800;min-width:20px;text-align:center">'+esc(g.icon||'•')+'</div><div style="flex:1"><div style="font-weight:600;font-size:13px">'+esc(g.name)+'</div><div style="font-size:11px;color:var(--mut)">'+esc(g.owner||'')+(g.deadline?' · до '+g.deadline:'')+'</div></div></div>';}); }
     if(roles.length){ html+='<div style="font-size:12px;color:var(--mut);letter-spacing:1px;font-weight:700;margin:16px 2px 8px">КОМАНДА</div>';
       roles.sort(function(a,b){return (a.order||0)-(b.order||0);}).forEach(function(r){var c=CVAR[r.color]||'var(--gold)';
-        html+='<div style="display:flex;align-items:center;gap:10px;padding:7px 2px"><div style="width:30px;height:30px;border-radius:50%;background:var(--sur2);border:1.5px solid '+c+';display:flex;align-items:center;justify-content:center;font-weight:800;color:'+c+'">'+esc((r.name||'?').charAt(0))+'</div><div style="flex:1"><div style="font-weight:700;font-size:14px">'+esc(r.name)+'</div><div style="font-size:11px;color:var(--mut)">'+esc(r.role||'')+'</div></div></div>';}); }
+        html+='<div style="display:flex;align-items:center;gap:10px;padding:7px 2px"><div style="width:30px;height:30px;border-radius:50%;background:var(--sur2);border:1.5px solid '+c+';display:flex;align-items:center;justify-content:center;font-weight:800;color:'+c+'">'+esc((r.name||'?').charAt(0))+'</div><div style="flex:1"><div style="font-weight:700;font-size:14px">'+esc(r.name)+'</div><div style="font-size:11px;color:var(--mut)">'+esc(partnerRole(r.name).short||r.role||'')+'</div></div></div>';}); }
     lgSheet('Путь к $1 млрд', html);
   }
 };
@@ -2393,7 +2398,7 @@ function buildReportText(v){
   L.push('🏛 ЗАКАЗЧИК');
   L.push('Принято КС-2: '+fmt0(Math.round(d.accepted))+' ₸');
   L.push('Оплачено: '+fmt0(Math.round(d.paid))+' ₸');
-  L.push('Должен заказчик: '+fmt0(Math.round(d.da.total))+' ₸ (не подписано '+fmt0(Math.round(d.da.unsigned))+')');
+  L.push('Должен заказчик: '+fmt0(Math.round(d.da.total))+' ₸'+(d.da.days>0?(' · долг '+d.da.days+' дн'):'')+' (не подписано '+fmt0(Math.round(d.da.unsigned))+')');
   L.push('КС-2: подписано '+fmt0(Math.round(d.ks2signed))+' · ждёт '+fmt0(Math.round(d.ks2wait))+' ₸');
   L.push('');
   L.push('🤝 ПАРТНЁРЫ');
@@ -2420,7 +2425,7 @@ function openReport(){
   var h='<div style="font-size:13px;color:var(--mut);margin-bottom:4px">Полный отчёт для партнёров · '+new Date().toLocaleDateString('ru-RU')+'</div>';
   h+='<div style="font-size:12px;color:var(--mut);margin-bottom:10px">'+esc(d.obj.split(',')[0]||'')+'</div>';
   h+=sec('💰 ФИНАНСЫ')+'<div class="ledger">'+row('Выручка',fmt0(Math.round(d.pe.revenue))+' ₸')+row('Расходы',fmt0(Math.round(d.pe.cost))+' ₸')+row('Прибыль',fmt0(Math.round(d.pe.profit))+' ₸',d.pe.profit>=0?'var(--green)':'var(--red)')+row('Маржа',d.pe.pct+'%','var(--teal)')+row('Касса',fmt0(d.cash)+' ₸',d.cash<500000?'var(--red)':'var(--green)')+'</div>';
-  h+=sec('🏛 ЗАКАЗЧИК')+'<div class="ledger">'+row('Принято КС-2',fmt0(Math.round(d.accepted))+' ₸','var(--teal)')+row('Оплачено',fmt0(Math.round(d.paid))+' ₸','var(--green)')+row('Должен заказчик',fmt0(Math.round(d.da.total))+' ₸','var(--gold)')+row('КС-2 подписано / ждёт',fmt0(Math.round(d.ks2signed))+' / '+fmt0(Math.round(d.ks2wait)))+'</div>';
+  h+=sec('🏛 ЗАКАЗЧИК')+'<div class="ledger">'+row('Принято КС-2',fmt0(Math.round(d.accepted))+' ₸','var(--teal)')+row('Оплачено',fmt0(Math.round(d.paid))+' ₸','var(--green)')+row('Должен заказчик',fmt0(Math.round(d.da.total))+' ₸'+(d.da.days>0?(' · '+d.da.days+' дн'+(d.da.days>=45?' ⚠':'')):''),(d.da.days>=45?'var(--red)':'var(--gold)'))+row('КС-2 подписано / ждёт',fmt0(Math.round(d.ks2signed))+' / '+fmt0(Math.round(d.ks2wait)))+'</div>';
   h+=sec('🤝 ПАРТНЁРЫ')+'<div class="ledger">'+row('Вложено всего',fmt0(Math.round(d.po.invested))+' ₸')+row('Компания должна',fmt0(Math.round(d.po.companyOwes))+' ₸','var(--gold)')+'</div>';
   if(d.podot.length){ h+=sec('💵 ПОДОТЧЁТ · НА РУКАХ')+'<div class="ledger">'; d.podot.forEach(function(p){ h+=row(esc(p.name)+' <span style="font-size:10px;color:var(--mut)">(взял '+fmt0(p.got)+')</span>',fmt0(p.held)+' ₸',p.held>0?'var(--red)':'var(--green)'); }); h+='</div>'; }
   h+=sec('👷 БРИГАДЫ')+'<div class="ledger">'; d.brigs.forEach(function(b){ var bal=b.earned-b.paid; h+=row(esc((b.name||'').replace(/^Бригада\s*/,''))+' <span style="font-size:10px;color:var(--mut)">'+fmtD(b.m3)+' м³</span>', fmt0(Math.round(b.earned))+' / '+fmt0(Math.round(b.paid)), bal<0?'var(--gold)':'var(--fg)'); }); h+='</div>';
@@ -2454,7 +2459,14 @@ function lgSetActStatus(id, st){
   if(st==='signed'&&!na.signedAt) na.signedAt=new Date().toISOString().slice(0,10);
   if(st==='paid'){ if(!na.paidAt) na.paidAt=new Date().toISOString().slice(0,10); if(!na.signedAt) na.signedAt=na.paidAt; }
   emit({kind:'ks2.add', payload:na});
-  toast('Акт № '+(a.aktnum||'')+' → '+(KS2_ST[st]?KS2_ST[st].l:st));
+  if(st==='paid'){
+    var already=(v.entries||[]).some(function(e){return e&&e.type==='customer_income'&&e.ks2Id===a.id;});
+    var amt=Math.round(a.total||0);
+    if(!already && amt>0 && (typeof confirm!=='function' || confirm('Записать приход от заказчика '+fmt0(amt)+' ₸ по этому акту?\n\nЭто увеличит «Оплачено» и закроет долг. Откажись, если оплату уже вносил вручную.'))){
+      emit({kind:'entry.add', payload:{type:'customer_income', amount:amt, date:na.paidAt, obj:a.obj, ks2Id:a.id, note:'Оплата по акту КС-2 № '+(a.aktnum||''), ts:Date.now()}});
+      toast('Записан приход '+fmt0(amt)+' ₸');
+    }
+  } else { toast('Акт № '+(a.aktnum||'')+' → '+(KS2_ST[st]?KS2_ST[st].l:st)); }
   openKS2Registry();   // обновить экран
 }
 function ks2SetFilter(f){ LG.ks2Filter=f; openKS2Registry(); }
@@ -2591,19 +2603,26 @@ function ks2TabDocs(v,obj,oe,canW,acts,st){
   else if(!shown.length) h+='<div class="empty">Нет актов со статусом «'+KS2_ST[flt].l+'».</div>';
   shown.forEach(function(a){
     var s=actStatus(a), m=KS2_ST[s];
-    h+='<div style="background:var(--sur2);border:1px solid var(--brd);border-radius:10px;padding:11px 13px;margin-bottom:8px">'
-      +'<div style="display:flex;justify-content:space-between;align-items:baseline"><div><div style="font-size:14px;font-weight:700">Акт № '+esc(a.aktnum||'1')+' · '+esc(a.period||'')+'</div><div style="font-size:11px;color:var(--mut)">'+esc(a.date||'')+(a.paidAt?(' · оплачен '+esc(a.paidAt)):(a.signedAt?(' · подписан '+esc(a.signedAt)):''))+'</div></div><div class="num" style="font-size:15px;color:var(--gold);font-weight:700">'+fmt0(Math.round(a.total||0))+' ₸</div></div>';
+    var paidRec=(v.entries||[]).some(function(e){return e&&e.type==='customer_income'&&e.ks2Id===a.id;});
+    h+='<div style="background:var(--sur);border:1px solid var(--brd);border-left:3px solid '+m.c+';border-radius:12px;padding:13px 14px;margin-bottom:9px">'
+      +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">'
+        +'<div style="min-width:0"><div style="font-size:15px;font-weight:800">КС-2 № '+esc(a.aktnum||'1')+'</div><div style="font-size:11px;color:var(--mut);margin-top:1px">'+esc(a.period||'')+(a.date?(' · '+esc(a.date)):'')+'</div></div>'
+        +'<div class="num" style="font-size:16px;font-weight:800;white-space:nowrap">'+fmt0(Math.round(a.total||0))+' ₸</div>'
+      +'</div>'
+      +'<div style="display:flex;align-items:center;gap:8px;margin-top:9px;flex-wrap:wrap">'
+        +'<span style="background:'+m.bg+';border:1px solid '+m.c+';color:'+m.c+';border-radius:20px;padding:3px 11px;font-size:11px;font-weight:700">'+m.ic+' '+m.l+'</span>'
+        +(a.paidAt?('<span style="font-size:11px;color:var(--mut)">оплачен '+esc(a.paidAt)+'</span>'):(a.signedAt?('<span style="font-size:11px;color:var(--mut)">подписан '+esc(a.signedAt)+'</span>'):''))
+        +(s==='paid'?('<span style="font-size:11px;font-weight:600;color:'+(paidRec?'var(--green)':'var(--orange)')+'">'+(paidRec?'· ✓ приход записан':'· ⚠ приход не записан')+'</span>'):'')
+      +'</div>';
     if(canW){
-      h+='<div style="display:flex;gap:5px;margin-top:8px">';
-      ['prepared','signed','paid'].forEach(function(k){ var mm=KS2_ST[k]; var on=(s===k);
-        h+='<button onclick="lgSetActStatus(\''+esc(a.id)+'\',\''+k+'\')" style="flex:1;background:'+(on?mm.c:'transparent')+';border:1px solid '+mm.c+';color:'+(on?'#0d1117':mm.c)+';border-radius:8px;padding:7px 3px;font-size:11px;font-weight:700;cursor:pointer">'+mm.ic+' '+mm.l+'</button>'; });
+      h+='<div style="display:flex;margin-top:11px;border:1px solid var(--brd);border-radius:9px;overflow:hidden">';
+      ['prepared','signed','paid'].forEach(function(k,ki){ var mm=KS2_ST[k]; var on=(s===k);
+        h+='<button onclick="lgSetActStatus(\''+esc(a.id)+'\',\''+k+'\')" style="flex:1;background:'+(on?mm.c:'transparent')+';border:none;'+(ki>0?'border-left:1px solid var(--brd);':'')+'color:'+(on?'#0d1117':'var(--mut)')+';padding:8px 3px;font-size:11px;font-weight:700;cursor:pointer">'+mm.ic+' '+mm.l+'</button>'; });
       h+='</div>';
-    } else {
-      h+='<div style="margin-top:7px"><span style="background:'+m.bg+';border:1px solid '+m.c+';color:'+m.c+';border-radius:7px;padding:3px 9px;font-size:11px;font-weight:700">'+m.ic+' '+m.l+'</span></div>';
     }
-    h+='<div style="display:flex;gap:8px;margin-top:8px">'
+    h+='<div style="display:flex;gap:7px;margin-top:9px">'
       +((a.html||(a.lines&&a.lines.length))?('<button onclick="openDocViewer(lgActHtml(\''+esc(a.id)+'\'),\'КС-2 № '+esc(a.aktnum||'1')+'\')" style="flex:1;background:rgba(88,166,255,.1);border:1px solid var(--blue);color:var(--blue);border-radius:8px;padding:8px;font-size:12px;font-weight:700;cursor:pointer">👁 Открыть / печать</button>'):('<div style="flex:1;color:var(--mut);font-size:11px;padding:8px;text-align:center">Бланк не сохранён</div>'))
-      +(canW?('<button onclick="openKS2Edit(\''+esc(a.id)+'\')" style="background:rgba(240,165,0,.1);border:1px solid var(--gold);color:var(--gold);border-radius:8px;padding:8px 11px;font-size:12px;font-weight:700;cursor:pointer">✎</button>'):'')
+      +(canW?('<button onclick="openKS2Edit(\''+esc(a.id)+'\')" style="background:rgba(240,165,0,.1);border:1px solid var(--gold);color:var(--gold);border-radius:8px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer">✎</button>'):'')
       +(canW?('<button onclick="lgDelAct(\''+esc(a.id)+'\')" style="background:rgba(248,81,73,.08);border:1px solid var(--red);color:var(--red);border-radius:8px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer">🗑</button>'):'')
       +'</div></div>';
   });
@@ -2611,7 +2630,17 @@ function ks2TabDocs(v,obj,oe,canW,acts,st){
   if(_k3.length){
     h+='<div style="font-size:12px;color:var(--mut);letter-spacing:.5px;font-weight:700;margin:16px 2px 8px">🧾 СПРАВКИ КС-3 ('+_k3.length+')</div>';
     _k3.forEach(function(a){
-      h+='<div style="background:var(--sur);border:1px solid var(--brd);border-radius:10px;padding:11px;margin-bottom:8px"><div style="display:flex;justify-content:space-between;align-items:baseline"><div style="font-weight:700">Справка № '+esc(a.num||'')+' · '+esc(a.period||'')+'</div><div class="num" style="color:var(--teal);font-weight:700">'+fmt0(a.withVat||a.total||0)+' ₸</div></div><div style="font-size:12px;color:var(--mut);margin-top:2px">'+esc(a.date||'')+' · с НДС</div><div style="display:flex;gap:6px;margin-top:8px"><button onclick="openSavedKS3(\''+esc(a.id)+'\')" style="flex:1;background:rgba(88,166,255,.1);border:1px solid var(--blue);color:var(--blue);border-radius:8px;padding:8px;font-size:12px;font-weight:700;cursor:pointer">👁 Открыть / печать</button>'+(canW?('<button onclick="openKS3Edit(\''+esc(a.id)+'\')" style="background:rgba(240,165,0,.1);border:1px solid var(--gold);color:var(--gold);border-radius:8px;padding:8px 11px;font-size:12px;font-weight:700;cursor:pointer">✎</button><button onclick="lgDelKs3(\''+esc(a.id)+'\')" style="background:rgba(248,81,73,.08);border:1px solid var(--red);color:var(--red);border-radius:8px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer">🗑</button>'):'')+'</div></div>';
+      var amt=a.withVat||a.total||0;
+      h+='<div style="background:var(--sur);border:1px solid var(--brd);border-left:3px solid var(--teal);border-radius:12px;padding:13px 14px;margin-bottom:9px">'
+        +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">'
+          +'<div style="min-width:0"><div style="font-size:15px;font-weight:800">КС-3 № '+esc(a.num||'')+'</div><div style="font-size:11px;color:var(--mut);margin-top:1px">'+esc(a.period||'')+(a.date?(' · '+esc(a.date)):'')+'</div></div>'
+          +'<div style="text-align:right;white-space:nowrap"><div class="num" style="font-size:16px;font-weight:800;color:var(--teal)">'+fmt0(amt)+' ₸</div><div style="font-size:10px;color:var(--mut)">с НДС</div></div>'
+        +'</div>'
+        +(a.toPay?('<div style="margin-top:8px;font-size:11px;color:var(--mut)">к оплате после удержания '+(a.retPct||3)+'%: <span class="num" style="color:var(--green);font-weight:700">'+fmt0(Math.round(a.toPay))+' ₸</span></div>'):'')
+        +'<div style="display:flex;gap:7px;margin-top:10px">'
+          +'<button onclick="openSavedKS3(\''+esc(a.id)+'\')" style="flex:1;background:rgba(88,166,255,.1);border:1px solid var(--blue);color:var(--blue);border-radius:8px;padding:8px;font-size:12px;font-weight:700;cursor:pointer">👁 Открыть / печать</button>'
+          +(canW?('<button onclick="openKS3Edit(\''+esc(a.id)+'\')" style="background:rgba(240,165,0,.1);border:1px solid var(--gold);color:var(--gold);border-radius:8px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer">✎</button><button onclick="lgDelKs3(\''+esc(a.id)+'\')" style="background:rgba(248,81,73,.08);border:1px solid var(--red);color:var(--red);border-radius:8px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer">🗑</button>'):'')
+        +'</div></div>';
     });
   }
   return h;
@@ -3033,6 +3062,21 @@ function pDonut(segs, centerTop, centerBot){
     +'<text x="70" y="68" text-anchor="middle" font-size="26" font-weight="800" fill="#e6edf3">'+centerTop+'</text>'
     +'<text x="70" y="90" text-anchor="middle" font-size="12" fill="#8b949e">'+centerBot+'</text></svg>';
 }
+function lgPartnersLead(partners,PC,share){
+  var h='<div class="ledger" style="border-color:var(--gold)">'
+    +'<div style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);margin-bottom:14px">🏛 Руководство · кто за что отвечает</div>';
+  partners.forEach(function(p,i){ var R=partnerRole(p); var c=(PC&&PC[p])||R.color||'#8b949e';
+    h+='<div style="display:flex;align-items:flex-start;gap:12px;padding:11px 0'+(i<partners.length-1?';border-bottom:1px solid var(--brd)':'')+'">'
+      +'<div style="width:44px;height:44px;border-radius:50%;background:'+c+'20;border:2px solid '+c+';display:flex;align-items:center;justify-content:center;flex:none;font-size:19px;font-weight:800;color:'+c+'">'+esc(p.charAt(0))+'</div>'
+      +'<div style="flex:1;min-width:0">'
+        +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="font-size:16px;font-weight:800">'+esc(p)+'</span>'+(R.tag?('<span style="font-size:10px;font-weight:800;letter-spacing:.5px;color:'+c+';background:'+c+'1c;border:1px solid '+c+'66;border-radius:20px;padding:1px 8px">'+esc(R.tag)+'</span>'):'')+'</div>'
+        +'<div style="font-size:12.5px;color:'+c+';font-weight:700;margin-top:3px;line-height:1.35">'+esc(R.title)+'</div>'
+        +(R.duties?('<div style="font-size:12px;color:var(--mut);margin-top:2px;line-height:1.4">'+esc(R.duties)+'</div>'):'')
+      +'</div></div>';
+  });
+  h+='<div style="font-size:11px;color:var(--mut);text-align:center;margin-top:12px">Совладельцы · доли равные · '+partners.length+' × '+Math.round(share)+'%</div></div>';
+  return h;
+}
 function renderPartners(view, app){
   var O=partnersOverview(view);
   var partners=(view.roles||[]).map(function(r){return r.name;}).filter(Boolean);
@@ -3057,7 +3101,7 @@ function renderPartners(view, app){
   function pSecH(t){ return '<div style="font-size:13px;color:var(--mut);letter-spacing:2px;font-weight:800;margin:22px 4px 12px">'+t+'</div>'; }
 
   // ── 1. ОБЩАЯ КАРТИНА
-  var h='<div class="ledger" style="border-color:var(--gold)">'
+  var h=lgPartnersLead(partners,PC,share)+'<div class="ledger" style="border-color:var(--gold)">'
    + '<div style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);margin-bottom:12px">📊 Общая картина</div>'
    + '<div class="grid" style="grid-template-columns:1fr 1fr;margin-bottom:12px">'
    +   '<div class="cell" style="background:rgba(63,185,80,.08)"><div class="k" style="color:var(--green)">💼 Вложено в компанию</div><div class="v num" style="color:var(--green);font-size:20px">'+fmt(O.invested)+'</div><div style="font-size:11px;color:var(--mut)">всеми партнёрами</div></div>'
@@ -3125,7 +3169,7 @@ function renderPartners(view, app){
     var role=isInv&&!isCon?'💎 Инвестор':(isCon?'👷 Исполнитель':'👤 Партнёр');
     h+='<div onclick="PARTNER.details(\''+esc(p)+'\')" style="background:var(--sur);border:1.5px solid '+col+'40;border-radius:18px;padding:18px;margin-bottom:14px;cursor:pointer">';
     // шапка
-    h+='<div style="display:flex;align-items:center;gap:14px;margin-bottom:16px"><div style="width:56px;height:56px;border-radius:50%;background:'+col+'20;border:2px solid '+col+';display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:26px;color:'+col+';font-weight:800">'+esc(p.charAt(0))+'</div><div style="flex:1;min-width:0"><div style="font-size:19px;color:'+col+';font-weight:800">'+esc(p)+'</div><div style="font-size:12px;color:var(--mut);margin-top:3px">'+role+' · '+Math.round(share)+'% доля</div></div></div>';
+    h+='<div style="display:flex;align-items:center;gap:14px;margin-bottom:16px"><div style="width:56px;height:56px;border-radius:50%;background:'+col+'20;border:2px solid '+col+';display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:26px;color:'+col+';font-weight:800">'+esc(p.charAt(0))+'</div><div style="flex:1;min-width:0"><div style="font-size:19px;color:'+col+';font-weight:800">'+esc(p)+'</div><div style="font-size:12px;color:var(--mut);margin-top:3px">'+esc(partnerRole(p).title)+' · '+Math.round(share)+'%</div></div></div>';
     // вложил
     h+='<div style="background:var(--bg);border:1px solid rgba(63,185,80,.30);border-radius:12px;padding:12px;margin-bottom:10px"><div style="font-size:13px;color:#7ee787;letter-spacing:1.5px;font-weight:700;margin-bottom:6px">💼 ВЛОЖИЛ В КОМПАНИЮ</div><div style="font-size:24px;color:#7ee787;font-weight:800;line-height:1">'+fmt0(x.totalIn)+'</div>';
     if(x.totalIn>0){ var parts=[]; if(x.invested>0)parts.push('в кассу: '+fmt0(x.invested)); if(x.ownPaid>0)parts.push('из своих: '+fmt0(x.ownPaid)); if(x.ownAdvOut>0)parts.push('передал: '+fmt0(x.ownAdvOut)); h+='<div style="font-size:13px;color:var(--mut);margin-top:6px">'+parts.join(' · ')+'</div>'; }
@@ -3733,12 +3777,75 @@ function renderPeople(view, app){
   var h=subBar('people',[{id:'brigades',label:'Бригады'},{id:'staff',label:'Сотрудники'},{id:'consult',label:'Консультанты'}]);
   if(canAdvise()){ var _pq='Проанализируй команду и зарплаты: перерасход на труд, авансы и долги сотрудников, эффективность бригад. Что оптимизировать? Кратко, с цифрами.';
     h+='<button onclick="askQuick('+JSON.stringify(_pq).replace(/"/g,'&quot;')+')" style="width:100%;margin:2px 0 14px;background:rgba(167,139,250,.12);border:1px solid var(--violet);color:var(--violet);border-radius:11px;padding:12px;font-size:14px;font-weight:700;cursor:pointer">🤖 Совет по команде и зарплатам</button>'; }
+  if(canWriteLedger()){ h+='<button onclick="openPayrollSheet()" style="width:100%;margin:0 0 14px;background:rgba(240,165,0,.12);border:1px solid var(--gold);color:var(--gold);border-radius:11px;padding:12px;font-size:14px;font-weight:700;cursor:pointer">📋 Ведомость на выдачу</button>'; }
   if(sub==='staff')        h += peopleStaff(view, false);
   else if(sub==='consult') h += peopleStaff(view, true);
   else                     h += peopleBrigades(view);
   app.innerHTML=h;
 }
 function spotNameOf(view,id){ var m=(view.objMeta&&view.objMeta[(view.objects||[])[0]])||{}; var sp=(m.spots||[]).find(function(s){return s.id===id;}); return sp?sp.name:id; }
+function payrollData(view){
+  var people=(staffList(view)||[]).map(function(p){ return {group:(p.isConsult?'Консультанты':(/прораб/i.test(p.role||'')?'Прорабы':'Штат')), name:p.name||'?', sub:p.role||(p.isConsult?'консультант':'штат'), amount:Math.round(p.rest||0)}; }).filter(function(x){return x.amount>0.5;});
+  var brigs=(brigStats(view)||[]).map(function(b){ return {group:'Бригады', name:b.name||'?', sub:((b.workers?b.workers+' чел':'')+(b.work?((b.workers?' · ':'')+b.work):''))||'бригада', amount:Math.round(b.debt||0)}; }).filter(function(x){return x.amount>0.5;});
+  return brigs.concat(people);
+}
+function openPayrollSheet(){
+  if(!canWriteLedger()){ toast('Только владелец/учётчица'); return; }
+  var view=projected(LG.base,LG.queue); var rows=payrollData(view);
+  var total=rows.reduce(function(s,r){return s+r.amount;},0);
+  var h='<div style="font-size:12.5px;color:var(--mut);line-height:1.5;margin-bottom:12px">Кому и сколько нужно выдать прямо сейчас. Считается из начислений минус уже сделанные выплаты. У бригад — заработано минус выплачено.</div>';
+  if(!rows.length){ h+='<div class="empty" style="padding:26px 10px;text-align:center;color:var(--mut)">Никому ничего не нужно выдавать — всё рассчитано. 👍</div>'; lgSheet('📋 Ведомость на выдачу', h); return; }
+  ['Бригады','Прорабы','Штат','Консультанты'].forEach(function(g){ var gr=rows.filter(function(r){return r.group===g;}); if(!gr.length)return;
+    var gt=gr.reduce(function(s,r){return s+r.amount;},0);
+    h+='<div style="font-size:12px;color:var(--mut);letter-spacing:1px;font-weight:700;margin:12px 2px 6px">'+g.toUpperCase()+' · '+fmt0(gt)+' ₸</div>';
+    gr.forEach(function(r){ h+='<div style="display:flex;justify-content:space-between;align-items:center;background:var(--sur2);border:1px solid var(--brd);border-radius:10px;padding:11px 13px;margin-bottom:7px"><div style="min-width:0;padding-right:8px"><div style="font-weight:700;font-size:14px">'+esc(r.name)+'</div>'+(r.sub?('<div style="font-size:11px;color:var(--mut)">'+esc(r.sub)+'</div>'):'')+'</div><div class="num" style="color:var(--gold);font-weight:800;white-space:nowrap">'+fmt0(r.amount)+' ₸</div></div>'; });
+  });
+  h+='<div style="background:var(--bg);border:2px solid var(--teal);border-radius:12px;padding:14px;margin-top:10px;display:flex;justify-content:space-between;align-items:baseline"><span style="font-weight:800">ИТОГО к выдаче</span><span class="num" style="font-size:22px;color:var(--teal);font-weight:800">'+fmt0(total)+' ₸</span></div>';
+  h+='<button onclick="printPayroll()" style="width:100%;margin-top:12px;background:rgba(88,166,255,.12);border:1px solid var(--blue);color:var(--blue);border-radius:11px;padding:13px;font-size:14px;font-weight:700;cursor:pointer">🖨 Печать / PDF · с подписями</button>';
+  lgSheet('📋 Ведомость на выдачу', h);
+}
+function printPayroll(){
+  var view=projected(LG.base,LG.queue); var rows=payrollData(view);
+  var total=rows.reduce(function(s,r){return s+r.amount;},0);
+  var obj=(view.objects||[])[0]||''; var today=new Date().toLocaleDateString('ru-RU');
+  var tr=''; var n=1;
+  ['Бригады','Прорабы','Штат','Консультанты'].forEach(function(g){ var gr=rows.filter(function(r){return r.group===g;}); if(!gr.length)return;
+    tr+='<tr><td colspan="5" style="background:#f0f0f0;font-weight:bold;padding:6px 8px">'+esc(g)+'</td></tr>';
+    gr.forEach(function(r){ tr+='<tr><td style="text-align:center">'+(n++)+'</td><td>'+esc(r.name)+'</td><td>'+esc(r.sub||'')+'</td><td style="text-align:right;white-space:nowrap">'+fmt0(r.amount)+'</td><td></td></tr>'; });
+  });
+  var doc='<div style="font-family:Arial,sans-serif;color:#000;background:#fff;padding:18px;max-width:760px;margin:0 auto;font-size:13px">'
+    +'<div style="font-size:18px;font-weight:bold;text-align:center;margin-bottom:4px">Ведомость на выдачу денег</div>'
+    +'<div style="text-align:center;color:#444;margin-bottom:12px">Объект: '+esc(obj)+' · от '+esc(today)+'</div>'
+    +'<table style="width:100%;border-collapse:collapse" border="1" cellpadding="6">'
+    +'<thead><tr style="background:#fff;font-weight:bold"><th style="width:34px">№</th><th>Получатель</th><th>Должность / бригада</th><th style="width:130px">Сумма к выдаче, ₸</th><th style="width:150px">Подпись</th></tr></thead>'
+    +'<tbody>'+tr+'<tr style="font-weight:bold"><td colspan="3" style="text-align:right">ИТОГО к выдаче:</td><td style="text-align:right">'+fmt0(total)+'</td><td></td></tr></tbody></table>'
+    +'<div style="margin-top:24px;display:flex;justify-content:space-between">'
+    +'<div>Выдал: ____________________ /____________/</div>'
+    +'<div>Дата: '+esc(today)+'</div></div>'
+    +'</div>';
+  openDocViewer(doc, 'Ведомость на выдачу');
+}
+function printPayslip(id){
+  var view=projected(LG.base,LG.queue); var raw=(view.staff||[]).find(function(x){return x&&x.id===id;}); if(!raw){ toast('Сотрудник не найден'); return; }
+  var bb=staffBal(raw); var par=(typeof calcPar==='function')?calcPar(view, raw.name):{}; var hold=Math.round((par&&par.onHands)||0);
+  var obj=(view.objects||[])[0]||''; var today=new Date().toLocaleDateString('ru-RU');
+  function r(k,v,strong){ return '<tr><td style="padding:8px 10px;border:1px solid #ccc">'+k+'</td><td style="padding:8px 10px;border:1px solid #ccc;text-align:right'+(strong?';font-weight:bold;font-size:15px':'')+'">'+fmt0(v)+' ₸</td></tr>'; }
+  var doc='<div style="font-family:Arial,sans-serif;color:#000;background:#fff;padding:18px;max-width:560px;margin:0 auto;font-size:13px">'
+    +'<div style="font-size:17px;font-weight:bold;text-align:center">Расчётный листок</div>'
+    +'<div style="text-align:center;color:#444;margin:4px 0 14px">'+esc(raw.name||'')+(raw.role?(' · '+esc(raw.role)):'')+'<br>'+esc(obj)+' · на '+esc(today)+'</div>'
+    +'<table style="width:100%;border-collapse:collapse">'
+    +r('Начислено (оклад/ставка)', bb.acc)
+    +(bb.bon>0?r('Бонусы', bb.bon):'')
+    +(bb.pen>0?r('Удержания / штрафы', -bb.pen):'')
+    +r('Выплачено', -bb.pay)
+    +r('К ВЫДАЧЕ', bb.rest, true)
+    +(hold>0?r('Подотчёт на руках', hold):'')
+    +'</table>'
+    +(/прораб/i.test(raw.role||'')?'<div style="color:#666;margin-top:10px;font-size:12px">Премия прораба по КС-2 рассчитывается отдельно (в кабинете прораба).</div>':'')
+    +'<div style="margin-top:24px;display:flex;justify-content:space-between"><div>Подпись: ____________________</div><div>'+esc(today)+'</div></div>'
+    +'</div>';
+  openDocViewer(doc, 'Расчётный листок · '+(raw.name||''));
+}
 /* ── РЕЙТИНГ БРИГАД: производительность м³/чел-день за 30 дней (Raken/Rhumbix) ── */
 function brigRatingBlock(view){
   var from=new Date(Date.now()-30*86400000).toISOString().slice(0,10);
@@ -3950,7 +4057,7 @@ function renderConsultantCabinet(view, app, consultantId){
   var h='<div class="shdr" style="margin:6px 0 2px"><h2 style="margin:0;font-size:26px;color:var(--gold)">💼 КОНСУЛЬТАНТ'+(p.name?(' · '+esc(p.name)):'')+'</h2></div>';
   h+='<div style="font-size:13px;color:var(--mut);margin-bottom:14px">'+esc(obj)+(p.role?(' · '+esc(p.role)):'')+'</div>';
   var _rb=(typeof view._reimburse==='number')?view._reimburse:0;
-  if(!_rb){ var _s=0,_nm=p.name||''; (view.entries||[]).forEach(function(e){ if(!e)return; if(e.type==='expense'&&e.who===_nm&&(e.paySource||'')==='own')_s+=Number(e.amount)||0; else if((e.type==='payout'||e.type==='return')&&e.who===_nm)_s-=Number(e.amount)||0; }); _rb=Math.max(0,Math.round(_s)); }
+  if(!_rb){ var _s=0,_nm=p.name||''; (view.entries||[]).forEach(function(e){ if(!e)return; if(e.type==='expense'&&e.who===_nm&&(e.paySource||'')==='own')_s+=Number(e.amount)||0; else if((e.type==='payout'||e.type==='return')&&e.who===_nm&&!e.consultPay)_s-=Number(e.amount)||0; }); _rb=Math.max(0,Math.round(_s)); }
   if(_rb>0){ h+='<div style="background:rgba(255,157,61,.1);border:1px solid var(--orange);border-radius:12px;padding:13px 14px;margin-bottom:12px"><div style="font-size:12px;color:var(--orange);font-weight:700;letter-spacing:.05em">КОМПАНИЯ ВЕРНЁТ ВАМ</div><div class="num" style="font-size:26px;font-weight:800;color:var(--orange);margin-top:3px">'+fmt0(_rb)+' ₸</div><div style="font-size:12px;color:var(--mut);margin-top:2px">за покупки на свои деньги</div></div>'; }
 
   // ВАШ БОНУС · ОНЛАЙН + стадии
@@ -3993,7 +4100,12 @@ function consultLedger(id, kind){
   var v=prompt(labels[kind]||'Сумма (₸)',''); if(v==null) return;
   var amt=Math.round(Number(String(v).replace(/[^0-9.]/g,''))||0); if(amt<=0){ alert('Введите сумму больше нуля.'); return; }
   var note=prompt('Комментарий (необязательно)','')||'';
+  if(kind==='pay' && typeof confirm==='function' && !confirm('Выплата '+fmt0(amt)+' ₸ спишется из кассы компании. Продолжить?')) return;
   emit({kind:'staff.ledger', id:lgId('l'), payload:{staffId:id, entry:{kind:kind, amount:amt, note:note, date:new Date().toISOString().slice(0,10)}}});
+  if(kind==='pay'){
+    var _v0=projected(LG.base,LG.queue); var _cp=(_v0.staff||[]).find(function(x){return x&&x.id===id;})||{}; var _obj=(_v0.objects||[])[0]||'';
+    emit({kind:'entry.add', payload:{type:'payout', who:_cp.name||'', amount:amt, paySource:'cash', date:new Date().toISOString().slice(0,10), obj:_obj, note:'Выплата консультанту'+(note?(' · '+note):''), consultPay:true, ts:Date.now()}});
+  }
   lgCloseSheet(); var v2=projected(LG.base,LG.queue); var p=(v2.staff||[]).find(function(x){return x&&x.id===id;}); if(p) openStaffCard(staffList(v2).find(function(x){return x.id===id;})||p);
 }
 function consultAccrueFund(id){
@@ -4042,7 +4154,7 @@ function renderCabinet(view, app, scope){
   h+='<div style="font-size:13px;color:var(--mut);margin-bottom:14px">'+esc(obj)+'</div>';
   h+='<button onclick="openCabHelp()" style="width:100%;border:1px solid var(--brd);background:var(--sur2);color:var(--mut);border-radius:10px;padding:9px;font-size:12.5px;font-weight:700;cursor:pointer;margin-bottom:12px">❓ Как пользоваться этим экраном</button>';
   var _rb=(typeof view._reimburse==='number')?view._reimburse:0;
-  if(!_rb){ var _s=0; (view.entries||[]).forEach(function(e){ if(!e)return; if(e.type==='expense'&&e.who===who&&(e.paySource||'')==='own')_s+=Number(e.amount)||0; else if((e.type==='payout'||e.type==='return')&&e.who===who)_s-=Number(e.amount)||0; }); _rb=Math.max(0,Math.round(_s)); }
+  if(!_rb){ var _s=0; (view.entries||[]).forEach(function(e){ if(!e)return; if(e.type==='expense'&&e.who===who&&(e.paySource||'')==='own')_s+=Number(e.amount)||0; else if((e.type==='payout'||e.type==='return')&&e.who===who&&!e.consultPay)_s-=Number(e.amount)||0; }); _rb=Math.max(0,Math.round(_s)); }
   if(_rb>0){ h+='<div style="background:rgba(255,157,61,.1);border:1px solid var(--orange);border-radius:12px;padding:13px 14px;margin-bottom:12px"><div style="font-size:12px;color:var(--orange);font-weight:700;letter-spacing:.05em">КОМПАНИЯ ВЕРНЁТ ВАМ</div><div class="num" style="font-size:26px;font-weight:800;color:var(--orange);margin-top:3px">'+fmt0(_rb)+' ₸</div><div style="font-size:12px;color:var(--mut);margin-top:2px">за покупки на свои деньги</div></div>'; }
   // онбординг: показываем один раз новому пользователю кабинета (флаг в localStorage)
   h+=_T('top');
@@ -4630,6 +4742,15 @@ window.MONEY={
 };
 var EXP_CATS=['Аванс / зарплата рабочим','Материалы','Инструменты и инвентарь','Транспорт','Топливо','Питание','Административные','Связь','Представительские','Прочее'];
 var PARTNERS=['Дмитрий','Бекжан','Евгений','Нурсултан','Сергей'];
+var PARTNER_ROLES={
+  'Дмитрий':  {title:'Генеральный директор', tag:'CEO', short:'CEO · стратегия', duties:'Стратегия и развитие, заказчик на верхнем уровне', color:'#ffb320'},
+  'Сергей':   {title:'Управляющий партнёр · Финансовый и исполнительный директор', tag:'CFO · COO', short:'Финансы и операции', duties:'Финансы и операционное управление компанией', color:'#39d3bb'},
+  'Бекжан':   {title:'Управляющий партнёр · Директор по производству и персоналу', tag:'COO', short:'Производство и люди', duties:'Набор людей и темп заливки на площадке', color:'#3fb950'},
+  'Нурсултан':{title:'Управляющий партнёр · Директор по качеству и безопасности', tag:'CQO · HSE', short:'Качество и безопасность', duties:'Качество (ноль переделок) и охрана труда', color:'#a371f7'},
+  'Евгений':  {title:'Управляющий партнёр · Коммерческий директор', tag:'CCO', short:'Коммерция и КС-2', duties:'Деньги от заказчика, закрытие КС-2/КС-3, договоры', color:'#58a6ff'}
+};
+function partnerRole(n){ return PARTNER_ROLES[n]||{title:'Партнёр',tag:'',short:'',duties:'',color:'#8b949e'}; }
+function kfuOwner(k){ if(!k) return ''; if(String(k.id)==='5'||/безопас/i.test(String(k.name||''))) return 'Нурсултан'; return k.owner||''; }
 var PAYSRC=[['advance','Из подотчётных'],['own','Свои деньги'],['cash','Из кассы']];
 function selOpts(arr,cur){ return arr.map(function(o){ var v=Array.isArray(o)?o[0]:o, l=Array.isArray(o)?o[1]:o; return '<option value="'+esc(v)+'"'+(v===cur?' selected':'')+'>'+esc(l)+'</option>'; }).join(''); }
 function openEntryEditById(id){
@@ -5155,10 +5276,13 @@ function generateKS2(obj){
 }
 function ks3BuildDoc(km, rowsData, num, period, dateStr){
   var obj=km.object||km.stroyka||'';
-  var sum=(rowsData||[]).reduce(function(s,r){return s+(Number(r.total)||0);},0);
-  var totNet=Math.round(sum/1.16), totVat=sum-totNet;
-  var body=(rowsData||[]).map(function(r){ var t=Number(r.total)||0; var net=Math.round(t/1.16); var vat=t-net;
-    return '<tr><td>'+esc(r.label||'')+'</td><td class="r">'+fmt0(t)+'</td><td class="r">'+fmt0(net)+'</td><td></td><td></td><td></td><td></td><td></td><td></td><td class="r">'+fmt0(vat)+'</td><td class="r">'+fmt0(t)+'</td></tr>';
+  var f2=function(n){ n=Number(n)||0; var s=Math.abs(n).toFixed(2).split('.'); s[0]=s[0].replace(/\B(?=(\d{3})+(?!\d))/g,' '); return (n<0?'-':'')+s[0]+','+s[1]; };
+  var r2=function(n){ return Math.round((Number(n)||0)*100)/100; };
+  var sum=r2((rowsData||[]).reduce(function(s,r){return s+(Number(r.total)||0);},0));
+  var totNet=r2(sum/1.16), totVat=r2(sum-totNet);
+  var retPct=Number(km.retPct)||0; var retention=r2(sum*retPct/100); var toPay=r2(sum-retention);
+  var body=(rowsData||[]).map(function(r){ var t=r2(r.total); var net=r2(t/1.16); var vat=r2(t-net);
+    return '<tr><td>'+esc(r.label||'')+'</td><td class="r">'+f2(t)+'</td><td class="r">'+f2(net)+'</td><td></td><td></td><td></td><td></td><td></td><td></td><td class="r">'+f2(vat)+'</td><td class="r">'+f2(t)+'</td></tr>';
   }).join('');
   var doc='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>КС-3 '+esc(obj)+'</title><style>'
    +'@page{size:A4 landscape;margin:10mm}body{font-family:Arial,sans-serif;font-size:11px;color:#000;padding:6px}'
@@ -5186,12 +5310,14 @@ function ks3BuildDoc(km, rowsData, num, period, dateStr){
    +'<tr><th>по смете</th><th>в отчётном месяце</th><th>по монтажу оборудования</th><th>На приобретение материалов</th><th>Другие доп. расходы</th></tr>'
    +'<tr class="nums"><th>А</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th><th>8</th><th>9</th><th>10</th></tr>'
    +'</thead><tbody>'+body
-   +'<tr class="tot"><td class="r">Всего выполнено</td><td class="r">'+fmt0(sum)+'</td><td class="r">'+fmt0(totNet)+'</td><td></td><td></td><td></td><td></td><td></td><td></td><td class="r">'+fmt0(totVat)+'</td><td class="r">'+fmt0(sum)+'</td></tr>'
+   +'<tr class="tot"><td class="r">Всего выполнено</td><td class="r">'+f2(sum)+'</td><td class="r">'+f2(totNet)+'</td><td></td><td></td><td></td><td></td><td></td><td></td><td class="r">'+f2(totVat)+'</td><td class="r">'+f2(sum)+'</td></tr>'
+   +(retention>0?('<tr><td class="r" colspan="10">Обеспечение качества и сроков СМР −'+retPct+'%</td><td class="r">−'+f2(retention)+'</td></tr>'):'')
+   +'<tr class="tot"><td class="r" colspan="10">Итого к оплате'+(retention>0?(' (за вычетом удержания '+retPct+'%)'):'')+'</td><td class="r">'+f2(toPay)+'</td></tr>'
    +'</tbody></table>'
    +'<table class="signs"><tr><td><b>Заказчик:</b><br><br>Директор: '+esc(km.zakazchik||'')+(km.zakRuk?' '+esc(km.zakRuk):'')+'<br>_____________________</td>'
    +'<td><b>Подрядчик:</b><br><br>Директор: '+esc(km.podryad||'')+(km.podryadRuk?' '+esc(km.podryadRuk):'')+'<br>_____________________</td></tr></table>'
    +'</body></html>';
-  return {html:doc, sum:sum, withVat:sum};
+  return {html:doc, sum:sum, withVat:sum, retention:retention, retPct:retPct, toPay:toPay};
 }
 function openKS3Builder(obj){
   var view=projected(LG.base, LG.queue);
@@ -5223,7 +5349,7 @@ function generateKS3(obj){
   if(!acts.length){ toast('Отметьте хотя бы один акт КС-2'); return; }
   var agg={}, order=[];
   acts.forEach(function(a){ ((a.lines)||[]).forEach(function(l){ var nm=l.name||'Работы'; if(!(nm in agg)){agg[nm]=0;order.push(nm);} agg[nm]+=(Number(l.vol)||0)*(Number(l.rate)||0); }); });
-  var rowsData=order.map(function(nm){ return {label:nm, total:Math.round(agg[nm])}; });
+  var rowsData=order.map(function(nm){ return {label:nm, total:Math.round(agg[nm]*100)/100}; });
   if(!rowsData.length) rowsData=acts.map(function(a){ return {label:'Акт КС-2 № '+(a.aktnum||'')+' за '+(a.period||''), total:a.total||0}; });
   var dateStr=new Date().toLocaleDateString('ru-RU');
   var built=ks3BuildDoc(km, rowsData, num, period, dateStr);
@@ -5451,7 +5577,7 @@ function saveKS3Edit(){
   ks3EditSnapshot();
   var id=LG.ks3EditAct; var v=projected(LG.base,LG.queue); var a=(v.ks3acts||[]).find(function(x){return x&&x.id===id;}); if(!a){ toast('Справка не найдена'); return; }
   var m=LG.ks3EditMeta||{};
-  var rows=(LG.ks3EditRows||[]).filter(function(r){ return (Number(r.total)||0)>0 || (r.label||'').trim(); }).map(function(r){ return {label:(r.label||'Работы').trim(), total:Math.round(Number(r.total)||0)}; });
+  var rows=(LG.ks3EditRows||[]).filter(function(r){ return (Number(r.total)||0)>0 || (r.label||'').trim(); }).map(function(r){ return {label:(r.label||'Работы').trim(), total:Math.round((Number(r.total)||0)*100)/100}; });
   if(!rows.length){ toast('Добавьте хотя бы одну строку'); return; }
   var km=Object.assign({}, objReqs(v,a.obj), {podryad:m.podryad, podryadBin:m.podryadBin, podryadRuk:m.podryadRuk, zakazchik:m.zakazchik, zakBin:m.zakBin, zakAddr:m.zakAddr, zakRuk:m.zakRuk, contractNo:m.contractNo, contractDate:m.contractDate, stroyka:m.stroyka, object:m.stroyka});
   var built=ks3BuildDoc(km, rows, m.num||'1', m.period||'', m.date||a.date||'');
@@ -5481,6 +5607,7 @@ function openDocsHub(){
   h+=row('📝','Акт скрытых работ','предъявление к освидетельствованию','openHiddenActBuilder()',true);
   h+=row('🧱','Бетон и КС-2','объёмы · акты · оплата · накопительно','MORE.ks2reg()',true);
   h+=row('🧾','Форма Р-1','акт выполненных работ','openR1Builder()',true);
+  h+=row('💳','Счёт на оплату','для оплаты заказчиком · банк · к оплате','openInvoiceBuilder()',true);
   h+=row('🧮','Счёт-фактура (PDF от бухгалтера)','загрузить присланный PDF в файлы объекта','openObjFiles(\'invoice\')',true);
   var view=projected(LG.base,LG.queue); var saved=(view.actsHidden||[]).slice().sort(function(a,b){return (b.at||0)-(a.at||0);});
   if(saved.length){ h+='<div style="font-size:12px;color:var(--gold);font-weight:700;margin:14px 2px 8px">СОХРАНЁННЫЕ АКТЫ СКРЫТЫХ</div>';
@@ -5835,6 +5962,7 @@ function openStaffForm(isConsult, existing){
   var h='<div style="display:flex;flex-direction:column;gap:12px">';
   h+='<div><label style="font-size:13px;color:var(--mut)">Имя</label><input id="sf-name" value="'+esc(p.name||'')+'" placeholder="Имя" style="width:100%;margin-top:4px;padding:11px;background:var(--sur2);border:1px solid var(--brd);border-radius:10px;color:var(--fg);font-size:15px"/></div>';
   h+='<div><label style="font-size:13px;color:var(--mut)">Должность</label><input id="sf-role" value="'+esc(p.role||'')+'" placeholder="напр. Прораб, Снабженец" style="width:100%;margin-top:4px;padding:11px;background:var(--sur2);border:1px solid var(--brd);border-radius:10px;color:var(--fg);font-size:15px"/></div>';
+  h+='<div><label style="font-size:13px;color:var(--mut)">Телефон</label><input id="sf-phone" type="tel" inputmode="tel" value="'+esc(p.phone||'')+'" placeholder="+7 700 000 00 00" style="width:100%;margin-top:4px;padding:11px;background:var(--sur2);border:1px solid var(--brd);border-radius:10px;color:var(--fg);font-size:15px"/></div>';
   h+='<div><label style="font-size:13px;color:var(--mut)">Дата приёма на работу</label><input id="sf-hire" type="date" value="'+esc(p.hireDate||'')+'" style="width:100%;margin-top:4px;padding:11px;background:var(--sur2);border:1px solid var(--brd);border-radius:10px;color:var(--fg);font-size:15px"/>'+(!isConsult?'<div style="font-size:11px;color:var(--mut);margin-top:4px">С этой даты автоматически набегает оклад/ставка (по рабочим дням).</div>':'')+'</div>';
   h+='<div><label style="font-size:13px;color:var(--mut)">Дата увольнения (если уволен)</label><input id="sf-fire" type="date" value="'+esc(p.fireDate||'')+'" style="width:100%;margin-top:4px;padding:11px;background:var(--sur2);border:1px solid var(--brd);border-radius:10px;color:var(--fg);font-size:15px"/>'+(!isConsult?'<div style="font-size:11px;color:var(--mut);margin-top:4px">С этой даты оклад/ставка больше не начисляется. Оставьте пустым, если работает.</div>':'')+'</div>';
   if(!isConsult){
@@ -5856,7 +5984,7 @@ function saveStaff(){
   if(!name){ document.getElementById('sf-err').textContent='Укажите имя.'; return; }
   var isConsult=LG.staffConsult;
   var spots=[].slice.call(document.querySelectorAll('.sf-spot')).filter(function(c){return c.checked;}).map(function(c){return c.value;});
-  var p={ name:name, role:(document.getElementById('sf-role').value||'').trim(), type:isConsult?'консультант':'штат', spots:spots, hireDate:(gv('sf-hire')||'').trim(), fireDate:(gv('sf-fire')||'').trim() };
+  var p={ name:name, role:(document.getElementById('sf-role').value||'').trim(), phone:(gv('sf-phone')||'').trim(), type:isConsult?'консультант':'штат', spots:spots, hireDate:(gv('sf-hire')||'').trim(), fireDate:(gv('sf-fire')||'').trim() };
   if(!isConsult){ p.payMethod=gv('sf-pm'); p.rate=Number(gv('sf-rate'))||0; p.premRate=Number(gv('sf-premrate'))||0; p.premCel=Number(gv('sf-premcel'))||0; }
   else { p.payMethod='manual'; }
   if(LG.staffEdit){ emit({kind:'staff.edit', entryId:LG.staffEdit.id, payload:p}); }
@@ -5872,9 +6000,12 @@ function openStaffCard(p){
   var payTxt = p.payMethod==='oklad'?('оклад '+fmt0(p.rate)+' ₸') : (p.payMethod==='day'?(fmt0(p.rate)+' ₸/день') : 'вручную');
   var spotsTxt=(p.spots&&p.spots.length)?p.spots.map(function(id){return spotNameOf(projected(LG.base,LG.queue),id);}).join(', '):'—';
   var h='<div style="font-size:13px;color:var(--mut);margin-bottom:10px">'+esc(p.role||'')+' · '+(consult?'консультант':'штат')+'</div>';
+  if(p.phone){ var _tel=String(p.phone).replace(/[^0-9+]/g,''); var _wa=String(p.phone).replace(/[^0-9]/g,''); h+='<div style="display:flex;gap:8px;margin-bottom:12px"><a href="tel:'+_tel+'" style="flex:1;text-align:center;text-decoration:none;background:rgba(45,212,191,.1);border:1px solid var(--teal);color:var(--teal);border-radius:11px;padding:11px;font-weight:700;font-size:14px">📞 Позвонить</a><a href="https://wa.me/'+_wa+'" target="_blank" rel="noopener" style="flex:1;text-align:center;text-decoration:none;background:rgba(46,160,67,.1);border:1px solid var(--green);color:var(--green);border-radius:11px;padding:11px;font-weight:700;font-size:14px">💬 WhatsApp</a></div>'; }
   h+='<div class="ledger" style="margin-bottom:12px"><div style="font-size:13px;color:var(--mut)">Объект: <b style="color:var(--fg)">ЖК «Алгабас», Мкр. Нуркент</b></div><div style="font-size:13px;color:var(--mut);margin-top:4px">Заказчик: <b style="color:var(--fg)">Sensata Group</b></div><div style="font-size:13px;color:var(--mut);margin-top:4px">Пятна: <b style="color:var(--teal)">'+esc(spotsTxt)+'</b></div>'+(p.hireDate?'<div style="font-size:13px;color:var(--mut);margin-top:4px">Дата приёма: <b style="color:var(--fg)">'+p.hireDate.split('-').reverse().join('.')+'</b></div>':'<div style="font-size:13px;color:var(--mut);margin-top:4px">Дата приёма: <b style="color:var(--mut)">не указана</b></div>')+(p.fireDate?'<div style="font-size:13px;color:var(--mut);margin-top:4px">Дата увольнения: <b style="color:var(--red)">'+p.fireDate.split('-').reverse().join('.')+'</b></div>':'')+(!consult?'<div style="font-size:13px;color:var(--mut);margin-top:4px">Оплата: <b style="color:var(--fg)">'+payTxt+'</b></div>':'')+'</div>';
   var _co=(typeof calcCo==='function')?calcCo(projected(LG.base,LG.queue)):{}; var _owe=(_co.debtToPartner&&_co.debtToPartner[p.name])||0; var _nm=String(p.name||'').replace(/['"\\]/g,'');
   if(_owe>0.5){ h+='<div class="ledger" style="margin-bottom:12px;border-color:var(--orange)"><div style="font-size:13px;color:var(--orange);font-weight:700;letter-spacing:.05em">КОМПАНИЯ ДОЛЖНА ВЕРНУТЬ</div><div class="num" style="font-size:26px;font-weight:800;color:var(--orange);margin:4px 0 2px">'+fmt0(_owe)+' ₸</div><div style="font-size:12px;color:var(--mut)">за покупки на свои деньги</div>'+(canWriteLedger()?('<button onclick="lgCloseSheet();openEntry({type:\'payout\',who:\''+_nm+'\',amount:'+Math.round(_owe)+'})" style="width:100%;margin-top:10px;background:rgba(255,157,61,.12);border:1px solid var(--orange);color:var(--orange);border-radius:11px;padding:11px;font-weight:700;font-size:14px;cursor:pointer">💸 Вернуть деньги</button>'):'')+'</div>'; }
+  var _par=(typeof calcPar==='function')?calcPar(projected(LG.base,LG.queue), p.name):{}; var _hold=Math.round((_par&&_par.onHands)||0);
+  if(_hold>0.5){ h+='<div class="ledger" style="margin-bottom:12px;border-color:var(--blue)"><div style="font-size:13px;color:var(--blue);font-weight:700;letter-spacing:.05em">ПОДОТЧЁТ НА РУКАХ</div><div class="num" style="font-size:26px;font-weight:800;color:var(--blue);margin:4px 0 2px">'+fmt0(_hold)+' ₸</div><div style="font-size:12px;color:var(--mut)">выдано авансом — нужно отчитаться чеками или вернуть в кассу</div></div>'; }
   h+='<div class="ledger"><div style="font-size:12px;color:var(--mut);text-transform:uppercase;letter-spacing:.05em">'+(consult?'Всё рассчитано':'Остаток к выдаче')+'</div><div class="num" style="font-size:32px;font-weight:800;color:'+restCol+';margin:4px 0 12px">'+(rest<0?'−':'')+fmt0(Math.abs(rest))+' ₸</div>';
   h+='<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;text-align:center">'
     +'<div style="background:var(--sur2);border-radius:8px;padding:8px"><div style="font-size:11px;color:var(--mut)">Начислено</div><div class="num" style="color:var(--green);font-weight:700">'+fmt0(p.accrued)+'</div></div>'
@@ -5928,7 +6059,8 @@ function openStaffCard(p){
     h+='<button onclick="openForemanCabinet(\''+esc(p.id)+'\')" style="width:100%;margin-top:8px;background:rgba(167,139,250,.1);border:1px solid var(--violet);color:var(--violet);border-radius:12px;padding:13px;font-size:14px;font-weight:700;cursor:pointer">👷 Открыть кабинет прораба</button>';
     h+='<button onclick="openForemanPremium(\''+esc(p.id)+'\')" style="width:100%;margin-top:8px;background:rgba(45,212,191,.08);border:1px solid var(--teal);color:var(--teal);border-radius:12px;padding:13px;font-size:14px;font-weight:700;cursor:pointer">📐 Рассчитать премию по КС-2</button>';
   }
-  if(canWriteLedger()) h+='<button onclick="openStaffForm('+(consult?'true':'false')+', '+JSON.stringify({id:p.id,name:p.name,role:p.role,type:consult?'консультант':'штат',payMethod:p.payMethod,rate:p.rate,spots:p.spots,premRate:p.premRate,premCel:p.premCel,hireDate:p.hireDate,fireDate:p.fireDate}).replace(/"/g,'&quot;')+')" style="width:100%;margin-top:10px;background:rgba(240,165,0,.12);border:1px solid var(--gold);color:var(--gold);border-radius:12px;padding:12px;font-size:14px;font-weight:700;cursor:pointer">✏️ Изменить</button>';
+  if(canWriteLedger()) h+='<button onclick="printPayslip(\''+esc(p.id)+'\')" style="width:100%;margin-top:8px;background:rgba(88,166,255,.1);border:1px solid var(--blue);color:var(--blue);border-radius:12px;padding:12px;font-size:14px;font-weight:700;cursor:pointer">🧾 Расчётный листок</button>';
+  if(canWriteLedger()) h+='<button onclick="openStaffForm('+(consult?'true':'false')+', '+JSON.stringify({id:p.id,name:p.name,role:p.role,phone:p.phone,type:consult?'консультант':'штат',payMethod:p.payMethod,rate:p.rate,spots:p.spots,premRate:p.premRate,premCel:p.premCel,hireDate:p.hireDate,fireDate:p.fireDate}).replace(/"/g,'&quot;')+')" style="width:100%;margin-top:10px;background:rgba(240,165,0,.12);border:1px solid var(--gold);color:var(--gold);border-radius:12px;padding:12px;font-size:14px;font-weight:700;cursor:pointer">✏️ Изменить</button>';
   lgSheet((consult?'👤 ':'👷 ')+esc(p.name), h);
 }
 function openBrigade(b){
