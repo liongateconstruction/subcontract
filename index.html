@@ -574,7 +574,7 @@ function contractedVol(state){
     (((state.objMeta||{})[o]||{}).spots||[]).forEach(function(sp){ (sp.constructions||[]).forEach(function(c){ t+=(Number(c.volume)||0); }); });
   }); return t;
 }
-function customerPaid(state){ return (state.entries||[]).filter(function(e){return e&&e.type==='customer_income';}).reduce(function(s,e){return s+(Number(e.amount)||0);},0); }
+function customerPaid(state){ return (state.entries||[]).filter(function(e){return e&&(e.type==='customer_income'||e.type==='income');}).reduce(function(s,e){return s+(Number(e.amount)||0);},0); }
 // Сумма начислений всем бригадам (себестоимость прямых работ)
 function totalBrigEarned(state){ return brigStats(state).reduce(function(s,b){return s+(b.earned||0);},0); }
 // Прямая бригадная маржа: выручка − начисления бригадам
@@ -585,7 +585,8 @@ function customerDebt(state){
   var billed=(state.ks2acts||[]).reduce(function(s,a){return s+(Number(a.total)||0);},0);
   var rq=(typeof objReqs==='function')?objReqs(state,obj):{}; var retPct=Number(rq&&rq.retPct)||0;
   var payable=billed-Math.round(billed*retPct/100);
-  return Math.max(0, payable - customerPaid(state));   // к оплате (минус удержание) минус оплачено
+  var d=Math.max(0, payable - customerPaid(state));   // к оплате (минус удержание) минус оплачено
+  return d<1000?0:d;
 }
 // План месяца из движка (строки compute): {name,revenue,profit,expense,margin,workers,weekVol,monthVol,note}
 function planForMonth(state, monthNum){
@@ -1057,7 +1058,7 @@ function debtorAging(state,obj){ var rev=profitEngine(state,obj).revenue; var ac
   var rq=(typeof objReqs==='function')?objReqs(state,obj):{}; var retPct=Number(rq&&rq.retPct)||0;
   var retention=Math.round(billed*retPct/100);
   var payable=billed-retention;                          // к оплате (за вычетом гарантийного удержания)
-  var total=Math.max(0, payable - paid);                 // должен сейчас (к оплате)
+  var total=Math.max(0, payable - paid); if(total<1000) total=0;     // должен сейчас (к оплате); копеечный остаток округления — закрыто
   var retHeld=Math.max(0, retention - Math.max(0, paid - payable));   // удержание ещё не возвращено
   var rem=paid, oldest=null; for(var i=0;i<acts.length;i++){ var amt=(Number(acts[i].total)||0); amt=amt-Math.round(amt*retPct/100); if(rem>=amt-0.5){ rem-=amt; } else { oldest=acts[i]; break; } }
   var days=0; if(total>0.5 && oldest){ var ms=_ks2ms(oldest); if(ms) days=Math.max(0,Math.floor((Date.now()-ms)/86400000)); }
