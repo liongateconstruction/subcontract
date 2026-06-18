@@ -581,9 +581,11 @@ function totalBrigEarned(state){ return brigStats(state).reduce(function(s,b){re
 function marginDirect(state){ var rev=profitEngine(state,null).revenue; var cost=totalBrigEarned(state); return {revenue:rev, cost:cost, profit:rev-cost, pct:rev>0?Math.round((rev-cost)/rev*100):0}; }
 // Дебиторка заказчика: Σ (выручка работы − оплачено) по бетонным записям
 function customerDebt(state){
-  var d=0; (state.entries||[]).forEach(function(e){ if(!e||e.type!=='vol'||!isConcrete(state,e)) return;
-    var rev=(e.volume||0)*rateForEntry(state,e); d+=Math.max(0, rev-(Number(e.paidAmount)||0)); });
-  return d;
+  var obj=(state.objects||[])[0]||'';
+  var billed=(state.ks2acts||[]).reduce(function(s,a){return s+(Number(a.total)||0);},0);
+  var rq=(typeof objReqs==='function')?objReqs(state,obj):{}; var retPct=Number(rq&&rq.retPct)||0;
+  var payable=billed-Math.round(billed*retPct/100);
+  return Math.max(0, payable - customerPaid(state));   // к оплате (минус удержание) минус оплачено
 }
 // План месяца из движка (строки compute): {name,revenue,profit,expense,margin,workers,weekVol,monthVol,note}
 function planForMonth(state, monthNum){
@@ -1049,11 +1051,17 @@ function budgetVsActual(state){ var cats={}; (state.entries||[]).forEach(functio
   return {rows:rows, revenue:rev};
 }
 function _ks2ms(a){ if(a&&a.createdAt){ var c=Number(a.createdAt)||0; if(c) return c; } var s=(a&&a.date)||''; var m=/(\d{2})\.(\d{2})\.(\d{4})/.exec(s); if(m) return new Date(+m[3],+m[2]-1,+m[1]).getTime(); return 0; }
-function debtorAging(state,obj){ var rev=profitEngine(state,obj).revenue; var acc=customerAccepted(state,obj); var paid=customerPaid(state); var total=rev-paid;
+function debtorAging(state,obj){ var rev=profitEngine(state,obj).revenue; var acc=customerAccepted(state,obj); var paid=customerPaid(state);
   var acts=(state.ks2acts||[]).filter(function(a){return a&&a.obj===obj;}).slice().sort(function(x,y){return _ks2ms(x)-_ks2ms(y);});
-  var rem=paid, oldest=null; for(var i=0;i<acts.length;i++){ var amt=Number(acts[i].total)||0; if(rem>=amt-0.5){ rem-=amt; } else { oldest=acts[i]; break; } }
+  var billed=acts.reduce(function(s,a){return s+(Number(a.total)||0);},0);
+  var rq=(typeof objReqs==='function')?objReqs(state,obj):{}; var retPct=Number(rq&&rq.retPct)||0;
+  var retention=Math.round(billed*retPct/100);
+  var payable=billed-retention;                          // к оплате (за вычетом гарантийного удержания)
+  var total=Math.max(0, payable - paid);                 // должен сейчас (к оплате)
+  var retHeld=Math.max(0, retention - Math.max(0, paid - payable));   // удержание ещё не возвращено
+  var rem=paid, oldest=null; for(var i=0;i<acts.length;i++){ var amt=(Number(acts[i].total)||0); amt=amt-Math.round(amt*retPct/100); if(rem>=amt-0.5){ rem-=amt; } else { oldest=acts[i]; break; } }
   var days=0; if(total>0.5 && oldest){ var ms=_ks2ms(oldest); if(ms) days=Math.max(0,Math.floor((Date.now()-ms)/86400000)); }
-  return {total:total, accepted:acc, unsigned:Math.max(0,rev-acc), paid:paid, days:days}; }
+  return {total:total, billed:billed, payable:payable, retention:retention, retHeld:retHeld, accepted:acc, unbilled:Math.max(0,rev-billed), unsigned:Math.max(0,rev-acc), paid:paid, days:days}; }
 // ── ПРЕМИЯ ПРОРАБА (тиры 0.5%/1%/1.5% от V×расценку) ──
 function foremanPremium(fact, rab, cel, rate){
   var v=Math.max(0,Number(fact)||0); rate=Number(rate)||0;
@@ -2398,7 +2406,8 @@ function buildReportText(v){
   L.push('🏛 ЗАКАЗЧИК');
   L.push('Принято КС-2: '+fmt0(Math.round(d.accepted))+' ₸');
   L.push('Оплачено: '+fmt0(Math.round(d.paid))+' ₸');
-  L.push('Должен заказчик: '+fmt0(Math.round(d.da.total))+' ₸'+(d.da.days>0?(' · долг '+d.da.days+' дн'):'')+' (не подписано '+fmt0(Math.round(d.da.unsigned))+')');
+  L.push('Залито по факту: '+fmt0(Math.round((d.pe&&d.pe.revenue)||0))+' ₸ · выставлено в КС-2 '+fmt0(Math.round(d.da.billed))+(d.da.unbilled>1000?(' · не выставлено '+fmt0(Math.round(d.da.unbilled))):''));
+  L.push('Должен заказчик сейчас: '+fmt0(Math.round(d.da.total))+' ₸ (к оплате −3% = '+fmt0(Math.round(d.da.payable))+', оплачено '+fmt0(Math.round(d.paid))+')'+(d.da.days>0?(' · долг '+d.da.days+' дн'):'')+(d.da.retHeld>1000?(' · удержание 3% '+fmt0(Math.round(d.da.retHeld))+' вернётся после гарантии'):''));
   L.push('КС-2: подписано '+fmt0(Math.round(d.ks2signed))+' · ждёт '+fmt0(Math.round(d.ks2wait))+' ₸');
   L.push('');
   L.push('🤝 ПАРТНЁРЫ');
@@ -2425,7 +2434,7 @@ function openReport(){
   var h='<div style="font-size:13px;color:var(--mut);margin-bottom:4px">Полный отчёт для партнёров · '+new Date().toLocaleDateString('ru-RU')+'</div>';
   h+='<div style="font-size:12px;color:var(--mut);margin-bottom:10px">'+esc(d.obj.split(',')[0]||'')+'</div>';
   h+=sec('💰 ФИНАНСЫ')+'<div class="ledger">'+row('Выручка',fmt0(Math.round(d.pe.revenue))+' ₸')+row('Расходы',fmt0(Math.round(d.pe.cost))+' ₸')+row('Прибыль',fmt0(Math.round(d.pe.profit))+' ₸',d.pe.profit>=0?'var(--green)':'var(--red)')+row('Маржа',d.pe.pct+'%','var(--teal)')+row('Касса',fmt0(d.cash)+' ₸',d.cash<500000?'var(--red)':'var(--green)')+'</div>';
-  h+=sec('🏛 ЗАКАЗЧИК')+'<div class="ledger">'+row('Принято КС-2',fmt0(Math.round(d.accepted))+' ₸','var(--teal)')+row('Оплачено',fmt0(Math.round(d.paid))+' ₸','var(--green)')+row('Должен заказчик',fmt0(Math.round(d.da.total))+' ₸'+(d.da.days>0?(' · '+d.da.days+' дн'+(d.da.days>=45?' ⚠':'')):''),(d.da.days>=45?'var(--red)':'var(--gold)'))+row('КС-2 подписано / ждёт',fmt0(Math.round(d.ks2signed))+' / '+fmt0(Math.round(d.ks2wait)))+'</div>';
+  h+=sec('🏛 ЗАКАЗЧИК')+'<div class="ledger">'+row('Залито по факту',fmt0(Math.round((d.pe&&d.pe.revenue)||0))+' ₸','var(--teal)')+row('Выставлено в КС-2',fmt0(Math.round(d.da.billed))+' ₸')+(d.da.unbilled>1000?row('— не выставлено (факт − КС-2)',fmt0(Math.round(d.da.unbilled))+' ₸','var(--mut)'):'')+(d.da.retention>1000?row('К оплате (−3%)',fmt0(Math.round(d.da.payable))+' ₸'):'')+row('Оплачено',fmt0(Math.round(d.paid))+' ₸','var(--green)')+row('Должен сейчас',fmt0(Math.round(d.da.total))+' ₸'+(d.da.days>0?(' · '+d.da.days+' дн'+(d.da.days>=45?' ⚠':'')):''),(d.da.total<1?'var(--green)':(d.da.days>=45?'var(--red)':'var(--gold)')))+(d.da.retHeld>1000?row('🔒 Удержание 3% (вернётся)',fmt0(Math.round(d.da.retHeld))+' ₸','var(--teal)'):'')+'</div>';
   h+=sec('🤝 ПАРТНЁРЫ')+'<div class="ledger">'+row('Вложено всего',fmt0(Math.round(d.po.invested))+' ₸')+row('Компания должна',fmt0(Math.round(d.po.companyOwes))+' ₸','var(--gold)')+'</div>';
   if(d.podot.length){ h+=sec('💵 ПОДОТЧЁТ · НА РУКАХ')+'<div class="ledger">'; d.podot.forEach(function(p){ h+=row(esc(p.name)+' <span style="font-size:10px;color:var(--mut)">(взял '+fmt0(p.got)+')</span>',fmt0(p.held)+' ₸',p.held>0?'var(--red)':'var(--green)'); }); h+='</div>'; }
   h+=sec('👷 БРИГАДЫ')+'<div class="ledger">'; d.brigs.forEach(function(b){ var bal=b.earned-b.paid; h+=row(esc((b.name||'').replace(/^Бригада\s*/,''))+' <span style="font-size:10px;color:var(--mut)">'+fmtD(b.m3)+' м³</span>', fmt0(Math.round(b.earned))+' / '+fmt0(Math.round(b.paid)), bal<0?'var(--gold)':'var(--fg)'); }); h+='</div>';
@@ -3730,8 +3739,8 @@ function cashCalendarBlock(view, cash){
   var sal=0; (view.staff||[]).forEach(function(p){ if(p&&!p.archived&&Number(p.salary)>0) sal+=Number(p.salary); });
   if(sal>0){ var n=new Date(); var first=new Date(n.getFullYear(),n.getMonth()+1,1).toISOString().slice(0,10); ev.push({date:first,label:'👥 Оклады штата',amt:-sal}); }
   // ожидаем от заказчика (подписано, не оплачено)
-  try{ var da=debtorAging(view,(view.objects||[])[0]||''); var wait=Math.max(0,(da.accepted||0)-(da.paid||0));
-    if(wait>0) ev.push({date:'', label:'🏢 Заказчик за подписанное', amt:wait}); }catch(e){}
+  try{ var da=debtorAging(view,(view.objects||[])[0]||''); var wait=Math.max(0, da.total||0);
+    if(wait>0) ev.push({date:'', label:'🏢 Заказчик за выставленное', amt:wait}); }catch(e){}
   if(!ev.length) return '';
   ev.sort(function(a,b){ return String(a.date||'9999').localeCompare(String(b.date||'9999')); });
   var h=mSecH('🗓 КАЛЕНДАРЬ ДЕНЕГ');
@@ -3876,6 +3885,51 @@ function brigRatingBlock(view){
   h+='</div>';
   return h;
 }
+function brigDupGroups(view){
+  var act=(view.brigades||[]).filter(function(b){return b&&!isArchivedBrig(b);});
+  var by={};
+  act.forEach(function(b){ var key=String(b.name||'').replace(/^Бригада\s*/i,'').trim().toLowerCase(); if(!key)return; (by[key]=by[key]||[]).push(b); });
+  return Object.keys(by).map(function(k){return by[k];}).filter(function(g){return g.length>1;});
+}
+function brigEntryCount(view,id){ var n=0,m3=0; (view.entries||[]).forEach(function(e){ if(e&&e.brigade===id){ n++; if(e.type==='vol') m3+=Number(e.volume)||0; } }); return {n:n,m3:m3}; }
+function brigDupBanner(view){
+  if(!canWriteLedger()) return '';
+  var dups=brigDupGroups(view); if(!dups.length) return '';
+  var h='<div style="background:rgba(248,81,73,.08);border:1px solid var(--red);border-radius:12px;padding:14px;margin-bottom:14px">'
+    +'<div style="font-weight:800;color:var(--red);font-size:14px;margin-bottom:4px">⚠ Похоже, бригады задвоились</div>'
+    +'<div style="font-size:12px;color:var(--mut);line-height:1.45;margin-bottom:10px">Одинаковые названия — скорее всего бригаду создали на двух устройствах. Выбери, какую оставить: заливки и расходы перенесутся в неё, дубли уйдут в архив (не удалятся).</div>';
+  dups.forEach(function(g){
+    h+='<div style="background:var(--sur);border:1px solid var(--brd);border-radius:10px;padding:11px;margin-bottom:8px">'
+      +'<div style="font-weight:700;font-size:13px;margin-bottom:4px">«'+esc(String(g[0].name||'').replace(/^Бригада\s*/i,''))+'» — '+g.length+' шт</div>';
+    g.forEach(function(b){ var st=brigEntryCount(view,b.id);
+      h+='<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-top:1px solid var(--brd)">'
+        +'<div style="flex:1;min-width:0"><div style="font-size:13px">'+esc(b.work||'—')+'</div><div style="font-size:11px;color:var(--mut)">'+st.n+' операц. · '+fmt0(Math.round(st.m3))+' м³ · '+(b.workers||0)+' чел</div></div>'
+        +'<button onclick="lgMergeBrig(\''+esc(b.id)+'\')" style="background:var(--teal);color:#04201b;border:none;border-radius:8px;padding:7px 11px;font-size:12px;font-weight:700;cursor:pointer;flex:none">оставить эту</button>'
+      +'</div>';
+    });
+    h+='</div>';
+  });
+  return h+'</div>';
+}
+function lgMergeBrig(keepId){
+  if(!canWriteLedger()){ toast('Только владелец/учётчица'); return; }
+  var view=projected(LG.base,LG.queue);
+  var groups=brigDupGroups(view);
+  var g=groups.find(function(gr){return gr.some(function(b){return b.id===keepId;});});
+  if(!g){ toast('Группа дублей не найдена'); return; }
+  var keep=g.find(function(b){return b.id===keepId;});
+  var drop=g.filter(function(b){return b.id!==keepId;});
+  var evs=[], cntN=0, cntM=0;
+  drop.forEach(function(b){
+    (view.entries||[]).forEach(function(e){ if(e&&e.brigade===b.id){ evs.push({kind:'entry.edit', entryId:e.id, payload:{brigade:keepId}}); cntN++; if(e.type==='vol') cntM+=Number(e.volume)||0; } });
+    evs.push({kind:'brigade.archive', entryId:b.id});
+  });
+  var keepNm=String(keep.name||'').replace(/^Бригада\s*/i,'');
+  if(typeof confirm==='function' && !confirm('Объединить '+drop.length+' дубл. в «'+keepNm+'»?\n\nПеренесём '+cntN+' операц. ('+fmt0(Math.round(cntM))+' м³). Дубли уйдут в архив — данные не потеряются.')) return;
+  if(typeof emitMany==='function') emitMany(evs); else evs.forEach(function(e){ emit(e); });
+  toast('Объединено в «'+keepNm+'»');
+  render();
+}
 function peopleBrigades(view){
   var canWrite=canWriteLedger();
   var now=new Date();
@@ -3894,6 +3948,7 @@ function peopleBrigades(view){
   // ── КФУ №1 ТЕМП ЗАЛИВКИ
   var weekPct=weekTarget>0?Math.min(150,Math.round(fact/weekTarget*100)):0;
   var wc=weekPct>=100?'var(--green)':(weekPct>=70?'var(--gold)':'var(--red)');
+  h+=brigDupBanner(view);
   h+=brigRatingBlock(view);
   h+='<div class="ledger" style="border-color:var(--gold)">';
   h+='<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px"><div><div style="font-size:12px;color:var(--mut);letter-spacing:1px">КФУ № 1 · ХОЗЯИН БЕКЖАН</div><div style="font-size:18px;font-weight:800;color:var(--gold);margin-top:2px">ТЕМП ЗАЛИВКИ</div><div style="font-size:13px;color:var(--mut);margin-top:2px">Неделя '+wk+' · '+range+'</div></div><div style="background:rgba(240,165,0,.12);border:1px solid var(--gold);color:var(--gold);font-size:12px;font-weight:700;padding:5px 9px;border-radius:6px">ЦИКЛ →</div></div>';
