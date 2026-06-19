@@ -643,42 +643,51 @@ function expenseStructure(state){
 // Поиск недозаработанных денег: заморожено (вернётся) / ушло мимо стройки
 function leakFindings(state){
   var E=state.entries||[]; var frozen=[], lost=[];
-  var armBySpot={}, concBySpot={};
-  E.forEach(function(e){ if(!e||e.type!=='vol') return; var sp=e.spotId||e.zone||'?';
-    if((e.wtype||'').toLowerCase().indexOf('армир')>=0) armBySpot[sp]=(armBySpot[sp]||0)+(Number(e.volume)||0);
-    if(isConcrete(state,e)) concBySpot[sp]=(concBySpot[sp]||0)+(Number(e.volume)||0); });
-  var obj=(state.objects||[])[0]; var meta=(state.objMeta||{})[obj]||{};
-  var rate=((meta.custRates||[])[0]||{}).rate||38437;
-  var nzpSum=0, nzpItems=[];
-  Object.keys(armBySpot).forEach(function(sp){ var gap=armBySpot[sp]-(concBySpot[sp]||0);
-    if(gap>1){ nzpSum+=gap*rate; var nm=((meta.spots||[]).find(function(s){return s.id===sp;})||{}).name||sp;
-      nzpItems.push(nm+' · '+(Math.round(gap*10)/10)+' м³'); } });
-  if(nzpSum>0) frozen.push({icon:'🧱',sev:'high',title:'Армировано — бетон не залит',sum:nzpSum,items:nzpItems,
+  var _nzp=nzpBreakdown(state); var nzpSum=_nzp.reduce(function(s,r){return s+r.nzp;},0);
+  var nzpItems=_nzp.filter(function(r){return r.nzp>1000;}).map(function(r){return r.name+' · '+fmt0(Math.round(r.nzp))+' ₸';});
+  if(nzpSum>1000) frozen.push({key:'nzp',icon:'🧱',sev:'high',title:'Армировано — бетон не залит',sum:nzpSum,items:nzpItems,
     desc:'Деньги вложены в арматуру, но выручки не будет, пока не зальёте бетон и не закроете КС-2.',
     act:'Поставить бетон по этим пятнам в приоритет — разблокирует выручку.'});
-  var personalSum=0, pItems=[];
-  E.filter(function(e){return e&&e.type==='advance';}).forEach(function(e){ var n=(e.note||'').toLowerCase();
-    if(/ломбард|золото|процент|альфард|\(личн|на личные|^\s*лично/.test(n)){ personalSum+=(Number(e.amount)||0);
-      pItems.push((e.date||'').slice(5)+' '+(e.to||'')+' · '+fmt0(e.amount)+' ₸'); } });
-  if(personalSum>0) lost.push({icon:'👤',sev:'mid',title:'Авансы на личные нужды',sum:personalSum,items:pItems,
-    desc:'Деньги компании ушли на личные цели команды (не на стройку).',
-    act:'Вынести в личный долг сотрудника или удержать из зарплаты.'});
+  var _got={}, _rep={}, _pers={};
+  E.forEach(function(e){ if(!e) return;
+    if(e.type==='advance'&&e.to){ _got[e.to]=(_got[e.to]||0)+(Number(e.amount)||0);
+      var n=(e.note||'').toLowerCase(); if(/ломбард|золото|процент|альфард|\(личн|на личные|^\s*лично/.test(n)) _pers[e.to]=(_pers[e.to]||0)+(Number(e.amount)||0); }
+    else if(e.type==='expense'&&e.paySource==='advance'&&e.who){ _rep[e.who]=(_rep[e.who]||0)+(Number(e.amount)||0); } });
+  var ohSum=0, ohItems=[];
+  Object.keys(_got).map(function(w){ return {w:w, held:(_got[w]||0)-(_rep[w]||0), got:_got[w]||0, rep:_rep[w]||0, pers:_pers[w]||0}; })
+    .filter(function(x){return x.held>10000;}).sort(function(a,b){return b.held-a.held;})
+    .forEach(function(x){ ohSum+=x.held; ohItems.push(x.w+' · на руках '+fmt0(Math.round(x.held))+' ₸ (выдано '+fmt0(x.got)+', отчитался '+fmt0(x.rep)+(x.pers>0?(', помечено личным '+fmt0(x.pers)):'')+')'); });
+  if(ohSum>0) lost.push({key:'podotchet', icon:'👤',sev:'mid',title:'Подотчёт на руках (не отчитались)',sum:ohSum,items:ohItems,
+    desc:'Деньги выданы под отчёт, но ещё не закрыты расходами по стройке. Часть может быть на личные нужды.',
+    act:'Собрать чеки/отчёты или вернуть остаток в кассу; личные — вынести в долг сотрудника.'});
   var overSum=0, oItems=[];
   (state.brigades||[]).forEach(function(b){ var days=b.started?Math.ceil((Date.now()-new Date(b.started))/86400000):999;
     if(days<10) return;
     var paid=E.filter(function(e){return e&&e.type==='expense'&&e.brigade===b.id;}).reduce(function(s,e){return s+(Number(e.amount)||0);},0);
-    var earned=E.filter(function(e){return e&&e.type==='vol'&&e.brigade===b.id;}).reduce(function(s,e){var r=((b.prices||[])[0]||{}).rate||0;return s+(Number(e.volume)||0)*r;},0);
+    var earned=E.filter(function(e){return e&&e.type==='vol'&&e.brigade===b.id;}).reduce(function(s,e){return s+entryAmount(b,e);},0);
     if(paid-earned>50000){ overSum+=(paid-earned); oItems.push(b.name+' · +'+fmt0(paid-earned)+' ₸'); } });
-  if(overSum>0) frozen.push({icon:'👷',sev:'mid',title:'Бригадам заплачено вперёд',sum:overSum,items:oItems,
+  if(overSum>0) frozen.push({key:'overpay',icon:'👷',sev:'mid',title:'Бригадам заплачено вперёд',sum:overSum,items:oItems,
     desc:'Авансы выданы, объём ещё не сдан. Деньги вернутся работой.',
     act:'Дожать бригады по объёму или учесть переплату в следующем расчёте.'});
   var debt=customerDebt(state);
-  if(debt>0) frozen.push({icon:'📥',sev:'low',title:'Заказчик должен',sum:debt,items:[],
+  if(debt>0) frozen.push({key:'debt',icon:'📥',sev:'low',title:'Заказчик должен',sum:debt,items:[],
     desc:'Закрытые объёмы не оплачены заказчиком.',
     act:'Дожать оплату КС-2 — это уже заработанные, но не полученные деньги.'});
   return { frozen:frozen, lost:lost,
     frozenSum:frozen.reduce(function(s,f){return s+f.sum;},0),
     lostSum:lost.reduce(function(s,f){return s+f.sum;},0) };
+}
+function openLeakDetail(key){
+  var v=projected(LG.base,LG.queue); var L=leakFindings(v);
+  var f=(L.frozen||[]).concat(L.lost||[]).find(function(x){return x.key===key;});
+  if(!f){ toast('Нет данных'); return; }
+  var bar={high:'var(--red)',mid:'var(--orange)',low:'var(--blue)'}[f.sev]||'var(--mut)';
+  var h='<div style="text-align:center;margin-bottom:14px"><div style="font-size:30px">'+f.icon+'</div><div style="font-size:26px;font-weight:800;color:'+bar+';margin-top:4px">'+fmt0(f.sum)+' ₸</div></div>';
+  h+='<div style="font-size:13px;color:var(--mut);line-height:1.5;margin-bottom:12px">'+esc(f.desc)+'</div>';
+  if(f.items&&f.items.length){ h+='<div class="bcard" style="border-left:3px solid '+bar+'">'; f.items.forEach(function(it,i){ h+='<div style="padding:9px 0;font-size:13px;line-height:1.5'+(i?';border-top:1px solid var(--brd)':'')+'">• '+esc(it)+'</div>'; }); h+='</div>'; }
+  else { h+='<div style="text-align:center;color:var(--mut);font-size:13px;padding:14px">Детализация по позициям отсутствует.</div>'; }
+  h+='<div style="background:rgba(255,179,32,.08);border-radius:9px;padding:11px 13px;font-size:13px;color:var(--gold);line-height:1.5;margin-top:12px">⚡ '+esc(f.act)+'</div>';
+  lgSheet(f.icon+' '+f.title, h);
 }
 
 // Статистика по пятнам (Блок 48/49): план/залито/%/выручка/заливки по этажам.
@@ -3693,12 +3702,13 @@ function moneyLeak(view){
   if(!L.frozen.length && !L.lost.length) return '';
   var total=L.frozenSum+L.lostSum;
   function leakCard(f){ var bar={high:'var(--red)',mid:'var(--orange)',low:'var(--blue)'}[f.sev]||'var(--mut)';
-    var h='<div style="background:var(--bg);border-radius:12px;padding:12px;margin-bottom:10px;border-left:3px solid '+bar+'">'
+    var tap=f.key?(' onclick="openLeakDetail(\''+f.key+'\')"'):'';
+    var h='<div'+tap+' style="background:var(--bg);border-radius:12px;padding:12px;margin-bottom:10px;border-left:3px solid '+bar+(f.key?';cursor:pointer':'')+'">'
      +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:6px"><div style="display:flex;gap:8px;align-items:center;min-width:0"><span style="font-size:17px;flex-shrink:0">'+f.icon+'</span><span style="font-size:13px;font-weight:700;line-height:1.25">'+esc(f.title)+'</span></div><span style="font-size:16px;color:'+bar+';font-weight:800;white-space:nowrap">'+fmt0(f.sum)+'</span></div>';
     if(f.items&&f.items.length){ var shown=f.items.slice(0,3), rest=f.items.length-3;
       h+='<div style="font-size:13px;color:var(--mut);line-height:1.6;margin-bottom:6px">'+shown.map(function(x){return '• '+esc(x);}).join('<br>')+(rest>0?'<br><span style="opacity:.7">…и ещё '+rest+'</span>':'')+'</div>'; }
     h+='<div style="font-size:13px;color:var(--mut);line-height:1.5;margin-bottom:7px">'+esc(f.desc)+'</div>'
-     +'<div style="background:rgba(255,179,32,.07);border-radius:7px;padding:8px 10px;font-size:13px;color:var(--gold);line-height:1.45">⚡ '+esc(f.act)+'</div></div>';
+     +'<div style="background:rgba(255,179,32,.07);border-radius:7px;padding:8px 10px;font-size:13px;color:var(--gold);line-height:1.45">⚡ '+esc(f.act)+'</div>'+(f.key?'<div style="text-align:right;font-size:11px;color:var(--blue);margin-top:7px;font-weight:600">детали →</div>':'')+'</div>';
     return h; }
   var h='<div style="background:linear-gradient(150deg,rgba(240,136,62,.10),rgba(13,17,23,0) 60%);border:1px solid var(--orange);border-radius:18px;padding:16px;margin:14px 0">';
   h+='<div style="display:flex;align-items:center;gap:9px;margin-bottom:2px"><span style="font-size:19px">💰</span><span style="font-size:14px;color:var(--orange);letter-spacing:1.5px;font-weight:800">ПОИСК НЕДОЗАРАБОТАННЫХ ДЕНЕГ</span></div>';
