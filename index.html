@@ -751,6 +751,7 @@ function calcCo(state){
     if(startCash>0 && startCashDate && (!e.date || e.date<=startCashDate)) return;
     var amt=Number(e.amount)||0;
     if(e.type==='income'){ cash+=amt; income+=amt; }
+    else if(e.type==='customer_income'){ cash+=amt; }   // оплата заказчика — живые деньги в кассу (выручку/прибыль считает profitEngine по объёму+КС-2, тут не дублируем)
     else if(e.type==='invest'){ cash+=amt; investedRaw+=amt;
       var d=debtToCompany[e.who]||0, pay=Math.min(d,amt);
       if(pay>0) debtToCompany[e.who]-=pay;
