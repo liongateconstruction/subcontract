@@ -549,6 +549,11 @@ function isConcrete(state,e){
   var b=brigOf(state,e.brigade); var work=(b&&b.work||'').toLowerCase();
   return work.indexOf('опалубка+бетон')===0 || work==='комплекс монолит';
 }
+// Армирование (будущая выручка): только арматурный этап. Опалубка/демонтаж — стадии без отдельной стоимости.
+function isRebar(e){ if(!e) return false; var wt=(e.wtype||'').toLowerCase(), st=(e.stage||'').toLowerCase();
+  if(st==='армирование') return true;
+  if(/армир|арматур/.test(wt) && !/без\s*арматур/.test(wt)) return true;
+  return false; }
 // Маржа объекта (obj=null → вся компания): {revenue, cost, profit, pct, wip, forecastRev, forecastProfit}
 function profitEngine(state, obj){
   var rev=0, cost=0, _revBySpot={}, _wipBySpot={};
@@ -557,9 +562,10 @@ function profitEngine(state, obj){
     if(e.type==='vol'){
       if(!e.brigade) return; var b=brigOf(state,e.brigade); if(!b) return;
       var rate=rateForEntry(state,e);
-      var sid=e.spotId||e.spot||e.zone||'_none';
+      var sid=(e.spotId||e.spot||e.zone||'_none')+'|'+(e.struct||e.wtype||'');
       if(isConcrete(state,e)){ rev+=(e.volume||0)*rate; _revBySpot[sid]=(_revBySpot[sid]||0)+(e.volume||0)*rate; }
-      else { _wipBySpot[sid]=(_wipBySpot[sid]||0)+(e.volume||0)*rate; }
+      else if(isRebar(e)){ _wipBySpot[sid]=(_wipBySpot[sid]||0)+(e.volume||0)*rate; }
+      // опалубка / демонтаж / прочие стадии — это этапы залитого куба, отдельной стоимости не несут (заказчик платит за куб один раз)
     } else if(e.type==='expense'){ cost+=(Number(e.amount)||0); }
   });
   var wip=0; Object.keys(_wipBySpot).forEach(function(s){ wip+=Math.max(0,_wipBySpot[s]-(_revBySpot[s]||0)); });
@@ -3753,13 +3759,50 @@ function cashCalendarBlock(view, cash){
   h+='</div>';
   return h;
 }
+// Разбивка НЗП: армировано vs залито по «пятно+конструкция» (только армирование; опалубка/демонтаж — стадии, не НЗП)
+function nzpBreakdown(view){
+  var by={};
+  (view.entries||[]).forEach(function(e){
+    if(!e||e.type!=='vol'||!e.brigade) return; var b=brigOf(view,e.brigade); if(!b) return;
+    var rate=rateForEntry(view,e);
+    var spot=(typeof spotNameOf==='function'?spotNameOf(view,e.spotId||e.spot||e.zone):'')||(e.spotId||e.spot||e.zone||'Без пятна');
+    var struct=e.struct||e.wtype||'—'; var k=spot+' · '+struct;
+    var vol=Number(e.volume)||0; var val=vol*rate;
+    by[k]=by[k]||{name:k,arm:0,conc:0,armM3:0,concM3:0};
+    if(isConcrete(view,e)){ by[k].conc+=val; by[k].concM3+=vol; }
+    else if(isRebar(e)){ by[k].arm+=val; by[k].armM3+=vol; }
+  });
+  return Object.keys(by).map(function(k){ var x=by[k]; return {sid:k, name:x.name, arm:x.arm, conc:x.conc, armM3:x.armM3, concM3:x.concM3, nzp:Math.max(0,x.arm-x.conc)}; })
+    .filter(function(r){return r.arm>0.5||r.conc>0.5;})
+    .sort(function(a,b){return b.nzp-a.nzp;});
+}
+function openNzpDetail(){
+  var v=projected(LG.base,LG.queue); var rows=nzpBreakdown(v); var total=rows.reduce(function(s,r){return s+r.nzp;},0);
+  var h='<div style="font-size:12.5px;color:var(--mut);line-height:1.5;margin-bottom:12px">НЗП = армировано, но ещё не залито бетоном. Как зальёшь бетон на пятне — армирование зачитывается и НЗП по нему падает к нулю. Если тут висит пятно, где бетон уже залит, значит армирование и бетон записаны на <b>разные пятна</b> (или у одной из записей пятно не проставлено).</div>';
+  if(!rows.length){ h+='<div style="color:var(--mut);text-align:center;padding:20px">Нет записей объёмов.</div>'; }
+  rows.forEach(function(r){
+    var ok=r.nzp<1000; var bc=ok?'var(--green)':(r.conc<1?'var(--gold)':'var(--teal)');
+    h+='<div class="bcard" style="border-left:3px solid '+bc+';margin-bottom:8px">'
+     +'<div style="display:flex;justify-content:space-between;align-items:center"><div style="font-weight:800;font-size:15px">'+esc(r.name)+'</div><div class="num" style="font-weight:800;color:'+bc+';font-size:15px">'+(ok?'НЗП 0':'НЗП '+fmt0(Math.round(r.nzp)))+'</div></div>'
+     +'<div style="display:flex;justify-content:space-between;font-size:12.5px;margin-top:7px;color:var(--mut)"><span>🔩 Армировано</span><span class="num">'+(+r.armM3).toFixed(1)+' м³ · '+fmt0(Math.round(r.arm))+' ₸</span></div>'
+     +'<div style="display:flex;justify-content:space-between;font-size:12.5px;margin-top:3px;color:var(--mut)"><span>🧱 Залито бетоном</span><span class="num">'+(+r.concM3).toFixed(1)+' м³ · '+fmt0(Math.round(r.conc))+' ₸</span></div>'
+     +(ok&&r.conc>0?'<div style="font-size:11px;color:var(--green);margin-top:5px">✓ бетон залит — армирование зачтено, ушло в выручку</div>'
+        :(r.conc<1&&r.arm>0?'<div style="font-size:11px;color:var(--gold);margin-top:5px">⚠ бетон ещё не залит на этом пятне — деньги в НЗП</div>'
+        :(!ok?'<div style="font-size:11px;color:var(--teal);margin-top:5px">армирование частично не покрыто бетоном на этом пятне</div>':'')))
+     +'</div>';
+  });
+  h+='<div class="bcard" style="text-align:center;margin-top:4px"><div style="font-size:12px;color:var(--mut)">Итого НЗП</div><div class="num" style="font-size:20px;font-weight:800;color:var(--teal)">'+fmt0(Math.round(total))+' ₸</div></div>';
+  lgSheet('🧊 НЗП по пятнам', h);
+}
 function moneyBalance(view){
   var C=calcCo(view); var cash=C.cash||0;
   var mo=profitEngine(view,null); var frozen=mo.wip||0;
-  var receivable=customerDebt(view);
   var firstObj=(view.objects||[])[0]||'';
+  var da=debtorAging(view,firstObj);
+  var receivable=Math.max(0, (da.billed||0)-(da.paid||0));   // выставлено по КС-2, ещё не оплачено (вкл. удержание)
+  var unbilled=da.unbilled||0;                               // залито по факту, но КС-2 ещё не сделан
   var custName=((view.objMeta||{})[firstObj]||{}).customer||'Заказчик';
-  var assets=cash+receivable+frozen;
+  var assets=cash+receivable+unbilled+frozen;
   var dtp=C.debtToPartner||{}; var liab=0; Object.keys(dtp).forEach(function(k){ if(dtp[k]>0) liab+=dtp[k]; });
   var equity=assets-liab; var eqC=equity>=0?'var(--green)':'var(--red)';
   var h='<div class="ledger" style="border-color:rgba(88,166,255,.4)"><div class="cash-lbl" style="color:#a9cdfb">⚖️ Чистый капитал компании</div>'
@@ -3770,8 +3813,9 @@ function moneyBalance(view){
   h+='<div class="bcard" style="border-left:3px solid var(--green)"><div style="font-size:12px;color:var(--green);font-weight:700">Всего активов</div><div style="font-size:24px;font-weight:800;color:var(--green);margin:5px 0 6px">'+fmt0(assets)+' ₸</div>';
   h+=row('💵 Касса (живые деньги)',cash);
   h+=row('🏢 Дебиторка ('+esc(custName)+' должен)',receivable,'var(--gold)');
-  if(frozen>0) h+=row('🧊 НЗП (армирование без бетона)',frozen,'var(--teal)');
-  h+='<div style="font-size:12px;color:var(--mut);margin-top:9px;line-height:1.5">Дебиторка — закрытые объёмы, ещё не оплаченные заказчиком. НЗП — деньги в армировании: станут выручкой после заливки бетона.</div></div>';
+  if(unbilled>1000) h+=row('🧱 Залито, не выставлено',unbilled,'var(--blue)');
+  if(frozen>0) h+='<div onclick="openNzpDetail()" style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:1px solid var(--brd);cursor:pointer"><span style="color:#c9d1d9;font-size:14px">🧊 НЗП (армирование без бетона)</span><span style="font-weight:700;color:var(--teal)">'+fmt0(frozen)+' <span style="color:var(--mut);font-weight:400">›</span></span></div>';
+  h+='<div style="font-size:12px;color:var(--mut);margin-top:9px;line-height:1.5">Дебиторка — выставлено по КС-2, ещё не оплачено. Залито, не выставлено — бетон залит, но акт КС-2 ещё не сделан (можно выставлять). НЗП — армирование: станет выручкой после заливки бетона.</div></div>';
   h+=mSecH('📋 ОБЯЗАТЕЛЬСТВА — СКОЛЬКО ДОЛЖНЫ');
   h+='<div class="bcard" style="border-left:3px solid var(--red)"><div style="font-size:12px;color:var(--red);font-weight:700">Долг партнёрам</div><div style="font-size:24px;font-weight:800;color:var(--red);margin:5px 0 6px">'+fmt0(liab)+' ₸</div>'
    + '<div style="font-size:12px;color:var(--mut)">Деньги, которые компания должна вернуть партнёрам за вложения. Разбивка — во вкладке «Партнёры».</div>'
