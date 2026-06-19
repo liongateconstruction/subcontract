@@ -404,6 +404,29 @@ function applyEventLocal(state, ev){
     if(!state.settings) state.settings={};
     if(!state.settings.lgPlan) state.settings.lgPlan={};
     applyPlanOp(state.settings.lgPlan, ev.payload||{}, new Date().toISOString());
+  } else if(ev.kind==='entry.qa'){
+    var _qi=state.entries.findIndex(function(x){return x&&String(x.id)===String(ev.entryId);});
+    if(_qi>=0){ var _qe=state.entries[_qi]; var _qm=ev.payload||{}; var _qa=_qe.qa||{};
+      ['grade','passportFile','labFile','sampleDate','note'].forEach(function(k){ if(_qm[k]!=null) _qa[k]=String(_qm[k]).slice(0,200); });
+      if(_qm.r7!=null) _qa.r7=Number(_qm.r7)||0;
+      if(_qm.r28!=null) _qa.r28=Number(_qm.r28)||0;
+      _qa.at=Date.now(); _qe.qa=_qa; }
+  } else if(ev.kind==='pourplan.add'){
+    if(!Array.isArray(state.pourPlan)) state.pourPlan=[];
+    var _ppm=ev.payload||{}; var _ppid=_ppm.id||ev.id;
+    if(!state.pourPlan.some(function(x){return x&&x.id===_ppid;}))
+      state.pourPlan.push({id:_ppid, date:String(_ppm.date||'').slice(0,10), spot:String(_ppm.spot||'').slice(0,80), floor:String(_ppm.floor||'').slice(0,60), volume:Number(_ppm.volume)||0, grade:String(_ppm.grade||'').slice(0,40), note:String(_ppm.note||'').slice(0,300), ts:Date.now(), done:false});
+  } else if(ev.kind==='pourplan.update'){
+    if(!Array.isArray(state.pourPlan)) state.pourPlan=[];
+    var _puid=(ev.payload&&ev.payload.id)||ev.id; var _pup=ev.payload||{}; var _pui=state.pourPlan.findIndex(function(x){return x&&x.id===_puid;});
+    if(_pui>=0){ var _patch={}; ['date','spot','floor','grade','note'].forEach(function(k){ if(_pup[k]!=null) _patch[k]=String(_pup[k]).slice(0,300); }); if(_pup.volume!=null) _patch.volume=Number(_pup.volume)||0; state.pourPlan[_pui]=Object.assign({}, state.pourPlan[_pui], _patch); }
+  } else if(ev.kind==='pourplan.done'){
+    if(!Array.isArray(state.pourPlan)) state.pourPlan=[];
+    var _pdid=(ev.payload&&ev.payload.id)||ev.id; var _pdi=state.pourPlan.findIndex(function(x){return x&&x.id===_pdid;});
+    if(_pdi>=0) state.pourPlan[_pdi]=Object.assign({}, state.pourPlan[_pdi], {done:!!(ev.payload&&ev.payload.done), doneAt:Date.now()});
+  } else if(ev.kind==='pourplan.del'){
+    if(!Array.isArray(state.pourPlan)) state.pourPlan=[];
+    var _pxid=(ev.payload&&ev.payload.id)||ev.id; state.pourPlan=state.pourPlan.filter(function(x){return !(x&&x.id===_pxid);});
   }
 }
 // Мутации плана (задачи/настройки/ограничения/обязательства). Один и тот же код на клиенте и сервере.
