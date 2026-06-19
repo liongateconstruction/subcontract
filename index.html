@@ -582,7 +582,14 @@ function contractedVol(state){
 }
 function customerPaid(state){ return (state.entries||[]).filter(function(e){return e&&(e.type==='customer_income'||e.type==='income');}).reduce(function(s,e){return s+(Number(e.amount)||0);},0); }
 // Сумма начислений всем бригадам (себестоимость прямых работ)
-function totalBrigEarned(state){ return brigStats(state).reduce(function(s,b){return s+(b.earned||0);},0); }
+function totalBrigEarned(state){
+  // Затраты на труд реальны независимо от того, активна бригада сейчас или в архиве — считаем по ВСЕМ записям объёма
+  var byId={}; (state.brigades||[]).forEach(function(b){ if(b) byId[b.id]=b; });
+  return (state.entries||[]).reduce(function(s,e){
+    if(!e||e.type!=='vol'||!e.brigade) return s; var b=byId[e.brigade]; if(!b) return s;
+    return s+entryAmount(b,e);
+  },0);
+}
 // Прямая бригадная маржа: выручка − начисления бригадам
 function marginDirect(state){ var rev=profitEngine(state,null).revenue; var cost=totalBrigEarned(state); return {revenue:rev, cost:cost, profit:rev-cost, pct:rev>0?Math.round((rev-cost)/rev*100):0}; }
 // Дебиторка заказчика: Σ (выручка работы − оплачено) по бетонным записям
