@@ -1390,7 +1390,20 @@ function lgApplyLang(lang){
     return;
   }
   store.set('lg2_lang','kk');
-  lgEnsureGT(function(){ var tries=0; var iv=setInterval(function(){ var sel=document.querySelector('.goog-te-combo'); if(sel){ clearInterval(iv); sel.value='kk'; sel.dispatchEvent(new Event('change')); } else if(++tries>40){ clearInterval(iv); } },150); });
+  lgEnsureGT(function(){
+    // ВАЖНО: ждём появления не самого select, а опции 'kk' внутри него.
+    // Google вставляет combo раньше, чем наполняет его опциями, поэтому ранний
+    // sel.value='kk' молча игнорировался — отсюда «переключается со 2–3 раза».
+    var tries=0, hits=0;
+    var iv=setInterval(function(){
+      var sel=document.querySelector('.goog-te-combo');
+      var hasKk = sel && Array.prototype.some.call(sel.options||[], function(o){ return o.value==='kk'; });
+      if(hasKk){
+        sel.value='kk'; sel.dispatchEvent(new Event('change'));
+        if(++hits>=3){ clearInterval(iv); }   // повторяем change несколько раз — первый иногда не срабатывает
+      } else if(++tries>80){ clearInterval(iv); }   // до ~12с ждём готовности виджета
+    },150);
+  });
 }
 function lgToggleLang(){
   LG_LANG = (LG_LANG==='ru') ? 'kk' : 'ru';
