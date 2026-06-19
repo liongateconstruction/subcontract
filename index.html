@@ -922,7 +922,8 @@ function kfuStatus(state, k){
       return {light:(planRev>0&&paid===0)?2:1,value:fmt0(paid)+' ₸',detail:'оплачено / план '+fmt0(planRev)};
     }
     if(k.auto==='ks'){
-      var total2=profitEngine(state,null).revenue; var accepted=(state.entries||[]).filter(function(e){return e&&(e.type==='ks2'||e.accepted);}).reduce(function(s,e){return s+(Number(e.acceptedAmount||e.amount)||0);},0);
+      var total2=profitEngine(state,null).revenue; // залито по факту
+      var accepted=(state.ks2acts||[]).reduce(function(s,a){ if(!a) return s; var st=a.status||'signed'; return s+((st==='signed'||st==='paid')?(Number(a.total)||0):0); },0); // подписано/оплачено по актам КС-2
       if(total2<=0) return {light:1,value:'нет данных',detail:'нет работ'};
       var p2=Math.round(accepted/total2*100); var light2=p2<50?3:(p2<80?2:1);
       return {light:light2,value:p2+'%',detail:'подписано '+fmt0(accepted)+' из '+fmt0(total2)};
@@ -938,11 +939,14 @@ function kfuStatus(state, k){
       return {light:light4,value:(F?Math.round(F.ratioYear*100)+'% к цели':'—'),detail:det};
     }
     if(k.auto==='cash'){
-      var cash=calcCo(state).cash; var cur3=pRowFor(R,R.curM); var dailyM3=cur3?cur3.m3/Math.max(1,cur3.eff):0;
+      var cash=calcCo(state).cash; var cur3=pRowFor(R,R.curM);
+      var d30=new Date(now); d30.setDate(now.getDate()-30); var ds30=d30.toISOString().slice(0,10);
+      var actM3=0; (state.entries||[]).forEach(function(e){ if(e&&e.type==='vol'&&isConcrete(state,e)&&(e.date||'')>=ds30) actM3+=(Number(e.volume)||0); });
+      var dailyM3=actM3>0?actM3/30:(cur3?cur3.m3/Math.max(1,cur3.eff):0);   // фактический темп за 30 дней; если нет — плановый
       var costPerM3=Math.max(1,custRateAvgP(state)-R.em); var dailyCost=dailyM3*costPerM3;
-      if(dailyCost<=0) return {light:1,value:'—',detail:'нет данных'};
+      if(dailyCost<=0) return {light:1,value:'∞',detail:'нет заливок — касса не тратится на бетон'};
       var days=cash/dailyCost; var light5=days>=30?1:(days>=10?2:3);
-      return {light:light5,value:Math.round(days)+' дн',detail:'касса '+Math.round(cash/1e6)+' млн · труд '+(Math.round(dailyCost/1e5)/10)+' млн/день'};
+      return {light:light5,value:Math.round(days)+' дн',detail:'касса '+Math.round(cash/1e6)+' млн · расход '+(Math.round(dailyCost/1e5)/10)+' млн/день (тек. темп)'};
     }
     // безопасность (ручной) — инциденты
     var ym2=now.toISOString().slice(0,7); var inc=(state.entries||[]).filter(function(e){return e&&e.type==='safety_incident'&&(e.date||'').indexOf(ym2)===0;});
@@ -1799,7 +1803,7 @@ function pulseDash(view){
       var wide=(idx===4)?';grid-column:1/-1':'';
       h+='<div style="background:var(--sur);border:1.5px solid '+col+';border-radius:14px;padding:13px;display:flex;flex-direction:column;min-height:96px'+wide+'">'
         +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px;margin-bottom:8px"><div style="flex:1;min-width:0">'
-        +'<div style="font-size:12px;color:'+col+';letter-spacing:.8px;font-weight:800">КФУ '+(idx+1)+' · '+esc((k.owner||'—').toUpperCase())+'</div>'
+        +'<div style="font-size:12px;color:'+col+';letter-spacing:.8px;font-weight:800">КФУ '+(idx+1)+' · '+esc((kfuOwner(k)||'—').toUpperCase())+'</div>'
         +'<div style="font-size:13px;font-weight:700;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(k.name)+'</div></div>'
         +'<div style="width:12px;height:12px;border-radius:50%;background:'+col+';flex-shrink:0;box-shadow:0 0 8px '+col+'"></div></div>'
         +'<div style="font-size:20px;color:'+col+';font-weight:800;line-height:1.1;margin-top:auto">'+esc(s.value)+'</div>'
@@ -4867,7 +4871,10 @@ var PARTNER_ROLES={
   'Евгений':  {title:'Управляющий партнёр · Коммерческий директор', tag:'CCO', short:'Коммерция и КС-2', duties:'Деньги от заказчика, закрытие КС-2/КС-3, договоры', color:'#58a6ff'}
 };
 function partnerRole(n){ return PARTNER_ROLES[n]||{title:'Партнёр',tag:'',short:'',duties:'',color:'#8b949e'}; }
-function kfuOwner(k){ if(!k) return ''; if(String(k.id)==='5'||/безопас/i.test(String(k.name||''))) return 'Нурсултан'; return k.owner||''; }
+function kfuOwner(k){ if(!k) return ''; var nm=String(k.name||'');
+  if(String(k.id)==='3'||/качеств/i.test(nm)) return 'Шерхан';
+  if(String(k.id)==='5'||/безопас/i.test(nm)) return 'Шерхан';
+  return k.owner||''; }
 var PAYSRC=[['advance','Из подотчётных'],['own','Свои деньги'],['cash','Из кассы']];
 function selOpts(arr,cur){ return arr.map(function(o){ var v=Array.isArray(o)?o[0]:o, l=Array.isArray(o)?o[1]:o; return '<option value="'+esc(v)+'"'+(v===cur?' selected':'')+'>'+esc(l)+'</option>'; }).join(''); }
 function openEntryEditById(id){
