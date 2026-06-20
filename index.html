@@ -371,7 +371,7 @@ function applyEventLocal(state, ev){
     if(ev.key) state[ev.key]=ev.value;
   } else if(ev.kind==='issue.add'){
     if(!Array.isArray(state.issues)) state.issues=[];
-    var m=ev.payload||{}; state.issues.push({id:m.id||('iss'+Date.now()), text:String(m.text||''), floor:String(m.floor||''), spot:String(m.spot||''), date:m.date||new Date().toISOString().slice(0,10), ts:Date.now(), closed:false});
+    var m=ev.payload||{}; state.issues.push({id:m.id||('iss'+Date.now()), text:String(m.text||''), floor:String(m.floor||''), spot:String(m.spot||''), photo:String(m.photo||''), date:m.date||new Date().toISOString().slice(0,10), ts:Date.now(), closed:false});
   } else if(ev.kind==='issue.close'){
     var _iid=(ev.payload&&ev.payload.id)||ev.id; (state.issues||[]).forEach(function(z){ if(z&&z.id===_iid){ z.closed=true; z.closedAt=Date.now(); } });
   } else if(ev.kind==='att.set'){
