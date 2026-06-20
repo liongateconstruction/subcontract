@@ -5043,8 +5043,6 @@ function renderEntryFields(){
     h+=fld('Источник','<select id="in-src">'+selOpts(PAYSRC, d.paySource||'advance')+'</select>');
     if(spots.length) h+=fld('Пятно (куда идёт расход)','<select id="in-spot"><option value="">— не привязано —</option>'+selOpts(spots.map(function(s){return [s.id,s.name];}), d.spotId)+'</select>');
     h+=fld('Бригада (если зарплата)','<select id="in-brig"><option value="">— нет —</option>'+selOpts(brigs.map(function(b){return [b.id,(b.name||'').replace(/^Бригада\s*/,'')];}), d.brigade)+'</select>');
-    var _ppl=(staffList(view)||[]);
-    h+=fld('На кого расход (сотрудник/консультант)','<select id="in-forstaff"><option value="">— не привязано —</option>'+selOpts(_ppl.map(function(s){return [s.id,(s.name||'')+(s.isConsult?' · консультант':'')];}), d.forStaffId)+'</select>')+'<div style="font-size:11px;color:var(--mut);margin:-7px 2px 13px;line-height:1.5">Кому предназначен расход — конкретный сотрудник или консультант. Необязательно, для учёта «на кого».</div>';
   } else if(d.type==='advance'){
     h+=fld('От кого','<select id="in-from">'+selOpts(PARTNERS, d.from||'Дмитрий')+'</select>');
     h+=fld('Кому','<select id="in-to">'+selOpts(PARTNERS, d.to||'Бекжан')+'</select>');
@@ -5240,7 +5238,6 @@ function saveEntry(){
     var amt=Number(gv('in-amt'))||0; if(amt<=0){ document.getElementById('entry-err').textContent='Введите сумму больше нуля.'; return; }
     p.amount=amt;
     if(d.type==='expense'){ p.cat=gv('in-cat'); p.who=gv('in-who'); p.paySource=gv('in-src'); var eb=gv('in-brig'); if(eb)p.brigade=eb;
-      var fsid=gv('in-forstaff'); if(fsid){ p.forStaffId=fsid; var _fp=(staffList(view)||[]).find(function(x){return x.id===fsid;}); p.forStaff=_fp?_fp.name:''; }
       var esp=gv('in-spot'); if(esp){ p.spotId=esp; p.spot=esp; var smeta=(view.objMeta&&view.objMeta[obj])||{}; var ess=(smeta.spots||[]).find(function(s){return s.id===esp;}); p.zone=ess?ess.name:''; } }
     else if(d.type==='advance'){ p.from=gv('in-from'); p.to=gv('in-to'); p.paySource=gv('in-src')||'own'; if(p.from===p.to){ document.getElementById('entry-err').textContent='«От» и «Кому» должны отличаться.'; return; } }
     else if(d.type==='invest'){ p.who=gv('in-who'); }
