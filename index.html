@@ -820,17 +820,21 @@ function autoSalaryToDate(p, now){ if(!isSalaried(p)) return 0; now=now||new Dat
     cur.setMonth(cur.getMonth()+1); }
   return total; }
 function staffBal(p){ var a=0,b=0,pay=0,pen=0; (p.ledger||[]).forEach(function(m){ var v=+m.amount||0; if(m.kind==='acc')a+=v; else if(m.kind==='bon')b+=v; else if(m.kind==='pay')pay+=v; else if(m.kind==='pen')pen+=v; }); var auto=autoSalaryToDate(p); a+=auto; return {acc:a,bon:b,pay:pay,pen:pen,auto:auto,rest:a+b-pay-pen}; }
+// Выплаты сотруднику/консультанту, сделанные через форму «Выплата» (привязка forStaffId).
+// Баланс человека считается ОТ этих записей → правка/удаление выплаты сразу меняют «к выдаче».
+function staffFormPaid(view, id){ return (view.entries||[]).reduce(function(s,e){ return (e&&e.type==='payout'&&e.forStaffId===id)?s+(Number(e.amount)||0):s; }, 0); }
+function staffFormPayRows(view, id){ return (view.entries||[]).filter(function(e){return e&&e.type==='payout'&&e.forStaffId===id;}).map(function(e){ return {kind:'pay', amount:Number(e.amount)||0, date:e.date||'', note:e.note||'Выплата'}; }); }
 function staffList(view){
   return (view.staff||[]).filter(function(p){return p && !p.archived;}).map(function(p){
-    var b=staffBal(p); var isConsult=(p.type==='консультант');
+    var b=staffBal(p); var isConsult=(p.type==='консультант'); var fp=staffFormPaid(view,p.id);
     var o={ id:p.id, name:p.name||'?', role:p.role||'', type:p.type||'штат', payMethod:p.payMethod||'', rate:Number(p.rate)||0,
-             salaried:isSalaried(p), accrued:b.auto, rest:b.rest, paid:b.pay, held:b.pen, bonusKS2:0, bonusAll:0,
+             salaried:isSalaried(p), accrued:b.auto, rest:b.rest-fp, paid:b.pay+fp, held:b.pen, bonusKS2:0, bonusAll:0,
              isConsult:isConsult, spots:p.spots||[], premRate:p.premRate, premCel:p.premCel, hireDate:p.hireDate||'', fireDate:p.fireDate||'', phone:p.phone||'' };
     if(!isConsult && /прораб/i.test(p.role||'')){
       try{ var e=foremanEarnings(view,p);
         var lAcc=0,lBon=0; (p.ledger||[]).forEach(function(m){ var v=+m.amount||0; if(m.kind==='acc')lAcc+=v; else if(m.kind==='bon'||m.kind==='bonus')lBon+=v; });
         o.accrued=e.okToDate; o.bonusKS2=e.bonusAcc; o.bonusAll=e.bonusAll;
-        o.rest=e.okToDate+e.bonusAcc+lAcc+lBon-b.pay-b.pen;
+        o.rest=e.okToDate+e.bonusAcc+lAcc+lBon-b.pay-b.pen-fp;
       }catch(err){}
     }
     return o;
@@ -5056,9 +5060,10 @@ function renderEntryFields(){
     h+=fld('Кто вложил','<select id="in-who">'+selOpts(PARTNERS, d.who||'Дмитрий')+'</select>');
     h+=fld('Сумма, ₸',amtInput);
   } else if(d.type==='payout'){
-    h+=fld('Кому выплата','<select id="in-who">'+selOpts(payers, d.who||'Дмитрий')+'</select>');
     var _pplo=(staffList(view)||[]);
-    h+=fld('На кого выплата (сотрудник/консультант)','<select id="in-forstaff"><option value="">— не привязано —</option>'+selOpts(_pplo.map(function(s){return [s.id,(s.name||'')+(s.isConsult?' · консультант':'')];}), d.forStaffId)+'</select>')+'<div style="font-size:11px;color:var(--mut);margin:-7px 2px 13px;line-height:1.5">Кому фактически выплата — сотрудник или консультант. Необязательно, для учёта «на кого».</div>';
+    var _ptOpts=PARTNERS.map(function(n){return ['P|'+n, n];}).concat(_pplo.map(function(s){return ['S|'+s.id, (s.name||'')+(s.isConsult?' · консультант':' · сотрудник')];}));
+    var _ptSel=d.forStaffId?('S|'+d.forStaffId):('P|'+(d.who||'Дмитрий'));
+    h+=fld('Кому выплата','<select id="in-payto">'+selOpts(_ptOpts, _ptSel)+'</select>')+'<div style="font-size:11px;color:var(--mut);margin:-7px 2px 13px;line-height:1.5">Партнёр — вернуть подотчёт. Сотрудник/консультант — выплата по лицевому счёту (уменьшит его «к выдаче»).</div>';
     h+=fld('Сумма, ₸',amtInput);
   }
   document.getElementById('entry-body').innerHTML=h+(LG.draft.editId?'<button type="button" onclick="deleteEntry(\''+esc(String(LG.draft.editId))+'\')" style="width:100%;margin-top:8px;background:transparent;border:1px solid var(--red);color:var(--red);border-radius:10px;padding:11px;font-size:14px;font-weight:700;cursor:pointer">🗑 Удалить запись</button>':'');
@@ -5214,7 +5219,6 @@ function saveEntry(){
   var view=projected(LG.base, LG.queue);
   var d=LG.draft, obj=(view.objects||[])[0]||'';
   var date=gv('in-date'), note=document.getElementById('in-note').value.trim();
-  var ledgerPayFor='';   // если выплата адресована сотруднику/консультанту — спишем ему в лицевой счёт
   if(!date){ document.getElementById('entry-err').textContent='Укажите дату.'; return; }
   var p={ type:d.type, date:date, note:note, obj:obj };
   if(d.type==='vol'){
@@ -5241,11 +5245,10 @@ function saveEntry(){
       var esp=gv('in-spot'); if(esp){ p.spotId=esp; p.spot=esp; var smeta=(view.objMeta&&view.objMeta[obj])||{}; var ess=(smeta.spots||[]).find(function(s){return s.id===esp;}); p.zone=ess?ess.name:''; } }
     else if(d.type==='advance'){ p.from=gv('in-from'); p.to=gv('in-to'); p.paySource=gv('in-src')||'own'; if(p.from===p.to){ document.getElementById('entry-err').textContent='«От» и «Кому» должны отличаться.'; return; } }
     else if(d.type==='invest'){ p.who=gv('in-who'); }
-    else if(d.type==='payout'){ p.who=gv('in-who'); var fsp=gv('in-forstaff'); if(fsp){ var _fpp=(staffList(view)||[]).find(function(x){return x.id===fsp;}); p.forStaffId=fsp; p.forStaff=_fpp?_fpp.name:''; p.who=_fpp?_fpp.name:p.who; p.consultPay=true; ledgerPayFor=fsp; } }
+    else if(d.type==='payout'){ var ptv=gv('in-payto')||''; if(ptv.indexOf('S|')===0){ var sid=ptv.slice(2); var _fpp=(staffList(view)||[]).find(function(x){return x.id===sid;}); p.forStaffId=sid; p.forStaff=_fpp?_fpp.name:''; p.who=_fpp?_fpp.name:''; p.consultPay=true; } else { p.who=ptv.indexOf('P|')===0?ptv.slice(2):(ptv||'Дмитрий'); } }
   }
   if(LG.draft.editId){ emit({ kind:'entry.edit', entryId:LG.draft.editId, payload:p }); }
   else { p.ts=Date.now(); emit({ kind:'entry.add', payload:p }); }
-  if(ledgerPayFor && !LG.draft.editId){ emit({kind:'staff.ledger', id:lgId('l'), payload:{staffId:ledgerPayFor, entry:{kind:'pay', amount:p.amount, note:'Выплата'+(note?(' · '+note):''), date:date}}}); }
   var _sentToReview=(p.type==='vol' && !LG.draft.editId && !canWriteLedger());
   document.getElementById('ov-entry').classList.remove('show');
   render();
@@ -6226,6 +6229,7 @@ function openStaffCard(p){
     // леджер: всё рассчитано + плитки + действия + история
     var led=(p.ledger||[]); var accS=0,bonS=0,payS=0,penS=0;
     led.forEach(function(m){ var a=Number(m.amount)||0; if(m.kind==='acc')accS+=a; else if(m.kind==='bonus')bonS+=a; else if(m.kind==='pay')payS+=a; else if(m.kind==='pen')penS+=a; });
+    payS += staffFormPaid(projected(LG.base,LG.queue), p.id);
     var bal=accS+bonS-payS-penS;
     h+='<div class="ledger" style="margin-top:12px"><div style="font-size:12px;color:var(--mut)">Всё рассчитано · остаток к выдаче</div><div class="num" style="font-size:28px;font-weight:900;color:'+(bal>0?'var(--gold)':'var(--mut)')+';margin:2px 0 10px">'+fmt0(bal)+' ₸</div>'
       +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;text-align:center">'
@@ -6244,15 +6248,16 @@ function openStaffCard(p){
     }
     // история
     h+='<div style="font-size:12px;font-weight:800;letter-spacing:1px;color:var(--gold);margin:16px 2px 8px">ИСТОРИЯ НАЧИСЛЕНИЙ И ВЫПЛАТ</div>';
-    if(led.length){ var KL={acc:['Начисление','var(--green)'],bonus:['Бонус','var(--gold)'],pay:['Выплата','var(--teal)'],pen:['Штраф','var(--red)']};
-      led.slice().sort(function(a,b){return String(b.date||'').localeCompare(String(a.date||''));}).forEach(function(m){ var k=KL[m.kind]||['?','var(--mut)'];
+    var _histC=led.concat(staffFormPayRows(projected(LG.base,LG.queue), p.id));
+    if(_histC.length){ var KL={acc:['Начисление','var(--green)'],bonus:['Бонус','var(--gold)'],pay:['Выплата','var(--teal)'],pen:['Штраф','var(--red)']};
+      _histC.slice().sort(function(a,b){return String(b.date||'').localeCompare(String(a.date||''));}).forEach(function(m){ var k=KL[m.kind]||['?','var(--mut)'];
         h+='<div style="display:flex;justify-content:space-between;align-items:baseline;background:var(--sur);border:1px solid var(--brd);border-radius:10px;padding:9px 12px;margin-bottom:6px"><div><div style="font-size:13px;font-weight:700;color:'+k[1]+'">'+k[0]+'</div>'+(m.note?'<div style="font-size:11px;color:var(--mut)">'+esc(m.note)+'</div>':'')+'<div style="font-size:10px;color:var(--mut)">'+String(m.date||'').split('-').reverse().join('.')+'</div></div><div class="num" style="font-size:15px;font-weight:700;color:'+k[1]+'">'+(m.kind==='pen'||m.kind==='pay'?'−':'+')+fmt0(Number(m.amount)||0)+'</div></div>'; }); }
     else h+='<div style="font-size:12px;color:var(--mut);padding:2px 2px 8px">пока нет движений</div>';
   } else if(/прораб/i.test(p.role||'')){
     h+='<button onclick="openForemanCabinet(\''+esc(p.id)+'\')" style="width:100%;margin-top:8px;background:rgba(167,139,250,.1);border:1px solid var(--violet);color:var(--violet);border-radius:12px;padding:13px;font-size:14px;font-weight:700;cursor:pointer">👷 Открыть кабинет прораба</button>';
     h+='<button onclick="openForemanPremium(\''+esc(p.id)+'\')" style="width:100%;margin-top:8px;background:rgba(45,212,191,.08);border:1px solid var(--teal);color:var(--teal);border-radius:12px;padding:13px;font-size:14px;font-weight:700;cursor:pointer">📐 Рассчитать премию по КС-2</button>';
   }
-  if(!consult){ var ledN=(p.ledger||[]); h+='<div style="font-size:12px;font-weight:800;letter-spacing:1px;color:var(--gold);margin:16px 2px 8px">ИСТОРИЯ НАЧИСЛЕНИЙ И ВЫПЛАТ</div>';
+  if(!consult){ var ledN=(p.ledger||[]).concat(staffFormPayRows(projected(LG.base,LG.queue), p.id)); h+='<div style="font-size:12px;font-weight:800;letter-spacing:1px;color:var(--gold);margin:16px 2px 8px">ИСТОРИЯ НАЧИСЛЕНИЙ И ВЫПЛАТ</div>';
     if(ledN.length){ var KLn={acc:['Начисление','var(--green)'],bon:['Бонус','var(--gold)'],bonus:['Бонус','var(--gold)'],pay:['Выплата','var(--teal)'],pen:['Штраф','var(--red)']};
       ledN.slice().sort(function(a,b){return String(b.date||'').localeCompare(String(a.date||''));}).forEach(function(m){ var k=KLn[m.kind]||['?','var(--mut)'];
         h+='<div style="display:flex;justify-content:space-between;align-items:baseline;background:var(--sur);border:1px solid var(--brd);border-radius:10px;padding:9px 12px;margin-bottom:6px"><div><div style="font-size:13px;font-weight:700;color:'+k[1]+'">'+k[0]+'</div>'+(m.note?'<div style="font-size:11px;color:var(--mut)">'+esc(m.note)+'</div>':'')+'<div style="font-size:10px;color:var(--mut)">'+String(m.date||'').split('-').reverse().join('.')+'</div></div><div class="num" style="font-size:15px;font-weight:700;color:'+k[1]+'">'+(m.kind==='pen'||m.kind==='pay'?'−':'+')+fmt0(Number(m.amount)||0)+'</div></div>'; }); }
