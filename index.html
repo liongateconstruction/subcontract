@@ -2974,6 +2974,7 @@ function jrnRender(){
       if(e.brigade) extra.push('👷 '+esc(brigName(v,e.brigade)).replace(/^Бригада\s*/,''));
     } else {
       if(e.brigade) extra.push(esc(brigName(v,e.brigade)).replace(/^Бригада\s*/,''));
+      if(e.forStaff) extra.push('🧑‍💼 '+esc(e.forStaff));
       if(e.to) extra.push('→ '+esc(e.to)); if(e.from) extra.push('← '+esc(e.from)); if(e.floor) extra.push(esc(e.floor));
     }
     var jwrap=(e.type==='vol');
@@ -5042,6 +5043,8 @@ function renderEntryFields(){
     h+=fld('Источник','<select id="in-src">'+selOpts(PAYSRC, d.paySource||'advance')+'</select>');
     if(spots.length) h+=fld('Пятно (куда идёт расход)','<select id="in-spot"><option value="">— не привязано —</option>'+selOpts(spots.map(function(s){return [s.id,s.name];}), d.spotId)+'</select>');
     h+=fld('Бригада (если зарплата)','<select id="in-brig"><option value="">— нет —</option>'+selOpts(brigs.map(function(b){return [b.id,(b.name||'').replace(/^Бригада\s*/,'')];}), d.brigade)+'</select>');
+    var _ppl=(staffList(view)||[]);
+    h+=fld('На кого расход (сотрудник/консультант)','<select id="in-forstaff"><option value="">— не привязано —</option>'+selOpts(_ppl.map(function(s){return [s.id,(s.name||'')+(s.isConsult?' · консультант':'')];}), d.forStaffId)+'</select>')+'<div style="font-size:11px;color:var(--mut);margin:-7px 2px 13px;line-height:1.5">Кому предназначен расход — конкретный сотрудник или консультант. Необязательно, для учёта «на кого».</div>';
   } else if(d.type==='advance'){
     h+=fld('От кого','<select id="in-from">'+selOpts(PARTNERS, d.from||'Дмитрий')+'</select>');
     h+=fld('Кому','<select id="in-to">'+selOpts(PARTNERS, d.to||'Бекжан')+'</select>');
@@ -5056,6 +5059,8 @@ function renderEntryFields(){
     h+=fld('Сумма, ₸',amtInput);
   } else if(d.type==='payout'){
     h+=fld('Кому выплата','<select id="in-who">'+selOpts(payers, d.who||'Дмитрий')+'</select>');
+    var _pplo=(staffList(view)||[]);
+    h+=fld('На кого выплата (сотрудник/консультант)','<select id="in-forstaff"><option value="">— не привязано —</option>'+selOpts(_pplo.map(function(s){return [s.id,(s.name||'')+(s.isConsult?' · консультант':'')];}), d.forStaffId)+'</select>')+'<div style="font-size:11px;color:var(--mut);margin:-7px 2px 13px;line-height:1.5">Кому фактически выплата — сотрудник или консультант. Необязательно, для учёта «на кого».</div>';
     h+=fld('Сумма, ₸',amtInput);
   }
   document.getElementById('entry-body').innerHTML=h+(LG.draft.editId?'<button type="button" onclick="deleteEntry(\''+esc(String(LG.draft.editId))+'\')" style="width:100%;margin-top:8px;background:transparent;border:1px solid var(--red);color:var(--red);border-radius:10px;padding:11px;font-size:14px;font-weight:700;cursor:pointer">🗑 Удалить запись</button>':'');
@@ -5211,6 +5216,7 @@ function saveEntry(){
   var view=projected(LG.base, LG.queue);
   var d=LG.draft, obj=(view.objects||[])[0]||'';
   var date=gv('in-date'), note=document.getElementById('in-note').value.trim();
+  var ledgerPayFor='';   // если выплата адресована сотруднику/консультанту — спишем ему в лицевой счёт
   if(!date){ document.getElementById('entry-err').textContent='Укажите дату.'; return; }
   var p={ type:d.type, date:date, note:note, obj:obj };
   if(d.type==='vol'){
@@ -5234,13 +5240,15 @@ function saveEntry(){
     var amt=Number(gv('in-amt'))||0; if(amt<=0){ document.getElementById('entry-err').textContent='Введите сумму больше нуля.'; return; }
     p.amount=amt;
     if(d.type==='expense'){ p.cat=gv('in-cat'); p.who=gv('in-who'); p.paySource=gv('in-src'); var eb=gv('in-brig'); if(eb)p.brigade=eb;
+      var fsid=gv('in-forstaff'); if(fsid){ p.forStaffId=fsid; var _fp=(staffList(view)||[]).find(function(x){return x.id===fsid;}); p.forStaff=_fp?_fp.name:''; }
       var esp=gv('in-spot'); if(esp){ p.spotId=esp; p.spot=esp; var smeta=(view.objMeta&&view.objMeta[obj])||{}; var ess=(smeta.spots||[]).find(function(s){return s.id===esp;}); p.zone=ess?ess.name:''; } }
     else if(d.type==='advance'){ p.from=gv('in-from'); p.to=gv('in-to'); p.paySource=gv('in-src')||'own'; if(p.from===p.to){ document.getElementById('entry-err').textContent='«От» и «Кому» должны отличаться.'; return; } }
     else if(d.type==='invest'){ p.who=gv('in-who'); }
-    else if(d.type==='payout'){ p.who=gv('in-who'); }
+    else if(d.type==='payout'){ p.who=gv('in-who'); var fsp=gv('in-forstaff'); if(fsp){ var _fpp=(staffList(view)||[]).find(function(x){return x.id===fsp;}); p.forStaffId=fsp; p.forStaff=_fpp?_fpp.name:''; p.who=_fpp?_fpp.name:p.who; p.consultPay=true; ledgerPayFor=fsp; } }
   }
   if(LG.draft.editId){ emit({ kind:'entry.edit', entryId:LG.draft.editId, payload:p }); }
   else { p.ts=Date.now(); emit({ kind:'entry.add', payload:p }); }
+  if(ledgerPayFor && !LG.draft.editId){ emit({kind:'staff.ledger', id:lgId('l'), payload:{staffId:ledgerPayFor, entry:{kind:'pay', amount:p.amount, note:'Выплата'+(note?(' · '+note):''), date:date}}}); }
   var _sentToReview=(p.type==='vol' && !LG.draft.editId && !canWriteLedger());
   document.getElementById('ov-entry').classList.remove('show');
   render();
@@ -6247,6 +6255,11 @@ function openStaffCard(p){
     h+='<button onclick="openForemanCabinet(\''+esc(p.id)+'\')" style="width:100%;margin-top:8px;background:rgba(167,139,250,.1);border:1px solid var(--violet);color:var(--violet);border-radius:12px;padding:13px;font-size:14px;font-weight:700;cursor:pointer">👷 Открыть кабинет прораба</button>';
     h+='<button onclick="openForemanPremium(\''+esc(p.id)+'\')" style="width:100%;margin-top:8px;background:rgba(45,212,191,.08);border:1px solid var(--teal);color:var(--teal);border-radius:12px;padding:13px;font-size:14px;font-weight:700;cursor:pointer">📐 Рассчитать премию по КС-2</button>';
   }
+  if(!consult){ var ledN=(p.ledger||[]); h+='<div style="font-size:12px;font-weight:800;letter-spacing:1px;color:var(--gold);margin:16px 2px 8px">ИСТОРИЯ НАЧИСЛЕНИЙ И ВЫПЛАТ</div>';
+    if(ledN.length){ var KLn={acc:['Начисление','var(--green)'],bon:['Бонус','var(--gold)'],bonus:['Бонус','var(--gold)'],pay:['Выплата','var(--teal)'],pen:['Штраф','var(--red)']};
+      ledN.slice().sort(function(a,b){return String(b.date||'').localeCompare(String(a.date||''));}).forEach(function(m){ var k=KLn[m.kind]||['?','var(--mut)'];
+        h+='<div style="display:flex;justify-content:space-between;align-items:baseline;background:var(--sur);border:1px solid var(--brd);border-radius:10px;padding:9px 12px;margin-bottom:6px"><div><div style="font-size:13px;font-weight:700;color:'+k[1]+'">'+k[0]+'</div>'+(m.note?'<div style="font-size:11px;color:var(--mut)">'+esc(m.note)+'</div>':'')+'<div style="font-size:10px;color:var(--mut)">'+String(m.date||'').split('-').reverse().join('.')+'</div></div><div class="num" style="font-size:15px;font-weight:700;color:'+k[1]+'">'+(m.kind==='pen'||m.kind==='pay'?'−':'+')+fmt0(Number(m.amount)||0)+'</div></div>'; }); }
+    else h+='<div style="font-size:12px;color:var(--mut);padding:2px 2px 8px">пока нет движений</div>'; }
   if(canWriteLedger()) h+='<button onclick="printPayslip(\''+esc(p.id)+'\')" style="width:100%;margin-top:8px;background:rgba(88,166,255,.1);border:1px solid var(--blue);color:var(--blue);border-radius:12px;padding:12px;font-size:14px;font-weight:700;cursor:pointer">🧾 Расчётный листок</button>';
   if(canWriteLedger()) h+='<button onclick="openStaffForm('+(consult?'true':'false')+', '+JSON.stringify({id:p.id,name:p.name,role:p.role,phone:p.phone,type:consult?'консультант':'штат',payMethod:p.payMethod,rate:p.rate,spots:p.spots,premRate:p.premRate,premCel:p.premCel,hireDate:p.hireDate,fireDate:p.fireDate}).replace(/"/g,'&quot;')+')" style="width:100%;margin-top:10px;background:rgba(240,165,0,.12);border:1px solid var(--gold);color:var(--gold);border-radius:12px;padding:12px;font-size:14px;font-weight:700;cursor:pointer">✏️ Изменить</button>';
   lgSheet((consult?'👤 ':'👷 ')+esc(p.name), h);
