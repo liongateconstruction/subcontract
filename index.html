@@ -1502,24 +1502,39 @@ function render(){
 
 function pulseTiles(view){
   var spc=(typeof spotStats==='function')?spotStats(view):[]; var spN=spc.length, spD=spc.filter(function(s){return s&&s.completed;}).length;
+  var avgPct=spN?Math.round(spc.reduce(function(s,x){return s+(Number(x.pct)||0);},0)/spN):0;
+  // Сводка/Месяцы — прогноз года и план текущего месяца (один compute на всё)
+  var R=null,F=null; try{ R=compute(view); F=yearForecast(view,R); }catch(e){}
+  var fPct=F?Math.round((F.ratioYear||0)*100):null;
+  var fCol=F?(F.ratioYear>=1.05?'var(--green)':(F.ratioYear>=0.9?'var(--teal)':(F.ratioYear>=0.7?'var(--gold)':'var(--red)'))):'var(--teal)';
+  var moM3=null; if(R&&R.rows){ var cr=R.rows.filter(function(r){return r.m===R.curM;})[0]; if(cr) moM3=cr.m3; }
+  // КФУ — не-зелёные + цвет худшего
+  var kl=(view.kfu||[]); var kRed=0,kYel=0; kl.forEach(function(k){ try{var s=kfuStatus(view,k); if(s.light>=3)kRed++; else if(s.light===2)kYel++;}catch(e){} });
+  var kBad=kRed+kYel; var kCol=kRed?'var(--red)':(kYel?'var(--gold)':'var(--green)');
+  // Задачи / Ограничения / PPC
+  var pc=(typeof planCfg==='function')?planCfg(view):{};
+  var tOpen=(pc.roadmap||[]).filter(function(t){return t&&!t.done;}).length;
+  var cOpen=(pc.constraints||[]).filter(function(x){return x&&x.status!=='cleared';}).length;
+  var wk=(typeof weekKey==='function')?weekKey():''; var cm=(pc.commitments||[]).filter(function(x){return x&&x.week===wk;}); var ppc=cm.length?Math.round(cm.filter(function(x){return x.done;}).length/cm.length*100):null;
+  var ppcCol=ppc==null?'var(--blue)':(ppc>=80?'var(--green)':(ppc>=50?'var(--gold)':'var(--red)'));
   var T=[
-    ['tasks','📋','Мои задачи','что делать','var(--gold)',''],
-    ['svodka','📊','Сводка','прогноз · план','var(--teal)',''],
-    ['spots','🟦','Пятна','участки','var(--blue)', spN?(spD+'/'+spN):''],
-    ['months','📅','Месяцы','план по месяцам','var(--violet)',''],
-    ['flow','🌊','Поток','темп заливки','var(--teal)',''],
-    ['kfu','🚦','КФУ','5 факторов','var(--gold)',''],
-    ['constr','⛔','Ограничения','что мешает','var(--orange)',''],
-    ['ppc','📈','PPC','план/факт недели','var(--blue)',''],
+    ['tasks','📋','Мои задачи','открыто задач', tOpen?'var(--gold)':'#5a6675', tOpen?String(tOpen):'✓'],
+    ['svodka','📊','Сводка','прогноз года', fCol, fPct==null?'':fPct+'%'],
+    ['spots','🟦','Пятна','готово / всего','var(--blue)', spN?(spD+'/'+spN):''],
+    ['months','📅','Месяцы','план месяца, м³','var(--violet)', moM3!=null?kshort(moM3):''],
+    ['flow','🌊','Поток','средний прогресс','var(--teal)', spN?avgPct+'%':''],
+    ['kfu','🚦','КФУ','тревоги', kCol, kl.length?(kBad?String(kBad):'✓'):''],
+    ['constr','⛔','Ограничения','блокеров', cOpen?'var(--orange)':'#5a6675', cOpen?String(cOpen):'✓'],
+    ['ppc','📈','PPC','план недели', ppcCol, ppc==null?'':ppc+'%'],
     ['cfg','⚙️','Настройки','цели · план','#b9c3d0','']
   ];
   return '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:6px">'
-    + T.map(function(t){ return '<button onclick="setSub(\'pulse\',\''+t[0]+'\')" style="background:var(--sur);border:1px solid var(--brd);border-radius:16px;padding:14px 6px 12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center;min-height:98px;justify-content:center;font-family:inherit;position:relative;overflow:hidden">'
+    + T.map(function(t){ return '<button onclick="setSub(\'pulse\',\''+t[0]+'\')" style="background:var(--sur);border:1px solid var(--brd);border-radius:16px;padding:13px 6px 11px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;text-align:center;min-height:100px;justify-content:center;font-family:inherit;position:relative;overflow:hidden">'
       + '<div style="position:absolute;top:0;left:0;right:0;height:3px;background:'+t[4]+'"></div>'
-      + '<div style="font-size:25px;line-height:1">'+t[1]+'</div>'
-      + (t[5]?'<div class="num" style="font-size:17px;font-weight:800;color:'+t[4]+';line-height:1">'+t[5]+'</div>':'')
-      + '<div style="font-size:13px;font-weight:700;color:'+t[4]+';line-height:1.15">'+t[2]+'</div>'
-      + '<div style="font-size:10.5px;color:var(--mut);line-height:1.15">'+t[3]+'</div></button>'; }).join('')
+      + '<div style="font-size:23px;line-height:1">'+t[1]+'</div>'
+      + (t[5]?'<div class="num" style="font-size:18px;font-weight:800;color:'+t[4]+';line-height:1">'+t[5]+'</div>':'')
+      + '<div style="font-size:12.5px;font-weight:700;color:'+t[4]+';line-height:1.15">'+t[2]+'</div>'
+      + '<div style="font-size:10px;color:var(--mut);line-height:1.15">'+t[3]+'</div></button>'; }).join('')
     + '</div>';
 }
 function renderPulse(view, app){
