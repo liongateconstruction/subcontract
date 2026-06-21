@@ -1542,7 +1542,7 @@ function renderPulse(view, app){
   var h='<div style="display:flex;align-items:baseline;gap:8px;margin:2px 0 12px"><span style="font-size:26px">🔥</span><span style="font-size:24px;font-weight:800;color:var(--gold);letter-spacing:2px">ПУЛЬС</span></div>';
   h+=draftReviewCard(view);
   h+=openIssuesCard(view);
-  if(sub==='home'){ h+=pulseTiles(view); }
+  if(sub==='home'){ h+=pulseDash(view, true); h+=pulseTiles(view); }
   else {
     h+='<button onclick="setSub(\'pulse\',\'home\')" style="background:transparent;border:1px solid var(--brd);color:var(--mut);border-radius:11px;padding:9px 14px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:12px;font-family:inherit">← Пульс</button>';
     if(sub==='svodka'){     h+=pulseSvodka(view); h+=concreteDueCard(view); h+=pourPlanSection(view); h+=concreteQACard(view); }
@@ -1556,7 +1556,6 @@ function renderPulse(view, app){
     else if(sub==='cfg')    h+=pulseCfg(view);
     else h+='<div class="empty" style="padding:40px 16px">Раздел появится позже.</div>';
   }
-  h+=pulseDash(view);
   app.innerHTML=h;
 }
 function forecastCorridor(view,R,F){
@@ -1869,11 +1868,12 @@ function kshort(n){ n=Number(n)||0; var a=Math.abs(n); var s=(n<0?'−':'');
   if(a>=1e6) return s+(Math.round(a/1e5)/10).toString().replace('.',',')+'М';
   if(a>=1e3) return s+fmt0(a);
   return s+fmt0(a); }
-function pulseDash(view){
+function pulseDash(view, homeOnly){
   var R=compute(view), now=new Date(), ym=now.toISOString().slice(0,7);
   var C=calcCo(view); var pe=profitEngine(view,null);
   var iso=pWeekNo(now);
   var h='';
+  if(!homeOnly){
   // ── 8 КФУ · НЕДЕЛЯ ──
   var kl=(view.kfu||[]); 
   if(kl.length){
@@ -1903,6 +1903,7 @@ function pulseDash(view){
       +'<div style="text-align:center;padding:0 4px"><div style="font-size:12px;color:var(--mut);font-weight:700">ОПЛАЧЕНО</div><div style="font-size:22px;color:var(--green);font-weight:800;margin-top:6px">'+kshort(paid)+'</div><div style="font-size:12px;color:var(--mut);margin-top:4px">пришло</div></div>'
       +'</div></div>';
   }
+  }
   // ── ВНИМАНИЕ ──
   var alerts=[];
   if(C.cash<500000) alerts.push({ic:'💰',col:'var(--red)',t:'Касса критически низкая',d:'Осталось '+fmt(C.cash)+' — срочно нужны деньги',act:'partners'});
@@ -1914,6 +1915,7 @@ function pulseDash(view){
     alerts.slice(0,3).forEach(function(a){
       h+='<div style="background:var(--sur);border:1px solid '+a.col+';border-left:4px solid '+a.col+';border-radius:12px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:12px"><div style="font-size:28px;flex-shrink:0">'+a.ic+'</div><div style="flex:1;min-width:0"><div style="font-size:15px;color:'+a.col+';font-weight:800">'+esc(a.t)+'</div><div style="font-size:13px;color:var(--mut);margin-top:3px">'+esc(a.d)+'</div></div><div onclick="setTab(\''+a.act+'\')" style="cursor:pointer;font-size:22px;color:'+a.col+'">›</div></div>';});
   }
+  if(!homeOnly){
   // ── ФИНАНСЫ ──
   var mInc=0,mExp=0,mVol=0;(view.entries||[]).forEach(function(e){if(!e||(e.date||'').slice(0,7)!==ym)return;var a=Number(e.amount)||0;if(e.type==='income'||e.type==='customer_income')mInc+=a;else if(e.type==='expense')mExp+=a;else if(e.type==='vol')mVol+=(Number(e.volume)||0);});
   var cashCol=C.cash<500000?'var(--red)':(C.cash<2000000?'var(--gold)':'var(--green)');
@@ -1924,6 +1926,7 @@ function pulseDash(view){
     +dashMini('📈','ДОХОД<br>МЕСЯЦА',kshort(mInc),'тг','var(--green)')
     +dashMini('📉','РАСХОД<br>МЕСЯЦА',kshort(mExp),'тг','var(--red)')
     +dashMini('🏗','ОБЪЁМ<br>МЕСЯЦА',(Math.round(mVol*10)/10).toString(),'м³','var(--blue)')+'</div>';
+  }
   // ── ЗАДАЧИ НА СЕГОДНЯ ──
   var pendVol=0;(view.entries||[]).forEach(function(e){if(e&&e.type==='vol'&&!e.accepted)pendVol+=(e.volume||0);});
   var tasks=[];
@@ -1935,6 +1938,7 @@ function pulseDash(view){
     tasks.slice(0,5).forEach(function(t){var pc=t.p==='high'?'var(--red)':(t.p==='med'?'var(--gold)':'var(--green)');
       h+='<div style="background:var(--sur);border:1px solid var(--brd);border-left:3px solid '+pc+';border-radius:10px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:12px"><div style="font-size:26px;flex-shrink:0">'+t.ic+'</div><div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:700">'+esc(t.t)+'</div></div></div>';});
   }
+  if(!homeOnly){
   // ── БРИГАДЫ ──
   var bs=brigStats(view);
   if(bs.length){
@@ -1954,6 +1958,7 @@ function pulseDash(view){
     +'<div style="background:var(--bg);border-radius:6px;height:8px;overflow:hidden"><div style="background:linear-gradient(90deg,'+gc+',var(--gold));height:100%;width:'+Math.max(1,goalPct).toFixed(1)+'%"></div></div>'
     +'<div style="display:flex;justify-content:space-between;margin-top:10px;font-size:12px"><span style="color:var(--mut)">факт: <b style="color:'+(profitNow>=0?'var(--green)':'var(--red)')+'">'+kshort(profitNow)+' ₸</b></span><span style="color:var(--mut)">каждому: <b style="color:var(--gold)">'+kshort(profitTarget/5)+' ₸</b></span></div>'
     +'<div style="font-size:13px;color:var(--mut);margin-top:8px;text-align:center;border-top:1px solid var(--brd);padding-top:8px">🦁 До 1 МЛРД $ к 2030 — шаг за шагом →</div></div>';
+  }
   return h;
 }
 function dashHead(t){ return '<div style="display:flex;align-items:center;gap:8px;margin:22px 2px 12px"><div style="width:3px;height:15px;background:var(--gold);border-radius:2px"></div><div style="font-size:12px;color:var(--mut);letter-spacing:2px;font-weight:800">'+t+'</div></div>'; }
