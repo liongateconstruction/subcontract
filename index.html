@@ -617,7 +617,7 @@ function totalBrigEarned(state){
 function marginDirect(state){ var rev=profitEngine(state,null).revenue; var cost=totalBrigEarned(state); return {revenue:rev, cost:cost, profit:rev-cost, pct:rev>0?Math.round((rev-cost)/rev*100):0}; }
 // Дебиторка заказчика: Σ (выручка работы − оплачено) по бетонным записям
 function customerDebt(state){
-  var obj=(state.objects||[])[0]||'';
+  var obj=curObj(state)||'';
   var billed=(state.ks2acts||[]).reduce(function(s,a){return s+(Number(a.total)||0);},0);
   var rq=(typeof objReqs==='function')?objReqs(state,obj):{}; var retPct=Number(rq&&rq.retPct)||0;
   var payable=billed-Math.round(billed*retPct/100);
@@ -715,7 +715,7 @@ function openLeakDetail(key){
 
 // Статистика по пятнам (Блок 48/49): план/залито/%/выручка/заливки по этажам.
 function spotStats(view){
-  var obj=(view.objects||[])[0]||'';
+  var obj=curObj(view)||'';
   var meta=objMetaOf(view,obj);
   var spots=meta.spots||[];
   var rate=(custRatesList(view,obj)[0]||{}).rate||0;
@@ -1082,7 +1082,7 @@ function spotProgressCash(state,obj,spotId){ var meta=(state.objMeta&&state.objM
   var rate=0; var cr=(meta.custRates||[]); if(cr.length)rate=cr[0].rate; if(!rate)rate=custRate(state,obj)||0; var budget=planVol*rate;
   return {name:sp.name, planVol:planVol, doneVol:doneVol, progressPct:progressPct, spent:spent, budget:budget, cashPct:budget>0?Math.round(spent/budget*100):0};
 }
-function costToComplete(state,obj){ obj=obj||(state.objects||[])[0]||''; var meta=(state.objMeta&&state.objMeta[obj])||{}; var res={spots:[],totalSpentSoFar:0,totalToComplete:0};
+function costToComplete(state,obj){ obj=obj||curObj(state)||''; var meta=(state.objMeta&&state.objMeta[obj])||{}; var res={spots:[],totalSpentSoFar:0,totalToComplete:0};
   (meta.spots||[]).forEach(function(sp){ var pc=spotProgressCash(state,obj,sp.id); if(!pc)return; var frac=pc.planVol>0?Math.min(1,pc.doneVol/pc.planVol):0; var spent=pc.spent||0; var proj=frac>0.02?Math.round(spent/frac):0; var toC=Math.max(0,proj-spent);
     res.spots.push({id:sp.id,name:sp.name,progressPct:pc.progressPct,spent:spent,toComplete:toC}); res.totalSpentSoFar+=spent; res.totalToComplete+=toC; });
   return res;
@@ -1092,7 +1092,7 @@ function cashForecast(state,weeksAhead,nowD){ weeksAhead=weeksAhead||6; var cash
   var weeks=[],running=cash,firstGap=-1; for(var w=1;w<=weeksAhead;w++){ running-=weeklyBurn; if(running<0&&firstGap<0)firstGap=w; weeks.push({week:w,projected:Math.round(running)}); }
   return {startCash:cash, weeklyBurn:Math.round(weeklyBurn), weeks:weeks, firstGapWeek:firstGap, expectedFromCustomer:expectedFromCustomer, weeksWithPayment:weeklyBurn>0?Math.floor((cash+expectedFromCustomer)/weeklyBurn):999};
 }
-function obj_first(state){ return (state.objects||[])[0]||''; }
+function obj_first(state){ return curObj(state)||''; }
 function comparePeriods(state,nowD){ var now=nowD||new Date(); var thisYm=now.toISOString().slice(0,7); var pd=new Date(now.getFullYear(),now.getMonth()-1,1); var prevYm=pd.toISOString().slice(0,7);
   function ms(ym){ var exp=0,rev=0,vol=0; (state.entries||[]).forEach(function(e){ if(!e.date||e.date.slice(0,7)!==ym)return; if(e.type==='expense')exp+=(e.amount||0); if(e.type==='vol'&&isConcrete(state,e)){ vol+=(e.volume||0); rev+=(e.volume||0)*rateForEntry(state,e); } }); return {exp:exp,rev:Math.round(rev),vol:vol}; }
   var cur=ms(thisYm),prev=ms(prevYm); function d(c,p){ if(p===0)return c>0?100:0; return Math.round((c-p)/Math.abs(p)*100); }
@@ -1134,7 +1134,7 @@ function foremanEarnings(view, p){
   var now=new Date(); var ym=now.toISOString().slice(0,7);
   var year=now.getFullYear(), mon=now.getMonth()+1;
   var dim=new Date(year, mon, 0).getDate(); var dom=Math.min(now.getDate(), dim);
-  var obj=(view.objects||[])[0]||'';
+  var obj=curObj(view)||'';
   var meta=(view.objMeta&&view.objMeta[obj])||{}; var allSpots=(meta.spots||[]);
   var spotFilter=(p.spots&&p.spots.length)?p.spots:null;
   var spotIdSet={}, spotNameSet={};
@@ -1281,7 +1281,7 @@ var LG = {
   version: 0,     // версия этого состояния
   queue: JSON.parse(store.get('lg2_queue')||'[]'),  // неотправленные события
   flushing:false, draft:{type:'expense'}, tab:'pulse', brigEdit:null,
-  sub:{ money:'pl', people:'brigades', pulse:'svodka' }, pfPeriod:'week'
+  sub:{ money:'pl', people:'brigades', pulse:'svodka' }, pfPeriod:'week', obj:''
 };
 function saveQueue(){ store.set('lg2_queue', JSON.stringify(LG.queue)); }
 /* Всплывающее уведомление. Раньше функции не было — все вызовы toast() молча пропадали. */
@@ -1658,7 +1658,7 @@ function pulseFlow(view){
     {key:'done',  name:'Готово', icon:'✅', col:'var(--green)',  lo:100,hi:101}
   ];
   function stageOf(p){ var v=Number(p.pct)||0; if(v>=100) return 'done'; for(var i=0;i<STAGES.length;i++){ if(v>=STAGES[i].lo && v<STAGES[i].hi) return STAGES[i].key; } return 'start'; }
-  var items=ss.map(function(p){ return {name:p.name, obj:(p.obj||(view.objects||[])[0]||''), pct:Math.round(Number(p.pct)||0), poured:Number(p.poured)||0, planned:Number(p.planned)||0, stage:stageOf(p)}; });
+  var items=ss.map(function(p){ return {name:p.name, obj:(p.obj||curObj(view)||''), pct:Math.round(Number(p.pct)||0), poured:Number(p.poured)||0, planned:Number(p.planned)||0, stage:stageOf(p)}; });
   var h='<div style="display:flex;align-items:baseline;gap:8px;margin:2px 2px 6px"><span style="font-size:18px">📋</span><span style="font-size:15px;font-weight:800;color:var(--gold);letter-spacing:1px">ПОТОК ПЯТЕН</span></div>';
   h+='<div style="font-size:12px;color:var(--mut);line-height:1.5;margin-bottom:14px">Каждое пятно движется по этапам — видно где затык, как на досках Lean-стройки.</div>';
   // KPI по этапам
@@ -1888,7 +1888,7 @@ function pulseDash(view){
   var pendVol=0;(view.entries||[]).forEach(function(e){if(e&&e.type==='vol'&&!e.accepted)pendVol+=(e.volume||0);});
   var tasks=[];
   if(C.cash<500000) tasks.push({ic:'💸',t:'СРОЧНО: пополнить кассу',p:'high'});
-  if(pendVol>50){var cust=((view.objMeta||{})[(view.objects||[])[0]]||{}).customer||'заказчика';tasks.push({ic:'⏰',t:'Подписать КС-2 у '+cust,p:'high'});}
+  if(pendVol>50){var cust=((view.objMeta||{})[curObj(view)]||{}).customer||'заказчика';tasks.push({ic:'⏰',t:'Подписать КС-2 у '+cust,p:'high'});}
   var c=planCfg(view);(c.roadmap||[]).filter(function(t){return !t.done;}).sort(function(a,b){return (a.due||'9999').localeCompare(b.due||'9999');}).slice(0,1).forEach(function(t){tasks.push({ic:'⬡',t:t.name,p:'med'});});
   if(tasks.length){
     h+=dashHead('📋 ЗАДАЧИ НА СЕГОДНЯ');
@@ -2066,7 +2066,7 @@ function saveCycle(key){
   lgCloseSheet(); render();
 }
 function openTelegramView(){
-  var view=projected(LG.base, LG.queue); var obj=(view.objects||[])[0]||''; var td=new Date().toISOString().slice(0,10);
+  var view=projected(LG.base, LG.queue); var obj=curObj(view)||''; var td=new Date().toISOString().slice(0,10);
   var today=(view.entries||[]).filter(function(e){return e.type==='vol'&&isConcrete(view,e)&&(e.date||'')===td;});
   var totalV=today.reduce(function(s,e){return s+(Number(e.volume)||0);},0);
   var lines=['🏗 LIONGATE · '+obj, 'Сводка за '+td.split('-').reverse().join('.'), ''];
@@ -2237,7 +2237,7 @@ function marginTrendBlock(view){
   }catch(e){ return ''; }
 }
 function renderAnalytics(view, app){
-  var obj=(view.objects||[])[0]||'';
+  var obj=curObj(view)||'';
   var run=runwayDays(view), burn=burnRate(view), cash=(calcCo(view).cash)||0;
   var wf=marginWaterfall(view,null), ec=expenseByCat(view,null), u=unitEconomics(view,null);
   var ctc=costToComplete(view,obj), cf=cashForecast(view,6,new Date()), cp=comparePeriods(view,new Date());
@@ -2246,6 +2246,7 @@ function renderAnalytics(view, app){
   var h='';
   h+='<div class="shdr" style="margin:6px 0 2px"><h2 style="margin:0;font-size:30px;color:var(--gold)">📊 АНАЛИТИКА</h2></div>';
   h+='<div style="font-size:14px;color:var(--mut);margin-bottom:16px">Здоровье · деньги · тренды</div>';
+  h+=objSelector(view);
 
   // 0a) S-КРИВАЯ: накопленный план vs факт по месяцам (главный график мировой стройки)
   h+=sCurveBlock(view);
@@ -2443,7 +2444,7 @@ function saveNorms(){
   lgCloseSheet(); openNorms();
 }
 function reportData(v){
-  var obj=(v.objects||[])[0]||''; var pe=profitEngine(v,obj); var C=calcCo(v);
+  var obj=curObj(v)||''; var pe=profitEngine(v,obj); var C=calcCo(v);
   var R=compute(v), F=yearForecast(v,R);
   var accepted=customerAccepted(v,obj), paid=customerPaid(v), da=debtorAging(v,obj);
   var mw=marginWaterfall(v,obj); var cats=(mw&&mw.cats)||{};
@@ -2573,7 +2574,7 @@ function ks2DelPour(id){
 
 /* ── ЕДИНЫЙ КОМАНДНЫЙ ЦЕНТР: ОБЪЁМЫ + ДОКУМЕНТЫ + НАКОПЛЕНИЕ ───────────────── */
 function openKS2Registry(){
-  var v=projected(LG.base,LG.queue); var obj=(v.objects||[])[0]||'';
+  var v=projected(LG.base,LG.queue); var obj=curObj(v)||'';
   var oe=esc(obj).replace(/'/g,"\\'");
   var canW=canWriteLedger();
   var tab=LG.ks2Tab||'vol';
@@ -2885,7 +2886,7 @@ function ownerSetCabPass(id,name){
 }
 function openCapabilities(){
   var v=projected(LG.base,LG.queue); var R=compute(v), F=yearForecast(v,R);
-  var pe=profitEngine(v,(v.objects||[])[0]||''); var cash=(calcCo(v).cash)||0;
+  var pe=profitEngine(v,curObj(v)||''); var cash=(calcCo(v).cash)||0;
   function kpi(l,val,c){ return '<div style="background:var(--sur2);border-radius:10px;padding:12px;text-align:center"><div style="font-size:10px;color:var(--mut);letter-spacing:1px">'+l+'</div><div class="num" style="font-size:17px;font-weight:900;color:'+(c||'var(--fg)')+'">'+val+'</div></div>'; }
   var h='<div style="font-size:12px;color:var(--gold);letter-spacing:1px;font-weight:700;margin-bottom:10px">КЛЮЧЕВЫЕ KPI</div>';
   h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">'
@@ -3073,7 +3074,7 @@ function saveLockPeriod(){
   lgCloseSheet(); render();
 }
 function openShareSvodka(){
-  var v=projected(LG.base,LG.queue); var obj=(v.objects||[])[0]||'';
+  var v=projected(LG.base,LG.queue); var obj=curObj(v)||'';
   var pe=profitEngine(v,obj); var R=compute(v), F=yearForecast(v,R);
   var cash=(calcCo(v).cash)||0; var da=debtorAging(v,obj); var ss=spotStats(v);
   var d=new Date().toLocaleDateString('ru-RU');
@@ -3092,7 +3093,7 @@ function openShareSvodka(){
   lgShareBox('📤 Поделиться сводкой', L.join('\n'));
 }
 function openPlanerka(){
-  var v=projected(LG.base,LG.queue); var obj=(v.objects||[])[0]||'';
+  var v=projected(LG.base,LG.queue); var obj=curObj(v)||'';
   var R=compute(v), F=yearForecast(v,R);
   // факт за неделю
   var now=new Date(), dow=now.getDay()||7, mon=new Date(now); mon.setDate(now.getDate()-dow+1); mon.setHours(0,0,0,0);
@@ -3197,7 +3198,7 @@ function renderPartners(view, app){
    + '</div>';
 
   // ── 1b. ГДЕ ПРИБЫЛЬ (мост: начислено → живые деньги)
-  var _obj=(view.objects||[])[0]||'';
+  var _obj=curObj(view)||'';
   var PE=(typeof profitEngine==='function')?profitEngine(view,_obj):{profit:0,pct:0,wip:0};
   var DA=(typeof debtorAging==='function')?debtorAging(view,_obj):{};
   var pwRecv=Math.max(0,(DA.billed||0)-(DA.paid||0));
@@ -3458,7 +3459,7 @@ function objMgmtBlock(view,obj){
 }
 function renderObjects(view, app){
 
-  var obj=(view.objects||[])[0]||'';
+  var obj=curObj(view)||'';
   var meta=(view.objMeta&&view.objMeta[obj])||{};
   var customer=meta.customer||'—';
   var rateL=(meta.custRates||[]).filter(function(r){return r&&r.rate>0;});
@@ -3477,6 +3478,7 @@ function renderObjects(view, app){
   var statusBadge='<span style="font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;margin-left:8px;'+(isDone?'background:rgba(45,212,191,.12);color:var(--teal);border:1px solid var(--teal)':'background:rgba(46,160,67,.12);color:var(--green);border:1px solid var(--green)')+'">'+(isDone?'✅ Завершён'+(meta.completedAt?(' · '+String(meta.completedAt).slice(0,10).split('-').reverse().join('.')):''):'🟢 В работе')+'</span>';
 
   var h='<div class="shdr" style="margin:6px 0 6px"><h2 style="margin:0;font-size:26px;color:var(--gold)">🏗 ОБЪЕКТЫ</h2></div>';
+  h+=objSelector(view);
   h+='<div style="font-size:15px;font-weight:700;margin-bottom:6px"><span style="color:var(--green)">'+esc(customer)+'</span> <span style="color:var(--mut)">›</span> '+esc(name)+'</div>';
   h+='<div style="margin-bottom:12px">'+statusBadge+'</div>';
   h+='<button data-objcfg="1" style="width:100%;background:var(--sur);border:1px solid var(--gold);color:var(--gold);border-radius:14px;padding:15px;font-size:16px;font-weight:700;margin-bottom:8px;cursor:pointer">⚙️ Настроить этот объект — расценки, пятна, фото</button>';
@@ -3598,6 +3600,11 @@ function subBar(tab, items){
     return '<button data-subtab="'+tab+'" data-sub="'+it.id+'" class="'+(cur===it.id?'act':'')+'">'+it.label+'</button>';
   }).join('')+'</div>';
 }
+// ── Выбранный объект (мультиобъектность). По умолчанию — первый, поэтому до выбора всё как раньше ──
+function curObj(view){ var objs=(view&&view.objects)||[]; if(LG.obj && objs.indexOf(LG.obj)>=0) return LG.obj; return objs[0]||''; }
+function setObjByIdx(i){ var v=projected(LG.base,LG.queue); var o=(v.objects||[])[i]; if(o!=null){ LG.obj=o; render(); } }
+function objSelector(view){ var objs=(view&&view.objects)||[]; if(objs.length<2) return ''; var cur=curObj(view);
+  return '<div class="subbar" style="margin:0 0 12px">'+objs.map(function(o,i){ return '<button onclick="setObjByIdx('+i+')" class="'+(o===cur?'act':'')+'">🏗 '+esc(String(o).split(',')[0])+'</button>'; }).join('')+'</div>'; }
 
 
 function wfRow(name, amount, color, pct, neg){
@@ -3634,7 +3641,7 @@ function moneyPL(view){
   var moColor=mO.pct>=15?'var(--green)':(mO.pct>=5?'var(--gold)':'var(--red)');
   // HERO объектная маржа
   var h='<div class="ledger" style="border-color:'+(mO.profit<0?'var(--red)':'rgba(63,185,80,.4)')+'">'
-   + '<div style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);margin-bottom:4px">📊 Прибыль по объекту (gross)</div>'
+   + '<div style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);margin-bottom:4px">📊 Прибыль по компании (gross)</div>'
    + '<div class="num" style="font-size:34px;font-weight:800;color:'+moColor+'">'+(mO.profit>=0?'+':'−')+fmt0(Math.abs(mO.profit))+' ₸</div>'
    + '<div style="font-size:12px;color:var(--mut);margin:2px 0 12px">выручка − все расходы объекта · маржа '+mO.pct+'%</div>'
    + '<div class="grid">'+cell('Выручка', mO.revenue, 'var(--teal)')+cell('Расходы', mO.cost, 'var(--red)')+'</div>'
@@ -3836,7 +3843,7 @@ function cashCalendarBlock(view, cash){
   var sal=0; (view.staff||[]).forEach(function(p){ if(p&&!p.archived&&Number(p.salary)>0) sal+=Number(p.salary); });
   if(sal>0){ var n=new Date(); var first=new Date(n.getFullYear(),n.getMonth()+1,1).toISOString().slice(0,10); ev.push({date:first,label:'👥 Оклады штата',amt:-sal}); }
   // ожидаем от заказчика (подписано, не оплачено)
-  try{ var da=debtorAging(view,(view.objects||[])[0]||''); var wait=Math.max(0, da.total||0);
+  try{ var da=debtorAging(view,curObj(view)||''); var wait=Math.max(0, da.total||0);
     if(wait>0) ev.push({date:'', label:'🏢 Заказчик за выставленное', amt:wait}); }catch(e){}
   if(!ev.length) return '';
   ev.sort(function(a,b){ return String(a.date||'9999').localeCompare(String(b.date||'9999')); });
@@ -3887,7 +3894,7 @@ function openNzpDetail(){
 function moneyBalance(view){
   var C=calcCo(view); var cash=C.cash||0;
   var mo=profitEngine(view,null); var frozen=mo.wip||0;
-  var firstObj=(view.objects||[])[0]||'';
+  var firstObj=curObj(view)||'';
   var da=debtorAging(view,firstObj);
   var receivable=Math.max(0, (da.billed||0)-(da.paid||0));   // выставлено по КС-2, ещё не оплачено (вкл. удержание)
   var unbilled=da.unbilled||0;                               // залито по факту, но КС-2 ещё не сделан
@@ -3927,7 +3934,7 @@ function renderPeople(view, app){
   else                     h += peopleBrigades(view);
   app.innerHTML=h;
 }
-function spotNameOf(view,id){ var m=(view.objMeta&&view.objMeta[(view.objects||[])[0]])||{}; var sp=(m.spots||[]).find(function(s){return s.id===id;}); return sp?sp.name:id; }
+function spotNameOf(view,id){ var m=(view.objMeta&&view.objMeta[curObj(view)])||{}; var sp=(m.spots||[]).find(function(s){return s.id===id;}); return sp?sp.name:id; }
 function payrollData(view){
   var people=(staffList(view)||[]).map(function(p){ return {group:(p.isConsult?'Консультанты':(/прораб/i.test(p.role||'')?'Прорабы':'Штат')), name:p.name||'?', sub:p.role||(p.isConsult?'консультант':'штат'), amount:Math.round(p.rest||0)}; }).filter(function(x){return x.amount>0.5;});
   var brigs=(brigStats(view)||[]).map(function(b){ return {group:'Бригады', name:b.name||'?', sub:((b.workers?b.workers+' чел':'')+(b.work?((b.workers?' · ':'')+b.work):''))||'бригада', amount:Math.round(b.debt||0)}; }).filter(function(x){return x.amount>0.5;});
@@ -3951,7 +3958,7 @@ function openPayrollSheet(){
 function printPayroll(){
   var view=projected(LG.base,LG.queue); var rows=payrollData(view);
   var total=rows.reduce(function(s,r){return s+r.amount;},0);
-  var obj=(view.objects||[])[0]||''; var today=new Date().toLocaleDateString('ru-RU');
+  var obj=curObj(view)||''; var today=new Date().toLocaleDateString('ru-RU');
   var tr=''; var n=1;
   ['Бригады','Прорабы','Штат','Консультанты'].forEach(function(g){ var gr=rows.filter(function(r){return r.group===g;}); if(!gr.length)return;
     tr+='<tr><td colspan="5" style="background:#f0f0f0;font-weight:bold;padding:6px 8px">'+esc(g)+'</td></tr>';
@@ -3972,7 +3979,7 @@ function printPayroll(){
 function printPayslip(id){
   var view=projected(LG.base,LG.queue); var raw=(view.staff||[]).find(function(x){return x&&x.id===id;}); if(!raw){ toast('Сотрудник не найден'); return; }
   var bb=staffBal(raw); var _fpPay=staffFormPaid(view, raw.id); bb.pay+=_fpPay; bb.rest-=_fpPay; var par=(typeof calcPar==='function')?calcPar(view, raw.name):{}; var hold=Math.round((par&&par.onHands)||0);
-  var obj=(view.objects||[])[0]||''; var today=new Date().toLocaleDateString('ru-RU');
+  var obj=curObj(view)||''; var today=new Date().toLocaleDateString('ru-RU');
   function r(k,v,strong){ return '<tr><td style="padding:8px 10px;border:1px solid #ccc">'+k+'</td><td style="padding:8px 10px;border:1px solid #ccc;text-align:right'+(strong?';font-weight:bold;font-size:15px':'')+'">'+fmt0(v)+' ₸</td></tr>'; }
   var doc='<div style="font-family:Arial,sans-serif;color:#000;background:#fff;padding:18px;max-width:560px;margin:0 auto;font-size:13px">'
     +'<div style="font-size:17px;font-weight:bold;text-align:center">Расчётный листок</div>'
@@ -4193,7 +4200,7 @@ function peopleStaff(view, consultOnly){
   var canWrite=canWriteLedger();
   var h='<div style="font-size:13px;color:var(--mut);margin:6px 0 4px">'+(consultOnly?'Консультанты заказчика · лицевые счета':'Штатные · лицевые счета')+'</div>';
   h+='<div style="font-size:15px;color:var(--gold);letter-spacing:1px;font-weight:800;margin-bottom:12px">'+(consultOnly?'КОНСУЛЬТАНТЫ ЗАКАЗЧИКА · <span style="color:var(--mut);font-weight:600">вручную</span>':'ШТАТНЫЕ · <span style="color:var(--mut);font-weight:600">оклад/ставка</span>')+'</div>';
-  if(consultOnly){ var obj=(view.objects||[])[0]||''; var cf=consultFundInfo(view,obj);
+  if(consultOnly){ var obj=curObj(view)||''; var cf=consultFundInfo(view,obj);
     h+='<div class="ledger" style="margin-bottom:12px;border-color:var(--gold)"><div style="font-size:13px;color:var(--mut);letter-spacing:1px;font-weight:800;margin-bottom:8px">💰 ФОНД КОНСУЛЬТАНТОВ · '+Math.round(cf.pct*100)+'% от заказчика</div>'
       +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;text-align:center">'
       +'<div style="background:var(--sur2);border-radius:8px;padding:9px"><div style="font-size:11px;color:var(--mut)">прогноз</div><div class="num" style="font-weight:800;color:var(--gold)">'+fmt0(cf.fundTotal)+'</div></div>'
@@ -4225,7 +4232,7 @@ function cell(k,v,color,raw){ return '<div class="cell"><div class="k">'+k+'</di
 function renderConsultantCabinet(view, app, consultantId){
   // владелец/учётчица видят полную «кухню» расчёта; сам консультант — только итог и драйверы
   var viewerIsOwner = (LG.role==='owner' || LG.role==='editor');
-  var obj=(view.objects||[])[0]||'';
+  var obj=curObj(view)||'';
   var cf=consultFundInfo(view, obj);
   var me=(cf.shares||[]).find(function(s){return s.id===consultantId;})||{forecast:0,signed:0,paid:0,weight:1};
   var p=(view.staff||[]).find(function(x){return x&&x.id===consultantId;})||{};
@@ -4293,13 +4300,13 @@ function consultLedger(id, kind){
   if(kind==='pay' && typeof confirm==='function' && !confirm('Выплата '+fmt0(amt)+' ₸ спишется из кассы компании. Продолжить?')) return;
   emit({kind:'staff.ledger', id:lgId('l'), payload:{staffId:id, entry:{kind:kind, amount:amt, note:note, date:new Date().toISOString().slice(0,10)}}});
   if(kind==='pay'){
-    var _v0=projected(LG.base,LG.queue); var _cp=(_v0.staff||[]).find(function(x){return x&&x.id===id;})||{}; var _obj=(_v0.objects||[])[0]||'';
+    var _v0=projected(LG.base,LG.queue); var _cp=(_v0.staff||[]).find(function(x){return x&&x.id===id;})||{}; var _obj=curObj(_v0)||'';
     emit({kind:'entry.add', payload:{type:'payout', who:_cp.name||'', amount:amt, paySource:'cash', date:new Date().toISOString().slice(0,10), obj:_obj, note:'Выплата консультанту'+(note?(' · '+note):''), consultPay:true, ts:Date.now()}});
   }
   lgCloseSheet(); var v2=projected(LG.base,LG.queue); var p=(v2.staff||[]).find(function(x){return x&&x.id===id;}); if(p) openStaffCard(staffList(v2).find(function(x){return x.id===id;})||p);
 }
 function consultAccrueFund(id){
-  var v=projected(LG.base,LG.queue); var obj=(v.objects||[])[0]||''; var cf=consultFundInfo(v,obj);
+  var v=projected(LG.base,LG.queue); var obj=curObj(v)||''; var cf=consultFundInfo(v,obj);
   var me=(cf.shares||[]).find(function(s){return s.id===id;})||{paid:0};
   var p=(v.staff||[]).find(function(x){return x&&x.id===id;})||{}; var accS=0; (p.ledger||[]).forEach(function(m){ if(m&&m.kind==='acc')accS+=Number(m.amount)||0; });
   var avail=Math.max(0,(me.paid||0)-accS);
@@ -4315,7 +4322,7 @@ function openConsultantCabinet(id){ var v=projected(LG.base,LG.queue); var p=(v.
 function setCabTab(t){ LG.cabTab=t; render(); if(typeof lgRefreshCabSheet==='function') lgRefreshCabSheet(); try{ window.scrollTo(0,0); var _sh=document.querySelector('.sheet.show'); if(_sh){ var _b=_sh.querySelector('.sheet-body')||_sh; _b.scrollTop=0; } }catch(e){} }
 function renderCabinet(view, app, scope){
   function _T(b){ return '\u0001'+b+'\u0001'; }
-  var obj=(view.objects||[])[0]||'';
+  var obj=curObj(view)||'';
   var meta=(view.objMeta&&view.objMeta[obj])||{}; var allSpots=(meta.spots||[]);
   var brigId, spotFilter=null, who='';
   if(arguments.length<3){ brigId = LG.role.indexOf('brigadier_')===0 ? LG.role.slice('brigadier_'.length) : null; }
@@ -4513,7 +4520,7 @@ function saveIssueForm(){ var d=issReadForm(); var t=(d.text||'').trim(); if(!t)
   LG.issDraft=null; lgCloseSheet(); render(); lgRefreshCabSheet();
 }
 function closeIssue(id){ emit({kind:'issue.close', payload:{id:id}}); render(); lgRefreshCabSheet(); }
-function shareIssueWa(id){ var v=projected(LG.base,LG.queue); var z=(v.issues||[]).find(function(x){return x&&x.id===id;}); if(!z)return; var obj=(v.objects||[])[0]||'';
+function shareIssueWa(id){ var v=projected(LG.base,LG.queue); var z=(v.issues||[]).find(function(x){return x&&x.id===id;}); if(!z)return; var obj=curObj(v)||'';
   var txt='⚠️ Замечание'+(z.num?(' №'+z.num):'')+'\nОбъект: '+obj+'\n'+(z.text||'')+(z.floor?('\nМесто: '+z.floor):'')+'\nДата: '+String(z.date||'').split('-').reverse().join('.');
   window.open('https://wa.me/?text='+encodeURIComponent(txt),'_blank'); }
 function openIssuesCard(view){
@@ -4548,7 +4555,7 @@ function pourPlanSection(view){
   return h;
 }
 function ppForm(id){
-  var v=projected(LG.base,LG.queue); var obj=(v.objects||[])[0]||''; var spots=((v.objMeta&&v.objMeta[obj])||{}).spots||[];
+  var v=projected(LG.base,LG.queue); var obj=curObj(v)||''; var spots=((v.objMeta&&v.objMeta[obj])||{}).spots||[];
   var p=id?(((v.pourPlan)||[]).find(function(x){return x&&x.id===id;})||{}):{};
   var fi='width:100%;background:var(--sur2);border:1px solid var(--brd);color:var(--fg);border-radius:10px;padding:11px;font-size:15px;box-sizing:border-box';
   var tm=new Date(Date.now()+86400000).toISOString().slice(0,10);
@@ -4652,7 +4659,7 @@ function concreteDueCard(view){
 }
 function coachPrompt(view){
   var brigId = LG.role.indexOf('brigadier_')===0 ? LG.role.slice('brigadier_'.length) : null;
-  var obj=(view.objects||[])[0]||''; var td=new Date().toISOString().slice(0,10);
+  var obj=curObj(view)||''; var td=new Date().toISOString().slice(0,10);
   var wa=new Date(Date.now()-6*86400000).toISOString().slice(0,10);
   function sc(e){ return brigId? e.brigade===brigId : true; }
   var todayV=0, weekV=0, totV=0, redoV=0, pendV=0, lastDate='';
@@ -4689,7 +4696,7 @@ function askCoach(){
 function acceleratePrompt(view){
   var brigId = LG.role.indexOf('brigadier_')===0 ? LG.role.slice('brigadier_'.length) : (LG._cabScope&&LG._cabScope.brigId)||null;
   var cabSpots = (LG._cabScope && LG._cabScope.spots && LG._cabScope.spots.length) ? LG._cabScope.spots : null;
-  var obj=(view.objects||[])[0]||''; var meta=(view.objMeta&&view.objMeta[obj])||{};
+  var obj=curObj(view)||''; var meta=(view.objMeta&&view.objMeta[obj])||{};
   var nameSet={}; if(cabSpots){ cabSpots.forEach(function(id){ var sp=(meta.spots||[]).find(function(s){return s.id===id;}); if(sp)nameSet[sp.name]=1; }); }
   var td=new Date().toISOString().slice(0,10); var wa=new Date(Date.now()-6*86400000).toISOString().slice(0,10);
   function sc(e){ if(brigId) return e.brigade===brigId; if(cabSpots){ return cabSpots.indexOf(e.spotId)>=0 || cabSpots.indexOf(e.spot)>=0 || !!nameSet[e.zone]; } return true; }
@@ -4819,7 +4826,7 @@ function lgRefreshCabSheet(){
   }catch(e){}
 }
 function openConcreteOrder(){
-  var view=projected(LG.base, LG.queue); var obj=(view.objects||[])[0]||'';
+  var view=projected(LG.base, LG.queue); var obj=curObj(view)||'';
   var spots=((view.objMeta&&view.objMeta[obj])||{}).spots||[];
   var fi='width:100%;background:var(--sur2);border:1px solid var(--brd);color:var(--fg);border-radius:10px;padding:11px;font-size:15px;box-sizing:border-box';
   var h='<div style="font-size:13px;color:var(--mut);margin-bottom:12px">Заявка формирует текст для отправки в WhatsApp/SMS поставщику.</div>';
@@ -4839,7 +4846,7 @@ function openConcreteOrder(){
 function genConcreteOrder(){
   function gv(id){ var el=document.getElementById(id); return el?el.value:''; }
   var spot=gv('co-spot'), vol=gv('co-vol')||'0', grade=gv('co-grade'), when=gv('co-when');
-  var view=projected(LG.base, LG.queue); var obj=(view.objects||[])[0]||'';
+  var view=projected(LG.base, LG.queue); var obj=curObj(view)||'';
   var txt='Заявка на бетон\nОбъект: '+obj+'\nБлок: '+spot+'\nОбъём: '+vol+' м³\nМарка: '+grade+'\nКогда: '+when+'\nКонтакт прораба: ___';
   var enc=encodeURIComponent(txt);
   var phEl=document.getElementById('co-phone'); var ph=phEl?String(phEl.value||'').replace(/[^\d]/g,''):'';
@@ -4857,7 +4864,7 @@ function saveBetonPhone(){
   var s=document.getElementById('co-phone-st'); if(s){ s.textContent = p?('✓ Сохранён · заявка уйдёт на +'+p):'Номер очищен — откроется выбор контакта'; s.style.color='var(--green)'; }
 }
 function openDailyReport(){
-  var view=projected(LG.base, LG.queue); var obj=(view.objects||[])[0]||'';
+  var view=projected(LG.base, LG.queue); var obj=curObj(view)||'';
   var brigId = LG.role.indexOf('brigadier_')===0 ? LG.role.slice('brigadier_'.length) : null;
   var td=new Date().toISOString().slice(0,10);
   var today=(view.entries||[]).filter(function(e){ return e.type==='vol'&&isConcrete(view,e)&&(e.date||'')===td&&(!brigId||e.brigade===brigId); });
@@ -4872,7 +4879,7 @@ function openDailyReport(){
   lgSheet('📋 Отчёт за день', h);
 }
 function openMaterialOrder(){
-  var view=projected(LG.base,LG.queue); var obj=(view.objects||[])[0]||'';
+  var view=projected(LG.base,LG.queue); var obj=curObj(view)||'';
   var spots=((view.objMeta&&view.objMeta[obj])||{}).spots||[];
   var fi='width:100%;background:var(--sur2);border:1px solid var(--brd);color:var(--fg);border-radius:10px;padding:11px;font-size:15px;box-sizing:border-box';
   var h='<div style="font-size:13px;color:var(--mut);margin-bottom:12px">Что привезти на объект. Сформирует текст для WhatsApp/SMS снабженцу.</div>';
@@ -4885,7 +4892,7 @@ function openMaterialOrder(){
 }
 function saveSnabPhone(){ var el=document.getElementById('mo-phone'); if(!el)return; var p=String(el.value||'').replace(/[^\d]/g,'').slice(0,20); el.value=p; emit({kind:'meta.set',key:'snabPhone',value:p}); var s=document.getElementById('mo-phone-st'); if(s){ s.textContent=p?('✓ Сохранён · заявка уйдёт на +'+p):'Номер очищен'; s.style.color='var(--green)'; } }
 function genMaterialOrder(){ function gv(id){var el=document.getElementById(id);return el?el.value:'';}
-  var view=projected(LG.base,LG.queue); var obj=(view.objects||[])[0]||'';
+  var view=projected(LG.base,LG.queue); var obj=curObj(view)||'';
   var items=(gv('mo-items')||'').trim(); if(!items){ alert('Впишите, что нужно привезти.'); return; }
   var spot=gv('mo-spot'); var when=gv('mo-when');
   var txt='Заявка на материалы\nОбъект: '+obj+(spot?('\nБлок: '+spot):'')+'\n\n'+items+'\n\nКогда: '+when+'\nКонтакт прораба: ___';
@@ -5001,7 +5008,7 @@ function entryUnitChange(val){ LG.draft.unit = (val==='__custom__') ? '' : val; 
 function renderEntryFields(){
   var view=projected(LG.base, LG.queue);
   LG._rateCard = view.rateCard || [];
-  var d=LG.draft, obj=(view.objects||[])[0]||'';
+  var d=LG.draft, obj=curObj(view)||'';
   var meta=(view.objMeta&&view.objMeta[obj])||{};
   var spots=(meta.spots||[]);
   var brigs=(view.brigades||[]).filter(isActiveBrig);
@@ -5217,7 +5224,7 @@ function cabReviewPending(view){
 function gv(id){ var el=document.getElementById(id); return el?el.value:''; }
 function saveEntry(){
   var view=projected(LG.base, LG.queue);
-  var d=LG.draft, obj=(view.objects||[])[0]||'';
+  var d=LG.draft, obj=curObj(view)||'';
   var date=gv('in-date'), note=document.getElementById('in-note').value.trim();
   if(!date){ document.getElementById('entry-err').textContent='Укажите дату.'; return; }
   var p={ type:d.type, date:date, note:note, obj:obj };
@@ -5285,9 +5292,9 @@ function aiBubble(title, html){ return '<div style="font-size:14px;line-height:1
 function aiPrompt(view, kind, obj){
   var pe=profitEngine(view,kind==='obj'?obj:null);
   var burn=burnRate(view), run=runwayDays(view), cash=(calcCo(view).cash)||0;
-  var u=unitEconomics(view,null); var da=debtorAging(view,(view.objects||[])[0]||'');
+  var u=unitEconomics(view,null); var da=debtorAging(view,curObj(view)||'');
   var bva=budgetVsActual(view); var over=bva.rows.filter(function(r){return r.status==='over';}).map(function(r){return r.cat+' +'+Math.round((r.actual-r.budget)/r.budget*100)+'%';});
-  var ctc=costToComplete(view,(view.objects||[])[0]||'');
+  var ctc=costToComplete(view,curObj(view)||'');
   var L=[];
   L.push('Ты — финансовый советник строительной компании LIONGATE (субподряд монолита, ЖК «Алгабас», Алматы). Отвечай кратко и по делу на русском, без воды.');
   L.push('Данные на сегодня:');
@@ -5682,7 +5689,7 @@ function saveKS2Edit(){
 /* ── ПЕРЕИМЕНОВАНИЕ ОБЪЕКТА (безопасная миграция: имя — это ключ связи данных) ── */
 function openRenameObject(){
   if((LG.role||'')!=='owner'){ toast('Переименовать может только владелец'); return; }
-  var v=projected(LG.base,LG.queue); var old=(v.objects||[])[0]||'';
+  var v=projected(LG.base,LG.queue); var old=curObj(v)||'';
   var nEnt=(v.entries||[]).filter(function(e){return e&&e.obj===old;}).length;
   var nAct=(v.ks2acts||[]).filter(function(a){return a&&a.obj===old;}).length+(v.ks3acts||[]).filter(function(a){return a&&a.obj===old;}).length;
   var h='<div style="font-size:12px;color:var(--mut);margin-bottom:6px">Текущее название</div>';
@@ -5697,7 +5704,7 @@ function openRenameObject(){
 function doRenameObject(){
   if((LG.role||'')!=='owner'){ toast('Только владелец'); return; }
   var el=document.getElementById('rn-newname'); var nn=el?el.value.trim():'';
-  var v=projected(LG.base,LG.queue); var old=(v.objects||[])[0]||'';
+  var v=projected(LG.base,LG.queue); var old=curObj(v)||'';
   if(!nn){ toast('Введите новое название'); return; }
   if(nn===old){ toast('Название не изменилось'); return; }
   if(typeof confirm==='function' && !confirm('Переименовать объект:\n\n«'+old+'»\n→\n«'+nn+'»\n\nОбновятся все операции, акты и настройки. Продолжить?')) return;
@@ -5818,7 +5825,7 @@ function openDocsHub(){
   lgSheet('📄 Документы', h);
 }
 function hactPrefill(){
-  var view=projected(LG.base,LG.queue); var obj=(view.objects||[])[0]||''; var meta=(view.objMeta&&view.objMeta[obj])||{}; var km=objReqs(view,obj);
+  var view=projected(LG.base,LG.queue); var obj=curObj(view)||''; var meta=(view.objMeta&&view.objMeta[obj])||{}; var km=objReqs(view,obj);
   var seen={}, works=[];
   (view.entries||[]).filter(function(e){return e&&e.type==='vol'&&isConcrete(view,e);}).slice().sort(entryCmp).slice(0,40).forEach(function(e){
     var w=(e.wtype||'Бетонные работы'), u=(e.unit||'м³'), k=w+'|'+u;
@@ -5905,7 +5912,7 @@ function generateHiddenAct(){
 function openSavedHAct(id){ var view=projected(LG.base,LG.queue); var a=(view.actsHidden||[]).find(function(x){return x&&x.id===id;}); if(a) openDocViewer(hactHTML(a),'Акт скрытых № '+(a.num||'')); }
 // ── СЧЁТ-ФАКТУРА (с НДС 16%) ──
 function invPrefill(){
-  var view=projected(LG.base,LG.queue); var obj=(view.objects||[])[0]||''; var meta=(view.objMeta&&view.objMeta[obj])||{}; var km=objReqs(view,obj);
+  var view=projected(LG.base,LG.queue); var obj=curObj(view)||''; var meta=(view.objMeta&&view.objMeta[obj])||{}; var km=objReqs(view,obj);
   var seen={},lines=[];
   (view.entries||[]).filter(function(e){return e&&e.type==='vol'&&isConcrete(view,e)&&e.accepted;}).forEach(function(e){
     var w=e.wtype||'Строительно-монтажные работы',u=e.unit||'м³',k=w+'|'+u,rate=Math.round(rateForEntry(view,e));
@@ -5963,7 +5970,7 @@ function openSavedInvoice(id){ var view=projected(LG.base,LG.queue); var a=(view
 
 // ── ФОРМА Р-1 (акт выполненных работ) ──
 function r1Prefill(){
-  var view=projected(LG.base,LG.queue); var obj=(view.objects||[])[0]||''; var meta=(view.objMeta&&view.objMeta[obj])||{}; var km=objReqs(view,obj);
+  var view=projected(LG.base,LG.queue); var obj=curObj(view)||''; var meta=(view.objMeta&&view.objMeta[obj])||{}; var km=objReqs(view,obj);
   var seen={},lines=[];
   (view.entries||[]).filter(function(e){return e&&e.type==='vol'&&isConcrete(view,e);}).slice().sort(entryCmp).slice(0,60).forEach(function(e){
     var w=e.wtype||'Работы',u=e.unit||'м³',k=w+'|'+u,rate=Math.round(rateForEntry(view,e));
@@ -6032,8 +6039,8 @@ function docPhotoPrefill(input,stId,mode,cb){
 }
 // ── ДОКУМЕНТЫ И ФАЙЛЫ ОБЪЕКТА (договор, ЭСФ от бухгалтера, акты, прочее) ──
 var OBJFILE_CATS=[['contract','📑 Договор'],['invoice','🧮 Счёт-фактура (ЭСФ)'],['act','📝 Акты'],['other','📎 Прочее']];
-function objFilesList(){ var view=projected(LG.base,LG.queue); var obj=(view.objects||[])[0]||''; return ((((view.objMeta||{})[obj]||{}).files)||[]).slice(); }
-function objFilesSave(arr){ var view=projected(LG.base,LG.queue); var obj=(view.objects||[])[0]||''; var meta=JSON.parse(JSON.stringify(view.objMeta||{})); meta[obj]=meta[obj]||{}; meta[obj].files=arr; emit({kind:'meta.set',key:'objMeta',value:meta}); }
+function objFilesList(){ var view=projected(LG.base,LG.queue); var obj=curObj(view)||''; return ((((view.objMeta||{})[obj]||{}).files)||[]).slice(); }
+function objFilesSave(arr){ var view=projected(LG.base,LG.queue); var obj=curObj(view)||''; var meta=JSON.parse(JSON.stringify(view.objMeta||{})); meta[obj]=meta[obj]||{}; meta[obj].files=arr; emit({kind:'meta.set',key:'objMeta',value:meta}); }
 function openObjFiles(cat){ LG.ofDraft={cat:cat||'contract',name:'',url:''}; renderObjFiles(); }
 function ofSet(k,v){ if(LG.ofDraft)LG.ofDraft[k]=v; }
 function ofAddLink(){ var d=LG.ofDraft; var name=((document.getElementById('of-name')||{}).value||'').trim(); var url=((document.getElementById('of-url')||{}).value||'').trim();
@@ -6151,7 +6158,7 @@ function renderCompanyDocs(){
 function soon(label){ lgSheet(label||'Скоро', '<div class="empty" style="padding:30px 10px">Этот раздел подключу на следующем шаге.</div>'); }
 function openStaffForm(isConsult, existing){
   var view=projected(LG.base, LG.queue);
-  var obj=(view.objects||[])[0]||''; var meta=(view.objMeta&&view.objMeta[obj])||{}; var spots=(meta.spots||[]);
+  var obj=curObj(view)||''; var meta=(view.objMeta&&view.objMeta[obj])||{}; var spots=(meta.spots||[]);
   var p=existing||{}; LG.staffEdit=existing||null; LG.staffConsult=isConsult;
   var title=(existing?'Редактировать ':'Добавить ')+(isConsult?'консультанта':'сотрудника');
   var pm=p.payMethod||(isConsult?'manual':'oklad');
@@ -6403,7 +6410,7 @@ function renderContractForm(){
 function contractApply(){
   var d=LG.contractDraft; if(!d) return;
   if(!canWriteLedger()){ toast('Недостаточно прав'); return; }
-  var view=projected(LG.base,LG.queue); var obj=(view.objects||[])[0]||'';
+  var view=projected(LG.base,LG.queue); var obj=curObj(view)||'';
   var meta=JSON.parse(JSON.stringify(view.objMeta||{})); meta[obj]=meta[obj]||{};
   var r=Object.assign({}, meta[obj].reqs||{});
   if(d.custName) r.zakazchik=d.custName;
@@ -6477,7 +6484,7 @@ function kpApply(){
   var d=LG.kpDraft; if(!d) return;
   var rates=(d.lines||[]).filter(function(l){return l.wtype&&Number(l.price)>0;}).map(function(l){return {wtype:String(l.wtype), rate:Number(l.price)||0};});
   if(!rates.length){ alert('Нет строк с видом и ценой'); return; }
-  var view=projected(LG.base,LG.queue); var obj=(view.objects||[])[0]||'';
+  var view=projected(LG.base,LG.queue); var obj=curObj(view)||'';
   var cur=((view.objMeta&&view.objMeta[obj]&&view.objMeta[obj].custRates)||[]);
   if(cur.length && !confirm('Заменить текущие ставки заказчика ('+cur.length+') распознанными ('+rates.length+')?')) return;
   var meta=JSON.parse(JSON.stringify(view.objMeta||{}));
@@ -6615,7 +6622,7 @@ function actDocSeed(a){
   a=a||{}; var view=projected(LG.base,LG.queue);
   var m3=Number(a.m3)||0, amt=Number(a.amount)||0;
   var price=(m3>0&&amt>0)?Math.round(amt/m3):'';
-  return { name:(a.title||'Строительно-монтажные работы'), qty:(m3>0?m3:''), unit:'м³', price:price, object:(view.objects||[])[0]||'' };
+  return { name:(a.title||'Строительно-монтажные работы'), qty:(m3>0?m3:''), unit:'м³', price:price, object:curObj(view)||'' };
 }
 function actMakeDoc(id){
   if(!canWriteLedger()){ toast('Документы — только для редакторов'); return; }
@@ -6911,8 +6918,8 @@ document.getElementById('app').addEventListener('click', function(e){
   var view=projected(LG.base, LG.queue);
   var cv=e.target.closest && e.target.closest('[data-cabview]'); if(cv){ openCabinetView(null); return; }
   var oc=e.target.closest && e.target.closest('[data-objcfg],[data-objstatus],[data-ks2],[data-ks3]');
-  if(oc){ var objN=(view.objects||[])[0]||''; if(oc.hasAttribute('data-ks2')) openKS2Builder(objN); else if(oc.hasAttribute('data-ks3')) openKS3Builder(objN); else if(oc.hasAttribute('data-objstatus')) toggleObjStatus(objN); else openObjConfig(objN); return; }
-  var oai=e.target.closest && e.target.closest('[data-objai]'); if(oai){ askAI('obj',(view.objects||[])[0]||''); return; }
+  if(oc){ var objN=curObj(view)||''; if(oc.hasAttribute('data-ks2')) openKS2Builder(objN); else if(oc.hasAttribute('data-ks3')) openKS3Builder(objN); else if(oc.hasAttribute('data-objstatus')) toggleObjStatus(objN); else openObjConfig(objN); return; }
+  var oai=e.target.closest && e.target.closest('[data-objai]'); if(oai){ askAI('obj',curObj(view)||''); return; }
   var an=e.target.closest && e.target.closest('[data-anai]'); if(an){ askAI('analytics'); return; }
   var sk2=e.target.closest && e.target.closest('[data-savedks2]'); if(sk2){ openSavedKS2(sk2.getAttribute('data-savedks2')); return; }
   var sk3=e.target.closest && e.target.closest('[data-savedks3]'); if(sk3){ openSavedKS3(sk3.getAttribute('data-savedks3')); return; }
@@ -6952,7 +6959,7 @@ function acceptAllPendingFor(bId){ var v=projected(LG.base,LG.queue);
 
 function openBrigadeDetail(b){
   var view=projected(LG.base, LG.queue); var ent=view.entries||[];
-  var obj=b.obj||(view.objects||[])[0]||''; var meta=(view.objMeta&&view.objMeta[obj])||{}; var spots=meta.spots||[];
+  var obj=b.obj||curObj(view)||''; var meta=(view.objMeta&&view.objMeta[obj])||{}; var spots=meta.spots||[];
   var vols=ent.filter(function(e){return e.type==='vol'&&e.brigade===b.id&&(Number(e.volume)||0)>0;}).sort(function(a,c){return String(c.date||'').localeCompare(String(a.date||''));});
   var pays=ent.filter(function(e){return e.type==='expense'&&e.brigade===b.id;}).sort(function(a,c){return String(c.date||'').localeCompare(String(a.date||''));});
   var totV=0,redoV=0,earned=0,earnedAcc=0,volPending=0; var pend=[];
@@ -7028,7 +7035,7 @@ function openBrigadeDetail(b){
 }
 function editBrigadeById(id){ var view=projected(LG.base,LG.queue); var b=(view.brigades||[]).find(function(x){return x.id===id;}); if(b){ lgCloseSheet(); openBrigade(b); } }
 function openForemanPremium(pid){
-  var view=projected(LG.base, LG.queue); var obj=(view.objects||[])[0]||'';
+  var view=projected(LG.base, LG.queue); var obj=curObj(view)||'';
   var rate=Math.round(((view.objMeta&&view.objMeta[obj]&&(view.objMeta[obj].custRates||[]).find(function(r){return r&&r.rate>0;}))||{rate:38437.76}).rate);
   // факт КС-2 этого месяца — принятый бетон
   var ym=new Date().toISOString().slice(0,7); var fact=0;
