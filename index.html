@@ -1281,7 +1281,7 @@ var LG = {
   version: 0,     // версия этого состояния
   queue: JSON.parse(store.get('lg2_queue')||'[]'),  // неотправленные события
   flushing:false, draft:{type:'expense'}, tab:'pulse', brigEdit:null,
-  sub:{ money:'pl', people:'brigades', pulse:'svodka' }, pfPeriod:'week', obj:''
+  sub:{ money:'pl', people:'brigades', pulse:'home' }, pfPeriod:'week', obj:''
 };
 function saveQueue(){ store.set('lg2_queue', JSON.stringify(LG.queue)); }
 /* Всплывающее уведомление. Раньше функции не было — все вызовы toast() молча пропадали. */
@@ -1355,6 +1355,7 @@ function flush(){
   .catch(function(e){ LG.flushing=false; setDot('err'); /* очередь сохранена, повторим позже */ });
 }
 function setTab(tab){ LG.tab=tab; render(); }
+function setSub(tab,id){ if(!LG.sub||typeof LG.sub!=='object') LG.sub={}; LG.sub[tab]=id; render(); }
 window.setTab=setTab;
 function lgId(prefix){ return (prefix||'e')+Date.now().toString(36)+Math.floor(Math.random()*1e4).toString(36); }
 /* Время создания записи: ts (метка клиента) или _at (штамп сервера). Старые записи — без времени. */
@@ -1499,23 +1500,47 @@ function render(){
   fab.style.display = canWriteLedger() ? 'flex' : 'none';
 }
 
+function pulseTiles(view){
+  var spc=(typeof spotStats==='function')?spotStats(view):[]; var spN=spc.length, spD=spc.filter(function(s){return s&&s.completed;}).length;
+  var T=[
+    ['tasks','📋','Мои задачи','что делать','var(--gold)',''],
+    ['svodka','📊','Сводка','прогноз · план','var(--teal)',''],
+    ['spots','🟦','Пятна','участки','var(--blue)', spN?(spD+'/'+spN):''],
+    ['months','📅','Месяцы','план по месяцам','var(--violet)',''],
+    ['flow','🌊','Поток','темп заливки','var(--teal)',''],
+    ['kfu','🚦','КФУ','5 факторов','var(--gold)',''],
+    ['constr','⛔','Ограничения','что мешает','var(--orange)',''],
+    ['ppc','📈','PPC','план/факт недели','var(--blue)',''],
+    ['cfg','⚙️','Настройки','цели · план','#b9c3d0','']
+  ];
+  return '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:6px">'
+    + T.map(function(t){ return '<button onclick="setSub(\'pulse\',\''+t[0]+'\')" style="background:var(--sur);border:1px solid var(--brd);border-radius:16px;padding:14px 6px 12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center;min-height:98px;justify-content:center;font-family:inherit;position:relative;overflow:hidden">'
+      + '<div style="position:absolute;top:0;left:0;right:0;height:3px;background:'+t[4]+'"></div>'
+      + '<div style="font-size:25px;line-height:1">'+t[1]+'</div>'
+      + (t[5]?'<div class="num" style="font-size:17px;font-weight:800;color:'+t[4]+';line-height:1">'+t[5]+'</div>':'')
+      + '<div style="font-size:13px;font-weight:700;color:'+t[4]+';line-height:1.15">'+t[2]+'</div>'
+      + '<div style="font-size:10.5px;color:var(--mut);line-height:1.15">'+t[3]+'</div></button>'; }).join('')
+    + '</div>';
+}
 function renderPulse(view, app){
-  var sub=LG.sub.pulse||'svodka';
-  var items=[{id:'tasks',label:'Мои задачи'},{id:'svodka',label:'Сводка'},{id:'months',label:'Месяцы'},{id:'spots',label:'Пятна'},{id:'flow',label:'Поток'},{id:'kfu',label:'КФУ'},{id:'constr',label:'Ограничения'},{id:'ppc',label:'PPC'},{id:'cfg',label:'⚙️'}];
+  var sub=LG.sub.pulse||'home';
   var h='<div style="display:flex;align-items:baseline;gap:8px;margin:2px 0 12px"><span style="font-size:26px">🔥</span><span style="font-size:24px;font-weight:800;color:var(--gold);letter-spacing:2px">ПУЛЬС</span></div>';
   h+=draftReviewCard(view);
   h+=openIssuesCard(view);
-  h+=subBar('pulse',items);
-  if(sub==='svodka'){     h+=pulseSvodka(view); h+=concreteDueCard(view); h+=pourPlanSection(view); h+=concreteQACard(view); }
-  else if(sub==='months') h+=pulseMonths(view);
-  else if(sub==='spots')  h+=pulseSpots(view);
-  else if(sub==='flow')   h+=pulseFlow(view);
-  else if(sub==='kfu')    h+=pulseKFU(view);
-  else if(sub==='tasks')  h+=pulseTasks(view);
-  else if(sub==='constr') h+=pulseConstr(view);
-  else if(sub==='ppc')    h+=pulsePPC(view);
-  else if(sub==='cfg')    h+=pulseCfg(view);
-  else h+='<div class="empty" style="padding:40px 16px">Раздел появится позже.</div>';
+  if(sub==='home'){ h+=pulseTiles(view); }
+  else {
+    h+='<button onclick="setSub(\'pulse\',\'home\')" style="background:transparent;border:1px solid var(--brd);color:var(--mut);border-radius:11px;padding:9px 14px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:12px;font-family:inherit">← Пульс</button>';
+    if(sub==='svodka'){     h+=pulseSvodka(view); h+=concreteDueCard(view); h+=pourPlanSection(view); h+=concreteQACard(view); }
+    else if(sub==='months') h+=pulseMonths(view);
+    else if(sub==='spots')  h+=pulseSpots(view);
+    else if(sub==='flow')   h+=pulseFlow(view);
+    else if(sub==='kfu')    h+=pulseKFU(view);
+    else if(sub==='tasks')  h+=pulseTasks(view);
+    else if(sub==='constr') h+=pulseConstr(view);
+    else if(sub==='ppc')    h+=pulsePPC(view);
+    else if(sub==='cfg')    h+=pulseCfg(view);
+    else h+='<div class="empty" style="padding:40px 16px">Раздел появится позже.</div>';
+  }
   h+=pulseDash(view);
   app.innerHTML=h;
 }
