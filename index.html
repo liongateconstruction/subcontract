@@ -3463,7 +3463,7 @@ function renderObjects(view, app){
   var meta=(view.objMeta&&view.objMeta[obj])||{};
   var customer=meta.customer||'—';
   var rateL=(meta.custRates||[]).filter(function(r){return r&&r.rate>0;});
-  var rate=rateL.length?rateL[0].rate:38437.76;
+  var rate=rateL.length?rateL[0].rate:0;
   var spots=spotStats(view);
   var pe=profitEngine(view,obj);
   var debt=pe.revenue-(customerPaid?customerPaid(view):0);
@@ -3488,7 +3488,7 @@ function renderObjects(view, app){
 
   // ── Карточка объекта
   h+='<div class="ledger" style="border-color:var(--gold)">';
-  h+='<div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:14px"><div style="font-size:30px;flex:none">🏗️</div><div><div style="font-size:22px;font-weight:800;line-height:1.1">'+esc(obj.replace(', ',',\n'))+'</div><div style="font-size:14px;color:var(--mut);margin-top:6px">Заказчик: <span style="color:var(--green);font-weight:700">'+esc(customer)+'</span></div><div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">'+fmt0(rate)+' ₸/м³</div></div></div>';
+  h+='<div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:14px"><div style="font-size:30px;flex:none">🏗️</div><div><div style="font-size:22px;font-weight:800;line-height:1.1">'+esc(obj.replace(', ',',\n'))+'</div><div style="font-size:14px;color:var(--mut);margin-top:6px">Заказчик: <span style="color:var(--green);font-weight:700">'+esc(customer)+'</span></div><div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">'+(rate>0?fmt0(rate)+' ₸/м³':'— ставка не задана')+'</div></div></div>';
 
   // Деньги по объекту
   h+='<div style="background:var(--bg);border-radius:12px;padding:14px;margin-bottom:12px">';
@@ -3619,7 +3619,8 @@ function kshort(n){ n=Math.round(Number(n)||0); var a=Math.abs(n);
 
 function renderMoney(view, app){
   var sub=LG.sub.money||'pl';
-  var h=draftReviewCard(view)+subBar('money',[{id:'pl',label:'P&L'},{id:'flow',label:'Поток'},{id:'balance',label:'Баланс'}]);
+  var h=draftReviewCard(view)+subBar('money',[{id:'pl',label:'Прибыль'},{id:'flow',label:'Поток'},{id:'balance',label:'Баланс'}]);
+  h+=moneyCashStrip(view);
   if(canAdvise()){ var _mq='Проанализируй деньги компании: касса, кассовый разрыв, дебиторка (неоплаченные акты), на что хватает и что срочно сделать. Кратко, с цифрами.';
     h+='<button onclick="askQuick('+JSON.stringify(_mq).replace(/"/g,'&quot;')+')" style="width:100%;margin:2px 0 14px;background:rgba(167,139,250,.12);border:1px solid var(--violet);color:var(--violet);border-radius:11px;padding:12px;font-size:14px;font-weight:700;cursor:pointer">🤖 Совет по деньгам от ИИ</button>'; }
   if(sub==='flow')        h += moneyFlow(view);
@@ -3628,6 +3629,22 @@ function renderMoney(view, app){
   app.innerHTML=h;
 }
 function mSecH(t){ return '<div style="font-size:12px;color:var(--mut);letter-spacing:1.5px;font-weight:800;margin:20px 2px 11px">'+t+'</div>'; }
+function moneyCashStrip(view){
+  var cash=(calcCo(view).cash)||0; var run=runwayDays(view);
+  var paidAll=(typeof customerPaid==='function')?customerPaid(view):0;
+  var billedAll=0; (view.ks2acts||[]).forEach(function(a){ if(!a)return; var rq=(typeof objReqs==='function')?objReqs(view,a.obj):{}; var rp=Number(rq&&rq.retPct)||0; billedAll+=(Number(a.total)||0)*(1-rp/100); });
+  var debtor=Math.max(0, Math.round(billedAll-paidAll));
+  var oblig=(view.obligations||[]).filter(function(o){return o&&o.status==='open';}).reduce(function(s,o){return s+(Number(o.amount)||0);},0);
+  var cashC=cash<500000?'var(--red)':'var(--green)';
+  var runC=run<=3?'var(--red)':(run<14?'var(--orange)':'var(--green)');
+  function cellM(lbl,val,col){ return '<div style="flex:1;min-width:0;background:var(--sur);border:1px solid var(--brd);border-radius:12px;padding:10px 6px;text-align:center"><div class="num" style="font-size:16px;font-weight:800;color:'+col+';white-space:nowrap">'+val+'</div><div style="font-size:10px;color:var(--mut);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+lbl+'</div></div>'; }
+  return '<div style="display:flex;gap:7px;margin:2px 0 14px">'
+    + cellM('💰 Касса', aK(cash), cashC)
+    + cellM('💧 Запас', run+' дн', runC)
+    + cellM('🏛 Дебиторка', aK(debtor), 'var(--gold)')
+    + cellM('📌 Обязат.', aK(oblig), 'var(--violet)')
+    + '</div>';
+}
 function moneyPL(view){
   var mO=profitEngine(view,null), mD=marginDirect(view);
   var now=new Date(), ym=now.toISOString().slice(0,7), mn=now.getMonth()+1;
