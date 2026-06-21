@@ -819,7 +819,7 @@ function autoSalaryToDate(p, now){ if(!isSalaried(p)) return 0; now=now||new Dat
     if(sE>=sS){ var w=_wdBetween(sS,sE),wm=_wdInMonth(y,m); if(wm>0)total+=Math.round((+p.rate)*w/wm); }
     cur.setMonth(cur.getMonth()+1); }
   return total; }
-function staffBal(p){ var a=0,b=0,pay=0,pen=0; (p.ledger||[]).forEach(function(m){ var v=+m.amount||0; if(m.kind==='acc')a+=v; else if(m.kind==='bon')b+=v; else if(m.kind==='pay')pay+=v; else if(m.kind==='pen')pen+=v; }); var auto=autoSalaryToDate(p); a+=auto; return {acc:a,bon:b,pay:pay,pen:pen,auto:auto,rest:a+b-pay-pen}; }
+function staffBal(p){ var a=0,b=0,pay=0,pen=0; (p.ledger||[]).forEach(function(m){ var v=+m.amount||0; if(m.kind==='acc')a+=v; else if(m.kind==='bon'||m.kind==='bonus')b+=v; else if(m.kind==='pay')pay+=v; else if(m.kind==='pen')pen+=v; }); var auto=autoSalaryToDate(p); a+=auto; return {acc:a,bon:b,pay:pay,pen:pen,auto:auto,rest:a+b-pay-pen}; }
 // Выплаты сотруднику/консультанту, сделанные через форму «Выплата» (привязка forStaffId).
 // Баланс человека считается ОТ этих записей → правка/удаление выплаты сразу меняют «к выдаче».
 function staffFormPaid(view, id){ return (view.entries||[]).reduce(function(s,e){ return (e&&e.type==='payout'&&e.forStaffId===id)?s+(Number(e.amount)||0):s; }, 0); }
@@ -3971,7 +3971,7 @@ function printPayroll(){
 }
 function printPayslip(id){
   var view=projected(LG.base,LG.queue); var raw=(view.staff||[]).find(function(x){return x&&x.id===id;}); if(!raw){ toast('Сотрудник не найден'); return; }
-  var bb=staffBal(raw); var par=(typeof calcPar==='function')?calcPar(view, raw.name):{}; var hold=Math.round((par&&par.onHands)||0);
+  var bb=staffBal(raw); var _fpPay=staffFormPaid(view, raw.id); bb.pay+=_fpPay; bb.rest-=_fpPay; var par=(typeof calcPar==='function')?calcPar(view, raw.name):{}; var hold=Math.round((par&&par.onHands)||0);
   var obj=(view.objects||[])[0]||''; var today=new Date().toLocaleDateString('ru-RU');
   function r(k,v,strong){ return '<tr><td style="padding:8px 10px;border:1px solid #ccc">'+k+'</td><td style="padding:8px 10px;border:1px solid #ccc;text-align:right'+(strong?';font-weight:bold;font-size:15px':'')+'">'+fmt0(v)+' ₸</td></tr>'; }
   var doc='<div style="font-family:Arial,sans-serif;color:#000;background:#fff;padding:18px;max-width:560px;margin:0 auto;font-size:13px">'
