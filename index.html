@@ -1956,7 +1956,7 @@ function pulseDash(view, homeOnly){
   var daysLeft=Math.ceil((new Date(c.year||2026,11,31)-now)/864e5);
   h+='<div style="background:linear-gradient(135deg,rgba(240,165,0,.10),var(--bg));border:1.5px solid var(--gold);border-radius:16px;padding:16px;margin:14px 0"><div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><div style="font-size:28px">🎯</div><div style="flex:1"><div style="font-size:15px;color:var(--gold);font-weight:800">ЦЕЛЬ '+(c.year||2026)+': '+fmt0(profitTarget/1e6)+' млн ₸</div><div style="font-size:12px;color:var(--mut);margin-top:2px">прибыль · '+daysLeft+' дней до конца года</div></div><div style="font-size:19px;color:'+gc+';font-weight:800">'+Math.round(goalPct)+'%</div></div>'
     +'<div style="background:var(--bg);border-radius:6px;height:8px;overflow:hidden"><div style="background:linear-gradient(90deg,'+gc+',var(--gold));height:100%;width:'+Math.max(1,goalPct).toFixed(1)+'%"></div></div>'
-    +'<div style="display:flex;justify-content:space-between;margin-top:10px;font-size:12px"><span style="color:var(--mut)">факт: <b style="color:'+(profitNow>=0?'var(--green)':'var(--red)')+'">'+kshort(profitNow)+' ₸</b></span><span style="color:var(--mut)">каждому: <b style="color:var(--gold)">'+kshort(profitTarget/5)+' ₸</b></span></div>'
+    +'<div style="display:flex;justify-content:space-between;margin-top:10px;font-size:12px"><span style="color:var(--mut)">факт: <b style="color:'+(profitNow>=0?'var(--green)':'var(--red)')+'">'+kshort(profitNow)+' ₸</b></span><span style="color:var(--mut)">каждому: <b style="color:var(--gold)">'+kshort(profitTarget/(((view.roles||[]).map(function(r){return r.name;}).filter(Boolean).length)||5))+' ₸</b></span></div>'
     +'<div style="font-size:13px;color:var(--mut);margin-top:8px;text-align:center;border-top:1px solid var(--brd);padding-top:8px">🦁 До 1 МЛРД $ к 2030 — шаг за шагом →</div></div>';
   }
   return h;
@@ -3303,7 +3303,7 @@ function renderPartners(view, app){
 
   // ── 4. РАСПРЕДЕЛЕНИЕ ПРИБЫЛИ (касса)
   var monoGoal=600000000; (planCfg(view).dirs||[]).forEach(function(dd){ if(dd.kind==='mono') monoGoal=dd.goal||monoGoal; });
-  var perP=companyProfit*0.2, goalPer=monoGoal/partners.length;
+  var perP=companyProfit*(share/100), goalPer=monoGoal/partners.length;
   var pc=companyProfit>=0?'var(--green)':'var(--red)';
   h+='<div class="ledger" style="border-color:var(--gold)">';
   h+='<div style="font-size:13px;color:var(--gold);letter-spacing:2px;font-weight:800;margin-bottom:4px">💎 РАСПРЕДЕЛЕНИЕ ПРИБЫЛИ</div>';
