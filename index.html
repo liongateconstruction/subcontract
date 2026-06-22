@@ -4036,7 +4036,53 @@ function moneyBalance(view){
 }
 
 
+// ── Ручное объединение бригад (если одни люди записаны как разные бригады) ──
+var MERGE=null;
+function activeBrigList(view){ return (view.brigades||[]).filter(function(b){return b&&!isArchivedBrig(b);}); }
+var BMERGE={
+  open:function(){ MERGE={keep:'', drop:{}}; render(); },
+  cancel:function(){ MERGE=null; render(); },
+  setKeep:function(id){ if(!MERGE)return; MERGE.keep=id; if(MERGE.drop[id]) delete MERGE.drop[id]; render(); },
+  toggle:function(id){ if(!MERGE||id===MERGE.keep)return; MERGE.drop[id]=!MERGE.drop[id]; render(); },
+  save:function(){ if(!MERGE||!MERGE.keep)return; var drops=Object.keys(MERGE.drop).filter(function(k){return MERGE.drop[k];}); if(!drops.length)return; lgMergeInto(MERGE.keep, drops); }
+};
+function lgMergeInto(keepId, dropIds){
+  if(!canWriteLedger()){ toast('Только владелец/учётчица'); return; }
+  var view=projected(LG.base,LG.queue);
+  var keep=(view.brigades||[]).find(function(b){return b&&b.id===keepId;}); if(!keep){ toast('Бригада не найдена'); return; }
+  var evs=[], cntN=0, cntM=0;
+  dropIds.forEach(function(id){ if(id===keepId)return;
+    (view.entries||[]).forEach(function(e){ if(e&&e.brigade===id){ evs.push({kind:'entry.edit', entryId:e.id, payload:{brigade:keepId}}); cntN++; if(e.type==='vol') cntM+=Number(e.volume)||0; } });
+    evs.push({kind:'brigade.archive', entryId:id});
+  });
+  var keepNm=String(keep.name||'').replace(/^Бригада\s*/i,'');
+  if(typeof confirm==='function' && !confirm('Объединить '+dropIds.length+' бриг. в «'+keepNm+'»?\n\nПеренесём '+cntN+' записей ('+fmt0(Math.round(cntM))+' м³). Влитые бригады уйдут в архив — данные не потеряются.')) return;
+  if(typeof emitMany==='function') emitMany(evs); else evs.forEach(function(e){ emit(e); });
+  MERGE=null; toast('Объединено в «'+keepNm+'»'); render();
+}
+function mergeEditorHTML(view){
+  var act=activeBrigList(view); var keep=MERGE.keep;
+  var dropIds=Object.keys(MERGE.drop).filter(function(k){return MERGE.drop[k];}); var moveN=0;
+  dropIds.forEach(function(id){ moveN+=brigEntryCount(view,id).n; });
+  var keepNm=keep?String((act.find(function(b){return b.id===keep;})||{}).name||'').replace(/^Бригада\s*/i,''):'';
+  var h='<div style="display:flex;align-items:baseline;gap:8px;margin:2px 0 6px"><span style="font-size:24px">🔀</span><span style="font-size:22px;font-weight:800;color:var(--gold)">ОБЪЕДИНИТЬ БРИГАДЫ</span></div>';
+  h+='<div style="font-size:12px;color:var(--mut);margin:0 2px 16px;line-height:1.5">Если одни и те же люди записаны как разные бригады. Выбери главную и какие в неё влить — заливки и расходы перенесутся, влитые уйдут в архив (данные не потеряются).</div>';
+  h+='<div style="font-size:12px;color:var(--gold);font-weight:700;letter-spacing:1px;margin:0 2px 8px">1 · ГЛАВНАЯ — КУДА ПЕРЕНОСИМ</div>';
+  act.forEach(function(b){ var id=b.id, nm=esc((b.name||'').replace(/^Бригада\s*/i,'')); var sel=keep===id;
+    h+='<button onclick="BMERGE.setKeep(\''+esc(id)+'\')" style="width:100%;text-align:left;background:'+(sel?'rgba(255,179,32,.12)':'var(--sur)')+';border:1.5px solid '+(sel?'var(--gold)':'var(--brd)')+';border-radius:12px;padding:13px;margin-bottom:8px;cursor:pointer;font-family:inherit;color:var(--fg);display:flex;justify-content:space-between;align-items:center"><span style="font-size:15px;font-weight:700">'+nm+'</span><span style="font-size:12px;color:'+(sel?'var(--gold)':'var(--mut)')+'">'+(sel?'✓ главная':(b.workers||0)+' чел')+'</span></button>';
+  });
+  if(keep){ h+='<div style="font-size:12px;color:var(--gold);font-weight:700;letter-spacing:1px;margin:16px 2px 8px">2 · ВЛИТЬ В «'+esc(keepNm).toUpperCase()+'»</div>';
+    act.filter(function(b){return b.id!==keep;}).forEach(function(b){ var id=b.id, nm=esc((b.name||'').replace(/^Бригада\s*/i,'')); var on=!!MERGE.drop[id]; var ec=brigEntryCount(view,id);
+      h+='<button onclick="BMERGE.toggle(\''+esc(id)+'\')" style="width:100%;text-align:left;background:'+(on?'rgba(45,212,191,.10)':'var(--sur)')+';border:1.5px solid '+(on?'var(--teal)':'var(--brd)')+';border-radius:12px;padding:13px;margin-bottom:8px;cursor:pointer;font-family:inherit;color:var(--fg);display:flex;justify-content:space-between;align-items:center"><span style="font-size:15px;font-weight:700;color:'+(on?'var(--teal)':'var(--fg)')+'">'+(on?'☑ ':'☐ ')+nm+'</span><span style="font-size:12px;color:var(--mut)">'+ec.n+' зап.</span></button>';
+    });
+  }
+  if(keep && dropIds.length) h+='<div style="font-size:13px;color:var(--teal);margin:12px 2px;text-align:center">Перенесём '+moveN+' записей в «'+esc(keepNm)+'»</div>';
+  var ready=keep&&dropIds.length;
+  h+='<div style="display:flex;gap:10px;margin-top:14px"><button onclick="BMERGE.cancel()" style="flex:1;background:var(--sur);border:1px solid var(--brd);color:var(--fg);border-radius:12px;padding:13px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit">Отмена</button><button onclick="BMERGE.save()" '+(ready?'':'disabled')+' style="flex:2;background:'+(ready?'var(--gold)':'var(--sur2)')+';border:0;color:'+(ready?'#0a0d12':'var(--mut)')+';border-radius:12px;padding:13px;font-size:15px;font-weight:800;cursor:'+(ready?'pointer':'default')+';font-family:inherit">Объединить</button></div>';
+  return h;
+}
 function renderPeople(view, app){
+  if(MERGE){ app.innerHTML=mergeEditorHTML(view); return; }
   var sub=LG.sub.people||'brigades';
   var h=subBar('people',[{id:'brigades',label:'Бригады'},{id:'staff',label:'Сотрудники'},{id:'consult',label:'Консультанты'}]);
   if(canAdvise()){ var _pq='Проанализируй команду и зарплаты: перерасход на труд, авансы и долги сотрудников, эффективность бригад. Что оптимизировать? Кратко, с цифрами.';
@@ -4116,10 +4162,8 @@ function brigRatingBlock(view){
   var rows=(view.brigades||[]).filter(function(b){return b&&!b.archivedAt;}).map(function(b){
     var vol=0,earned=0,days={},stageVol={},wtypeVol={}; (view.entries||[]).forEach(function(e){ if(!e||e.type!=='vol'||e.brigade!==b.id||!e.date||e.date<from)return; var vv=Number(e.volume)||0; vol+=vv; earned+=entryAmount(b,e); days[e.date]=true; if(e.stage)stageVol[e.stage]=(stageVol[e.stage]||0)+vv; if(e.wtype)wtypeVol[e.wtype]=(wtypeVol[e.wtype]||0)+vv; });
     var workDays=Object.keys(days).length;
-    // чел-дни: явка по бригаде если есть, иначе численность × рабочие дни
-    var manDays=0, ab=view.attendanceB||{};
-    Object.keys(ab).forEach(function(d){ if(d<from)return; if(ab[d]&&ab[d][b.id]!=null) manDays+=Number(ab[d][b.id])||0; });
-    if(manDays<=0) manDays=(Number(b.workers)||0)*workDays;
+    // чел-дни = численность бригады (из карточки) × дни заливок — просто и проверяемо
+    var manDays=(Number(b.workers)||0)*workDays;
     var perMD=manDays>0?vol/manDays:0;
     var stageK=Object.keys(stageVol).sort(function(a,c){return stageVol[c]-stageVol[a];});
     var wtypeK=Object.keys(wtypeVol).sort(function(a,c){return wtypeVol[c]-wtypeVol[a];});
@@ -4128,15 +4172,17 @@ function brigRatingBlock(view){
     return {name:(b.name||'?').replace(/^Бригада\s*/,''), vol:vol, workers:Number(b.workers)||0, workDays:workDays, perMD:perMD, perMoneyMD:perMoneyMD, work:work};
   }).filter(function(r){return r.vol>0;}).sort(function(a,b){return b.perMD-a.perMD;});
   if(!rows.length) return '';
-  var max=rows[0].perMD||1;
-  var h='<div class="ledger"><div style="font-size:13px;color:var(--mut);letter-spacing:2px;font-weight:800;margin-bottom:2px">🏆 РЕЙТИНГ БРИГАД · 30 ДН</div>';
-  h+='<div style="font-size:12px;color:var(--mut);margin-bottom:12px">производительность м³ на человека в день · зависит от вида работ</div>';
   var seesM=(canWriteLedger()||(LG.role||'').indexOf('partner_')===0);
+  var moneyMode=seesM && rows.some(function(r){return r.perMoneyMD>0;});
+  rows.sort(function(a,b){ return moneyMode ? (b.perMoneyMD-a.perMoneyMD) : (b.perMD-a.perMD); });
+  var max=(moneyMode?rows[0].perMoneyMD:rows[0].perMD)||1;
+  var h='<div class="ledger"><div style="font-size:13px;color:var(--mut);letter-spacing:2px;font-weight:800;margin-bottom:2px">🏆 РЕЙТИНГ БРИГАД · 30 ДН</div>';
+  h+='<div style="font-size:12px;color:var(--mut);margin-bottom:12px">'+(moneyMode?'выработка ₸ на человека в день · сравнимо между видами работ':'производительность м³ на человека в день · зависит от вида работ')+'</div>';
   rows.forEach(function(r,i){ var medal=i===0?'🥇':(i===1?'🥈':(i===2?'🥉':(i+1)+'.')); var col=i===0?'var(--green)':'var(--teal)';
-    h+='<div style="margin-bottom:11px"><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px"><span style="font-size:14px;font-weight:700">'+medal+' '+esc(r.name)+'</span><span class="num" style="font-size:15px;font-weight:800;color:'+col+'">'+fmtD(Math.round(r.perMD*100)/100)+' <span style="font-size:11px;color:var(--mut);font-weight:400">м³/чел·день</span></span></div>';
+    h+='<div style="margin-bottom:11px"><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px"><span style="font-size:14px;font-weight:700">'+medal+' '+esc(r.name)+'</span><span class="num" style="font-size:15px;font-weight:800;color:'+col+'">'+(moneyMode?(fmt0(Math.round(r.perMoneyMD))+' <span style="font-size:11px;color:var(--mut);font-weight:400">₸/чел·день</span>'):(fmtD(Math.round(r.perMD*100)/100)+' <span style="font-size:11px;color:var(--mut);font-weight:400">м³/чел·день</span>'))+'</span></div>';
     if(r.work) h+='<div style="font-size:11px;color:var(--teal);margin-bottom:5px">🛠 '+esc(r.work)+'</div>';
-    h+='<div style="height:8px;background:var(--sur2);border-radius:4px;overflow:hidden"><div style="height:100%;width:'+Math.max(5,Math.round(r.perMD/max*100))+'%;background:'+col+';border-radius:4px"></div></div>';
-    h+='<div style="font-size:11px;color:var(--mut);margin-top:3px">'+fmtD(r.vol)+' м³ · '+r.workers+' чел · заливок в '+r.workDays+' дн</div>'+((seesM&&r.perMoneyMD>0)?('<div style="font-size:11px;color:var(--green);margin-top:2px">≈ '+fmt0(r.perMoneyMD)+' ₸/чел·день <span style="color:var(--mut)">— в деньгах, сравнимо между этапами</span></div>'):'')+'</div>'; });
+    h+='<div style="height:8px;background:var(--sur2);border-radius:4px;overflow:hidden"><div style="height:100%;width:'+Math.max(5,Math.round((moneyMode?r.perMoneyMD:r.perMD)/max*100))+'%;background:'+col+';border-radius:4px"></div></div>';
+    h+='<div style="font-size:11px;color:var(--mut);margin-top:3px">'+fmtD(r.vol)+' м³ · '+r.workers+' чел · заливок в '+r.workDays+' дн</div>'+(moneyMode?('<div style="font-size:11px;color:var(--teal);margin-top:2px">≈ '+fmtD(Math.round(r.perMD*100)/100)+' м³/чел·день <span style="color:var(--mut)">— сырой объём, зависит от этапа</span></div>'):((seesM&&r.perMoneyMD>0)?('<div style="font-size:11px;color:var(--green);margin-top:2px">≈ '+fmt0(r.perMoneyMD)+' ₸/чел·день <span style="color:var(--mut)">— в деньгах, сравнимо между этапами</span></div>'):''))+'</div>'; });
   h+='</div>';
   return h;
 }
@@ -4199,6 +4245,7 @@ function peopleBrigades(view){
   var monthName=now.toLocaleString('ru-RU',{month:'long'});
 
   var h='<div class="shdr" style="display:flex;justify-content:space-between;align-items:center;margin:6px 0 12px"><h2 style="margin:0;font-size:24px;color:var(--gold)">👷 БРИГАДЫ</h2>'+(canWrite?'<button id="fab-brig" onclick="openBrigade(null)" class="fedit" style="background:rgba(240,165,0,.12);border:1px solid var(--gold);color:var(--gold);border-radius:10px;padding:9px 14px;font-weight:700">+ Бригада</button>':'')+'</div>';
+  if(canWrite && activeBrigList(view).length>=2) h+='<button onclick="BMERGE.open()" style="background:transparent;border:1px solid var(--brd);color:var(--mut);border-radius:10px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer;margin:-2px 0 12px;font-family:inherit">🔀 Объединить бригады</button>';
 
   // ── КФУ №1 ТЕМП ЗАЛИВКИ
   var weekPct=weekTarget>0?Math.min(150,Math.round(fact/weekTarget*100)):0;
