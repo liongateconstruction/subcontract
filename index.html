@@ -3203,7 +3203,55 @@ function lgPartnersLead(partners,PC,share){
   h+='<div style="font-size:11px;color:var(--mut);text-align:center;margin-top:12px">Совладельцы · доли равные · '+partners.length+' × '+Math.round(share)+'%</div></div>';
   return h;
 }
+// ── Управление партнёрами: добавить / переименовать / доли / архив (через meta.set roles) ──
+var EDP=null;
+function partnerShare(view, name){ var rs=(view.roles||[]).filter(function(r){return r&&!r.archived&&r.name;}); var me=rs.find(function(r){return r.name===name;}); if(me&&typeof me.share==='number') return me.share; var n=rs.length||1; return Math.round(100/n*100)/100; }
+var PMAN={
+  open:function(){ var v=projected(LG.base,LG.queue); var rs=(v.roles||[]).slice();
+    if(!rs.length) rs=PARTNERS.map(function(n,i){return {name:n,order:(i+1)*10};});
+    var act=rs.filter(function(r){return r&&!r.archived;}).length||1; var eq=Math.round(100/act*100)/100;
+    EDP={ rows: rs.map(function(r){ return {name:r.name||'', share:(typeof r.share==='number'?r.share:eq), archived:!!r.archived, _orig:r}; }), _err:'' };
+    render();
+  },
+  cancel:function(){ EDP=null; render(); },
+  add:function(){ if(!EDP)return; EDP.rows.push({name:'', share:0, archived:false, _new:true}); EDP._err=''; render(); },
+  arch:function(i){ if(EDP&&EDP.rows[i]){ EDP.rows[i].archived=!EDP.rows[i].archived; EDP._err=''; render(); } },
+  setName:function(i,v){ if(EDP&&EDP.rows[i]){ EDP.rows[i].name=v; EDP._err=''; } },
+  setShare:function(i,v){ if(EDP&&EDP.rows[i]){ EDP.rows[i].share=v; EDP._err=''; } },
+  equalize:function(){ if(!EDP)return; var act=EDP.rows.filter(function(r){return !r.archived&&(r.name||'').trim();}); var eq=act.length?Math.round(100/act.length*100)/100:0; EDP.rows.forEach(function(r){ if(!r.archived&&(r.name||'').trim()) r.share=eq; }); EDP._err=''; render(); },
+  save:function(){ if(!EDP)return;
+    var rows=EDP.rows.filter(function(r){return (r.name||'').trim();});
+    var act=rows.filter(function(r){return !r.archived;});
+    if(!act.length){ EDP._err='Нужен хотя бы один активный партнёр'; render(); return; }
+    var nm=act.map(function(r){return r.name.trim();}); var dup=nm.find(function(n,i){return nm.indexOf(n)!==i;}); if(dup){ EDP._err='Повтор имени: '+dup; render(); return; }
+    var roles=rows.map(function(r,i){ var o=Object.assign({}, r._orig||{}); o.name=r.name.trim(); o.order=(i+1)*10; o.archived=!!r.archived; var sh=parseFloat(r.share); o.share=isNaN(sh)?0:Math.round(sh*100)/100; delete o._orig; delete o._new; return o; });
+    emit({kind:'meta.set', key:'roles', value:roles});
+    EDP=null; render();
+  }
+};
+function partnerEditorHTML(){
+  var rows=EDP.rows;
+  var sum=rows.filter(function(r){return !r.archived&&(r.name||'').trim();}).reduce(function(s,r){var x=parseFloat(r.share);return s+(isNaN(x)?0:x);},0);
+  sum=Math.round(sum*100)/100; var sumOk=Math.abs(sum-100)<0.5;
+  var h='<div style="display:flex;align-items:baseline;gap:8px;margin:2px 0 6px"><span style="font-size:24px">👥</span><span style="font-size:22px;font-weight:800;color:var(--gold)">СОСТАВ И ДОЛИ</span></div>';
+  h+='<div style="font-size:12px;color:var(--mut);margin:0 2px 16px;line-height:1.5">Добавляй и переименовывай партнёров, задавай доли вручную. Сумма активных долей должна быть 100%.</div>';
+  rows.forEach(function(r,i){ var arch=r.archived;
+    h+='<div style="background:var(--sur);border:1px solid var(--brd);border-radius:14px;padding:12px;margin-bottom:10px;'+(arch?'opacity:.55':'')+'">'
+      +'<div style="display:flex;gap:8px;align-items:center">'
+      +'<input value="'+esc(r.name)+'" oninput="PMAN.setName('+i+',this.value)" placeholder="Имя партнёра" style="flex:1;min-width:0;background:var(--bg);border:1px solid var(--brd);border-radius:10px;padding:11px;color:var(--fg);font-size:15px;font-family:inherit">'
+      +'<div style="display:flex;align-items:center;gap:3px;background:var(--bg);border:1px solid var(--brd);border-radius:10px;padding:0 10px"><input value="'+esc(String(r.share))+'" oninput="PMAN.setShare('+i+',this.value)" inputmode="decimal" '+(arch?'disabled':'')+' style="width:42px;background:transparent;border:0;padding:11px 0;color:var(--gold);font-size:15px;font-weight:700;text-align:right;font-family:inherit"><span style="color:var(--mut);font-size:14px">%</span></div>'
+      +'<button onclick="PMAN.arch('+i+')" style="background:transparent;border:1px solid '+(arch?'var(--green)':'var(--red)')+';color:'+(arch?'var(--green)':'var(--red)')+';border-radius:10px;padding:10px 11px;font-size:15px;cursor:pointer;flex:none">'+(arch?'↩':'🗄')+'</button>'
+      +'</div>'+(arch?'<div style="font-size:11px;color:var(--mut);margin-top:6px">в архиве — скрыт из выплат и распределения</div>':'')+'</div>';
+  });
+  h+='<button onclick="PMAN.add()" style="width:100%;background:var(--sur2);border:1px dashed var(--brd);color:var(--fg);border-radius:12px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:12px;font-family:inherit">➕ Добавить партнёра</button>';
+  h+='<div style="display:flex;justify-content:space-between;align-items:center;background:var(--sur2);border:1px solid '+(sumOk?'var(--green)':'var(--red)')+';border-radius:12px;padding:12px 14px;margin-bottom:8px"><span style="font-size:13px;color:var(--mut)">Сумма долей</span><span class="num" style="font-size:18px;font-weight:800;color:'+(sumOk?'var(--green)':'var(--red)')+'">'+sum+'%</span></div>';
+  if(!sumOk) h+='<div style="font-size:12px;color:var(--red);margin:0 2px 10px;text-align:center">Должно быть 100%. <a onclick="PMAN.equalize()" style="color:var(--gold);cursor:pointer;text-decoration:underline">Поделить поровну</a></div>';
+  if(EDP._err) h+='<div style="font-size:13px;color:var(--red);margin:0 2px 10px;text-align:center">'+esc(EDP._err)+'</div>';
+  h+='<div style="display:flex;gap:10px;margin-top:6px"><button onclick="PMAN.cancel()" style="flex:1;background:var(--sur);border:1px solid var(--brd);color:var(--fg);border-radius:12px;padding:13px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit">Отмена</button><button onclick="PMAN.save()" style="flex:2;background:var(--gold);border:0;color:#0a0d12;border-radius:12px;padding:13px;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit">Сохранить</button></div>';
+  return h;
+}
 function renderPartners(view, app){
+  if(EDP){ app.innerHTML=partnerEditorHTML(); return; }
   var O=partnersOverview(view);
   var partners=(view.roles||[]).map(function(r){return r.name;}).filter(Boolean);
   if(!partners.length) partners=['Дмитрий','Бекжан','Евгений','Нурсултан','Сергей'];
@@ -3303,12 +3351,14 @@ function renderPartners(view, app){
 
   // ── 4. РАСПРЕДЕЛЕНИЕ ПРИБЫЛИ (касса)
   var monoGoal=600000000; (planCfg(view).dirs||[]).forEach(function(dd){ if(dd.kind==='mono') monoGoal=dd.goal||monoGoal; });
+  var customShares=(view.roles||[]).some(function(r){return r&&!r.archived&&typeof r.share==='number';});
   var perP=companyProfit*(share/100), goalPer=monoGoal/partners.length;
   var pc=companyProfit>=0?'var(--green)':'var(--red)';
+  h+='<button onclick="PMAN.open()" style="width:100%;background:var(--sur2);border:1px solid var(--brd);color:var(--fg);border-radius:12px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;margin:6px 0 12px;font-family:inherit">⚙️ Состав и доли партнёров</button>';
   h+='<div class="ledger" style="border-color:var(--gold)">';
   h+='<div style="font-size:13px;color:var(--gold);letter-spacing:2px;font-weight:800;margin-bottom:4px">💎 РАСПРЕДЕЛЕНИЕ ПРИБЫЛИ</div>';
-  h+='<div style="font-size:12px;color:var(--mut);margin-bottom:14px">каждому партнёру по '+Math.round(share)+'%</div>';
-  h+='<div style="display:flex;justify-content:space-between;align-items:center;background:var(--sur2);border-radius:12px;padding:13px;margin-bottom:10px"><div><div style="font-size:12px;color:var(--mut)">Прибыль сейчас</div><div style="font-size:19px;font-weight:800;color:'+pc+'">'+(companyProfit<0?'−':'')+fmt0(Math.abs(companyProfit))+' ₸</div></div><div style="text-align:right"><div style="font-size:12px;color:var(--mut)">каждому ('+Math.round(share)+'%)</div><div style="font-size:19px;font-weight:800;color:'+pc+'">'+(perP<0?'−':'')+fmt0(Math.abs(Math.round(perP)))+' ₸</div></div></div>';
+  h+='<div style="font-size:12px;color:var(--mut);margin-bottom:14px">'+(customShares?'по индивидуальным долям (см. ниже)':'каждому партнёру по '+Math.round(share)+'%')+'</div>';
+  h+='<div style="display:flex;justify-content:space-between;align-items:center;background:var(--sur2);border-radius:12px;padding:13px;margin-bottom:10px"><div><div style="font-size:12px;color:var(--mut)">Прибыль сейчас</div><div style="font-size:19px;font-weight:800;color:'+pc+'">'+(companyProfit<0?'−':'')+fmt0(Math.abs(companyProfit))+' ₸</div></div><div style="text-align:right">'+(customShares?'<div style="font-size:12px;color:var(--mut)">распределение</div><div style="font-size:15px;font-weight:700;color:var(--gold)">по долям ↓</div>':'<div style="font-size:12px;color:var(--mut)">каждому ('+Math.round(share)+'%)</div><div style="font-size:19px;font-weight:800;color:'+pc+'">'+(perP<0?'−':'')+fmt0(Math.abs(Math.round(perP)))+' ₸</div>')+'</div></div>';
   h+='<div style="display:flex;justify-content:space-between;align-items:center;background:var(--sur2);border-radius:12px;padding:13px"><div><div style="font-size:12px;color:var(--mut)">Цель компании</div><div style="font-size:17px;font-weight:800;color:var(--gold)">'+kshort(monoGoal)+' ₸</div></div><div style="text-align:right"><div style="font-size:12px;color:var(--mut)">мечта каждого</div><div style="font-size:17px;font-weight:800;color:var(--gold)">'+kshort(goalPer)+' ₸</div></div></div>';
   if(companyProfit<0) h+='<div style="font-size:12px;color:var(--mut);margin-top:12px;text-align:center;line-height:1.5">Пока компания в убытке — прибыли к распределению нет.<br>Подпишите КС-2 чтобы выручка стала деньгами.</div>';
   h+='</div>';
@@ -3316,11 +3366,12 @@ function renderPartners(view, app){
   // ── 5. ПЕРСОНАЛЬНЫЕ БАЛАНСЫ
   h+=pSecH('👥 ПЕРСОНАЛЬНЫЕ БАЛАНСЫ');
   partners.forEach(function(p){ var x=P[p], col=PC[p]||'#8b949e';
+    var pShare=partnerShare(view,p), pPerP=companyProfit*(pShare/100), pShareL=Math.round(pShare*10)/10;
     var isInv=(x.invested+x.ownPaid+x.advanceOut)>100000, isCon=x.advanceIn>100000;
     var role=isInv&&!isCon?'💎 Инвестор':(isCon?'👷 Исполнитель':'👤 Партнёр');
     h+='<div onclick="PARTNER.details(\''+esc(p)+'\')" style="background:var(--sur);border:1.5px solid '+col+'40;border-radius:18px;padding:18px;margin-bottom:14px;cursor:pointer">';
     // шапка
-    h+='<div style="display:flex;align-items:center;gap:14px;margin-bottom:16px"><div style="width:56px;height:56px;border-radius:50%;background:'+col+'20;border:2px solid '+col+';display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:26px;color:'+col+';font-weight:800">'+esc(p.charAt(0))+'</div><div style="flex:1;min-width:0"><div style="font-size:19px;color:'+col+';font-weight:800">'+esc(p)+'</div><div style="font-size:12px;color:var(--mut);margin-top:3px">'+esc(partnerRole(p).title)+' · '+Math.round(share)+'%</div></div></div>';
+    h+='<div style="display:flex;align-items:center;gap:14px;margin-bottom:16px"><div style="width:56px;height:56px;border-radius:50%;background:'+col+'20;border:2px solid '+col+';display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:26px;color:'+col+';font-weight:800">'+esc(p.charAt(0))+'</div><div style="flex:1;min-width:0"><div style="font-size:19px;color:'+col+';font-weight:800">'+esc(p)+'</div><div style="font-size:12px;color:var(--mut);margin-top:3px">'+esc(partnerRole(p).title)+' · '+pShareL+'%</div></div></div>';
     // вложил
     h+='<div style="background:var(--bg);border:1px solid rgba(63,185,80,.30);border-radius:12px;padding:12px;margin-bottom:10px"><div style="font-size:13px;color:#7ee787;letter-spacing:1.5px;font-weight:700;margin-bottom:6px">💼 ВЛОЖИЛ В КОМПАНИЮ</div><div style="font-size:24px;color:#7ee787;font-weight:800;line-height:1">'+fmt0(x.totalIn)+'</div>';
     if(x.totalIn>0){ var parts=[]; if(x.invested>0)parts.push('в кассу: '+fmt0(x.invested)); if(x.ownPaid>0)parts.push('из своих: '+fmt0(x.ownPaid)); if(x.ownAdvOut>0)parts.push('передал: '+fmt0(x.ownAdvOut)); h+='<div style="font-size:13px;color:var(--mut);margin-top:6px">'+parts.join(' · ')+'</div>'; }
@@ -3338,9 +3389,9 @@ function renderPartners(view, app){
     var hasP=companyProfit>0, gray=hasP?'':';opacity:.55';
     h+='<div style="background:'+(hasP?'linear-gradient(135deg,rgba(63,185,80,.10),var(--bg))':'var(--bg)')+';border:1.5px solid '+(hasP?'rgba(63,185,80,.40)':'rgba(255,255,255,.10)')+';border-radius:12px;padding:12px;margin-bottom:10px"><div style="font-size:13px;color:'+(hasP?'#7ee787':'var(--mut)')+';letter-spacing:1.5px;font-weight:700;margin-bottom:10px">📊 РАСПРЕДЕЛЕНИЕ ПРИБЫЛИ</div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">'
       +'<div style="text-align:center;padding:10px 4px;background:rgba(63,185,80,.08);border-radius:8px"><div style="font-size:18px;margin-bottom:4px">↩️</div><div style="font-size:12px;color:var(--mut);font-weight:700">ВЕРНУТЬ</div><div style="font-size:13px;color:#7ee787;font-weight:800;margin-top:3px">'+fmt0(x.toReturn)+'</div><div style="font-size:12px;color:var(--mut)">вложений</div></div>'
-      +'<div style="text-align:center;padding:10px 4px;background:rgba(88,166,255,.08);border-radius:8px'+gray+'"><div style="font-size:18px;margin-bottom:4px">🔄</div><div style="font-size:12px;color:var(--mut);font-weight:700">РЕИНВЕСТ</div><div style="font-size:13px;color:#58a6ff;font-weight:800;margin-top:3px">'+(hasP?fmt0(perP*0.7):'— ₸')+'</div><div style="font-size:12px;color:var(--mut)">70% доли</div></div>'
-      +'<div style="text-align:center;padding:10px 4px;background:rgba(255,179,32,.08);border-radius:8px'+gray+'"><div style="font-size:18px;margin-bottom:4px">💵</div><div style="font-size:12px;color:var(--mut);font-weight:700">В КАРМАН</div><div style="font-size:13px;color:#ffd166;font-weight:800;margin-top:3px">'+(hasP?fmt0(perP*0.3):'— ₸')+'</div><div style="font-size:12px;color:var(--mut)">30% доли</div></div>'
-      +'</div><div style="font-size:12px;color:var(--mut);margin-top:8px;text-align:center">'+(hasP?('Доля '+Math.round(share)+'% = '+fmt0(perP)+' ₸'):'Цифры заполнятся при появлении прибыли')+'</div></div>';
+      +'<div style="text-align:center;padding:10px 4px;background:rgba(88,166,255,.08);border-radius:8px'+gray+'"><div style="font-size:18px;margin-bottom:4px">🔄</div><div style="font-size:12px;color:var(--mut);font-weight:700">РЕИНВЕСТ</div><div style="font-size:13px;color:#58a6ff;font-weight:800;margin-top:3px">'+(hasP?fmt0(pPerP*0.7):'— ₸')+'</div><div style="font-size:12px;color:var(--mut)">70% доли</div></div>'
+      +'<div style="text-align:center;padding:10px 4px;background:rgba(255,179,32,.08);border-radius:8px'+gray+'"><div style="font-size:18px;margin-bottom:4px">💵</div><div style="font-size:12px;color:var(--mut);font-weight:700">В КАРМАН</div><div style="font-size:13px;color:#ffd166;font-weight:800;margin-top:3px">'+(hasP?fmt0(pPerP*0.3):'— ₸')+'</div><div style="font-size:12px;color:var(--mut)">30% доли</div></div>'
+      +'</div><div style="font-size:12px;color:var(--mut);margin-top:8px;text-align:center">'+(hasP?('Доля '+pShareL+'% = '+fmt0(pPerP)+' ₸'):'Цифры заполнятся при появлении прибыли')+'</div></div>';
     // итог
     var bC=x.net>0?'#7ee787':(x.net<0?'#ff7b72':'#8b949e'); var bL=x.net>0?'к получению':(x.net<0?'должен компании':'рассчитан');
     h+='<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:rgba(255,255,255,.02);border-radius:10px"><div style="font-size:13px;color:var(--mut);letter-spacing:1px;font-weight:700">ИТОГ</div><div style="text-align:right"><div style="font-size:17px;color:'+bC+';font-weight:800;line-height:1">'+(x.net>=0?'+':'−')+fmt0(Math.abs(x.net))+'</div><div style="font-size:12px;color:var(--mut);margin-top:2px">'+bL+'</div></div></div>';
@@ -5001,6 +5052,9 @@ window.MONEY={
 };
 var EXP_CATS=['Аванс / зарплата рабочим','Материалы','Инструменты и инвентарь','Транспорт','Топливо','Питание','Административные','Связь','Представительские','Прочее'];
 var PARTNERS=['Дмитрий','Бекжан','Евгений','Нурсултан','Сергей'];
+// Единый источник партнёров: активные роли из view.roles (откат на 5 имён).
+// Чтобы добавление/архив партнёра во вкладке «Партнёры» сразу влиял на все денежные формы.
+function partnerNames(view){ var r=((view&&view.roles)||[]).filter(function(x){return x&&x.name&&!x.archived;}).sort(function(a,b){return (a.order||0)-(b.order||0);}).map(function(x){return x.name;}); return r.length?r:PARTNERS.slice(); }
 var PARTNER_ROLES={
   'Дмитрий':  {title:'Генеральный директор', tag:'CEO', short:'CEO · стратегия', duties:'Стратегия и развитие', color:'#ffb320'},
   'Сергей':   {title:'Управляющий партнёр · Финансовый и исполнительный директор', tag:'CFO · COO', short:'Финансы и операции', duties:'Финансы и операционное управление компанией', color:'#39d3bb'},
@@ -5074,7 +5128,7 @@ function renderEntryFields(){
   var meta=(view.objMeta&&view.objMeta[obj])||{};
   var spots=(meta.spots||[]);
   var brigs=(view.brigades||[]).filter(isActiveBrig);
-  var payers=PARTNERS.concat((staffList(view)||[]).map(function(s){return s.name;}).filter(function(n){return n && PARTNERS.indexOf(n)<0;}));
+  var _pn=partnerNames(view); var payers=_pn.concat((staffList(view)||[]).map(function(s){return s.name;}).filter(function(n){return n && _pn.indexOf(n)<0;}));
   // если дописываем объём архивной бригаде — добавим её в список с пометкой, чтобы можно было выбрать
   if(d.brigade && !brigs.some(function(b){return b.id===d.brigade;})){
     var _ab=(view.brigades||[]).find(function(b){return b&&b.id===d.brigade;});
@@ -5117,8 +5171,8 @@ function renderEntryFields(){
     if(spots.length) h+=fld('Пятно (куда идёт расход)','<select id="in-spot"><option value="">— не привязано —</option>'+selOpts(spots.map(function(s){return [s.id,s.name];}), d.spotId)+'</select>');
     h+=fld('Бригада (если зарплата)','<select id="in-brig"><option value="">— нет —</option>'+selOpts(brigs.map(function(b){return [b.id,(b.name||'').replace(/^Бригада\s*/,'')];}), d.brigade)+'</select>');
   } else if(d.type==='advance'){
-    h+=fld('От кого','<select id="in-from">'+selOpts(PARTNERS, d.from||'Дмитрий')+'</select>');
-    h+=fld('Кому','<select id="in-to">'+selOpts(PARTNERS, d.to||'Бекжан')+'</select>');
+    h+=fld('От кого','<select id="in-from">'+selOpts(partnerNames(view), d.from||'Дмитрий')+'</select>');
+    h+=fld('Кому','<select id="in-to">'+selOpts(partnerNames(view), d.to||'Бекжан')+'</select>');
     h+=fld('Сумма, ₸',amtInput);
     h+=fld('Источник денег','<select id="in-src">'+selOpts(PAYSRC, d.paySource||'own')+'</select>');
     h+='<div style="font-size:12px;color:var(--mut);margin:-4px 0 10px;line-height:1.5">↪️ Передача из рук в руки, <b style="color:var(--blue)">минуя кассу</b>. Получатель берёт сумму <b style="color:var(--blue)">в подотчёт</b>.<br>«Свои» → компания вернёт отправителю · «Из кассы» → уменьшает кассу · «Из подотчётных» → гасит подотчёт отправителя.</div>';
@@ -5126,11 +5180,11 @@ function renderEntryFields(){
     h+=fld('Сумма, ₸',amtInput);
     h+='<div style="font-size:12px;color:var(--mut);margin:-4px 0 10px">Оплата от заказчика — пополняет кассу.</div>';
   } else if(d.type==='invest'){
-    h+=fld('Кто вложил','<select id="in-who">'+selOpts(PARTNERS, d.who||'Дмитрий')+'</select>');
+    h+=fld('Кто вложил','<select id="in-who">'+selOpts(partnerNames(view), d.who||'Дмитрий')+'</select>');
     h+=fld('Сумма, ₸',amtInput);
   } else if(d.type==='payout'){
     var _pplo=(staffList(view)||[]);
-    var _ptOpts=PARTNERS.map(function(n){return ['P|'+n, n];}).concat(_pplo.map(function(s){return ['S|'+s.id, (s.name||'')+(s.isConsult?' · консультант':' · сотрудник')];}));
+    var _ptOpts=partnerNames(view).map(function(n){return ['P|'+n, n];}).concat(_pplo.map(function(s){return ['S|'+s.id, (s.name||'')+(s.isConsult?' · консультант':' · сотрудник')];}));
     var _ptSel=d.forStaffId?('S|'+d.forStaffId):('P|'+(d.who||'Дмитрий'));
     h+=fld('Кому выплата','<select id="in-payto">'+selOpts(_ptOpts, _ptSel)+'</select>')+'<div style="font-size:11px;color:var(--mut);margin:-7px 2px 13px;line-height:1.5">Партнёр — вернуть подотчёт. Сотрудник/консультант — выплата по лицевому счёту (уменьшит его «к выдаче»).</div>';
     h+=fld('Сумма, ₸',amtInput);
