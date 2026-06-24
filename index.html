@@ -2958,11 +2958,25 @@ function jrnShell(){
   // период
   h+='<div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;-webkit-overflow-scrolling:touch" id="jrn-periods">';
   periods.forEach(function(p){ h+='<button onclick="jrnSet(\'period\',\''+p[0]+'\')" data-jp="'+p[0]+'" style="flex:none;border:1px solid var(--brd);background:var(--sur2);color:var(--mut);border-radius:16px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap">'+p[1]+'</button>'; });
-  h+='</div></div>';
+  h+='</div>';
+  // период по датам: от — до
+  var f0=LG.jrnFilter||{};
+  h+='<div style="display:flex;gap:6px;align-items:center;margin-top:8px">'
+    +'<span style="font-size:12px;color:var(--mut);flex:none">с</span>'
+    +'<input id="jrn-from" type="date" value="'+esc(f0.from||'')+'" onchange="jrnSet(\'from\',this.value)" style="flex:1;min-width:0;padding:8px;'+s+'"/>'
+    +'<span style="font-size:12px;color:var(--mut);flex:none">по</span>'
+    +'<input id="jrn-to" type="date" value="'+esc(f0.to||'')+'" onchange="jrnSet(\'to\',this.value)" style="flex:1;min-width:0;padding:8px;'+s+'"/>'
+    +'<button onclick="jrnClearDates()" title="сбросить даты" style="flex:none;border:1px solid var(--brd);background:var(--sur2);color:var(--mut);border-radius:9px;padding:8px 11px;font-size:13px;cursor:pointer">✕</button>'
+    +'</div>';
+  h+='</div>';
   h+='<div id="jrn-list"></div>';
   return h;
 }
-function jrnSet(field,val){ if(!LG.jrnFilter)LG.jrnFilter={q:'',type:'',period:'all'}; LG.jrnFilter[field]=val; jrnRender(); }
+function jrnSet(field,val){ if(!LG.jrnFilter)LG.jrnFilter={q:'',type:'',period:'all'};
+  if(field==='period'){ LG.jrnFilter.from=''; LG.jrnFilter.to=''; }
+  else if(field==='from'||field==='to'){ LG.jrnFilter.period=''; }
+  LG.jrnFilter[field]=val; jrnRender(); }
+function jrnClearDates(){ if(!LG.jrnFilter)return; LG.jrnFilter.from=''; LG.jrnFilter.to=''; LG.jrnFilter.period='all'; var a=document.getElementById('jrn-from'),b=document.getElementById('jrn-to'); if(a)a.value=''; if(b)b.value=''; jrnRender(); }
 function jrnRender(){
   var f=LG.jrnFilter||{q:'',type:'',period:'all'};
   // подсветка активных чипов
@@ -2974,12 +2988,17 @@ function jrnRender(){
   var v=LG.base?projected(LG.base,LG.queue):{};
   var all=(v.entries||[]).slice().sort(entryCmp);
   // период
-  var now=new Date(), from=null, to=null;
-  if(f.period==='7') from=new Date(now.getTime()-7*86400000);
-  else if(f.period==='30') from=new Date(now.getTime()-30*86400000);
-  else if(f.period==='month') from=new Date(now.getFullYear(),now.getMonth(),1);
-  else if(f.period==='prev'){ from=new Date(now.getFullYear(),now.getMonth()-1,1); to=new Date(now.getFullYear(),now.getMonth(),1); }
-  var fromS=from?from.toISOString().slice(0,10):null, toS=to?to.toISOString().slice(0,10):null;
+  var now=new Date(), from=null, to=null, fromS=null, toS=null;
+  if(f.from||f.to){
+    fromS=f.from||null;
+    if(f.to){ var _td=new Date(f.to+'T00:00:00'); _td.setDate(_td.getDate()+1); toS=_td.toISOString().slice(0,10); }
+  } else {
+    if(f.period==='7') from=new Date(now.getTime()-7*86400000);
+    else if(f.period==='30') from=new Date(now.getTime()-30*86400000);
+    else if(f.period==='month') from=new Date(now.getFullYear(),now.getMonth(),1);
+    else if(f.period==='prev'){ from=new Date(now.getFullYear(),now.getMonth()-1,1); to=new Date(now.getFullYear(),now.getMonth(),1); }
+    fromS=from?from.toISOString().slice(0,10):null; toS=to?to.toISOString().slice(0,10):null;
+  }
   var q=(f.q||'').trim().toLowerCase();
   var list=all.filter(function(e){
     if(!e) return false;
@@ -2989,17 +3008,31 @@ function jrnRender(){
     if(q){ var hay=((e.note||'')+' '+(e.to||'')+' '+(e.from||'')+' '+(TYPE_META[e.type]||{}).l+' '+brigName(v,e.brigade)+' '+(e.zone||'')+' '+(e.floor||'')).toLowerCase(); if(hay.indexOf(q)<0) return false; }
     return true;
   });
-  // сводка
-  var sums={};
-  list.forEach(function(e){ sums[e.type]=(sums[e.type]||0)+((e.type==='vol')?(Number(e.volume)||0):(Number(e.amount)||0)); });
+  // ── сводка за период ──
+  var sums={}, m3=0;
+  list.forEach(function(e){ if(e.type==='vol'){ m3+=Number(e.volume)||0; } else { sums[e.type]=(sums[e.type]||0)+(Number(e.amount)||0); } });
+  var inTypes=['income','invest','customer_income','return'], outTypes=['expense','payout'];
+  var moneyIn=0,moneyOut=0; Object.keys(sums).forEach(function(t){ if(inTypes.indexOf(t)>=0)moneyIn+=sums[t]; else if(outTypes.indexOf(t)>=0)moneyOut+=sums[t]; });
+  var periodLabel = (f.from||f.to) ? ((f.from?f.from.split('-').reverse().join('.'):'…')+' — '+(f.to?f.to.split('-').reverse().join('.'):'…'))
+       : (({all:'всё время','7':'7 дней','30':'30 дней',month:'этот месяц',prev:'прошлый месяц'})[f.period||'all']||'');
+  var bits=[];
+  if(m3) bits.push(['Объём', fmtD(m3)+' м³', 'var(--gold)']);
+  if(f.type && f.type!=='vol'){
+    var _mt=TYPE_META[f.type]||{l:f.type}; var _out=outTypes.indexOf(f.type)>=0; var _adv=(f.type==='advance');
+    bits.push([_mt.l, (_adv?'':(_out?'−':'+'))+fmt0(Math.abs(sums[f.type]||0)), _adv?'var(--blue)':(_out?'var(--red)':'var(--green)')]);
+  } else if(!f.type){
+    if(moneyIn) bits.push(['Приход','+'+fmt0(moneyIn),'var(--green)']);
+    if(moneyOut) bits.push(['Расход','−'+fmt0(moneyOut),'var(--red)']);
+    if(sums.advance) bits.push(['Передача',fmt0(sums.advance),'var(--blue)']);
+    if(moneyIn||moneyOut){ var net=moneyIn-moneyOut; bits.push(['Итого',(net>=0?'+':'−')+fmt0(Math.abs(net)),net>=0?'var(--green)':'var(--red)']); }
+  }
   var h='';
-  h+='<div style="display:flex;justify-content:space-between;align-items:center;margin:4px 2px 10px"><span style="font-size:12px;color:var(--mut)">Найдено: <b style="color:var(--fg)">'+list.length+'</b></span>';
-  var sumBits=[];
-  if(sums.vol) sumBits.push('<span style="color:var(--gold)">'+fmtD(sums.vol)+' м³</span>');
-  if(sums.expense) sumBits.push('<span style="color:var(--red)">−'+fmt0(sums.expense)+'</span>');
-  if(sums.income) sumBits.push('<span style="color:var(--green)">+'+fmt0(sums.income)+'</span>');
-  if(sumBits.length) h+='<span style="font-size:12px;font-weight:700">'+sumBits.join(' · ')+'</span>';
-  h+='</div>';
+  h+='<div style="display:flex;justify-content:space-between;align-items:center;margin:4px 2px 8px"><span style="font-size:12px;color:var(--mut)">Найдено: <b style="color:var(--fg)">'+list.length+'</b></span><span style="font-size:11px;color:var(--mut)">'+esc(periodLabel)+'</span></div>';
+  if(bits.length){
+    h+='<div style="background:var(--sur2);border:1px solid var(--brd);border-radius:12px;padding:11px 13px;margin:0 2px 12px;display:flex;flex-wrap:wrap;gap:8px 16px;align-items:baseline">';
+    bits.forEach(function(b){ h+='<div><span style="font-size:11px;color:var(--mut)">'+b[0]+'</span> <span class="num" style="font-size:15px;font-weight:800;color:'+b[2]+'">'+b[1]+'</span></div>'; });
+    h+='</div>';
+  }
   if(!list.length){ box.innerHTML=h+'<div style="text-align:center;padding:30px 10px;color:var(--mut)"><div style="font-size:36px">🔍</div><div style="margin-top:8px;font-size:13px">Ничего не найдено. Измените фильтр или поиск.</div></div>'; return; }
   // группировка по дням
   var lastDay='';
@@ -3008,7 +3041,7 @@ function jrnRender(){
     if(day!==lastDay){
       var dd=day==='—'?'без даты':day.split('-').reverse().join('.');
       var dn=''; try{ var dt=new Date(day); if(isFinite(dt)){ dn=['вс','пн','вт','ср','чт','пт','сб'][dt.getDay()]; } }catch(_){}
-      h+='<div style="position:sticky;top:150px;z-index:3;background:var(--sur);font-size:11px;font-weight:800;letter-spacing:1px;color:var(--gold);padding:8px 2px 5px">'+dd+(dn?(' · '+dn):'')+'</div>';
+      h+='<div style="position:sticky;top:196px;z-index:3;background:var(--sur);font-size:11px;font-weight:800;letter-spacing:1px;color:var(--gold);padding:8px 2px 5px">'+dd+(dn?(' · '+dn):'')+'</div>';
       lastDay=day;
     }
     var mt=TYPE_META[e.type]||{l:e.type||'?',c:'var(--mut)'};
@@ -7055,7 +7088,10 @@ setInterval(function(){ if(LG.token){ if(LG.queue.length) flush(); else pull().c
 // слежение за слоями: любая шторка/форма/документ ↔ запись в истории (для системного «назад»)
 (function(){
   try{
-    var mo=new MutationObserver(function(){ lgHistSync(); });
+    var mo=new MutationObserver(function(){ lgHistSync();
+      // iOS: пока форма (заливка/бригада) открыта ПОВЕРХ шторки кабинета — не давать панели кабинета под ней перехватывать касания
+      try{ var formOpen=['ov-entry','ov-brig'].some(function(id){ var el=document.getElementById(id); return el&&el.classList.contains('show'); }); var sh=document.getElementById('ov-sheet'); if(sh) sh.style.pointerEvents=formOpen?'none':''; }catch(_){}
+    });
     ['ov-entry','ov-brig','ov-sheet'].forEach(function(id){ var el=document.getElementById(id); if(el) mo.observe(el,{attributes:true,attributeFilter:['class']}); });
     mo.observe(document.body,{childList:true});   // doc-ov добавляется/удаляется в body
   }catch(e){}
