@@ -3009,22 +3009,28 @@ function jrnRender(){
     return true;
   });
   // ── сводка за период ──
-  var sums={}, m3=0;
-  list.forEach(function(e){ if(e.type==='vol'){ m3+=Number(e.volume)||0; } else { sums[e.type]=(sums[e.type]||0)+(Number(e.amount)||0); } });
-  var inTypes=['income','invest','customer_income','return'], outTypes=['expense','payout'];
-  var moneyIn=0,moneyOut=0; Object.keys(sums).forEach(function(t){ if(inTypes.indexOf(t)>=0)moneyIn+=sums[t]; else if(outTypes.indexOf(t)>=0)moneyOut+=sums[t]; });
+  // Касса считается с учётом источника денег (как в calcCo): расход «со своих»/«из подотчёта» и передача из рук в руки кассу НЕ трогают.
+  function _cashDelta(e){ var a=Number(e.amount)||0;
+    if(e.type==='income'||e.type==='customer_income'||e.type==='invest') return a;
+    if(e.type==='return'||e.type==='payout') return -a;
+    if(e.type==='advance') return (e.paySource==='cash')?-a:0;
+    if(e.type==='expense'){ var src=e.paySource||(e.who==='Дмитрий'?'own':'advance'); return (src==='cash')?-a:0; }
+    return 0;
+  }
+  var m3=0, typeSum={}, cashIn=0, cashOut=0;
+  list.forEach(function(e){ if(e.type==='vol'){ m3+=Number(e.volume)||0; return; } typeSum[e.type]=(typeSum[e.type]||0)+(Number(e.amount)||0); var dd=_cashDelta(e); if(dd>0)cashIn+=dd; else if(dd<0)cashOut+=(-dd); });
+  var dCash=cashIn-cashOut;
   var periodLabel = (f.from||f.to) ? ((f.from?f.from.split('-').reverse().join('.'):'…')+' — '+(f.to?f.to.split('-').reverse().join('.'):'…'))
        : (({all:'всё время','7':'7 дней','30':'30 дней',month:'этот месяц',prev:'прошлый месяц'})[f.period||'all']||'');
   var bits=[];
   if(m3) bits.push(['Объём', fmtD(m3)+' м³', 'var(--gold)']);
   if(f.type && f.type!=='vol'){
-    var _mt=TYPE_META[f.type]||{l:f.type}; var _out=outTypes.indexOf(f.type)>=0; var _adv=(f.type==='advance');
-    bits.push([_mt.l, (_adv?'':(_out?'−':'+'))+fmt0(Math.abs(sums[f.type]||0)), _adv?'var(--blue)':(_out?'var(--red)':'var(--green)')]);
+    var _mt=TYPE_META[f.type]||{l:f.type}; var _outT=(f.type==='expense'||f.type==='payout'||f.type==='return'); var _adv=(f.type==='advance');
+    bits.push([_mt.l+' всего', (_adv?'':(_outT?'−':'+'))+fmt0(Math.abs(typeSum[f.type]||0)), _adv?'var(--blue)':(_outT?'var(--red)':'var(--green)')]);
   } else if(!f.type){
-    if(moneyIn) bits.push(['Приход','+'+fmt0(moneyIn),'var(--green)']);
-    if(moneyOut) bits.push(['Расход','−'+fmt0(moneyOut),'var(--red)']);
-    if(sums.advance) bits.push(['Передача',fmt0(sums.advance),'var(--blue)']);
-    if(moneyIn||moneyOut){ var net=moneyIn-moneyOut; bits.push(['Итого',(net>=0?'+':'−')+fmt0(Math.abs(net)),net>=0?'var(--green)':'var(--red)']); }
+    if(cashIn) bits.push(['Поступило в кассу','+'+fmt0(cashIn),'var(--green)']);
+    if(cashOut) bits.push(['Ушло из кассы','−'+fmt0(cashOut),'var(--red)']);
+    bits.push(['Δ касса за период',(dCash>=0?'+':'−')+fmt0(Math.abs(dCash)),dCash>=0?'var(--green)':'var(--red)']);
   }
   var h='';
   h+='<div style="display:flex;justify-content:space-between;align-items:center;margin:4px 2px 8px"><span style="font-size:12px;color:var(--mut)">Найдено: <b style="color:var(--fg)">'+list.length+'</b></span><span style="font-size:11px;color:var(--mut)">'+esc(periodLabel)+'</span></div>';
