@@ -2023,19 +2023,42 @@ window.addEventListener('popstate', function(){
 });
 window.lgCloseSheet=lgCloseSheet;
 var CVAR={teal:'var(--teal)',gold:'var(--gold)',blue:'var(--blue)',violet:'var(--violet)',green:'var(--green)',red:'var(--red)',orange:'var(--gold)',purple:'var(--violet)'};
+function moreFilter(q){
+  q=(q||'').trim().toLowerCase();
+  var anyAll=false;
+  document.querySelectorAll('.more-sec').forEach(function(sec){
+    var any=false;
+    sec.querySelectorAll('[data-q]').forEach(function(t){
+      var m=!q || t.getAttribute('data-q').indexOf(q)>=0;
+      t.style.display=m?'':'none'; if(m)any=true;
+    });
+    sec.style.display=any?'':'none'; if(any)anyAll=true;
+  });
+  var emp=document.getElementById('more-empty'); if(emp) emp.style.display=anyAll?'none':'block';
+}
+function agoText(ts){ if(!ts)return ''; var s=Math.max(0,Math.floor((Date.now()-ts)/1000)); if(s<45)return 'только что'; var m=Math.floor(s/60); if(m<1)return 'только что'; if(m<60)return m+' мин назад'; var hh=Math.floor(m/60); if(hh<24)return hh+' ч назад'; var dd=Math.floor(hh/24); return dd+' дн назад'; }
+function moreSync(){
+  if(typeof PREVIEW!=='undefined'&&PREVIEW){ toast('Превью-режим — сеть отключена'); return; }
+  if(typeof pull!=='function'){ return; }
+  setDot('warn'); toast('Обновляю из облака…');
+  pull().then(function(){ setDot('ok'); toast('✓ Обновлено'); if(LG.tab==='more')render(); })
+        .catch(function(){ setDot('err'); toast('Нет связи — попробуй позже'); });
+}
 function renderMore(view, app){
   var isOwner=LG.role==='owner', isEdit=canWriteLedger();
   function tile(icon,color,title,sub,onclick){
-    return '<button onclick="'+onclick+'" style="background:var(--sur);border:1px solid var(--brd);border-radius:14px;padding:14px 10px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;min-height:104px;justify-content:center;font-family:inherit">'
+    return '<button data-q="'+esc(String(title+' '+(sub||'')).toLowerCase())+'" onclick="'+onclick+'" style="background:var(--sur);border:1px solid var(--brd);border-radius:14px;padding:14px 10px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;min-height:104px;justify-content:center;font-family:inherit">'
       +'<div style="font-size:32px;line-height:1">'+icon+'</div>'
       +'<div style="font-size:15px;color:'+color+';font-weight:700;line-height:1.2">'+title+'</div>'
       +(sub?'<div style="font-size:12px;color:var(--mut);line-height:1.2">'+sub+'</div>':'')+'</button>';
   }
   function section(title,tiles){ tiles=tiles.filter(Boolean); if(!tiles.length)return '';
     var cols=tiles.length===1?'1fr':'1fr 1fr';
-    return '<div style="font-size:13px;color:var(--mut);letter-spacing:1.5px;font-weight:700;margin:8px 4px 10px">'+title+'</div><div style="display:grid;grid-template-columns:'+cols+';gap:10px;margin-bottom:18px">'+tiles.join('')+'</div>';
+    return '<div class="more-sec"><div style="font-size:13px;color:var(--mut);letter-spacing:1.5px;font-weight:700;margin:8px 4px 10px">'+title+'</div><div style="display:grid;grid-template-columns:'+cols+';gap:10px;margin-bottom:18px">'+tiles.join('')+'</div></div>';
   }
-  var h='<div style="margin-bottom:18px"><div style="font-size:24px;color:var(--gold);font-weight:800;letter-spacing:2px">⚙️ ЕЩЁ</div><div style="font-size:14px;color:var(--mut);margin-top:4px">Все функции приложения</div></div>';
+  var h='<div style="margin-bottom:14px"><div style="font-size:24px;color:var(--gold);font-weight:800;letter-spacing:2px">⚙️ ЕЩЁ</div><div style="font-size:14px;color:var(--mut);margin-top:4px">Все функции приложения</div></div>';
+  h+='<input id="more-q" type="text" placeholder="🔍 Поиск функции…" oninput="moreFilter(this.value)" autocomplete="off" style="width:100%;box-sizing:border-box;padding:12px 14px;background:var(--sur2);border:1px solid var(--brd);border-radius:12px;color:var(--fg);font-size:15px;margin-bottom:16px;font-family:inherit"/>';
+  h+='<div id="more-empty" style="display:none;text-align:center;color:var(--mut);font-size:14px;padding:24px 0">Ничего не найдено</div>';
   h+=section('СТРАТЕГИЯ 2030',[ tile('🎯','var(--gold)','Путь к $1 млрд','холдинг · план · вехи','MORE.strategy()') ]);
   h+=section('НАПРАВЛЕНИЯ ХОЛДИНГА',[
     isOwner?tile('🛒','var(--violet)','Ритейл','товары · склад · маржа','MORE.dir(\'retail\')'):null,
@@ -2079,10 +2102,16 @@ function renderMore(view, app){
   h+=section('ОБСЛУЖИВАНИЕ',[
     tile('🔄','var(--gold)','Обновить','перезагрузить','MORE.reload()'),
     isOwner?tile('🔧','var(--violet)','Диагностика','облако · версия','MORE.diag()'):null ]);
+  var _q=(LG.queue&&LG.queue.length)||0;
+  var _syncTxt = _q>0 ? ('⏳ '+_q+' не отправлено') : (LG.lastSync?('🟢 синхронизировано '+agoText(LG.lastSync)):'⚪ ещё не синкалось');
   h+='<div style="margin-top:24px;padding:14px;background:var(--bg);border:1px solid var(--brd);border-radius:12px;text-align:center">'
     +'<div style="font-size:13px;color:var(--mut)">LIONGATE Construction</div>'
     +'<div style="font-size:12px;color:var(--mut);margin-top:4px">Цель: 1 МЛРД $ к 2030</div>'
-    +'<div style="font-size:12px;color:var(--mut);margin-top:2px">Записей: <b style="color:var(--text)">'+(view.entries||[]).length+'</b> · Бригад: <b style="color:var(--text)">'+(view.brigades||[]).length+'</b></div></div>';
+    +'<div style="font-size:12px;color:var(--mut);margin-top:2px">Записей: <b style="color:var(--text)">'+(view.entries||[]).length+'</b> · Бригад: <b style="color:var(--text)">'+(view.brigades||[]).length+'</b></div>'
+    +'<div onclick="moreSync()" style="cursor:pointer;margin-top:10px;padding-top:10px;border-top:1px solid var(--brd)">'
+      +'<div style="font-size:12px;color:var(--mut)"><b style="color:var(--text)">v'+LG.version+'</b> · '+_syncTxt+'</div>'
+      +'<div style="font-size:11px;color:var(--blue);margin-top:3px">↻ нажми, чтобы обновить из облака</div>'
+    +'</div></div>';
   app.innerHTML=h;
 }
 function weekKeyNow(){ var d=new Date(); return d.getFullYear()+'-W'+String(isoWeekNum(d)).padStart(2,'0'); }
@@ -5120,7 +5149,7 @@ function roleLabel(r){
   if(r.indexOf('cabinet_')===0) return 'Кабинет';
   return r;
 }
-function setDot(s){ var d=document.getElementById('dot'); d.className='dot'+(s?(' '+s):''); 
+function setDot(s){ var d=document.getElementById('dot'); if(s==='ok') LG.lastSync=Date.now(); if(!d)return; d.className='dot'+(s?(' '+s):''); 
   d.title = s==='ok'?'синхронизировано':(s==='warn'?'отправка…':(s==='err'?'нет связи — отправлю позже':'')); }
 
 /* ── ФОРМА ПРОВОДКИ ──────────────────────────────────────────────────────── */
