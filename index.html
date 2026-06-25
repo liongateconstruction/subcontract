@@ -471,13 +471,13 @@ function entryAmount(b, e){
 function brigStats(view){
   var ent = view.entries||[];
   return (view.brigades||[]).filter(isActiveBrig).map(function(b){
-    var m3=0, earned=0, paid=0;
+    var m3=0, m3w=0, earned=0, paid=0;
     ent.forEach(function(e){
       if(!e || e.brigade!==b.id) return;
-      if(e.type==='vol'){ m3+=Number(e.volume)||0; earned+=entryAmount(b, e); }
+      if(e.type==='vol'){ var vv=Number(e.volume)||0; m3w+=vv; if(isConcrete(view,e)) m3+=vv; earned+=entryAmount(b, e); }
       else if(e.type==='expense'){ paid+=Number(e.amount)||0; }
     });
-    return { id:b.id, name:b.name||'?', work:b.work||'', workers:Number(b.workers)||0, m3:m3, earned:earned, paid:paid, debt:earned-paid };
+    return { id:b.id, name:b.name||'?', work:b.work||'', workers:Number(b.workers)||0, m3:m3, m3w:m3w, earned:earned, paid:paid, debt:earned-paid };
   });
 }
 // Архивные бригады + их сальдо (объём дописывать можно даже из архива)
@@ -485,13 +485,13 @@ function isArchivedBrig(b){ return !!(b && b.archivedAt && !(b.restoredAt && Str
 function brigStatsArchived(view){
   var ent=view.entries||[];
   return (view.brigades||[]).filter(isArchivedBrig).map(function(b){
-    var m3=0, earned=0, paid=0;
+    var m3=0, m3w=0, earned=0, paid=0;
     ent.forEach(function(e){
       if(!e || e.brigade!==b.id) return;
-      if(e.type==='vol'){ m3+=Number(e.volume)||0; earned+=entryAmount(b, e); }
+      if(e.type==='vol'){ var vv=Number(e.volume)||0; m3w+=vv; if(isConcrete(view,e)) m3+=vv; earned+=entryAmount(b, e); }
       else if(e.type==='expense'){ paid+=Number(e.amount)||0; }
     });
-    return { id:b.id, name:b.name||'?', work:b.work||'', workers:Number(b.workers)||0, m3:m3, earned:earned, paid:paid, debt:earned-paid };
+    return { id:b.id, name:b.name||'?', work:b.work||'', workers:Number(b.workers)||0, m3:m3, m3w:m3w, earned:earned, paid:paid, debt:earned-paid };
   });
 }
 function isPourWork(w){ w=(w||'').toLowerCase(); return w.indexOf('опалубка+бетон')===0 || w==='комплекс монолит'; }
@@ -3017,13 +3017,13 @@ function jrnRender(){
     if(e.type==='expense'){ var src=e.paySource||(e.who==='Дмитрий'?'own':'advance'); return (src==='cash')?-a:0; }
     return 0;
   }
-  var m3=0, typeSum={}, cashIn=0, cashOut=0;
-  list.forEach(function(e){ if(e.type==='vol'){ m3+=Number(e.volume)||0; return; } typeSum[e.type]=(typeSum[e.type]||0)+(Number(e.amount)||0); var dd=_cashDelta(e); if(dd>0)cashIn+=dd; else if(dd<0)cashOut+=(-dd); });
+  var m3all=0, m3poured=0, typeSum={}, cashIn=0, cashOut=0;
+  list.forEach(function(e){ if(e.type==='vol'){ var vv=Number(e.volume)||0; m3all+=vv; if(isConcrete(v,e)) m3poured+=vv; return; } typeSum[e.type]=(typeSum[e.type]||0)+(Number(e.amount)||0); var dd=_cashDelta(e); if(dd>0)cashIn+=dd; else if(dd<0)cashOut+=(-dd); });
   var dCash=cashIn-cashOut;
   var periodLabel = (f.from||f.to) ? ((f.from?f.from.split('-').reverse().join('.'):'…')+' — '+(f.to?f.to.split('-').reverse().join('.'):'…'))
        : (({all:'всё время','7':'7 дней','30':'30 дней',month:'этот месяц',prev:'прошлый месяц'})[f.period||'all']||'');
   var bits=[];
-  if(m3) bits.push(['Объём', fmtD(m3)+' м³', 'var(--gold)']);
+  if(m3poured||m3all){ var _vt=fmtD(m3poured)+' м³'; if(m3all>m3poured+0.05)_vt+=' (работ '+fmtD(m3all)+')'; bits.push(['Залито бетона', _vt, 'var(--gold)']); }
   if(f.type && f.type!=='vol'){
     var _mt=TYPE_META[f.type]||{l:f.type}; var _outT=(f.type==='expense'||f.type==='payout'||f.type==='return'); var _adv=(f.type==='advance');
     bits.push([_mt.l+' всего', (_adv?'':(_outT?'−':'+'))+fmt0(Math.abs(typeSum[f.type]||0)), _adv?'var(--blue)':(_outT?'var(--red)':'var(--green)')]);
@@ -4199,7 +4199,7 @@ function printPayslip(id){
 function brigRatingBlock(view){
   var from=new Date(Date.now()-30*86400000).toISOString().slice(0,10);
   var rows=(view.brigades||[]).filter(function(b){return b&&!b.archivedAt;}).map(function(b){
-    var vol=0,earned=0,days={},stageVol={},wtypeVol={}; (view.entries||[]).forEach(function(e){ if(!e||e.type!=='vol'||e.brigade!==b.id||!e.date||e.date<from)return; var vv=Number(e.volume)||0; vol+=vv; earned+=entryAmount(b,e); days[e.date]=true; if(e.stage)stageVol[e.stage]=(stageVol[e.stage]||0)+vv; if(e.wtype)wtypeVol[e.wtype]=(wtypeVol[e.wtype]||0)+vv; });
+    var vol=0,volW=0,earned=0,days={},stageVol={},wtypeVol={}; (view.entries||[]).forEach(function(e){ if(!e||e.type!=='vol'||e.brigade!==b.id||!e.date||e.date<from)return; var vv=Number(e.volume)||0; volW+=vv; if(isConcrete(view,e))vol+=vv; earned+=entryAmount(b,e); days[e.date]=true; if(e.stage)stageVol[e.stage]=(stageVol[e.stage]||0)+vv; if(e.wtype)wtypeVol[e.wtype]=(wtypeVol[e.wtype]||0)+vv; });
     var workDays=Object.keys(days).length;
     // чел-дни = численность бригады (из карточки) × дни заливок — просто и проверяемо
     var manDays=(Number(b.workers)||0)*workDays;
@@ -4208,8 +4208,8 @@ function brigRatingBlock(view){
     var wtypeK=Object.keys(wtypeVol).sort(function(a,c){return wtypeVol[c]-wtypeVol[a];});
     var work=(stageK.length?stageK.slice(0,2):wtypeK.slice(0,2)).join(' · ');
     var perMoneyMD=manDays>0?earned/manDays:0;
-    return {name:(b.name||'?').replace(/^Бригада\s*/,''), vol:vol, workers:Number(b.workers)||0, workDays:workDays, perMD:perMD, perMoneyMD:perMoneyMD, work:work};
-  }).filter(function(r){return r.vol>0;}).sort(function(a,b){return b.perMD-a.perMD;});
+    return {name:(b.name||'?').replace(/^Бригада\s*/,''), vol:vol, volW:volW, workers:Number(b.workers)||0, workDays:workDays, perMD:perMD, perMoneyMD:perMoneyMD, work:work};
+  }).filter(function(r){return r.vol>0||r.perMoneyMD>0;}).sort(function(a,b){return b.perMD-a.perMD;});
   if(!rows.length) return '';
   var seesM=(canWriteLedger()||(LG.role||'').indexOf('partner_')===0);
   var moneyMode=seesM && rows.some(function(r){return r.perMoneyMD>0;});
@@ -4221,7 +4221,7 @@ function brigRatingBlock(view){
     h+='<div style="margin-bottom:11px"><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px"><span style="font-size:14px;font-weight:700">'+medal+' '+esc(r.name)+'</span><span class="num" style="font-size:15px;font-weight:800;color:'+col+'">'+(moneyMode?(fmt0(Math.round(r.perMoneyMD))+' <span style="font-size:11px;color:var(--mut);font-weight:400">₸/чел·день</span>'):(fmtD(Math.round(r.perMD*100)/100)+' <span style="font-size:11px;color:var(--mut);font-weight:400">м³/чел·день</span>'))+'</span></div>';
     if(r.work) h+='<div style="font-size:11px;color:var(--teal);margin-bottom:5px">🛠 '+esc(r.work)+'</div>';
     h+='<div style="height:8px;background:var(--sur2);border-radius:4px;overflow:hidden"><div style="height:100%;width:'+Math.max(5,Math.round((moneyMode?r.perMoneyMD:r.perMD)/max*100))+'%;background:'+col+';border-radius:4px"></div></div>';
-    h+='<div style="font-size:11px;color:var(--mut);margin-top:3px">'+fmtD(r.vol)+' м³ · '+r.workers+' чел · заливок в '+r.workDays+' дн</div>'+(moneyMode?('<div style="font-size:11px;color:var(--teal);margin-top:2px">≈ '+fmtD(Math.round(r.perMD*100)/100)+' м³/чел·день <span style="color:var(--mut)">— сырой объём, зависит от этапа</span></div>'):((seesM&&r.perMoneyMD>0)?('<div style="font-size:11px;color:var(--green);margin-top:2px">≈ '+fmt0(r.perMoneyMD)+' ₸/чел·день <span style="color:var(--mut)">— в деньгах, сравнимо между этапами</span></div>'):''))+'</div>'; });
+    h+='<div style="font-size:11px;color:var(--mut);margin-top:3px">'+fmtD(r.vol)+' м³ залито'+(r.volW>r.vol+0.05?(' · работ '+fmtD(r.volW)):'')+' · '+r.workers+' чел · '+r.workDays+' дн</div>'+(moneyMode?('<div style="font-size:11px;color:var(--teal);margin-top:2px">≈ '+fmtD(Math.round(r.perMD*100)/100)+' м³ бетона/чел·день</div>'):((seesM&&r.perMoneyMD>0)?('<div style="font-size:11px;color:var(--green);margin-top:2px">≈ '+fmt0(r.perMoneyMD)+' ₸/чел·день <span style="color:var(--mut)">— в деньгах, сравнимо между этапами</span></div>'):''))+'</div>'; });
   h+='</div>';
   return h;
 }
@@ -4343,7 +4343,7 @@ function peopleBrigades(view){
     }
     // 3 плитки
     h+='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px">'
-      +'<div style="border:2px solid var(--teal);border-radius:12px;padding:10px"><div style="font-size:11px;color:var(--mut);font-weight:700;letter-spacing:.04em">ВСЕГО М³</div><div class="num" style="font-size:20px;color:var(--teal);font-weight:800;margin-top:4px">'+fmtD(s.m3)+'</div><div style="font-size:11px;color:var(--mut)">за всё время</div></div>'
+      +'<div style="border:2px solid var(--teal);border-radius:12px;padding:10px"><div style="font-size:11px;color:var(--mut);font-weight:700;letter-spacing:.04em">ЗАЛИТО М³</div><div class="num" style="font-size:20px;color:var(--teal);font-weight:800;margin-top:4px">'+fmtD(s.m3)+'</div><div style="font-size:11px;color:var(--mut)">'+(s.m3w>s.m3+0.05?('работ '+fmtD(s.m3w)+' м³'):'за всё время')+'</div></div>'
       +'<div style="border:2px solid var(--gold);border-radius:12px;padding:10px"><div style="font-size:11px;color:var(--mut);font-weight:700;letter-spacing:.04em">НАЧИСЛЕНО</div><div class="num" style="font-size:20px;color:var(--gold);font-weight:800;margin-top:4px">'+fmt0(s.earned)+'</div><div style="font-size:11px;color:var(--mut)">₸</div></div>'
       +'<div style="border:2px solid var(--green);border-radius:12px;padding:10px"><div style="font-size:11px;color:var(--mut);font-weight:700;letter-spacing:.04em">ВЫПЛАЧЕНО</div><div class="num" style="font-size:20px;color:var(--green);font-weight:800;margin-top:4px">'+fmt0(s.paid)+'</div><div style="font-size:11px;color:var(--mut)">'+pay+'%</div></div></div>';
     // плашка баланса
@@ -4379,7 +4379,7 @@ function peopleBrigades(view){
       h+='<div class="bcard" style="border-style:dashed;opacity:.95">';
       h+='<div style="margin-bottom:10px"><span style="font-size:18px;font-weight:700">'+esc(s.name)+'</span> <span style="font-size:12px;color:var(--mut);font-weight:600">· в архиве</span><div style="font-size:12px;color:var(--mut);margin-top:3px">'+(b.workers||0)+' чел · '+esc(b.work||'—')+'</div></div>';
       h+='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px">'
-        +'<div style="border:1px solid var(--teal);border-radius:10px;padding:8px"><div style="font-size:10px;color:var(--mut);font-weight:700">ВСЕГО М³</div><div class="num" style="font-size:17px;color:var(--teal);font-weight:800;margin-top:3px">'+fmtD(s.m3)+'</div></div>'
+        +'<div style="border:1px solid var(--teal);border-radius:10px;padding:8px"><div style="font-size:10px;color:var(--mut);font-weight:700">ЗАЛИТО М³</div><div class="num" style="font-size:17px;color:var(--teal);font-weight:800;margin-top:3px">'+fmtD(s.m3)+'</div>'+(s.m3w>s.m3+0.05?'<div style="font-size:10px;color:var(--mut)">работ '+fmtD(s.m3w)+'</div>':'')+'</div>'
         +'<div style="border:1px solid var(--gold);border-radius:10px;padding:8px"><div style="font-size:10px;color:var(--mut);font-weight:700">НАЧИСЛЕНО</div><div class="num" style="font-size:17px;color:var(--gold);font-weight:800;margin-top:3px">'+fmt0(s.earned)+'</div></div>'
         +'<div style="border:1px solid var(--green);border-radius:10px;padding:8px"><div style="font-size:10px;color:var(--mut);font-weight:700">ВЫПЛАЧЕНО</div><div class="num" style="font-size:17px;color:var(--green);font-weight:800;margin-top:3px">'+fmt0(s.paid)+'</div></div></div>';
       h+='<div style="display:flex;justify-content:space-between;align-items:center;background:'+(bal<0?'rgba(240,165,0,.10)':(bal>0?'rgba(248,81,73,.10)':'rgba(46,160,67,.08)'))+';border:1px solid '+balCol+';border-radius:8px;padding:10px 12px;margin-bottom:'+(canWrite?'10px':'2px')+'"><span style="font-size:12px;color:var(--mut);font-weight:600;letter-spacing:.5px">'+remIcon+' '+remLbl+'</span><span class="num" style="font-size:19px;color:'+balCol+';font-weight:800">'+remVal+'</span></div>';
