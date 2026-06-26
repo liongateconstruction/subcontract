@@ -3985,33 +3985,43 @@ function moneyLeak(view){
 }
 function moneyFlow(view){
   var C=calcCo(view); var cash=C.cash||0;
-  var inInvest=0,inCustomer=0,inAdvance=0,inOwnPaid=0,outExpenseCash=0,outPayout=0;
+  var inInvest=0,inCustomer=0,inOwnPaid=0,outExpenseCash=0,outPayout=0,advCash=0,advOther=0,expAdv=0;
   (view.entries||[]).forEach(function(e){ var a=Number(e.amount)||0;
     if(e.type==='invest') inInvest+=a;
     else if(e.type==='income'||e.type==='customer_income') inCustomer+=a;
-    else if(e.type==='advance') inAdvance+=a;
-    else if(e.type==='expense'){ var s=e.paySource||(e.who==='Дмитрий'?'own':'advance'); if(s==='cash') outExpenseCash+=a; else if(s==='own') inOwnPaid+=a; }
+    else if(e.type==='advance'){ if(e.paySource==='cash') advCash+=a; else advOther+=a; }
+    else if(e.type==='expense'){ var s=e.paySource||(e.who==='Дмитрий'?'own':'advance'); if(s==='cash') outExpenseCash+=a; else if(s==='own') inOwnPaid+=a; else expAdv+=a; }
     else if(e.type==='payout'||e.type==='return') outPayout+=a; });
-  var totalIn=inInvest+inOwnPaid+inAdvance+inCustomer, totalOut=outExpenseCash+outPayout;
+  var cashIn=inInvest+inCustomer, cashOut=outExpenseCash+outPayout+advCash, bypass=advOther+inOwnPaid+expAdv;
+  var startCash=(view.settings&&Number(view.settings.startCash))||0;
   var hc=cash<50000?'var(--red)':(cash<200000?'var(--gold)':'var(--green)');
   var h='<div class="ledger" style="border-color:'+hc+'"><div class="cash-lbl">💵 В кассе сейчас</div>'
    + '<div class="cash num" style="color:'+hc+'">'+(cash<0?'−':'')+fmt0(Math.abs(cash))+' ₸</div>'
    + '<div style="font-size:12px;color:var(--mut);margin-top:4px">живые деньги на руках</div></div>';
   if(canWriteLedger()) h+='<button onclick="MONEY.customerIncome()" style="width:100%;background:var(--green);border:none;color:#0d1117;border-radius:14px;padding:15px;font-size:15px;font-weight:800;font-family:inherit;cursor:pointer;margin-bottom:4px;display:flex;align-items:center;justify-content:center;gap:8px">💰 ЗАПИСАТЬ ОПЛАТУ ОТ ЗАКАЗЧИКА</button>';
   function row(l,v,c){ return '<div style="display:flex;justify-content:space-between;padding:8px 0;border-top:1px solid var(--brd)"><span style="color:#c9d1d9;font-size:14px">'+l+'</span><span style="font-weight:700;color:'+c+'">'+fmt0(v)+'</span></div>'; }
-  h+=mSecH('⬇️ ПРИТОК — ОТКУДА ДЕНЬГИ');
-  h+='<div class="bcard" style="border-left:3px solid var(--green)"><div style="font-size:12px;color:var(--green);font-weight:700">Всего поступило</div><div style="font-size:26px;font-weight:800;color:var(--green);margin:5px 0 6px">'+fmt0(totalIn)+' ₸</div>';
-  if(inInvest>0) h+=row('💼 Вложения партнёров в кассу',inInvest,'var(--green)');
-  if(inAdvance>0) h+=row('🔁 Передано под отчёт',inAdvance,'var(--green)');
-  if(inOwnPaid>0) h+=row('💳 Оплачено из своих',inOwnPaid,'var(--green)');
+  h+=mSecH('⬇️ ПРИТОК В КАССУ');
+  h+='<div class="bcard" style="border-left:3px solid var(--green)"><div style="font-size:12px;color:var(--green);font-weight:700">Поступило в кассу</div><div style="font-size:26px;font-weight:800;color:var(--green);margin:5px 0 6px">'+fmt0(cashIn)+' ₸</div>';
   if(inCustomer>0) h+=row('🏢 Оплата от заказчика',inCustomer,'var(--blue)');
+  if(inInvest>0) h+=row('💼 Вложения партнёров',inInvest,'var(--green)');
   h+='</div>';
-  h+=mSecH('⬆️ ОТТОК — КУДА УШЛИ');
-  h+='<div class="bcard" style="border-left:3px solid var(--red)"><div style="font-size:12px;color:var(--red);font-weight:700">Всего выбыло из кассы</div><div style="font-size:26px;font-weight:800;color:var(--red);margin:5px 0 6px">'+fmt0(totalOut)+' ₸</div>';
-  if(outExpenseCash>0) h+=row('🧾 Расходы из кассы',outExpenseCash,'var(--red)');
+  h+=mSecH('⬆️ ОТТОК ИЗ КАССЫ');
+  h+='<div class="bcard" style="border-left:3px solid var(--red)"><div style="font-size:12px;color:var(--red);font-weight:700">Выбыло из кассы</div><div style="font-size:26px;font-weight:800;color:var(--red);margin:5px 0 6px">'+fmt0(cashOut)+' ₸</div>';
   if(outPayout>0) h+=row('↩️ Выплаты партнёрам',outPayout,'var(--red)');
-  h+='<div style="font-size:12px;color:var(--mut);margin-top:9px;line-height:1.5">ℹ️ Большинство расходов идёт через подотчётные (не из общей кассы), поэтому касса меняется меньше общих трат.</div></div>';
-  h+='<div class="bcard" style="text-align:center"><div style="font-size:12px;color:var(--mut);font-weight:700">📍 Итог: касса сейчас</div><div style="font-size:26px;font-weight:800;color:'+hc+';margin-top:7px">'+(cash<0?'−':'')+fmt0(Math.abs(cash))+' ₸</div></div>';
+  if(advCash>0) h+=row('🔁 Передано под отчёт (из кассы)',advCash,'var(--red)');
+  if(outExpenseCash>0) h+=row('🧾 Расходы из кассы',outExpenseCash,'var(--red)');
+  h+='</div>';
+  h+='<div class="bcard" style="text-align:center"><div style="font-size:12px;color:var(--mut);font-weight:700">📍 Итог: касса сейчас</div>'
+    +'<div style="font-size:12px;color:var(--mut);margin-top:4px">'+(startCash>0?('старт '+fmt0(startCash)+' + '):'')+'поступило '+fmt0(cashIn)+' − ушло '+fmt0(cashOut)+'</div>'
+    +'<div style="font-size:26px;font-weight:800;color:'+hc+';margin-top:5px">'+(cash<0?'−':'')+fmt0(Math.abs(cash))+' ₸</div></div>';
+  if(bypass>0){
+    h+=mSecH('🔀 МИМО КАССЫ — не влияет на кассу');
+    h+='<div class="bcard" style="border-left:3px solid var(--mut)"><div style="font-size:12px;color:var(--mut);font-weight:700">Прошло мимо кассы</div><div style="font-size:22px;font-weight:800;color:#c9d1d9;margin:5px 0 6px">'+fmt0(bypass)+' ₸</div>';
+    if(advOther>0) h+=row('🔁 Передано под отчёт (из своих/подотчёта)',advOther,'#c9d1d9');
+    if(inOwnPaid>0) h+=row('💳 Оплачено из своих',inOwnPaid,'#c9d1d9');
+    if(expAdv>0) h+=row('🧾 Расходы из подотчёта',expAdv,'#c9d1d9');
+    h+='<div style="font-size:12px;color:var(--mut);margin-top:9px;line-height:1.5">ℹ️ Эти деньги в общую кассу не заходили и из неё не выходили — шли из личных или подотчётных средств. Поэтому касса меняется меньше общих трат.</div></div>';
+  }
   h+=cashCalendarBlock(view, cash);
   return h;
 }
