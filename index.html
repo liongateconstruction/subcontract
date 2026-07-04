@@ -3818,6 +3818,10 @@ function renderMoney(view, app){
   var sub=LG.sub.money||'pl';
   var h=draftReviewCard(view)+subBar('money',[{id:'pl',label:'Прибыль'},{id:'flow',label:'Поток'},{id:'balance',label:'Баланс'}]);
   h+=moneyCashStrip(view);
+  // простыми словами — для партнёров
+  var _expl={pl:'Сколько заработали: выручка минус все расходы стройки.', flow:'Живые деньги: что пришло в кассу и куда ушло из неё.', balance:'Чем владеем минус сколько должны — что останется, если всё закрыть сегодня.'}[sub]||'';
+  if(_expl) h+='<div style="font-size:12px;color:var(--mut);margin:0 2px 10px">💬 '+_expl+'</div>';
+  if(sub==='pl') h+='<div style="font-size:12px;color:var(--mut);margin:0 2px 12px;line-height:1.5">💡 Заработали ≠ в кассе: часть прибыли — это ещё не полученные оплаты заказчика (дебиторка и невыставленные акты). Живые деньги — в полоске «Касса» выше, доли партнёров — во вкладке «Партнёры».</div>';
   if(canAdvise()){ var _mq='Проанализируй деньги компании: касса, кассовый разрыв, дебиторка (неоплаченные акты), на что хватает и что срочно сделать. Кратко, с цифрами.';
     h+='<button onclick="askQuick('+JSON.stringify(_mq).replace(/"/g,'&quot;')+')" style="width:100%;margin:2px 0 14px;background:rgba(167,139,250,.12);border:1px solid var(--violet);color:var(--violet);border-radius:11px;padding:12px;font-size:14px;font-weight:700;cursor:pointer">🤖 Совет по деньгам от ИИ</button>'; }
   if(sub==='flow')        h += moneyFlow(view);
@@ -3855,7 +3859,7 @@ function moneyPL(view){
   var moColor=mO.pct>=15?'var(--green)':(mO.pct>=5?'var(--gold)':'var(--red)');
   // HERO объектная маржа
   var h='<div class="ledger" style="border-color:'+(mO.profit<0?'var(--red)':'rgba(63,185,80,.4)')+'">'
-   + '<div style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);margin-bottom:4px">📊 Прибыль по компании (gross)</div>'
+   + '<div style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);margin-bottom:4px">📊 Прибыль по компании</div>'
    + '<div class="num" style="font-size:34px;font-weight:800;color:'+moColor+'">'+(mO.profit>=0?'+':'−')+fmt0(Math.abs(mO.profit))+' ₸</div>'
    + '<div style="font-size:12px;color:var(--mut);margin:2px 0 12px">выручка − все расходы объекта · маржа '+mO.pct+'%</div>'
    + '<div class="grid">'+cell('Выручка', mO.revenue, 'var(--teal)')+cell('Расходы', mO.cost, 'var(--red)')+'</div>'
@@ -3887,7 +3891,7 @@ function moneyPL(view){
   }
   var mdColor=mD.pct>=30?'var(--green)':(mD.pct>=15?'var(--gold)':'var(--red)');
   h+=marginCard({title:'Прямая бригадная маржа',desc:'выручка − начисления бригадам',color:mdColor,profit:mD.profit,pct:mD.pct,revenue:mD.revenue,cost:mD.cost,foot:'⚠ без материалов, инструмента, админа',fc:'var(--gold)'});
-  h+=marginCard({title:'Объектная маржа (gross) — ИТОГОВАЯ',kc:'var(--gold)',desc:'выручка − все расходы объекта',color:moColor,big:24,profit:mO.profit,pct:mO.pct,revenue:mO.revenue,cost:mO.cost,foot:mO.profit<0?'🔴 Объект пока убыточен — расходы выше выручки':'',fc:'var(--red)'});
+  h+=marginCard({title:'Объектная маржа — ИТОГОВАЯ',kc:'var(--gold)',desc:'выручка − все расходы объекта',color:moColor,big:24,profit:mO.profit,pct:mO.pct,revenue:mO.revenue,cost:mO.cost,foot:mO.profit<0?'🔴 Объект пока убыточен — расходы выше выручки':'',fc:'var(--red)'});
   h+=obligationsBlock(view);
   h+=moneyExpenseStruct(view);
   h+=moneyLeak(view);
@@ -3898,7 +3902,7 @@ function obligationsBlock(view){
   var open=(view.obligations||[]).filter(function(o){return o&&o.status==='open';}).sort(function(a,b){return String(a.due||'9999').localeCompare(String(b.due||'9999'));});
   var sum=open.reduce(function(s,o){return s+(Number(o.amount)||0);},0);
   var td=new Date().toISOString().slice(0,10);
-  var h=mSecH('📌 ОБЯЗАТЕЛЬСТВА · COMMITTED');
+  var h=mSecH('📌 ОБЯЗАТЕЛЬСТВА — ОБЕЩАННЫЕ ТРАТЫ');
   h+='<div style="font-size:12px;color:var(--mut);margin:0 2px 10px">Деньги, которые обещаны (бетон, бригады, аренда), но ещё не потрачены. Мировой стандарт: расход + обязательства = реальная картина.</div>';
   if(open.length){
     h+='<div class="bcard" style="border-left:3px solid var(--violet)"><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px"><span style="font-size:13px;color:var(--violet);font-weight:800">Обещано всего</span><span class="num" style="font-size:20px;font-weight:800;color:var(--violet)">'+fmt0(sum)+' ₸</span></div>';
