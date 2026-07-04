@@ -2057,6 +2057,7 @@ function openCloseout(){
 }
 function moreFilter(q){
   q=(q||'').trim().toLowerCase();
+  document.querySelectorAll('details.more-sec').forEach(function(d){ d.open=!!q; });
   var anyAll=false;
   document.querySelectorAll('.more-sec').forEach(function(sec){
     var any=false;
@@ -2091,11 +2092,7 @@ function renderMore(view, app){
   var h='<div style="margin-bottom:14px"><div style="font-size:24px;color:var(--gold);font-weight:800;letter-spacing:2px">⚙️ ЕЩЁ</div><div style="font-size:14px;color:var(--mut);margin-top:4px">Все функции приложения</div></div>';
   h+='<input id="more-q" type="text" placeholder="🔍 Поиск функции…" oninput="moreFilter(this.value)" autocomplete="off" style="width:100%;box-sizing:border-box;padding:12px 14px;background:var(--sur2);border:1px solid var(--brd);border-radius:12px;color:var(--fg);font-size:15px;margin-bottom:16px;font-family:inherit"/>';
   h+='<div id="more-empty" style="display:none;text-align:center;color:var(--mut);font-size:14px;padding:24px 0">Ничего не найдено</div>';
-  h+=section('СТРАТЕГИЯ 2030',[ tile('🎯','var(--gold)','Путь к $1 млрд','холдинг · план · вехи','MORE.strategy()') ]);
-  h+=section('НАПРАВЛЕНИЯ ХОЛДИНГА',[
-    isOwner?tile('🛒','var(--violet)','Ритейл','товары · склад · маржа','MORE.dir(\'retail\')'):null,
-    isOwner?tile('🎨','var(--blue)','Отделка','проекты · м² · маржа','MORE.dir(\'finish\')'):null,
-    isOwner?tile('🏢','var(--gold)','Девелопмент','GMV · NAV · продажи','MORE.dir(\'dev\')'):null ]);
+  // «Стратегия 2030» и направления холдинга перенесены вниз (свёрнуты) — см. перед подвалом
   h+=section('ДОСТУП',[
     tile('🔑','var(--blue)','Сменить пароль','свой пароль','MORE.changePass()'),
     isOwner?tile('👥','var(--gold)','Пользователи','люди и доступы','MORE.users()'):null ]);
@@ -2135,6 +2132,14 @@ function renderMore(view, app){
   h+=section('ОБСЛУЖИВАНИЕ',[
     tile('🔄','var(--gold)','Обновить','перезагрузить','MORE.reload()'),
     isOwner?tile('🔧','var(--violet)','Диагностика','облако · версия','MORE.diag()'):null ]);
+  // будущие направления — свёрнуты, чтобы не шуметь в рабочем инструменте
+  h+='<details class="more-sec" style="margin-top:6px"><summary style="font-size:13px;color:var(--mut);letter-spacing:1.5px;font-weight:700;margin:8px 4px 10px;cursor:pointer;list-style:none">🎯 СТРАТЕГИЯ 2030 · БУДУЩИЕ НАПРАВЛЕНИЯ <span style="font-weight:400">— показать ▾</span></summary>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px">'
+    +tile('🎯','var(--gold)','Путь к $1 млрд','холдинг · план · вехи','MORE.strategy()')
+    +(isOwner?tile('🛒','var(--violet)','Ритейл','не запущено','MORE.dir(\'retail\')'):'')
+    +(isOwner?tile('🎨','var(--blue)','Отделка','не запущено','MORE.dir(\'finish\')'):'')
+    +(isOwner?tile('🏢','var(--gold)','Девелопмент','не запущено','MORE.dir(\'dev\')'):'')
+    +'</div></details>';
   var _q=(LG.queue&&LG.queue.length)||0;
   var _syncTxt = _q>0 ? ('⏳ '+_q+' не отправлено') : (LG.lastSync?('🟢 синхронизировано '+agoText(LG.lastSync)):'⚪ ещё не синкалось');
   h+='<div style="margin-top:24px;padding:14px;background:var(--bg);border:1px solid var(--brd);border-radius:12px;text-align:center">'
