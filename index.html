@@ -2100,15 +2100,14 @@ function renderMore(view, app){
     isEdit?tile('🏁','var(--red)','Закрытие объекта','чеклист выхода · деньги в риске','openCloseout()'):null,
     tile('📊','var(--gold)','Отчёт','для партнёров','MORE.report()'),
     tile('📋','var(--teal)','Журнал','все операции','MORE.journal()'),
-    isEdit?tile('🚦','var(--gold)','Приёмка и оплата','залито · подписано · оплата','openPipeline()'):null,
+    isEdit?tile('🧱','var(--gold)','Акты и оплата','объёмы · КС-2 · приёмка · документы','MORE.ks2reg()'):null,
     tile('📅','var(--violet)','Итоги недели','ретроспектива','MORE.cycles()'),
     tile('🗣','var(--orange)','Планёрка','план/факт · договорённости','MORE.planerka()'),
     tile('📤','var(--teal)','Поделиться','сводка в WhatsApp','MORE.shareSvodka()'),
     tile('✈️','#229ED9','Telegram','отчёт в группу','MORE.telegram()'),
     canWriteLedger()?tile('🚚','var(--blue)','Заявка на бетон','заказ поставщику · номер','openConcreteOrder()'):null,
     tile('📥','var(--green)','Экспорт CSV','все операции','MORE.exportCSV()'),
-    isEdit?tile('📄','var(--gold)','Документы','акт скрытых · КС-2','openDocsHub()'):null,
-    isEdit?tile('🧱','var(--gold)','Бетон и КС-2','объёмы · акты · оплата','MORE.ks2reg()'):null ]);
+    null ]);
   h+=section('УМНЫЕ ВОЗМОЖНОСТИ',[
     tile('✨','var(--violet)','Возможности','KPI · Прогноз','MORE.capabilities()'),
     canAdvise()?tile('🤖','var(--gold)','AI-CFO','спросить Claude','MORE.aicfo()'):null ]);
@@ -2717,16 +2716,19 @@ function openKS2Registry(){
   h+='<div style="font-size:10px;color:var(--mut);text-align:center;margin-top:5px">'+fmtD(totVol)+' м³ бетона · '+pours.length+' заливок · '+acts.length+' актов'+(leftToBill>0?(' · не в актах '+fmt0(leftToBill)+' ₸'):'')+'</div>';
   h+='<div style="display:flex;justify-content:center;margin-top:6px"><span style="background:rgba(45,212,191,.1);border:1px solid var(--teal);color:var(--teal);border-radius:8px;padding:4px 11px;font-size:11px;font-weight:700">🔒 Гарантийные '+retPct+'% (с оплаченных): '+fmt0(retention)+' ₸</span></div>';
   // вкладки
-  h+='<div style="display:flex;gap:6px;margin-top:8px">';
-  [['vol','🧱 Объёмы'],['docs','📑 Документы'],['cum','📈 Накопительно']].forEach(function(t){ var on=(tab===t[0]);
+  h+='<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">';
+  [['vol','🧱 Объёмы'],['docs','📑 Акты'],['pipe','🚦 Приёмка'],['cum','📈 Накопит.'],['files','📄 Док-ты']].forEach(function(t){ var on=(tab===t[0]);
     h+='<button onclick="ks2SetTab(\''+t[0]+'\')" style="flex:1;background:'+(on?'var(--gold)':'var(--sur2)')+';color:'+(on?'#0d1117':'var(--fg)')+';border:1px solid '+(on?'var(--gold)':'var(--brd)')+';border-radius:9px;padding:9px 3px;font-size:12px;font-weight:700;cursor:pointer">'+t[1]+'</button>'; });
   h+='</div></div>';
 
   if(tab==='vol') h+=ks2TabVolumes(v,obj,oe,canW,pours,waitVol,waitRev);
   else if(tab==='docs') h+=ks2TabDocs(v,obj,oe,canW,acts,st);
+  else if(tab==='pipe') h+='<div id="pipe-box"></div>';
+  else if(tab==='files') h+=docsHubHTML();
   else h+=ks2TabCumulative(v,obj,pours,done,accRev,signedPlus,paid,leftToBill,leftToGet,custPaid,totVol,accVol);
 
-  lgSheet('🧱 Бетон и КС-2', h);
+  lgSheet('🧱 Бетон · акты · оплата', h);
+  if(tab==='pipe'){ try{ renderPipeline(); }catch(_){} }
 }
 
 /* ── ВКЛАДКА «ОБЪЁМЫ»: список заливок + инлайн-редактирование ─────────────── */
@@ -6085,13 +6087,12 @@ function openDocViewer(doc,title){
   document.getElementById('doc-print').onclick=function(){ try{ frame.contentWindow.focus(); frame.contentWindow.print(); }catch(e){ window.print(); } };
 }
 // ── ГЕНЕРАТОР ДОКУМЕНТОВ: хаб + АКТ СКРЫТЫХ РАБОТ (Вариант A) ──
-function openDocsHub(){
+function docsHubHTML(){
   var h='<div style="padding:2px">';
   h+='<div style="font-size:12px;color:var(--mut);margin-bottom:12px">Документы из реальных данных. Можно заполнить по фото образца.</div>';
   function row(ic,name,sub,onclick,ready){ return '<div '+(ready?('onclick="'+onclick+'"'):'')+' style="display:flex;align-items:center;gap:12px;background:var(--sur2);border:1px solid var(--brd);border-radius:12px;padding:14px;margin-bottom:9px'+(ready?';cursor:pointer':';opacity:.55')+'"><span style="font-size:22px">'+ic+'</span><div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:700">'+name+'</div><div style="font-size:11px;color:var(--mut)">'+sub+'</div></div>'+(ready?'<span style="color:var(--mut)">›</span>':'<span style="font-size:10px;color:var(--mut)">скоро</span>')+'</div>'; }
   h+=row('📎','Договор и файлы объекта','договор · ЭСФ от бухгалтера · акты','openObjFiles()',true);
   h+=row('📝','Акт скрытых работ','предъявление к освидетельствованию','openHiddenActBuilder()',true);
-  h+=row('🧱','Бетон и КС-2','объёмы · акты · оплата · накопительно','MORE.ks2reg()',true);
   h+=row('🧾','Форма Р-1','акт выполненных работ','openR1Builder()',true);
   h+=row('💳','Счёт на оплату','для оплаты заказчиком · банк · к оплате','openInvoiceBuilder()',true);
   h+=row('🧮','Счёт-фактура (PDF от бухгалтера)','загрузить присланный PDF в файлы объекта','openObjFiles(\'invoice\')',true);
@@ -6105,8 +6106,9 @@ function openDocsHub(){
   if(sInv.length){ h+='<div style="font-size:12px;color:var(--gold);font-weight:700;margin:14px 2px 8px">СОХРАНЁННЫЕ СЧЕТА-ФАКТУРЫ</div>';
     sInv.forEach(function(a){ h+='<div onclick="openSavedInvoice(\''+a.id+'\')" style="display:flex;justify-content:space-between;gap:10px;padding:10px 4px;border-bottom:1px solid var(--brd);cursor:pointer"><span style="font-size:13px">СФ № '+esc(a.num||'')+' · '+esc(a.date||'')+'</span><span style="color:var(--mut);font-size:12px">'+esc(String(a.buyer||'').slice(0,20))+' ›</span></div>'; }); }
   h+='</div>';
-  lgSheet('📄 Документы', h);
+  return h;
 }
+function openDocsHub(){ LG.ks2Tab='files'; openKS2Registry(); }
 function hactPrefill(){
   var view=projected(LG.base,LG.queue); var obj=curObj(view)||''; var meta=(view.objMeta&&view.objMeta[obj])||{}; var km=objReqs(view,obj);
   var seen={}, works=[];
@@ -6859,7 +6861,7 @@ function pipelineFunnel(view){
   });
   return {pouredV:pv,signedV:sv,pouredM:pm,signedM:sm,paidM:paid,notSignedV:Math.max(0,pv-sv),notSignedM:Math.max(0,pm-sm),notPaidM:Math.max(0,sm-paid)};
 }
-function openPipeline(){ lgSheet('📋 Приёмка и оплата', '<div id="pipe-box"></div>'); renderPipeline(); }
+function openPipeline(){ LG.ks2Tab='pipe'; openKS2Registry(); }
 function actMove(id,dir){
   var arr=accActsList(); var a=arr.find(function(x){return x&&x.id===id;}); if(!a)return;
   var i=acceptStageIdx(actCurStage(a))+(dir||1); i=Math.max(0,Math.min(ACCEPT_STAGES.length-1,i));
