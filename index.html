@@ -2023,6 +2023,38 @@ window.addEventListener('popstate', function(){
 });
 window.lgCloseSheet=lgCloseSheet;
 var CVAR={teal:'var(--teal)',gold:'var(--gold)',blue:'var(--blue)',violet:'var(--violet)',green:'var(--green)',red:'var(--red)',orange:'var(--gold)',purple:'var(--violet)'};
+function openCloseout(){
+  var view=projected(LG.base,LG.queue);
+  var C=calcCo(view); var obj=curObj(view)||'';
+  var da=debtorAging(view,obj);
+  var unbilled=Math.max(0,da.unbilled||0);
+  var receivable=Math.max(0,(da.billed||0)-(da.paid||0));
+  var pod={},podSum=0; Object.keys(C.debtToCompany||{}).forEach(function(k){ var v=C.debtToCompany[k]||0; if(v>500){pod[k]=v;podSum+=v;} });
+  var dtp=C.debtToPartner||{}; var partnerDebt=0; Object.keys(dtp).forEach(function(k){ if(dtp[k]>0)partnerDebt+=dtp[k]; });
+  var obligs=(view.obligations||[]).filter(function(o){return o&&o.status!=='closed';});
+  var qa=concreteQA(view);
+  var risk=unbilled+receivable+podSum;
+  function step(n,icon,title,sum,ok,body,btnLabel,btnClick,btnCol){
+    var col=ok?'var(--green)':(sum>0?'var(--red)':'var(--gold)');
+    var h='<div class="bcard" style="border-left:3px solid '+col+'">';
+    h+='<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><div style="font-size:14px;font-weight:800">'+n+'. '+icon+' '+title+'</div>';
+    h+='<div class="num" style="font-size:16px;font-weight:800;color:'+col+';white-space:nowrap">'+(ok?'✓':(sum>0?fmt0(sum)+' ₸':''))+'</div></div>';
+    if(body) h+='<div style="font-size:12px;color:var(--mut);margin-top:6px;line-height:1.5">'+body+'</div>';
+    if(btnLabel&&!ok) h+='<button onclick="'+btnClick+'" style="margin-top:9px;width:100%;border:1px solid var(--brd);background:var(--sur2);color:'+(btnCol||'var(--teal)')+';font-weight:700;font-size:13px;padding:10px;border-radius:10px;cursor:pointer">'+btnLabel+'</button>';
+    return h+'</div>';
+  }
+  var h='<div style="font-size:13px;color:var(--mut);line-height:1.5;margin-bottom:12px">Порядок выхода с объекта по мировой практике: сначала фиксируем и выставляем сделанное, потом собираем деньги на руках, потом финальный расчёт.</div>';
+  h+='<div class="bcard" style="border:1px solid rgba(248,81,73,.4);text-align:center"><div style="font-size:12px;color:var(--red);font-weight:800;letter-spacing:1px">ДЕНЬГИ В РИСКЕ ПРИ ВЫХОДЕ</div><div class="num" style="font-size:30px;font-weight:800;color:var(--red);margin-top:4px">'+fmt0(risk)+' ₸</div><div style="font-size:11px;color:var(--mut);margin-top:3px">не выставлено + не оплачено + подотчёт на руках</div></div>';
+  h+=step(1,'💾','Зафиксировать состояние',0,false,'Сохрани бэкап с сегодняшней датой — это точка отсчёта для всех споров и расчётов.','💾 Сделать бэкап сейчас','MORE.backup()','var(--blue)');
+  h+=step(2,'🧱','Выставить КС-2 на залитое',unbilled,unbilled<1000,'Бетон в конструкции, но акта нет — без подписи заказчика это превратится в ноль. Самое срочное, пока вы на объекте.','🧱 Открыть «Бетон и КС-2»','MORE.ks2reg()');
+  h+=step(3,'🏢','Собрать дебиторку',receivable,receivable<1000,'Выставлено по КС-2, но не оплачено. Дожимай оплату письменно, оплату отмечай в реестре КС-2.','📄 Реестр актов и оплат','MORE.ks2reg()');
+  var podList=Object.keys(pod).sort(function(a,b){return pod[b]-pod[a];}).slice(0,5).map(function(k){return esc(k)+' · '+fmt0(pod[k]);}).join('<br>');
+  h+=step(4,'👛','Закрыть подотчёт на руках',podSum,podSum<1000,(podList?podList+'<br>':'')+'Каждый: либо расход «из подотчёта» с чеком, либо возврат остатка в кассу. Собирай сейчас — после конфликта будет тяжелее.','↩️ Записать возврат в кассу',"openEntry({type:'return'})");
+  h+=step(5,'📌','Штрафы и удержания — на бумагу',0,false,(obligs.length?('Открытых обязательств: '+obligs.length+'.'):'Открытых обязательств нет.')+' Если заказчик грозит штрафом за срок/качество или удержит гарантийку — занеси как обязательство, чтобы капитал показывал честную картину.','📌 Добавить обязательство','openObligForm()','var(--violet)');
+  h+=step(6,'🧪','Документы по качеству',0,qa.total>0&&qa.passport>=qa.total,'Паспорта бетона: '+qa.passport+' из '+qa.total+' заливок · испытания: '+qa.lab+' из '+qa.total+'.<br>Это защита от штрафов «за некачество»: нет документов — нет спора. Кнопка 🧪 в каждой записи заливки.');
+  h+=step(7,'🤝','Финальный расчёт с партнёрами',0,false,'Долг партнёрам: <b class="num">'+fmt0(partnerDebt)+' ₸</b>. Гасить из собранного в пунктах 2–4. Разбивка — во вкладке «Партнёры».');
+  lgSheet('🏁 Закрытие объекта', h);
+}
 function moreFilter(q){
   q=(q||'').trim().toLowerCase();
   var anyAll=false;
@@ -2068,6 +2100,7 @@ function renderMore(view, app){
     tile('🔑','var(--blue)','Сменить пароль','свой пароль','MORE.changePass()'),
     isOwner?tile('👥','var(--gold)','Пользователи','люди и доступы','MORE.users()'):null ]);
   h+=section('ОТЧЁТЫ И ДАННЫЕ',[
+    isEdit?tile('🏁','var(--red)','Закрытие объекта','чеклист выхода · деньги в риске','openCloseout()'):null,
     tile('📊','var(--gold)','Отчёт','для партнёров','MORE.report()'),
     tile('📋','var(--teal)','Журнал','все операции','MORE.journal()'),
     isEdit?tile('🚦','var(--gold)','Приёмка и оплата','залито · подписано · оплата','openPipeline()'):null,
