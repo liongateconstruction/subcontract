@@ -2028,12 +2028,13 @@ function openCloseout(){
   var C=calcCo(view); var obj=curObj(view)||'';
   var da=debtorAging(view,obj);
   var unbilled=Math.max(0,da.unbilled||0);
-  var receivable=Math.max(0,(da.billed||0)-(da.paid||0));
+  var receivable=Math.max(0,da.total||0);            // должен сейчас (минус гарантийное удержание)
+  var retHeld=Math.max(0,da.retHeld||0);             // удержание — в риске при конфликтном выходе
   var pod={},podSum=0; Object.keys(C.debtToCompany||{}).forEach(function(k){ var v=C.debtToCompany[k]||0; if(v>500){pod[k]=v;podSum+=v;} });
   var dtp=C.debtToPartner||{}; var partnerDebt=0; Object.keys(dtp).forEach(function(k){ if(dtp[k]>0)partnerDebt+=dtp[k]; });
   var obligs=(view.obligations||[]).filter(function(o){return o&&o.status!=='closed';});
   var qa=concreteQA(view);
-  var risk=unbilled+receivable+podSum;
+  var risk=unbilled+receivable+retHeld+podSum;
   function step(n,icon,title,sum,ok,body,btnLabel,btnClick,btnCol){
     var col=ok?'var(--green)':(sum>0?'var(--red)':'var(--gold)');
     var h='<div class="bcard" style="border-left:3px solid '+col+'">';
@@ -2044,10 +2045,10 @@ function openCloseout(){
     return h+'</div>';
   }
   var h='<div style="font-size:13px;color:var(--mut);line-height:1.5;margin-bottom:12px">Порядок выхода с объекта по мировой практике: сначала фиксируем и выставляем сделанное, потом собираем деньги на руках, потом финальный расчёт.</div>';
-  h+='<div class="bcard" style="border:1px solid rgba(248,81,73,.4);text-align:center"><div style="font-size:12px;color:var(--red);font-weight:800;letter-spacing:1px">ДЕНЬГИ В РИСКЕ ПРИ ВЫХОДЕ</div><div class="num" style="font-size:30px;font-weight:800;color:var(--red);margin-top:4px">'+fmt0(risk)+' ₸</div><div style="font-size:11px;color:var(--mut);margin-top:3px">не выставлено + не оплачено + подотчёт на руках</div></div>';
+  h+='<div class="bcard" style="border:1px solid rgba(248,81,73,.4);text-align:center"><div style="font-size:12px;color:var(--red);font-weight:800;letter-spacing:1px">ДЕНЬГИ В РИСКЕ ПРИ ВЫХОДЕ</div><div class="num" style="font-size:30px;font-weight:800;color:var(--red);margin-top:4px">'+fmt0(risk)+' ₸</div><div style="font-size:11px;color:var(--mut);margin-top:3px">не выставлено + долг + гарантийное удержание + подотчёт</div></div>';
   h+=step(1,'💾','Зафиксировать состояние',0,false,'Сохрани бэкап с сегодняшней датой — это точка отсчёта для всех споров и расчётов.','💾 Сделать бэкап сейчас','MORE.backup()','var(--blue)');
   h+=step(2,'🧱','Выставить КС-2 на залитое',unbilled,unbilled<1000,'Бетон в конструкции, но акта нет — без подписи заказчика это превратится в ноль. Самое срочное, пока вы на объекте.','🧱 Открыть «Бетон и КС-2»','MORE.ks2reg()');
-  h+=step(3,'🏢','Собрать дебиторку',receivable,receivable<1000,'Выставлено по КС-2, но не оплачено. Дожимай оплату письменно, оплату отмечай в реестре КС-2.','📄 Реестр актов и оплат','MORE.ks2reg()');
+  h+=step(3,'🏢','Собрать дебиторку',receivable,receivable<1000,'Выставлено по КС-2, но не оплачено. Дожимай оплату письменно, оплату отмечай в реестре КС-2.'+(retHeld>0?'<br>🔒 Плюс гарантийное удержание <b class=\"num\">'+fmt0(retHeld)+' ₸</b> — вернут после гарантийного срока; при расторжении письменно зафиксируй условия возврата.':'')+'','📄 Реестр актов и оплат','MORE.ks2reg()');
   var podList=Object.keys(pod).sort(function(a,b){return pod[b]-pod[a];}).slice(0,5).map(function(k){return esc(k)+' · '+fmt0(pod[k]);}).join('<br>');
   h+=step(4,'👛','Закрыть подотчёт на руках',podSum,podSum<1000,(podList?podList+'<br>':'')+'Каждый: либо расход «из подотчёта» с чеком, либо возврат остатка в кассу. Собирай сейчас — после конфликта будет тяжелее.','↩️ Записать возврат в кассу',"openEntry({type:'return'})");
   h+=step(5,'📌','Штрафы и удержания — на бумагу',0,false,(obligs.length?('Открытых обязательств: '+obligs.length+'.'):'Открытых обязательств нет.')+' Если заказчик грозит штрафом за срок/качество или удержит гарантийку — занеси как обязательство, чтобы капитал показывал честную картину.','📌 Добавить обязательство','openObligForm()','var(--violet)');
@@ -2701,7 +2702,10 @@ function openKS2Registry(){
   var signedPlus=st.signed.sum+st.paid.sum;
   var custPaid=customerPaid(v);
   var paid=Math.max(st.paid.sum, custPaid);
-  var done=totRev, leftToBill=Math.max(0,done-accRev), leftToGet=Math.max(0,done-paid);
+  var done=totRev;
+  var billedAll=st.prepared.sum+st.signed.sum+st.paid.sum;
+  var leftToBill=Math.max(0,done-billedAll), leftToGet=Math.max(0,done-paid);   // «не в актах» — по деньгам актов, сходится с Балансом
+  waitRev=leftToBill; waitVol=ks2Items(v,obj).reduce(function(s2,e){return s2+(Number(e.volume)||0);},0);   // кандидаты для следующего акта
   var retPct=objReqs(v,obj).retPct; var retention=Math.round(st.paid.sum*retPct/100);   // гарантийное удержание (3%) с ОПЛАЧЕННЫХ актов КС-2
 
   var h='';
@@ -4131,10 +4135,11 @@ function moneyBalance(view){
   var mo=profitEngine(view,null); var frozen=mo.wip||0;
   var firstObj=curObj(view)||'';
   var da=debtorAging(view,firstObj);
-  var receivable=Math.max(0, (da.billed||0)-(da.paid||0));   // выставлено по КС-2, ещё не оплачено (вкл. удержание)
+  var receivable=Math.max(0, da.total||0);                   // должен СЕЙЧАС (за вычетом гарантийного удержания)
+  var retHeld=Math.max(0, da.retHeld||0);                    // гарантийное удержание — вернут после гарантийного срока
   var unbilled=da.unbilled||0;                               // залито по факту, но КС-2 ещё не сделан
   var custName=((view.objMeta||{})[firstObj]||{}).customer||'Заказчик';
-  var assets=cash+receivable+unbilled+frozen;
+  var assets=cash+receivable+retHeld+unbilled+frozen;
   var dtp=C.debtToPartner||{}; var liab=0; Object.keys(dtp).forEach(function(k){ if(dtp[k]>0) liab+=dtp[k]; });
   var equity=assets-liab; var eqC=equity>=0?'var(--green)':'var(--red)';
   var h='<div class="ledger" style="border-color:rgba(88,166,255,.4)"><div class="cash-lbl" style="color:#a9cdfb">⚖️ Чистый капитал компании</div>'
@@ -4144,7 +4149,8 @@ function moneyBalance(view){
   h+=mSecH('💰 АКТИВЫ — ЧЕМ ВЛАДЕЕМ');
   h+='<div class="bcard" style="border-left:3px solid var(--green)"><div style="font-size:12px;color:var(--green);font-weight:700">Всего активов</div><div style="font-size:24px;font-weight:800;color:var(--green);margin:5px 0 6px">'+fmt0(assets)+' ₸</div>';
   h+=row('💵 Касса (живые деньги)',cash);
-  h+=row('🏢 Дебиторка ('+esc(custName)+' должен)',receivable,'var(--gold)');
+  if(receivable>0) h+=row('🏢 Дебиторка ('+esc(custName)+' должен сейчас)',receivable,'var(--gold)');
+  if(retHeld>0) h+=row('🔒 Гарантийное удержание (вернут позже)',retHeld,'var(--teal)');
   if(unbilled>1000) h+=row('🧱 Залито, не выставлено',unbilled,'var(--blue)');
   if(frozen>0) h+='<div onclick="openNzpDetail()" style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:1px solid var(--brd);cursor:pointer"><span style="color:#c9d1d9;font-size:14px">🧊 НЗП (армирование без бетона)</span><span style="font-weight:700;color:var(--teal)">'+fmt0(frozen)+' <span style="color:var(--mut);font-weight:400">›</span></span></div>';
   h+='<div style="font-size:12px;color:var(--mut);margin-top:9px;line-height:1.5">Дебиторка — выставлено по КС-2, ещё не оплачено. Залито, не выставлено — бетон залит, но акт КС-2 ещё не сделан (можно выставлять). НЗП — армирование: станет выручкой после заливки бетона.</div></div>';
@@ -5727,7 +5733,9 @@ function openKS2Builder(obj){
   h+=fld('ks2-contractno','Номер договора',km.contractNo||'');
   h+=fld('ks2-contractdate','Дата договора',km.contractDate||'');
   h+=fld('ks2-stroyka','Стройка',km.stroyka||obj);
-  h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div>'+fld('ks2-aktnum','Акт №',km.aktnum||'1')+'</div><div>'+fld('ks2-period','Период',defPeriod)+'</div></div>';
+  var _mxNum=0; (view.ks2acts||[]).forEach(function(a){ if(a&&a.obj===obj){ var n2=parseInt(a.aktnum,10); if(n2>_mxNum)_mxNum=n2; } });
+  var _sugNum=_mxNum>0?String(_mxNum+1):(km.aktnum||'1');
+  h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div>'+fld('ks2-aktnum','Акт №',_sugNum)+'</div><div>'+fld('ks2-period','Период',defPeriod)+'</div></div>';
   h+='</div>';
   var gi=0,total=0; h+='<div style="font-size:12px;color:var(--mut);letter-spacing:1px;font-weight:700;margin:8px 0">СОСТАВ РАБОТ</div>';
   Object.keys(groups).forEach(function(gk){ var g=groups[gk]; var rate=g.vol>0?Math.round(g.rev/g.vol):0; total+=g.rev;
