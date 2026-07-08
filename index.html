@@ -4656,7 +4656,7 @@ function renderCabinet(view, app, scope){
     +'<div style="flex:1;background:var(--sur);border:1px solid var(--brd);border-radius:13px;padding:13px"><div style="font-size:12px;color:var(--mut)">За 7 дней</div><div class="num" style="font-size:24px;font-weight:900;color:var(--teal)">'+fmtD(weekV)+'<span style="font-size:12px;color:var(--mut)"> м³</span></div></div></div>';
   // 💰 зарплата прораба — оклад + премия по КС-2 с разбивкой блок → конструктив
   h+=_T('money');
-  if(!isBrig && payStaffId){ var _pp=(view.staff||[]).find(function(x){return x&&x.id===payStaffId;}); if(_pp) h+=foremanPayBlock(view,_pp); }
+  if(!isBrig && payStaffId){ var _pp=(view.staff||[]).find(function(x){return x&&x.id===payStaffId;}); if(_pp){ h+=foremanPayBlock(view,_pp); h+=staffHistoryHTML(view,_pp); } }
   // алерты (без денег — операционные)
   h+=_T('top');
   var pendV=0; ent.forEach(function(e){ if(e.type==='vol'&&isConcrete(view,e)&&inScope(e)&&!e.accepted) pendV+=Number(e.volume)||0; });
@@ -5360,6 +5360,7 @@ function renderEntryFields(){
   } else if(d.type==='payout'){
     var _pplo=(staffList(view)||[]);
     var _ptOpts=partnerNames(view).map(function(n){return ['P|'+n, n];}).concat(_pplo.map(function(s){return ['S|'+s.id, (s.name||'')+(s.isConsult?' · консультант':' · сотрудник')];}));
+    if(d.who && partnerNames(view).indexOf(d.who)<0) _ptOpts.unshift(['P|'+d.who, d.who+' · возврат за свои']);
     var _ptSel=d.forStaffId?('S|'+d.forStaffId):('P|'+(d.who||'Дмитрий'));
     h+=fld('Кому выплата','<select id="in-payto">'+selOpts(_ptOpts, _ptSel)+'</select>')+'<div style="font-size:11px;color:var(--mut);margin:-7px 2px 13px;line-height:1.5">Партнёр — вернуть подотчёт. Сотрудник/консультант — выплата по лицевому счёту (уменьшит его «к выдаче»).</div>';
     h+=fld('Сумма, ₸',amtInput);
@@ -5543,7 +5544,7 @@ function saveEntry(){
       var esp=gv('in-spot'); if(esp){ p.spotId=esp; p.spot=esp; var smeta=(view.objMeta&&view.objMeta[obj])||{}; var ess=(smeta.spots||[]).find(function(s){return s.id===esp;}); p.zone=ess?ess.name:''; } }
     else if(d.type==='advance'){ p.from=gv('in-from'); p.to=gv('in-to'); p.paySource=gv('in-src')||'own'; if(p.from===p.to){ document.getElementById('entry-err').textContent='«От» и «Кому» должны отличаться.'; return; } }
     else if(d.type==='invest'){ p.who=gv('in-who'); }
-    else if(d.type==='payout'){ var ptv=gv('in-payto')||''; if(ptv.indexOf('S|')===0){ var sid=ptv.slice(2); var _fpp=(staffList(view)||[]).find(function(x){return x.id===sid;}); p.forStaffId=sid; p.forStaff=_fpp?_fpp.name:''; p.who=_fpp?_fpp.name:''; p.consultPay=true; } else { p.who=ptv.indexOf('P|')===0?ptv.slice(2):(ptv||'Дмитрий'); } }
+    else if(d.type==='payout'){ var ptv=gv('in-payto')||''; if(ptv.indexOf('S|')===0){ var sid=ptv.slice(2); var _fpp=(staffList(view)||[]).find(function(x){return x.id===sid;}); p.forStaffId=sid; p.forStaff=_fpp?_fpp.name:''; p.who=_fpp?_fpp.name:''; p.consultPay=true; } else { p.who=ptv.indexOf('P|')===0?ptv.slice(2):(ptv||'Дмитрий'); p.forStaffId=''; p.forStaff=''; p.consultPay=false; } }
   }
   if(LG.draft.editId){ emit({ kind:'entry.edit', entryId:LG.draft.editId, payload:p }); }
   else { p.ts=Date.now(); emit({ kind:'entry.add', payload:p }); }
