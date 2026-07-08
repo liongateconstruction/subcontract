@@ -6504,10 +6504,21 @@ function autoSalaryByMonth(p){
     cur.setMonth(cur.getMonth()+1); }
   return out;
 }
+// Владелец вручную начисляет бонус сотруднику в любой месяц (kind 'bon' в ledger).
+function staffBonusAdd(staffId){
+  var amt=Math.round(Number((document.getElementById('bon-amt')||{}).value)||0);
+  var dt=String((document.getElementById('bon-date')||{}).value||'').slice(0,10)||new Date().toISOString().slice(0,10);
+  var note=String((document.getElementById('bon-note')||{}).value||'').trim()||'Бонус от владельца';
+  if(amt<=0){ toast('Укажи сумму бонуса'); return; }
+  emit({kind:'staff.ledger', id:lgId('l'), payload:{staffId:staffId, entry:{kind:'bon', amount:amt, note:note, date:dt}}});
+  toast('⭐ Бонус '+fmt0(amt)+' ₸ начислен');
+  try{ var o=(staffList(projected(LG.base,LG.queue))||[]).find(function(x){return x.id===staffId;}); if(o) openStaffCard(o); }catch(_){}
+}
 function staffHistoryHTML(view,p){
   var nm=p.name||''; var rows=[];
+  var _raw=(view.staff||[]).find(function(x){return x&&x.id===p.id;})||p;
   function add(date,icon,label,amount,col,note,grp){ if(!(Number(amount)>0))return; rows.push({d:String(date||'').slice(0,10),i:icon,l:label,a:Number(amount)||0,c:col,n:note||'',g:grp}); }
-  (p.ledger||[]).forEach(function(m){ if(!m)return; var k=m.kind;
+  (_raw.ledger||[]).forEach(function(m){ if(!m)return; var k=m.kind;
     if(k==='acc') add(m.date,'\u2795','Начислено (вручную)',m.amount,'var(--green)',m.note,'acc');
     else if(k==='bon'||k==='bonus') add(m.date,'\u2b50','Бонус',m.amount,'var(--gold)',m.note,'bon');
     else if(k==='pay') add(m.date,'\ud83d\udcb8','Выплата',m.amount,'var(--fg)',m.note,'pay');
@@ -6583,6 +6594,16 @@ function openStaffCard(p){
     +'<div style="background:var(--sur2);border-radius:8px;padding:8px"><div style="font-size:11px;color:var(--mut)">Бонусы</div><div class="num" style="color:var(--gold);font-weight:700">'+fmt0(p.bonusKS2||0)+'</div></div>'
     +'<div style="background:var(--sur2);border-radius:8px;padding:8px"><div style="font-size:11px;color:var(--mut)">Выплачено</div><div class="num" style="font-weight:700">'+fmt0(p.paid)+'</div></div>'
     +'<div style="background:var(--sur2);border-radius:8px;padding:8px"><div style="font-size:11px;color:var(--mut)">Удержано</div><div class="num" style="color:var(--red);font-weight:700">'+fmt0(p.held||0)+'</div></div></div></div>';
+  if(canWriteLedger()){
+    h+='<details class="ledger" style="margin-top:12px;padding:10px 12px"><summary style="cursor:pointer;list-style:none;font-size:13px;font-weight:700;color:var(--gold)">⭐ Начислить бонус <span style="font-weight:400;color:var(--mut)">— в любой месяц ▾</span></summary>'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">'
+      +'<input id="bon-date" type="date" value="'+new Date().toISOString().slice(0,10)+'" style="padding:10px;background:var(--sur2);border:1px solid var(--brd);border-radius:9px;color:var(--fg);font-size:14px"/>'
+      +'<input id="bon-amt" type="number" inputmode="numeric" placeholder="Сумма, ₸" style="padding:10px;background:var(--sur2);border:1px solid var(--brd);border-radius:9px;color:var(--fg);font-size:14px"/></div>'
+      +'<input id="bon-note" type="text" placeholder="За что (напр. премия за июнь)" style="width:100%;box-sizing:border-box;margin-top:8px;padding:10px;background:var(--sur2);border:1px solid var(--brd);border-radius:9px;color:var(--fg);font-size:14px"/>'
+      +'<button onclick="staffBonusAdd(\''+esc(p.id)+'\')" style="width:100%;margin-top:9px;background:rgba(240,165,0,.14);border:1px solid var(--gold);color:var(--gold);border-radius:10px;padding:11px;font-weight:800;font-size:14px;cursor:pointer">⭐ Начислить бонус</button>'
+      +'<div style="font-size:11px;color:var(--mut);margin-top:7px;line-height:1.5">Поставь дату нужного месяца — бонус ляжет в расчётный листок этого месяца и добавится к «к выдаче». Пример: премия прораба за июнь, которую движок не зафиксировал.</div>'
+      +'</details>';
+  }
   h+=staffHistoryHTML(projected(LG.base,LG.queue), p);
   var isForeman=!consult && /прораб/i.test(p.role||'');
   if((p.salaried||isForeman) && p.payMethod==='oklad'){
