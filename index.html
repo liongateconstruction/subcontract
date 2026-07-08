@@ -6491,56 +6491,76 @@ function saveStaff(){
 function archiveStaff(id){ emit({kind:'staff.archive', entryId:id}); lgCloseSheet(); render(); }
 // «Расчётный листок»: помесячная история всех операций человека (как в ADP/1С-ЗУП).
 // Источники ровно те же, что в цифрах карточки: p.ledger + журнал (выплаты forStaffId, возвраты, свои покупки, подотчёт, вложения).
+// «Расчётный листок»: помесячно — оклад (та же формула, что в балансе), бонусы, выплачено, удержано, остаток месяца + все операции.
+function autoSalaryByMonth(p){
+  var out={}; if(!isSalaried(p)) return out;
+  var now=new Date(), start=_pd(p.hireDate), end=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+  if(p.fireDate){ var f=_pd(p.fireDate); if(f<end)end=f; } if(end<start) return out;
+  var cur=new Date(start.getFullYear(),start.getMonth(),1);
+  while(cur<=end){ var y=cur.getFullYear(),m=cur.getMonth()+1,mS=new Date(y,m-1,1),mE=new Date(y,m,0);
+    var sS=start>mS?start:mS, sE=end<mE?end:mE;
+    if(sE>=sS){ var w=_wdBetween(sS,sE); var v=(p.payMethod==='day')?w*(+p.rate):(function(){var wm=_wdInMonth(y,m);return wm>0?Math.round((+p.rate)*w/wm):0;})();
+      if(v>0) out[y+'-'+String(m).padStart(2,'0')]=v; }
+    cur.setMonth(cur.getMonth()+1); }
+  return out;
+}
 function staffHistoryHTML(view,p){
   var nm=p.name||''; var rows=[];
   function add(date,icon,label,amount,col,note,grp){ if(!(Number(amount)>0))return; rows.push({d:String(date||'').slice(0,10),i:icon,l:label,a:Number(amount)||0,c:col,n:note||'',g:grp}); }
   (p.ledger||[]).forEach(function(m){ if(!m)return; var k=m.kind;
-    if(k==='acc') add(m.date,'➕','Начислено',m.amount,'var(--green)',m.note,'acc');
-    else if(k==='bon'||k==='bonus') add(m.date,'⭐','Бонус',m.amount,'var(--gold)',m.note,'acc');
-    else if(k==='pay') add(m.date,'💸','Выплата',m.amount,'var(--fg)',m.note,'pay');
-    else if(k==='pen') add(m.date,'⛔','Удержание',m.amount,'var(--red)',m.note,'pen');
+    if(k==='acc') add(m.date,'\u2795','Начислено (вручную)',m.amount,'var(--green)',m.note,'acc');
+    else if(k==='bon'||k==='bonus') add(m.date,'\u2b50','Бонус',m.amount,'var(--gold)',m.note,'bon');
+    else if(k==='pay') add(m.date,'\ud83d\udcb8','Выплата',m.amount,'var(--fg)',m.note,'pay');
+    else if(k==='pen') add(m.date,'\u26d4','Удержание',m.amount,'var(--red)',m.note,'pen');
   });
   (view.entries||[]).forEach(function(e){ if(!e)return; var a=Number(e.amount)||0;
-    if(e.type==='payout'&&e.forStaffId===p.id) add(e.date,'💸','Выплата',a,'var(--fg)',e.note,'pay');
-    else if(e.type==='payout'&&e.who===nm&&!e.forStaffId) add(e.date,'💵','Компания вернула за свои',a,'var(--teal)',e.note,'ret');
+    if(e.type==='payout'&&e.forStaffId===p.id) add(e.date,'\ud83d\udcb8','Выплата',a,'var(--fg)',e.note,'pay');
+    else if(e.type==='payout'&&e.who===nm&&!e.forStaffId) add(e.date,'\ud83d\udcb5','Компания вернула за свои',a,'var(--teal)',e.note,'ret');
     else if(e.type==='expense'&&e.who===nm){ var src=e.paySource||'advance';
-      if(src==='own') add(e.date,'🛒','Купил на свои',a,'var(--orange)',e.note,'own');
-      else if(src==='advance') add(e.date,'🧾','Расход из подотчёта',a,'var(--blue)',e.note,'advSpent');
+      if(src==='own') add(e.date,'\ud83d\uded2','Купил на свои',a,'var(--orange)',e.note,'own');
+      else if(src==='advance') add(e.date,'\ud83e\uddfe','Расход из подотчёта',a,'var(--blue)',e.note,'advSpent');
     }
-    else if(e.type==='advance'&&e.to===nm) add(e.date,'👛','Получил под отчёт',a,'var(--blue)',e.note,'advIn');
-    else if(e.type==='advance'&&e.from===nm) add(e.date,'👛','Передал дальше',a,'var(--blue)',e.note,'advOut');
-    else if(e.type==='invest'&&e.who===nm) add(e.date,'💼','Вложение в кассу',a,'var(--green)',e.note,'inv');
+    else if(e.type==='advance'&&e.to===nm) add(e.date,'\ud83d\udc5b','Получил под отчёт',a,'var(--blue)',e.note,'advIn');
+    else if(e.type==='advance'&&e.from===nm) add(e.date,'\ud83d\udc5b','Передал дальше',a,'var(--blue)',e.note,'advOut');
+    else if(e.type==='invest'&&e.who===nm) add(e.date,'\ud83d\udcbc','Вложение в кассу',a,'var(--green)',e.note,'inv');
   });
-  if(!rows.length) return '';
-  rows.sort(function(a,b){return b.d.localeCompare(a.d);});
-  var byMon={}, order=[];
-  rows.forEach(function(r){ var mk=r.d.slice(0,7)||'без даты'; if(!byMon[mk]){byMon[mk]=[];order.push(mk);} byMon[mk].push(r); });
+  var sal=autoSalaryByMonth(p);
+  var monthsSet={}; rows.forEach(function(r){ monthsSet[r.d.slice(0,7)||'0000-00']=1; }); Object.keys(sal).forEach(function(k){ monthsSet[k]=1; });
+  var order=Object.keys(monthsSet).sort().reverse();
+  if(!order.length) return '';
+  var byMon={}; rows.forEach(function(r){ var mk=r.d.slice(0,7)||'0000-00'; (byMon[mk]=byMon[mk]||[]).push(r); });
   var MN=['','январь','февраль','март','апрель','май','июнь','июль','август','сентябрь','октябрь','ноябрь','декабрь'];
-  var h='<div style="font-size:12px;color:var(--mut);text-transform:uppercase;letter-spacing:.05em;margin:14px 2px 8px">📜 История по месяцам</div>';
+  // «к выдаче сейчас» — ровно как в карточке (staffList)
+  var oNow=null; try{ oNow=(staffList(view)||[]).find(function(x){return x.id===p.id;})||null; }catch(_){}
+  var h='<div style="font-size:12px;color:var(--mut);text-transform:uppercase;letter-spacing:.05em;margin:14px 2px 8px">\ud83d\udcdc Расчётный листок по месяцам</div>';
   order.forEach(function(mk,idx){
-    var list=byMon[mk]; var t={pay:0,acc:0,ret:0,own:0,advIn:0,advSpent:0,advOut:0,pen:0,inv:0};
+    var list=(byMon[mk]||[]).slice().sort(function(a,b){return b.d.localeCompare(a.d);});
+    var t={pay:0,acc:0,bon:0,ret:0,own:0,advIn:0,advSpent:0,advOut:0,pen:0,inv:0};
     list.forEach(function(r){ t[r.g]=(t[r.g]||0)+r.a; });
-    var bits=[];
-    if(t.pay) bits.push('выплачено <b class="num">'+fmt0(t.pay)+'</b>');
-    if(t.acc) bits.push('начислено <b class="num" style="color:var(--green)">'+fmt0(t.acc)+'</b>');
-    if(t.ret) bits.push('возвраты <b class="num" style="color:var(--teal)">'+fmt0(t.ret)+'</b>');
-    if(t.own) bits.push('на свои <b class="num" style="color:var(--orange)">'+fmt0(t.own)+'</b>');
-    if(t.advIn) bits.push('подотчёт +<b class="num" style="color:var(--blue)">'+fmt0(t.advIn)+'</b>');
-    if(t.advSpent||t.advOut) bits.push('закрыл <b class="num" style="color:var(--blue)">'+fmt0(t.advSpent+t.advOut)+'</b>');
-    if(t.pen) bits.push('удержано <b class="num" style="color:var(--red)">'+fmt0(t.pen)+'</b>');
-    if(t.inv) bits.push('вложил <b class="num" style="color:var(--green)">'+fmt0(t.inv)+'</b>');
+    var oklad=sal[mk]||0;
+    var accrM=oklad+t.acc+t.bon, restM=accrM-t.pay-t.pen;
     var y=mk.slice(0,4), m=parseInt(mk.slice(5,7),10)||0;
-    var lbl=(m?MN[m]:'без даты')+' '+ (m?y:'');
+    var lbl=(m?MN[m]:'без даты')+(m?(' '+y):'');
     h+='<details class="ledger" style="margin-bottom:8px;padding:10px 12px"'+(idx===0?' open':'')+'>'
-      +'<summary style="cursor:pointer;list-style:none"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><b style="font-size:13px;text-transform:uppercase">'+lbl+'</b><span style="font-size:11px;color:var(--mut)">'+list.length+' опер. ▾</span></div>'
-      +'<div style="font-size:11.5px;color:var(--mut);margin-top:3px">'+(bits.join(' · ')||'')+'</div></summary>';
+      +'<summary style="cursor:pointer;list-style:none"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><b style="font-size:13px;text-transform:uppercase">'+lbl+'</b><span style="font-size:11px;color:var(--mut)">'+(restM!==0?('остаток '+(restM>0?'':'\u2212')+fmt0(Math.abs(restM))):'закрыт')+' \u25be</span></div>'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:5px;margin-top:7px;text-align:center">'
+        +'<div style="background:var(--sur2);border-radius:7px;padding:6px 3px"><div style="font-size:10px;color:var(--mut)">Зарплата</div><div class="num" style="font-size:12.5px;font-weight:700;color:var(--green)">'+fmt0(oklad+t.acc)+'</div></div>'
+        +'<div style="background:var(--sur2);border-radius:7px;padding:6px 3px"><div style="font-size:10px;color:var(--mut)">Бонус</div><div class="num" style="font-size:12.5px;font-weight:700;color:var(--gold)">'+fmt0(t.bon)+'</div></div>'
+        +'<div style="background:var(--sur2);border-radius:7px;padding:6px 3px"><div style="font-size:10px;color:var(--mut)">Выплачено</div><div class="num" style="font-size:12.5px;font-weight:700">'+fmt0(t.pay+t.pen)+'</div></div>'
+        +'<div style="background:var(--sur2);border-radius:7px;padding:6px 3px"><div style="font-size:10px;color:var(--mut)">Остаток</div><div class="num" style="font-size:12.5px;font-weight:700;color:'+(restM>0?'var(--gold)':(restM<0?'var(--teal)':'var(--mut)'))+'">'+(restM<0?'\u2212':'')+fmt0(Math.abs(restM))+'</div></div>'
+      +'</div>'
+      +((t.own||t.ret||t.advIn||t.advSpent||t.advOut||t.inv)?('<div style="font-size:11px;color:var(--mut);margin-top:5px">'+[t.own?('на свои '+fmt0(t.own)):'',t.ret?('возвраты '+fmt0(t.ret)):'',t.advIn?('подотчёт +'+fmt0(t.advIn)):'',(t.advSpent+t.advOut)?('закрыл '+fmt0(t.advSpent+t.advOut)):'',t.inv?('вложил '+fmt0(t.inv)):''].filter(Boolean).join(' \u00b7 ')+'</div>'):'')
+      +'</summary>';
+    if(oklad>0) h+='<div style="display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-top:1px solid var(--brd);font-size:12.5px"><span>\ud83e\uddfe Оклад за '+lbl+' <span style="color:var(--mut)">\u00b7 '+(p.payMethod==='day'?'по дням':'авто')+'</span></span><b class="num" style="color:var(--green)">'+fmt0(oklad)+'</b></div>';
     list.forEach(function(r){
       h+='<div style="display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-top:1px solid var(--brd);font-size:12.5px">'
-        +'<span style="min-width:0">'+r.i+' '+r.l+(r.n?(' <span style="color:var(--mut)">· '+esc(String(r.n).slice(0,38))+'</span>'):'')+'<span style="color:var(--mut)"> · '+(r.d.slice(8,10)+'.'+r.d.slice(5,7))+'</span></span>'
+        +'<span style="min-width:0">'+r.i+' '+r.l+(r.n?(' <span style="color:var(--mut)">\u00b7 '+esc(String(r.n).slice(0,38))+'</span>'):'')+'<span style="color:var(--mut)"> \u00b7 '+(r.d.slice(8,10)+'.'+r.d.slice(5,7))+'</span></span>'
         +'<b class="num" style="white-space:nowrap;color:'+r.c+'">'+fmt0(r.a)+'</b></div>';
     });
     h+='</details>';
   });
+  if(oNow){ var rC=oNow.rest>0?'var(--gold)':(oNow.rest<0?'var(--teal)':'var(--mut)');
+    h+='<div class="ledger" style="display:flex;justify-content:space-between;align-items:baseline;padding:10px 12px"><span style="font-size:12px;color:var(--mut)">ИТОГО к выдаче сейчас'+(oNow.bonusKS2?'<span style="font-size:10.5px"> (с премией по КС-2)</span>':'')+'</span><b class="num" style="font-size:16px;color:'+rC+'">'+(oNow.rest<0?'\u2212':'')+fmt0(Math.abs(oNow.rest))+' \u20b8</b></div>'; }
   return h;
 }
 function openStaffCard(p){
