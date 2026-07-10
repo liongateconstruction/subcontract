@@ -809,14 +809,16 @@ function _wdInMonth(y,m){ var d=new Date(y,m,0).getDate(),c=0; for(var i=1;i<=d;
 function _wdBetween(d1,d2){ if(!d1||!d2||d2<d1) return 0; var c=0,a=new Date(d1.getFullYear(),d1.getMonth(),d1.getDate()),b=new Date(d2.getFullYear(),d2.getMonth(),d2.getDate()); while(a<=b){ if(a.getDay()!==0)c++; a.setDate(a.getDate()+1); } return c; }
 function isSalaried(p){ return !!(p && (p.payMethod==='day'||p.payMethod==='oklad') && (+p.rate>0) && p.hireDate); }
 function _pd(s){ return new Date(s+'T00:00:00'); }
+// Нерабочие дни (p.absences=['YYYY-MM-DD']): рабочие дни-прогулы в диапазоне (воскресенья не считаются — они и так выходной).
+function absWd(p,sS,sE){ var seen={},c=0; ((p&&p.absences)||[]).forEach(function(d){ if(!d||seen[d])return; seen[d]=1; var dd=_pd(String(d).slice(0,10)); if(dd>=sS&&dd<=sE&&dd.getDay()!==0)c++; }); return c; }
 function autoSalaryToDate(p, now){ if(!isSalaried(p)) return 0; now=now||new Date();
   var start=_pd(p.hireDate), end=new Date(now.getFullYear(),now.getMonth(),now.getDate());
   if(p.fireDate){ var f=_pd(p.fireDate); if(f<end)end=f; } if(end<start) return 0;
-  if(p.payMethod==='day') return _wdBetween(start,end)*(+p.rate);
+  if(p.payMethod==='day') return Math.max(0,_wdBetween(start,end)-absWd(p,start,end))*(+p.rate);
   var total=0,cur=new Date(start.getFullYear(),start.getMonth(),1);
   while(cur<=end){ var y=cur.getFullYear(),m=cur.getMonth()+1,mS=new Date(y,m-1,1),mE=new Date(y,m,0);
     var sS=start>mS?start:mS, sE=end<mE?end:mE;
-    if(sE>=sS){ var w=_wdBetween(sS,sE),wm=_wdInMonth(y,m); if(wm>0)total+=Math.round((+p.rate)*w/wm); }
+    if(sE>=sS){ var w=Math.max(0,_wdBetween(sS,sE)-absWd(p,sS,sE)),wm=_wdInMonth(y,m); if(wm>0)total+=Math.round((+p.rate)*w/wm); }
     cur.setMonth(cur.getMonth()+1); }
   return total; }
 function staffBal(p){ var a=0,b=0,pay=0,pen=0; (p.ledger||[]).forEach(function(m){ var v=+m.amount||0; if(m.kind==='acc')a+=v; else if(m.kind==='bon'||m.kind==='bonus')b+=v; else if(m.kind==='pay')pay+=v; else if(m.kind==='pen')pen+=v; }); var auto=autoSalaryToDate(p); a+=auto; return {acc:a,bon:b,pay:pay,pen:pen,auto:auto,rest:a+b-pay-pen}; }
@@ -6503,7 +6505,7 @@ function autoSalaryByMonth(p){
   var cur=new Date(start.getFullYear(),start.getMonth(),1);
   while(cur<=end){ var y=cur.getFullYear(),m=cur.getMonth()+1,mS=new Date(y,m-1,1),mE=new Date(y,m,0);
     var sS=start>mS?start:mS, sE=end<mE?end:mE;
-    if(sE>=sS){ var w=_wdBetween(sS,sE); var v=(p.payMethod==='day')?w*(+p.rate):(function(){var wm=_wdInMonth(y,m);return wm>0?Math.round((+p.rate)*w/wm):0;})();
+    if(sE>=sS){ var w=Math.max(0,_wdBetween(sS,sE)-absWd(p,sS,sE)); var v=(p.payMethod==='day')?w*(+p.rate):(function(){var wm=_wdInMonth(y,m);return wm>0?Math.round((+p.rate)*w/wm):0;})();
       if(v>0) out[y+'-'+String(m).padStart(2,'0')]=v; }
     cur.setMonth(cur.getMonth()+1); }
   return out;
@@ -6550,6 +6552,73 @@ function foremanBonusByMonth(view,p){
   }
   return out;
 }
+// Календарь нерабочих дней: тап по дню — отметить/снять, оклад пересчитывается сразу.
+function absCalNav(staffId,delta){
+  var ym=LG.absCalYM||new Date().toISOString().slice(0,7);
+  var d=new Date(+ym.slice(0,4), +ym.slice(5,7)-1+delta, 1);
+  LG.absCalYM=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+  try{ var o=(staffList(projected(LG.base,LG.queue))||[]).find(function(x){return x.id===staffId;}); if(o) openStaffCard(o); }catch(_){}
+}
+function staffAbsToggle(staffId,dt){
+  if(_pd(dt).getDay()===0){ toast('Воскресенье и так выходной'); return; }
+  var raw=((projected(LG.base,LG.queue).staff)||[]).find(function(x){return x&&x.id===staffId;})||{};
+  var arr=(raw.absences||[]).slice(); var i=arr.indexOf(dt);
+  if(i>=0){ arr.splice(i,1); toast('День возвращён в рабочие'); } else { arr.push(dt); arr.sort(); toast('📅 '+dt.split('-').reverse().join('.')+' — не работал'); }
+  emit({kind:'staff.edit', entryId:staffId, payload:{absences:arr}});
+  try{ var o=(staffList(projected(LG.base,LG.queue))||[]).find(function(x){return x.id===staffId;}); if(o) openStaffCard(o); }catch(_){}
+}
+function absCalHTML(staffId, raw){
+  var ym=LG.absCalYM||new Date().toISOString().slice(0,7);
+  var y=+ym.slice(0,4), m=+ym.slice(5,7);
+  var dim=new Date(y,m,0).getDate(), first=(new Date(y,m-1,1).getDay()+6)%7;
+  var abs={}; ((raw&&raw.absences)||[]).forEach(function(d){ abs[String(d).slice(0,10)]=1; });
+  var hire=(raw&&raw.hireDate)?String(raw.hireDate).slice(0,10):'';
+  var today=new Date().toISOString().slice(0,10);
+  var MN=['','Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+  var h='<div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px">'
+    +'<button onclick="absCalNav(\''+staffId+'\',-1)" style="background:var(--sur2);border:1px solid var(--brd);color:var(--fg);border-radius:8px;padding:6px 14px;font-size:15px;cursor:pointer">‹</button>'
+    +'<b style="font-size:14px">'+MN[m]+' '+y+'</b>'
+    +'<button onclick="absCalNav(\''+staffId+'\',1)" style="background:var(--sur2);border:1px solid var(--brd);color:var(--fg);border-radius:8px;padding:6px 14px;font-size:15px;cursor:pointer">›</button></div>';
+  h+='<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:8px;text-align:center">';
+  ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].forEach(function(w,i){ h+='<div style="font-size:10px;color:'+(i===6?'var(--red)':'var(--mut)')+';padding:2px 0">'+w+'</div>'; });
+  for(var b=0;b<first;b++) h+='<div></div>';
+  for(var i=1;i<=dim;i++){
+    var dt=ym+'-'+String(i).padStart(2,'0');
+    var isSun=new Date(y,m-1,i).getDay()===0;
+    var preHire=hire&&dt<hire;
+    var marked=!!abs[dt];
+    var st='padding:8px 0;border-radius:8px;font-size:13px;user-select:-webkit-user-select:none;';
+    if(isSun) st+='color:var(--mut);opacity:.35;';
+    else if(preHire) st+='color:var(--mut);opacity:.3;';
+    else if(marked) st+='background:rgba(248,81,73,.25);border:1px solid var(--red);color:var(--red);font-weight:800;cursor:pointer;';
+    else st+='background:var(--sur2);border:1px solid var(--brd);cursor:pointer;';
+    if(dt===today) st+='box-shadow:0 0 0 1.5px var(--gold) inset;';
+    h+='<div class="num" '+((isSun||preHire)?'':('onclick="staffAbsToggle(\''+staffId+'\',\''+dt+'\')"'))+' style="'+st+'">'+i+'</div>';
+  }
+  h+='</div>';
+  var cnt=Object.keys(abs).filter(function(d){return d.slice(0,7)===ym;}).length;
+  h+='<div style="font-size:11px;color:var(--mut);margin-top:7px">'+(cnt?('в этом месяце не работал: <b style="color:var(--red)">'+cnt+' дн</b> · '):'')+'красный — не работал (вычтен из оклада), тап по дню — отметить/снять</div>';
+  return h;
+}
+// Нерабочие дни сотрудника (владелец): отметить/убрать дату — оклад пересчитывается автоматически.
+function staffAbsAdd(staffId){
+  var dt=String((document.getElementById('abs-date')||{}).value||'').slice(0,10);
+  if(!dt){ toast('Выбери дату'); return; }
+  if(_pd(dt).getDay()===0){ toast('Воскресенье и так выходной — не вычитается'); return; }
+  var raw=((projected(LG.base,LG.queue).staff)||[]).find(function(x){return x&&x.id===staffId;})||{};
+  var arr=(raw.absences||[]).slice(); if(arr.indexOf(dt)>=0){ toast('Этот день уже отмечен'); return; }
+  arr.push(dt); arr.sort();
+  emit({kind:'staff.edit', entryId:staffId, payload:{absences:arr}});
+  toast('📅 '+dt.split('-').reverse().join('.')+' — не работал, оклад пересчитан');
+  try{ var o=(staffList(projected(LG.base,LG.queue))||[]).find(function(x){return x.id===staffId;}); if(o) openStaffCard(o); }catch(_){}
+}
+function staffAbsDel(staffId,dt){
+  var raw=((projected(LG.base,LG.queue).staff)||[]).find(function(x){return x&&x.id===staffId;})||{};
+  var arr=(raw.absences||[]).filter(function(d){return d!==dt;});
+  emit({kind:'staff.edit', entryId:staffId, payload:{absences:arr}});
+  toast('День возвращён в рабочие');
+  try{ var o=(staffList(projected(LG.base,LG.queue))||[]).find(function(x){return x.id===staffId;}); if(o) openStaffCard(o); }catch(_){}
+}
 function staffBonusAdd(staffId){
   var amt=Math.round(Number((document.getElementById('bon-amt')||{}).value)||0);
   var dt=String((document.getElementById('bon-date')||{}).value||'').slice(0,10)||new Date().toISOString().slice(0,10);
@@ -6580,7 +6649,7 @@ function staffHistoryHTML(view,p){
     else if(e.type==='advance'&&e.from===nm) add(e.date,'\ud83d\udc5b','Передал дальше',a,'var(--blue)',e.note,'advOut');
     else if(e.type==='invest'&&e.who===nm) add(e.date,'\ud83d\udcbc','Вложение в кассу',a,'var(--green)',e.note,'inv');
   });
-  var sal=autoSalaryByMonth(p);
+  var sal=autoSalaryByMonth(_raw);
   var autoB={}; try{ autoB=foremanBonusByMonth(view,_raw); }catch(_){}
   var monthsSet={}; rows.forEach(function(r){ monthsSet[r.d.slice(0,7)||'0000-00']=1; }); Object.keys(sal).forEach(function(k){ monthsSet[k]=1; }); Object.keys(autoB).forEach(function(k){ monthsSet[k]=1; });
   var order=Object.keys(monthsSet).sort().reverse();
@@ -6595,6 +6664,7 @@ function staffHistoryHTML(view,p){
     var t={pay:0,acc:0,bon:0,ret:0,own:0,advIn:0,advSpent:0,advOut:0,pen:0,inv:0};
     list.forEach(function(r){ t[r.g]=(t[r.g]||0)+r.a; });
     var oklad=sal[mk]||0, autoBM=autoB[mk]||0;
+    var absM=0; try{ var _y2=parseInt(mk.slice(0,4),10),_m2=parseInt(mk.slice(5,7),10); if(_m2) absM=absWd(_raw,new Date(_y2,_m2-1,1),new Date(_y2,_m2,0)); }catch(_){}
     var accrM=oklad+t.acc+t.bon+autoBM, restM=accrM-t.pay-t.pen;
     var y=mk.slice(0,4), m=parseInt(mk.slice(5,7),10)||0;
     var lbl=(m?MN[m]:'без даты')+(m?(' '+y):'');
@@ -6606,6 +6676,7 @@ function staffHistoryHTML(view,p){
         +'<div style="background:var(--sur2);border-radius:7px;padding:6px 3px"><div style="font-size:10px;color:var(--mut)">Выплачено</div><div class="num" style="font-size:12.5px;font-weight:700">'+fmt0(t.pay+t.pen)+'</div></div>'
         +'<div style="background:var(--sur2);border-radius:7px;padding:6px 3px"><div style="font-size:10px;color:var(--mut)">Остаток</div><div class="num" style="font-size:12.5px;font-weight:700;color:'+(restM>0?'var(--gold)':(restM<0?'var(--teal)':'var(--mut)'))+'">'+(restM<0?'\u2212':'')+fmt0(Math.abs(restM))+'</div></div>'
       +'</div>'
+      +(absM>0?('<div style="font-size:11px;color:var(--blue);margin-top:5px">📅 не работал '+absM+' дн — оклад уменьшен</div>'):'')
       +((t.own||t.ret||t.advIn||t.advSpent||t.advOut||t.inv)?('<div style="font-size:11px;color:var(--mut);margin-top:5px">'+[t.own?('на свои '+fmt0(t.own)):'',t.ret?('возвраты '+fmt0(t.ret)):'',t.advIn?('подотчёт +'+fmt0(t.advIn)):'',(t.advSpent+t.advOut)?('закрыл '+fmt0(t.advSpent+t.advOut)):'',t.inv?('вложил '+fmt0(t.inv)):''].filter(Boolean).join(' \u00b7 ')+'</div>'):'')
       +'</summary>';
     if(oklad>0) h+='<div style="display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-top:1px solid var(--brd);font-size:12.5px"><span>\ud83e\uddfe Оклад за '+lbl+' <span style="color:var(--mut)">\u00b7 '+(p.payMethod==='day'?'по дням':'авто')+'</span></span><b class="num" style="color:var(--green)">'+fmt0(oklad)+'</b></div>';
@@ -6642,6 +6713,15 @@ function openStaffCard(p){
     +'<div style="background:var(--sur2);border-radius:8px;padding:8px"><div style="font-size:11px;color:var(--mut)">Выплачено</div><div class="num" style="font-weight:700">'+fmt0(p.paid)+'</div></div>'
     +'<div style="background:var(--sur2);border-radius:8px;padding:8px"><div style="font-size:11px;color:var(--mut)">Удержано</div><div class="num" style="color:var(--red);font-weight:700">'+fmt0(p.held||0)+'</div></div></div></div>';
   if(canWriteLedger()){
+    var _rawAbs=(((projected(LG.base,LG.queue).staff)||[]).find(function(x){return x&&x.id===p.id;})||{}).absences||[];
+    var _absList=_rawAbs.slice().sort().reverse().slice(0,31).map(function(d){
+      return '<span style="display:inline-flex;align-items:center;gap:5px;background:var(--sur2);border:1px solid var(--brd);border-radius:8px;padding:4px 8px;font-size:12px" class="num">'+d.split('-').reverse().join('.')
+        +'<span onclick="staffAbsDel(\''+esc(p.id)+'\',\''+d+'\')" style="cursor:pointer;color:var(--red);font-weight:800">✕</span></span>';
+    }).join(' ');
+    h+='<details class="ledger" style="margin-top:12px;padding:10px 12px"><summary style="cursor:pointer;list-style:none;font-size:13px;font-weight:700;color:var(--blue)">📅 Нерабочие дни <span style="font-weight:400;color:var(--mut)">— вычитаются из оклада'+(_rawAbs.length?(' · '+_rawAbs.length):'')+' ▾</span></summary>'
+      +absCalHTML(p.id, (((projected(LG.base,LG.queue).staff)||[]).find(function(x){return x&&x.id===p.id;})||{}))
+      +'<div style="font-size:11px;color:var(--mut);margin-top:7px;line-height:1.5">1 день ≈ ставка ÷ рабочие дни месяца. Воскресенья не вычитаются — они и так выходной. Листай ‹ › для прошлых месяцев.</div>'
+      +'</details>';
     h+='<details class="ledger" style="margin-top:12px;padding:10px 12px"><summary style="cursor:pointer;list-style:none;font-size:13px;font-weight:700;color:var(--gold)">⭐ Начислить бонус <span style="font-weight:400;color:var(--mut)">— в любой месяц ▾</span></summary>'
       +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">'
       +'<input id="bon-date" type="date" value="'+new Date().toISOString().slice(0,10)+'" style="padding:10px;background:var(--sur2);border:1px solid var(--brd);border-radius:9px;color:var(--fg);font-size:14px"/>'
