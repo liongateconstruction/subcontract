@@ -273,7 +273,7 @@
 
 <!-- Универсальный лист (Ещё: стратегия, отчёт, инфо). Экраны складываются в стек: «‹» — назад, «✕» — закрыть всё. -->
 <div class="ov" id="ov-sheet" style="align-items:flex-end">
-  <div class="sheet" style="max-height:calc(100dvh - var(--safe-t) - 10px);overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:auto;overscroll-behavior:contain;padding-top:0">
+  <div class="sheet" style="max-height:calc(100dvh - var(--safe-t) - 10px);overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding-top:0">
     <div style="position:sticky;top:0;z-index:6;background:var(--sur);display:flex;align-items:center;gap:10px;padding:16px 0 12px;border-bottom:1px solid var(--brd);margin-bottom:12px">
       <button id="sheet-back" onclick="lgSheetBack()" style="display:none;flex:none;background:var(--sur2);border:none;color:var(--fg);font-size:14px;font-weight:700;height:40px;padding:0 15px;border-radius:20px;cursor:pointer">‹ Назад</button>
       <h3 id="sheet-title" style="margin:0;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">—</h3>
