@@ -6670,7 +6670,7 @@ function staffHistoryHTML(view,p){
     var accrM=oklad+t.acc+t.bon+autoBM, restM=accrM-t.pay-t.pen;
     var y=mk.slice(0,4), m=parseInt(mk.slice(5,7),10)||0;
     var lbl=(m?MN[m]:'без даты')+(m?(' '+y):'');
-    h+='<details class="ledger" style="margin-bottom:8px;padding:10px 12px"'+(idx===0?' open':'')+'>'
+    h+='<details class="ledger" style="margin-bottom:8px;padding:10px 12px"'+(idx<2?' open':'')+'>'
       +'<summary style="cursor:pointer;list-style:none"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><b style="font-size:13px;text-transform:uppercase">'+lbl+'</b><span style="font-size:11px;color:var(--mut)">'+(restM!==0?('остаток '+(restM>0?'':'\u2212')+fmt0(Math.abs(restM))):'закрыт')+' \u25be</span></div>'
       +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:5px;margin-top:7px;text-align:center">'
         +'<div style="background:var(--sur2);border-radius:7px;padding:6px 3px"><div style="font-size:10px;color:var(--mut)">Зарплата</div><div class="num" style="font-size:12.5px;font-weight:700;color:var(--green)">'+fmt0(oklad+t.acc)+'</div></div>'
