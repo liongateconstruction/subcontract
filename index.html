@@ -5370,7 +5370,7 @@ function renderEntryFields(){
     var _ptOpts=partnerNames(view).map(function(n){return ['P|'+n, n];}).concat(_pplo.map(function(s){return ['S|'+s.id, (s.name||'')+(s.isConsult?' · консультант':' · сотрудник')];}));
     if(d.who && partnerNames(view).indexOf(d.who)<0) _ptOpts.unshift(['P|'+d.who, d.who+' · возврат за свои']);
     var _ptSel=d.forStaffId?('S|'+d.forStaffId):('P|'+(d.who||'Дмитрий'));
-    h+=fld('Кому выплата','<select id="in-payto">'+selOpts(_ptOpts, _ptSel)+'</select>')+'<div style="font-size:11px;color:var(--mut);margin:-7px 2px 13px;line-height:1.5">Партнёр — вернуть подотчёт. Сотрудник/консультант — выплата по лицевому счёту (уменьшит его «к выдаче»).</div>';
+    h+=fld('Кому выплата','<select id="in-payto">'+selOpts(_ptOpts, _ptSel)+'</select>')+fld('Зачесть в месяц (расчётный листок)','<input id="in-paymonth" type="month" value="'+esc(d.payMonth||new Date().toISOString().slice(0,7))+'"/>')+'<div style="font-size:11px;color:var(--mut);margin:-7px 2px 13px;line-height:1.5">Партнёр — вернуть подотчёт. Сотрудник/консультант — выплата по лицевому счёту (уменьшит его «к выдаче»).</div>';
     h+=fld('Сумма, ₸',amtInput);
   }
   document.getElementById('entry-body').innerHTML=h+(LG.draft.editId?'<button type="button" onclick="deleteEntry(\''+esc(String(LG.draft.editId))+'\')" style="width:100%;margin-top:8px;background:transparent;border:1px solid var(--red);color:var(--red);border-radius:10px;padding:11px;font-size:14px;font-weight:700;cursor:pointer">🗑 Удалить запись</button>':'');
@@ -5552,7 +5552,7 @@ function saveEntry(){
       var esp=gv('in-spot'); if(esp){ p.spotId=esp; p.spot=esp; var smeta=(view.objMeta&&view.objMeta[obj])||{}; var ess=(smeta.spots||[]).find(function(s){return s.id===esp;}); p.zone=ess?ess.name:''; } }
     else if(d.type==='advance'){ p.from=gv('in-from'); p.to=gv('in-to'); p.paySource=gv('in-src')||'own'; if(p.from===p.to){ document.getElementById('entry-err').textContent='«От» и «Кому» должны отличаться.'; return; } }
     else if(d.type==='invest'){ p.who=gv('in-who'); }
-    else if(d.type==='payout'){ var ptv=gv('in-payto')||''; if(ptv.indexOf('S|')===0){ var sid=ptv.slice(2); var _fpp=(staffList(view)||[]).find(function(x){return x.id===sid;}); p.forStaffId=sid; p.forStaff=_fpp?_fpp.name:''; p.who=_fpp?_fpp.name:''; p.consultPay=true; } else { p.who=ptv.indexOf('P|')===0?ptv.slice(2):(ptv||'Дмитрий'); p.forStaffId=''; p.forStaff=''; p.consultPay=false; } }
+    else if(d.type==='payout'){ var ptv=gv('in-payto')||''; if(ptv.indexOf('S|')===0){ var sid=ptv.slice(2); var _fpp=(staffList(view)||[]).find(function(x){return x.id===sid;}); p.forStaffId=sid; p.forStaff=_fpp?_fpp.name:''; p.who=_fpp?_fpp.name:''; p.consultPay=true; } else { p.who=ptv.indexOf('P|')===0?ptv.slice(2):(ptv||'Дмитрий'); p.forStaffId=''; p.forStaff=''; p.consultPay=false; } p.payMonth=gv('in-paymonth')||''; }
   }
   if(LG.draft.editId){ emit({ kind:'entry.edit', entryId:LG.draft.editId, payload:p }); }
   else { p.ts=Date.now(); emit({ kind:'entry.add', payload:p }); }
@@ -6633,15 +6633,15 @@ function staffBonusAdd(staffId){
 function staffHistoryHTML(view,p){
   var nm=p.name||''; var rows=[];
   var _raw=(view.staff||[]).find(function(x){return x&&x.id===p.id;})||p;
-  function add(date,icon,label,amount,col,note,grp){ if(!(Number(amount)>0))return; rows.push({d:String(date||'').slice(0,10),i:icon,l:label,a:Number(amount)||0,c:col,n:note||'',g:grp}); }
+  function add(date,icon,label,amount,col,note,grp,payMonth){ if(!(Number(amount)>0))return; rows.push({d:String(date||'').slice(0,10),i:icon,l:label,a:Number(amount)||0,c:col,n:note||'',g:grp,mk:(payMonth&&/^\d{4}-\d{2}$/.test(payMonth))?payMonth:''}); }
   (_raw.ledger||[]).forEach(function(m){ if(!m)return; var k=m.kind;
     if(k==='acc') add(m.date,'\u2795','Начислено (вручную)',m.amount,'var(--green)',m.note,'acc');
     else if(k==='bon'||k==='bonus') add(m.date,'\ud83d\udc51','Спец-бонус от владельца',m.amount,'var(--gold)',m.note,'bon');
-    else if(k==='pay') add(m.date,'\ud83d\udcb8','Выплата',m.amount,'var(--fg)',m.note,'pay');
+    else if(k==='pay') add(m.date,'\ud83d\udcb8','Выплата',m.amount,'var(--fg)',m.note,'pay',m.payMonth);
     else if(k==='pen') add(m.date,'\u26d4','Удержание',m.amount,'var(--red)',m.note,'pen');
   });
   (view.entries||[]).forEach(function(e){ if(!e)return; var a=Number(e.amount)||0;
-    if(e.type==='payout'&&e.forStaffId===p.id) add(e.date,'\ud83d\udcb8','Выплата',a,'var(--fg)',e.note,'pay');
+    if(e.type==='payout'&&e.forStaffId===p.id) add(e.date,'\ud83d\udcb8','Выплата',a,'var(--fg)',e.note,'pay',e.payMonth);
     else if(e.type==='payout'&&e.who===nm&&!e.forStaffId) add(e.date,'\ud83d\udcb5','Компания вернула за свои',a,'var(--teal)',e.note,'ret');
     else if(e.type==='expense'&&e.who===nm){ var src=e.paySource||'advance';
       if(src==='own') add(e.date,'\ud83d\uded2','Купил на свои',a,'var(--orange)',e.note,'own');
@@ -6653,10 +6653,10 @@ function staffHistoryHTML(view,p){
   });
   var sal=autoSalaryByMonth(_raw);
   var autoB={}; try{ autoB=foremanBonusByMonth(view,_raw); }catch(_){}
-  var monthsSet={}; rows.forEach(function(r){ monthsSet[r.d.slice(0,7)||'0000-00']=1; }); Object.keys(sal).forEach(function(k){ monthsSet[k]=1; }); Object.keys(autoB).forEach(function(k){ monthsSet[k]=1; });
+  var monthsSet={}; rows.forEach(function(r){ monthsSet[r.mk||r.d.slice(0,7)||'0000-00']=1; }); Object.keys(sal).forEach(function(k){ monthsSet[k]=1; }); Object.keys(autoB).forEach(function(k){ monthsSet[k]=1; });
   var order=Object.keys(monthsSet).sort().reverse();
   if(!order.length) return '';
-  var byMon={}; rows.forEach(function(r){ var mk=r.d.slice(0,7)||'0000-00'; (byMon[mk]=byMon[mk]||[]).push(r); });
+  var byMon={}; rows.forEach(function(r){ var mk=r.mk||r.d.slice(0,7)||'0000-00'; (byMon[mk]=byMon[mk]||[]).push(r); });
   var MN=['','январь','февраль','март','апрель','май','июнь','июль','август','сентябрь','октябрь','ноябрь','декабрь'];
   // «к выдаче сейчас» — ровно как в карточке (staffList)
   var oNow=null; try{ oNow=(staffList(view)||[]).find(function(x){return x.id===p.id;})||null; }catch(_){}
@@ -6685,7 +6685,7 @@ function staffHistoryHTML(view,p){
     if(autoBM>0) h+='<div style="display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-top:1px solid var(--brd);font-size:12.5px"><span>\u2b50 Премия по КС-2 за '+lbl+' <span style="color:var(--mut)">\u00b7 авто, по принятым объёмам</span></span><b class="num" style="color:var(--gold)">'+fmt0(autoBM)+'</b></div>';
     list.forEach(function(r){
       h+='<div style="display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-top:1px solid var(--brd);font-size:12.5px">'
-        +'<span style="min-width:0">'+r.i+' '+r.l+(r.n?(' <span style="color:var(--mut)">\u00b7 '+esc(String(r.n).slice(0,38))+'</span>'):'')+'<span style="color:var(--mut)"> \u00b7 '+(r.d.slice(8,10)+'.'+r.d.slice(5,7))+'</span></span>'
+        +'<span style="min-width:0">'+r.i+' '+r.l+((r.mk&&r.mk!==r.d.slice(0,7))?' <span style="color:var(--teal);font-size:11px">зачтено в этот месяц</span>':'')+(r.n?(' <span style="color:var(--mut)">\u00b7 '+esc(String(r.n).slice(0,38))+'</span>'):'')+'<span style="color:var(--mut)"> \u00b7 '+(r.d.slice(8,10)+'.'+r.d.slice(5,7))+'</span></span>'
         +'<b class="num" style="white-space:nowrap;color:'+r.c+'">'+fmt0(r.a)+'</b></div>';
     });
     h+='</details>';
